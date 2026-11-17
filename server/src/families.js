@@ -30,6 +30,16 @@ export async function requireFamilyRole(db, req, familyId, roles) {
 }
 
 // Famille de la session avec le rôle exigé ; 404 si la session n'a pas de famille.
+// Dans une transaction : adhésion relue et verrouillée (FOR SHARE) jusqu'au COMMIT.
+// Une rétrogradation ou un retrait simultané attend, ou fait refuser l'écriture.
+export async function lockOwnFamily(conn, req, roles) {
+  if (!req.user) throw new HttpError(401, 'Connexion requise.')
+  const { rows } = await conn.query('SELECT family_id, role FROM memberships WHERE user_id = $1 FOR SHARE', [req.user.id])
+  if (!rows[0]) throw notFound()
+  checkRole(rows[0].role, roles)
+  return { familyId: rows[0].family_id, role: rows[0].role }
+}
+
 // Une seule lecture de l'adhésion, faite à chaque requête.
 export async function requireOwnFamily(db, req, roles) {
   if (!req.user) throw new HttpError(401, 'Connexion requise.')

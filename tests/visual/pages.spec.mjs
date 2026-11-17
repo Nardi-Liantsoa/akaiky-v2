@@ -23,6 +23,10 @@ const PARENT = {
     id: '6f1c2b1e-0000-4000-8000-0000000000f1', name: 'Famille Rakoto', role: 'owner',
     members: [{ userId: HANTA.id, name: 'Hanta', role: 'owner', isMe: true }, { userId: '6f1c2b1e-0000-4000-8000-000000000002', name: 'Rivo', role: 'manager', isMe: false }]
   },
+  'GET /api/children': [
+    { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'yellow', createdAt: '2026-01-10T10:00:00Z' },
+    { id: '6f1c2b1e-0000-4000-8000-000000000102', firstName: 'Tiana', avatarColor: 'green', createdAt: '2026-01-11T10:00:00Z' }
+  ],
   'GET /api/families/me/invitations': [
     { id: '6f1c2b1e-0000-4000-8000-0000000000a1', email: 'mamie@exemple.fr', role: 'member', createdAt: '2026-01-14T10:00:00Z', expiresAt: '2026-01-21T10:00:00Z' }
   ]
@@ -39,6 +43,7 @@ const PAGES = [
   ['parent-accueil', '/espace', PARENT],
   ['parent-creer-famille', '/espace', SANS_FAMILLE],
   ['parent-famille', '/espace/famille', PARENT],
+  ['parent-ajouter-enfant', '/espace/enfant/nouveau', PARENT],
   ['invitation-sans-session', '/invitation#invite=' + 'T'.repeat(43), ANONYME]
 ]
 

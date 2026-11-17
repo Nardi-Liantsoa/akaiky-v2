@@ -3,7 +3,7 @@
 // « Ressources : propriétaire et règle par opération ».
 import { HttpError, audit, emailAddress, isUuid, text } from '../lib.js'
 import { withTransaction } from '../db.js'
-import { MANAGERS, ROLES, notFound, requireOwnFamily, roleDenied } from '../families.js'
+import { MANAGERS, ROLES, lockOwnFamily, notFound, requireOwnFamily, roleDenied } from '../families.js'
 import { createLimiter, newToken } from '../security.js'
 import { authEmails } from '../mailer.js'
 import { consumeQuota } from '../quotas.js'
@@ -142,11 +142,7 @@ export default async function familiesRoutes(app) {
     //    l'invitant est verrouillée (FOR SHARE) : une rétrogradation simultanée attend,
     //    puis supprime l'invitation avec les autres (même ordre de verrous que le retrait).
     const invitation = await transaction(async (conn) => {
-      const own = await requireOwnFamily(conn, req, MANAGERS)
-      const { rows: [still] } = await conn.query(
-        'SELECT 1 FROM memberships WHERE family_id = $1 AND user_id = $2 AND role = ANY($3::text[]) FOR SHARE',
-        [own.familyId, user.id, MANAGERS])
-      if (!still) throw roleDenied()
+      const own = await lockOwnFamily(conn, req, MANAGERS)
       await conn.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`invitations:${own.familyId}`])
       const { rows: [member] } = await conn.query(
         'SELECT 1 FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.family_id = $1 AND u.email = $2', [own.familyId, invitee])
