@@ -8,7 +8,7 @@ import ChildAvatar from '../../components/parent/ChildAvatar.vue'
 import { useT } from '../../composables/useT'
 import { AVATAR_COLORS, type AvatarColor } from '../../lib/avatar'
 import { contactErrorText } from '../../lib/contactErrors'
-import { children, loadChildren } from '../../store/children'
+import { children, loadChildren, selectChild } from '../../store/children'
 import { contacts, loadContacts } from '../../store/contacts'
 import { canManage, family, loadFamily } from '../../store/family'
 
@@ -54,7 +54,8 @@ watch(existing, (c) => {
   }
 }, { immediate: true })
 
-const back = () => router.push({ name: 'reglages' })
+// Retour sur les réglages de l'enfant de l'adresse, même s'il n'était pas celui affiché.
+const back = () => { selectChild(childId.value); return router.push({ name: 'reglages' }) }
 
 async function save() {
   if (busy.value || !valid.value) return
@@ -62,16 +63,20 @@ async function save() {
   error.value = ''
   // Membre lié envoyé seulement s'il a changé : un lien devenu caduc (membre parti)
   // ne fait pas échouer la modification d'un autre champ.
-  const memberChanged = id.value ? memberUserId.value !== (existing.value?.memberUserId ?? null) : memberUserId.value !== null
-  const input: ContactInput = {
-    name: name.value.trim(),
-    phone: phone.value.trim(),
-    ...(memberChanged ? { memberUserId: memberUserId.value } : {}),
-    ...(color.value ? { avatarColor: color.value } : {})
+  // En modification, seuls les champs changés partent : un enregistrement sans
+  // changement n'écrit rien, et ne défait pas la modification d'un autre gestionnaire.
+  const before = existing.value
+  const changed = <T,>(now: T, was: T | undefined) => !before || now !== was
+  const nameNow = name.value.trim(), phoneNow = phone.value.trim()
+  const input: Partial<ContactInput> = {
+    ...(changed(nameNow, before?.name) ? { name: nameNow } : {}),
+    ...(changed(phoneNow, before?.phone) ? { phone: phoneNow } : {}),
+    ...(before ? (memberUserId.value !== before.memberUserId ? { memberUserId: memberUserId.value } : {}) : (memberUserId.value !== null ? { memberUserId: memberUserId.value } : {})),
+    ...(color.value && changed(color.value, before?.avatarColor) ? { avatarColor: color.value } : {})
   }
   try {
-    if (id.value) await updateContact(id.value, input)
-    else await addContact(childId.value, input)
+    if (id.value) { if (Object.keys(input).length) await updateContact(id.value, input) }
+    else await addContact(childId.value, input as ContactInput)
     // Réglages relit la liste à son arrivée : pas de relecture ici.
     await back()
   } catch (e) {

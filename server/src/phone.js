@@ -5,8 +5,9 @@
 import { HttpError } from './lib.js'
 
 export const COUNTRIES = {
-  MG: { code: '261', local: /^0(\d{9})$/ }, // 034 12 345 67 → +261341234567
-  FR: { code: '33', local: /^0(\d{9})$/ } // 06 12 34 56 78 → +33612345678
+  // Premier chiffre après le 0 : 2 (fixe) ou 3 (mobile) à Madagascar, 1 à 9 en France.
+  MG: { code: '261', local: /^0([23]\d{8})$/ }, // 034 12 345 67 → +261341234567
+  FR: { code: '33', local: /^0([1-9]\d{8})$/ } // 06 12 34 56 78 → +33612345678
 }
 
 const invalid = () => new HttpError(400, 'Numéro de téléphone invalide.', 'invalid_phone')

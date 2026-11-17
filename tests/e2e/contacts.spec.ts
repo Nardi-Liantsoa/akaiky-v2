@@ -56,7 +56,7 @@ test('ajouter un contact puis le faire monter : liste, compteur et ordre', async
   expect(calls.filter((r) => r.method() === 'POST')[1].postDataJSON()).toEqual({ name: 'Mamie', phone: '033 12 345 67' })
 
   await expect(page.getByText('+261 34 12 345 67').first()).toBeVisible()
-  await expect(page.getByText('Papa · Parent principal')).toBeVisible()
+  await expect(page.getByRole('listitem').filter({ hasText: 'Papa' })).toContainText('Parent principal')
 
   await page.getByRole('button', { name: 'Monter Papa' }).click()
   await expect(page.getByRole('listitem').first()).toContainText('Papa')
@@ -116,6 +116,7 @@ test('modifier le nom d’un contact lié : le membre lié n’est pas renvoyé'
   await page.getByLabel('Nom affiché').fill('Papa Rakoto')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page).toHaveURL(/\/espace\/reglages$/)
+  // Seul le champ modifié part.
   const body = calls.find((r) => r.method() === 'PATCH')!.postDataJSON()
-  expect(body).toEqual({ name: 'Papa Rakoto', phone: '+261341111111', avatarColor: 'blue' })
+  expect(body).toEqual({ name: 'Papa Rakoto' })
 })

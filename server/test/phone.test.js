@@ -16,7 +16,7 @@ test('numéros normalisés en E.164', () => {
 })
 
 test('numéros invalides refusés', () => {
-  for (const v of ['', '12', '0341234', 'abc', '+0123456789', '+1234567', '0' + '1'.repeat(30), 123, null]) {
+  for (const v of ['0000000000', '0912345678', '', '12', '0341234', 'abc', '+0123456789', '+1234567', '0' + '1'.repeat(30), 123, null]) {
     assert.throws(() => normalizePhone(v), { status: 400 }, String(v))
   }
   assert.throws(() => normalizePhone('034 12 345 67', 'XX'), { status: 400 })

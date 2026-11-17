@@ -144,7 +144,7 @@ export default async function contactsRoutes(app) {
 
   app.delete('/contacts/:id', async (req) => {
     if (!isUuid(req.params.id)) throw contactNotFound()
-    await withTransaction(db, async (conn) => {
+    await unique(() => withTransaction(db, async (conn) => {
       const own = await lockFamilyMembers(conn, req, MANAGERS)
       const childId = await lockedContact(conn, own.familyId, req.params.id)
       await conn.query('DELETE FROM allowed_contacts WHERE id = $1 AND family_id = $2', [req.params.id, own.familyId])
@@ -154,14 +154,14 @@ export default async function contactsRoutes(app) {
            FROM (SELECT id, row_number() OVER (ORDER BY position) AS rank FROM allowed_contacts WHERE child_id = $1) n
           WHERE c.id = n.id AND c.position <> n.rank`, [childId])
       await audit(conn, req, 'contact_removed', req.params.id, { childId })
-    })
+    }))
     return { ok: true }
   })
 
   // Nouvel ordre : la liste complète des contacts de l'enfant, chacun une fois.
   app.put('/children/:childId/contacts/order', { schema: { body: ORDER } }, async (req) => {
     const ids = req.body.ids
-    await withTransaction(db, async (conn) => {
+    await unique(() => withTransaction(db, async (conn) => {
       const own = await lockFamilyMembers(conn, req, MANAGERS)
       await lockChild(conn, own.familyId, req.params.childId)
       const { rows } = await conn.query('SELECT id FROM allowed_contacts WHERE child_id = $1', [req.params.childId])
@@ -174,7 +174,7 @@ export default async function contactsRoutes(app) {
         `UPDATE allowed_contacts c SET position = o.rank
            FROM unnest($1::uuid[]) WITH ORDINALITY AS o(id, rank) WHERE c.id = o.id AND c.child_id = $2 AND c.position <> o.rank`, [ids, req.params.childId])
       if (rowCount) await audit(conn, req, 'contacts_reordered', req.params.childId)
-    })
+    }))
     return { ok: true }
   })
 }

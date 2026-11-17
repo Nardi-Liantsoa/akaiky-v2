@@ -32,9 +32,8 @@ async function move(index: number, delta: number) {
   }
   // Autre enfant choisi pendant l'enregistrement : Réglages charge déjà le sien.
   if (contacts.childId !== props.childId) { busy.value = false; return }
+  // Relecture en échec : Réglages l'annonce déjà (bandeau avec « Réessayer »).
   await loadContacts(props.childId, true)
-  // Ordre enregistré mais liste non relue : le dire, l'ordre affiché est périmé.
-  if (contacts.error && !error.value) error.value = `${t.value.contacts.loadError} ${contactErrorText(contacts.error, t.value)}`
   busy.value = false
 }
 </script>
@@ -52,7 +51,8 @@ async function move(index: number, delta: number) {
         <span class="rank" aria-hidden="true">{{ c.position }}</span>
         <ChildAvatar :name="c.name" :color="c.avatarColor" :size="36" />
         <span class="who">
-          <span class="name">{{ c.name }}<span v-if="c.memberRole" class="role"> · {{ t.family.roles[c.memberRole] }}</span></span>
+          <span class="name">{{ c.name }}</span>
+          <span v-if="c.memberRole" class="role">{{ t.family.roles[c.memberRole] }}</span>
           <span class="phone" data-selectable>{{ formatPhone(c.phone) }}</span>
         </span>
         <span v-if="canManage()" class="actions">
@@ -98,7 +98,7 @@ h2 {
 .list li {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 12px 0;
   border-bottom: 1px solid var(--border);
 }
@@ -116,22 +116,29 @@ h2 {
 }
 .name {
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 .role,
 .phone {
   color: var(--text-soft);
   font-weight: 600;
+  font-size: 0.92rem;
+}
+/* Un numéro ne se coupe jamais au milieu. */
+.phone {
+  white-space: nowrap;
 }
 .actions {
   display: flex;
-  gap: 4px;
+  flex: none;
+  gap: 2px;
 }
 .icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border: 1px solid var(--border-strong);
   border-radius: 50%;
   background: var(--surface);
