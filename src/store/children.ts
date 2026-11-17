@@ -1,6 +1,7 @@
 import { reactive, watch } from 'vue'
+import { ApiError } from '../api/http'
 import { listChildren, type Child } from '../api/children'
-import { auth } from './auth'
+import { auth, setUser } from './auth'
 import { family } from './family'
 
 // Enfants de la famille de la session et enfant sélectionné sur l'accueil.
@@ -59,6 +60,9 @@ export function loadChildren(force = false): Promise<void> {
     },
     (e: unknown) => {
       if (mine !== generation) return
+      // Session expirée ou révoquée : déconnexion (le routeur et la coquille
+      // renvoient vers la connexion), pas une panne à réessayer.
+      if (e instanceof ApiError && e.status === 401) { setUser(null); return }
       // Rechargement en échec : la liste connue reste affichée.
       if (children.status === 'ready') children.error = e
       else Object.assign(children, { status: 'error', error: e })
@@ -69,12 +73,13 @@ export function loadChildren(force = false): Promise<void> {
 }
 
 // Une liste demandée avant une modification locale est périmée : elle est
-// ignorée et redemandée, pour ne pas défaire l'ajout, la modification ou le retrait.
+// ignorée, pour ne pas défaire l'ajout, la modification ou le retrait. Elle n'est
+// redemandée que si aucune liste n'est encore connue (l'accueil relit de toute façon).
 function invalidateInFlight() {
   if (!pending) return
   generation++
   pending = null
-  void loadChildren(true)
+  if (children.status !== 'ready') void loadChildren(true)
 }
 
 // Réponse du serveur appliquée tout de suite (ajout ou modification), sans attendre un rechargement.

@@ -111,7 +111,17 @@ describe('enfants de la session', () => {
     dropChild('b')
     resolveOld([A, B])
     await old
-    await vi.waitFor(() => expect(children.items.map((c) => c.id)).toEqual(['a']))
-    expect(listChildren).toHaveBeenCalledTimes(3)
+    expect(children.items.map((c) => c.id)).toEqual(['a'])
+    // Liste déjà connue : pas de requête de plus (l'accueil relit à son arrivée).
+    expect(listChildren).toHaveBeenCalledTimes(2)
+  })
+
+  it('session expirée (401) : déconnexion, pas une erreur à réessayer', async () => {
+    login('u12')
+    const { ApiError } = await import('../api/http')
+    listChildren.mockRejectedValue(new ApiError(401, 'Connexion requise.'))
+    await loadChildren()
+    expect(auth.user).toBeNull()
+    expect(children.status).toBe('unknown')
   })
 })

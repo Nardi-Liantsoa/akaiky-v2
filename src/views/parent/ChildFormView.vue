@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { addChild, removeChild, updateChild } from '../../api/children'
 import { ApiError } from '../../api/http'
+import LoadError from '../../components/family/LoadError.vue'
 import ChildAvatar from '../../components/parent/ChildAvatar.vue'
 import { useT } from '../../composables/useT'
 import { AVATAR_COLORS, type AvatarColor } from '../../lib/avatar'
@@ -25,6 +26,11 @@ const confirming = ref(false)
 const valid = computed(() => { const n = [...name.value.trim()].length; return n >= 1 && n <= 40 })
 // Formulaire montré seulement à un gestionnaire, une fois la famille connue.
 const allowed = computed(() => family.status === 'ready' && canManage())
+
+// Enfant retiré ailleurs entre-temps : il quitte aussi la liste affichée.
+function forgetIfGone(e: unknown, childId: string | null) {
+  if (childId && e instanceof ApiError && e.code === 'child_not_found') dropChild(childId)
+}
 
 function message(e: unknown): string {
   if (e instanceof ApiError && e.code === 'too_many_children') return t.value.children.tooMany
@@ -71,6 +77,7 @@ async function save() {
     await router.push({ name: 'espace' })
   } catch (e) {
     error.value = message(e)
+    forgetIfGone(e, id.value)
   } finally {
     busy.value = false
   }
@@ -87,6 +94,7 @@ async function remove() {
     await router.push({ name: 'espace' })
   } catch (e) {
     error.value = message(e)
+    forgetIfGone(e, target)
   } finally {
     busy.value = false
   }
@@ -96,7 +104,8 @@ async function remove() {
 <template>
   <section>
     <h1>{{ existing ? t.children.editTitle(existing.firstName) : t.children.addTitle }}</h1>
-    <p v-if="!allowed" class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
+    <LoadError v-if="family.status === 'error'" />
+    <p v-else-if="!allowed" class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
     <div v-else-if="id && children.status === 'error'" class="error" role="alert">
       <p>{{ t.children.loadError }}</p>
       <button class="btn btn-ghost" type="button" @click="loadChildren(true)">{{ t.errors.retry }}</button>
