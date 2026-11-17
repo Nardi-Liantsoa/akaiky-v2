@@ -122,3 +122,22 @@ test('configuration : clé des données exigée en production, distincte de cell
   assert.throws(() => loadConfig({ ...base, DATA_ENCRYPTION_KEY: 'AB'.repeat(32) }), /différer/)
   assert.equal(loadConfig({ ...base, DATA_ENCRYPTION_KEY: 'cd'.repeat(32) }).dataKey, 'cd'.repeat(32))
 })
+
+test('gestionnaire rétrogradé pendant un ajout : jamais d’ajout après la rétrogradation', async () => {
+  for (let round = 0; round < 3; round++) {
+    const owner = await newUser(ctx)
+    await family(owner, `Course ${round}`)
+    const manager = await join(owner, 'manager')
+    const [added, demoted] = await Promise.all([
+      add(manager, `Enfant ${round}`),
+      call(ctx.app, 'PATCH', `/api/families/me/members/${manager.id}`, { cookie: owner.cookie, body: { role: 'member' } })
+    ])
+    assert.equal(demoted.statusCode, 200)
+    assert.ok([201, 403].includes(added.statusCode), added.body)
+    if (added.statusCode === 201) {
+      const { rows } = await ctx.db.query(
+        `SELECT action FROM audit_log WHERE (action = 'child_added' AND actor_id = $1) OR (action = 'member_role_changed' AND target = $1::text) ORDER BY id`, [manager.id])
+      assert.deepEqual(rows.map((r) => r.action), ['child_added', 'member_role_changed'])
+    }
+  }
+})

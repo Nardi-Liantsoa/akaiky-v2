@@ -105,3 +105,19 @@ test('plafond atteint : message traduit', async ({ page }) => {
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page.getByRole('alert')).toHaveText('Nombre maximal d’enfants atteint.')
 })
+
+test('modification avec la liste en échec : erreur et « Réessayer », jamais un ajout', async ({ page }) => {
+  let down = true
+  const calls = await mockApi(page, {
+    ...me,
+    'GET /api/families/me': () => ({ body: FAMILY }),
+    'GET /api/children': () => down ? { status: 503, body: { error: 'Indisponible.' } } : { body: [kid(1, 'Fy')] }
+  })
+  await page.goto(`/espace/enfant/${kid(1, 'Fy').id}`)
+  await expect(page.getByRole('alert')).toContainText('Impossible de charger les enfants.')
+  await expect(page.getByLabel('Prénom')).toHaveCount(0)
+  down = false
+  await page.getByRole('button', { name: 'Réessayer' }).click()
+  await expect(page.getByLabel('Prénom')).toHaveValue('Fy')
+  expect(calls.some((r) => r.method() === 'POST')).toBe(false)
+})

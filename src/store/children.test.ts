@@ -7,11 +7,13 @@ const store = new Map<string, string>()
 vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v), removeItem: (k: string) => store.delete(k) })
 
 const { auth } = await import('./auth')
+const { family } = await import('./family')
 const { children, loadChildren, selectChild, selectedChild } = await import('./children')
+const inFamily = (id: string) => { family.data = { id, name: id, role: 'owner', members: [] }; family.status = 'ready' }
 
 const A = { id: 'a', firstName: 'Fy', avatarColor: 'orange', createdAt: '' }
 const B = { id: 'b', firstName: 'Tiana', avatarColor: 'blue', createdAt: '' }
-const login = (id: string) => { auth.user = { id, email: `${id}@x.fr`, name: id, is_admin: false } }
+const login = (id: string, fam = 'f1') => { auth.user = { id, email: `${id}@x.fr`, name: id, is_admin: false }; inFamily(fam) }
 
 describe('enfants de la session', () => {
   beforeEach(() => { listChildren.mockReset(); store.clear(); auth.user = null })
@@ -29,7 +31,7 @@ describe('enfants de la session', () => {
     listChildren.mockResolvedValue([A, B])
     await loadChildren()
     selectChild('b')
-    expect(store.get('akaiky-v2.child')).toBe('b')
+    expect(store.get('akaiky-v2.child.u2')).toBe('b')
     auth.user = null; login('u2') // nouvelle session : état vidé, comme après un rechargement
     await loadChildren()
     expect(selectedChild()?.id).toBe('b')
@@ -39,12 +41,33 @@ describe('enfants de la session', () => {
 
   it('valeur retenue inconnue ou enfant retiré : retour au premier', async () => {
     login('u3')
-    store.set('akaiky-v2.child', 'disparu')
+    store.set('akaiky-v2.child.u3', 'disparu')
     listChildren.mockResolvedValue([A, B])
     await loadChildren()
     expect(selectedChild()?.id).toBe('a')
     selectChild('inconnu')
     expect(children.selectedId).toBe('a')
+  })
+
+  it('autre famille pour le même compte : liste vidée et rechargée', async () => {
+    login('u6', 'fA')
+    listChildren.mockResolvedValue([A])
+    await loadChildren()
+    inFamily('fB')
+    expect(children.items).toEqual([])
+    listChildren.mockResolvedValue([B])
+    await loadChildren()
+    expect(children.items.map((c) => c.id)).toEqual(['b'])
+  })
+
+  it('sélection retenue par compte : un autre compte de l’appareil ne la reprend pas', async () => {
+    login('u7')
+    listChildren.mockResolvedValue([A, B])
+    await loadChildren()
+    selectChild('b')
+    login('u8')
+    await loadChildren()
+    expect(selectedChild()?.id).toBe('a')
   })
 
   it('changement de compte : liste et sélection vidées aussitôt', async () => {

@@ -4,7 +4,7 @@
 import { randomUUID } from 'node:crypto'
 import { HttpError, audit, isUuid, text } from '../lib.js'
 import { withTransaction } from '../db.js'
-import { MANAGERS, ROLES, requireOwnFamily } from '../families.js'
+import { MANAGERS, ROLES, lockOwnFamily, requireOwnFamily } from '../families.js'
 import { openField, sealField } from '../crypto-fields.js'
 
 export const AVATAR_COLORS = ['orange', 'blue', 'violet', 'green', 'yellow']
@@ -43,7 +43,7 @@ export default async function childrenRoutes(app) {
   app.post('/', { schema: { body: CREATE } }, async (req, reply) => {
     const name = firstName(req.body.firstName)
     const row = await withTransaction(db, async (conn) => {
-      const own = await requireOwnFamily(conn, req, MANAGERS)
+      const own = await lockOwnFamily(conn, req, MANAGERS)
       // Plafond sous verrou : deux ajouts simultanés ne le dépassent pas.
       await conn.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`children:${own.familyId}`])
       const { rows: [{ n }] } = await conn.query('SELECT count(*)::int AS n FROM children WHERE family_id = $1', [own.familyId])
@@ -59,25 +59,32 @@ export default async function childrenRoutes(app) {
     return reply.code(201).send(serialize(row))
   })
 
+  // Écriture, rôle verrouillé et audit dans une même transaction : tout ou rien.
   app.patch('/:id', { schema: { body: UPDATE } }, async (req) => {
     const id = childId(req)
-    const own = await requireOwnFamily(db, req, MANAGERS)
-    const sets = [], values = [id, own.familyId]
-    if (req.body.firstName !== undefined) { values.push(seal(id, firstName(req.body.firstName))); sets.push(`first_name_enc = $${values.length}`) }
-    if (req.body.avatarColor !== undefined) { values.push(req.body.avatarColor); sets.push(`avatar_color = $${values.length}`) }
-    const { rows: [row] } = await db.query(
-      `UPDATE children SET ${sets.join(', ')} WHERE id = $1 AND family_id = $2 RETURNING id, first_name_enc, avatar_color, created_at`, values)
-    if (!row) throw notFound()
-    await audit(db, req, 'child_updated', id)
+    const name = req.body.firstName === undefined ? undefined : firstName(req.body.firstName)
+    const row = await withTransaction(db, async (conn) => {
+      const own = await lockOwnFamily(conn, req, MANAGERS)
+      const sets = [], values = [id, own.familyId]
+      if (name !== undefined) { values.push(seal(id, name)); sets.push(`first_name_enc = $${values.length}`) }
+      if (req.body.avatarColor !== undefined) { values.push(req.body.avatarColor); sets.push(`avatar_color = $${values.length}`) }
+      const { rows: [updated] } = await conn.query(
+        `UPDATE children SET ${sets.join(', ')} WHERE id = $1 AND family_id = $2 RETURNING id, first_name_enc, avatar_color, created_at`, values)
+      if (!updated) throw notFound()
+      await audit(conn, req, 'child_updated', id)
+      return updated
+    })
     return serialize(row)
   })
 
   app.delete('/:id', async (req) => {
     const id = childId(req)
-    const own = await requireOwnFamily(db, req, MANAGERS)
-    const { rows } = await db.query('DELETE FROM children WHERE id = $1 AND family_id = $2 RETURNING id', [id, own.familyId])
-    if (!rows[0]) throw notFound()
-    await audit(db, req, 'child_removed', id)
+    await withTransaction(db, async (conn) => {
+      const own = await lockOwnFamily(conn, req, MANAGERS)
+      const { rows } = await conn.query('DELETE FROM children WHERE id = $1 AND family_id = $2 RETURNING id', [id, own.familyId])
+      if (!rows[0]) throw notFound()
+      await audit(conn, req, 'child_removed', id)
+    })
     return { ok: true }
   })
 }

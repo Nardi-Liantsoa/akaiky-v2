@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import CreateFamily from '../../components/family/CreateFamily.vue'
 import LoadError from '../../components/family/LoadError.vue'
@@ -11,9 +11,11 @@ import { children, loadChildren, selectedChild } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
 
 const t = useT()
+const current = computed(selectedChild)
 onMounted(() => { void loadFamily() })
-// Les enfants se chargent dès que la famille est connue.
-watch(() => family.status, (s) => { if (s === 'ready') void loadChildren() }, { immediate: true })
+// Liste relue à chaque arrivée sur l'accueil (un autre parent a pu ajouter ou
+// retirer un enfant) ; la liste connue reste affichée pendant l'appel.
+watch(() => family.status, (s) => { if (s === 'ready') void loadChildren(true) }, { immediate: true })
 </script>
 
 <template>
@@ -29,10 +31,10 @@ watch(() => family.status, (s) => { if (s === 'ready') void loadChildren() }, { 
     <template v-else-if="children.status === 'ready'">
       <template v-if="children.items.length">
         <ChildPicker />
-        <article v-if="selectedChild()" class="card child">
-          <ChildAvatar :name="selectedChild()!.firstName" :color="selectedChild()!.avatarColor" :size="64" />
-          <h2>{{ selectedChild()!.firstName }}</h2>
-          <RouterLink v-if="canManage()" class="btn btn-ghost" :to="{ name: 'enfant', params: { id: selectedChild()!.id } }">{{ t.children.edit }}</RouterLink>
+        <article v-if="current" class="card child">
+          <ChildAvatar :name="current.firstName" :color="current.avatarColor" :size="64" />
+          <h2>{{ current.firstName }}</h2>
+          <RouterLink v-if="canManage()" class="btn btn-ghost" :to="{ name: 'enfant', params: { id: current.id } }">{{ t.children.edit }}</RouterLink>
         </article>
       </template>
       <div v-else class="card empty">

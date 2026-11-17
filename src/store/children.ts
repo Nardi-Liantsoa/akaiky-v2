@@ -1,12 +1,13 @@
 import { reactive, watch } from 'vue'
 import { listChildren, type Child } from '../api/children'
 import { auth } from './auth'
+import { family } from './family'
 
 // Enfants de la famille de la session et enfant sélectionné sur l'accueil.
-// La sélection est retenue sur l'appareil (préférence d'affichage, pas une
-// donnée de la famille) : valeur relue = entrée non fiable, validée contre la
-// liste ; le choix par défaut (premier enfant) n'est jamais écrit.
-const KEY = 'akaiky-v2.child'
+// La sélection est retenue sur l'appareil, par compte (préférence d'affichage,
+// pas une donnée de la famille) : valeur relue = entrée non fiable, validée
+// contre la liste ; le choix par défaut (premier enfant) n'est jamais écrit.
+const key = () => `akaiky-v2.child.${auth.user?.id ?? ''}`
 
 export const children = reactive({
   status: 'unknown' as 'unknown' | 'loading' | 'ready' | 'error',
@@ -19,17 +20,20 @@ let loadedFor: string | null = null
 let generation = 0
 
 function stored(): string | null {
-  try { return localStorage.getItem(KEY) } catch { return null }
+  try { return localStorage.getItem(key()) } catch { return null }
 }
 
-function resetIfOtherUser() {
-  const id = auth.user?.id ?? null
-  if (id === loadedFor) return
-  loadedFor = id
+// L'état vaut pour un compte ET une famille : quitter une famille puis en
+// rejoindre une autre ne montre jamais les enfants de la précédente.
+const scope = () => (auth.user ? `${auth.user.id}:${family.data?.id ?? ''}` : null)
+function resetIfOtherScope() {
+  const s = scope()
+  if (s === loadedFor) return
+  loadedFor = s
   generation++
   Object.assign(children, { status: 'unknown', items: [], error: null, selectedId: null })
 }
-watch(() => auth.user?.id, resetIfOtherUser, { flush: 'sync' })
+watch(scope, resetIfOtherScope, { flush: 'sync' })
 
 function settleSelection() {
   const wanted = children.selectedId ?? stored()
@@ -37,8 +41,8 @@ function settleSelection() {
 }
 
 export async function loadChildren(force = false): Promise<void> {
-  resetIfOtherUser()
-  if (!auth.user) return
+  resetIfOtherScope()
+  if (!auth.user || !family.data) return
   if (!force && children.status === 'ready') return
   const mine = ++generation
   if (children.status !== 'ready') children.status = 'loading'
@@ -59,8 +63,8 @@ export function selectChild(id: string) {
   if (!children.items.some((c) => c.id === id)) return
   children.selectedId = id
   try {
-    if (id === children.items[0]?.id) localStorage.removeItem(KEY)
-    else localStorage.setItem(KEY, id)
+    if (id === children.items[0]?.id) localStorage.removeItem(key())
+    else localStorage.setItem(key(), id)
   } catch { /* stockage indisponible : sélection gardée pour la session */ }
 }
 

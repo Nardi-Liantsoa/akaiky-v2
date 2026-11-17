@@ -21,6 +21,7 @@ const busy = ref(false)
 const error = ref('')
 const confirming = ref(false)
 
+// .loading : hauteur réservée pendant le chargement.
 const valid = computed(() => { const n = [...name.value.trim()].length; return n >= 1 && n <= 40 })
 
 function message(e: unknown): string {
@@ -35,16 +36,23 @@ onMounted(async () => {
   if (family.status === 'ready' && !canManage()) return router.replace({ name: 'espace' })
   if (!id.value) color.value = AVATAR_COLORS[children.items.length % AVATAR_COLORS.length]
 })
-// Formulaire prérempli dès que l'enfant est connu (chargement ou changement d'adresse).
-watch(existing, (c) => { if (c) { name.value = c.firstName; color.value = c.avatarColor } }, { immediate: true })
+// Formulaire prérempli une seule fois par enfant : un rechargement de la liste
+// n'écrase pas une saisie en cours. Changer d'enfant désarme la confirmation.
+let filledFor: string | null = null
+watch(existing, (c) => {
+  if (c && c.id !== filledFor) { filledFor = c.id; name.value = c.firstName; color.value = c.avatarColor }
+}, { immediate: true })
+watch(id, () => { confirming.value = false; error.value = '' })
 
 async function save() {
   if (busy.value || !valid.value) return
   busy.value = true
   error.value = ''
   try {
-    const saved = existing.value
-      ? await updateChild(existing.value.id, { firstName: name.value.trim(), avatarColor: color.value })
+    // L'adresse décide : /enfant/:id modifie, /enfant/nouveau ajoute (jamais un ajout
+    // par défaut parce que la liste n'est pas encore là).
+    const saved = id.value
+      ? await updateChild(id.value, { firstName: name.value.trim(), avatarColor: color.value })
       : await addChild(name.value.trim(), color.value)
     await loadChildren(true)
     selectChild(saved.id)
@@ -76,7 +84,12 @@ async function remove() {
 <template>
   <section>
     <h1>{{ existing ? t.children.editTitle(existing.firstName) : t.children.addTitle }}</h1>
-    <p v-if="id && children.status === 'ready' && !existing" class="error" role="alert">{{ t.children.notFound }}</p>
+    <div v-if="id && children.status === 'error'" class="error" role="alert">
+      <p>{{ t.children.loadError }}</p>
+      <button class="btn btn-ghost" type="button" @click="loadChildren(true)">{{ t.errors.retry }}</button>
+    </div>
+    <p v-else-if="id && children.status !== 'ready'" class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
+    <p v-else-if="id && !existing" class="error" role="alert">{{ t.children.notFound }}</p>
     <form v-else class="card" @submit.prevent="save">
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <div class="field">
@@ -157,6 +170,10 @@ h1 {
 }
 .hint {
   color: var(--text-soft);
+}
+.loading {
+  min-height: 30vh;
+  margin: 0;
 }
 .danger {
   background: var(--danger);

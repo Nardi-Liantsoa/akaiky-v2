@@ -14,12 +14,15 @@ const TOKENS: Record<AvatarColor, string> = {
 export const isAvatarColor = (v: unknown): v is AvatarColor => typeof v === 'string' && (AVATAR_COLORS as readonly string[]).includes(v)
 export const colorToken = (c: AvatarColor) => TOKENS[c]
 
+// Découpe en caractères visibles, créée une fois (absente des vieilles WebView).
+const graphemes = typeof Intl !== 'undefined' && 'Segmenter' in Intl ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null
+
 // Premier caractère visible (un emoji composé compte pour un), en majuscule.
 export function initial(name: string): string {
   const text = name.trim()
   if (!text) return '?'
-  const first = typeof Intl !== 'undefined' && 'Segmenter' in Intl
-    ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)[Symbol.iterator]().next().value?.segment ?? ''
+  const first = graphemes
+    ? graphemes.segment(text)[Symbol.iterator]().next().value?.segment ?? ''
     : [...text][0]
   return first.toLocaleUpperCase()
 }
