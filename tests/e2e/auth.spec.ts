@@ -1,12 +1,13 @@
 import { expect, test } from '@playwright/test'
-import { mockApi, USER } from './mock'
+import { FAMILY, mockApi, USER } from './mock'
 
 const anonymous = { 'GET /api/auth/me': () => ({ body: { user: null } }), 'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }) }
 
 test('connexion puis espace, avec l’en-tête anti-CSRF', async ({ page }) => {
   const calls = await mockApi(page, {
     ...anonymous,
-    'POST /api/auth/login': () => ({ body: { user: USER } })
+    'POST /api/auth/login': () => ({ body: { user: USER } }),
+    'GET /api/families/me': () => ({ body: FAMILY })
   })
   await page.goto('/connexion')
   await page.fill('#email', USER.email)

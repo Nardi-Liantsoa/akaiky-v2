@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
 import TabBar from '../../components/parent/TabBar.vue'
+import { family } from '../../store/family'
 </script>
 
 <template>
   <main class="shell">
     <RouterView />
   </main>
-  <TabBar />
+  <!-- Étape de création de la famille : pas d'onglets tant qu'elle n'existe pas. -->
+  <TabBar v-if="family.status !== 'none'" />
 </template>
 
 <style scoped>

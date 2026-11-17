@@ -13,11 +13,23 @@ const isFile = (f) => { try { return statSync(f).isFile() } catch { return false
 // Visiteur non connecté ; ajouter par page les réponses dont elle a besoin.
 const ANONYME = { 'GET /api/auth/me': { user: null }, 'GET /api/auth/mfa/status': { challenge: null } }
 // Parent connecté (coquille à onglets de l'app parent).
-const PARENT = { ...ANONYME, 'GET /api/auth/me': { user: { id: '6f1c2b1e-0000-4000-8000-000000000001', email: 'hanta@exemple.fr', name: 'Hanta', is_admin: false } } }
+const HANTA = { id: '6f1c2b1e-0000-4000-8000-000000000001', email: 'hanta@exemple.fr', name: 'Hanta', is_admin: false }
+const PARENT = {
+  ...ANONYME,
+  'GET /api/auth/me': { user: HANTA },
+  'GET /api/families/me': {
+    id: '6f1c2b1e-0000-4000-8000-0000000000f1', name: 'Famille Rakoto', role: 'owner',
+    members: [{ userId: HANTA.id, name: 'Hanta', role: 'owner', isMe: true }, { userId: '6f1c2b1e-0000-4000-8000-000000000002', name: 'Rivo', role: 'manager', isMe: false }]
+  }
+}
+// Parent connecté sans famille : l'accueil présente la création (réponse 404 no_family par défaut).
+const SANS_FAMILLE = { ...ANONYME, 'GET /api/auth/me': { user: HANTA } }
 const PAGES = [
   ['accueil', '/', ANONYME],
   ['connexion', '/connexion', ANONYME],
-  ['parent-accueil', '/espace', PARENT]
+  ['parent-accueil', '/espace', PARENT],
+  ['parent-creer-famille', '/espace', SANS_FAMILLE],
+  ['parent-famille', '/espace/famille', PARENT]
 ]
 
 async function serve(page, api) {

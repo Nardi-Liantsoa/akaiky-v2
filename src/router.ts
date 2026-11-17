@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { auth, init, isAdmin } from './store/auth'
+import { family, loadFamily } from './store/family'
 
 // Les gardes servent le confort de navigation, pas la sécurité : chaque route
 // d'API vérifie elle-même la session et le rôle.
@@ -24,6 +25,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ]
 
+const FAMILY_TABS = new Set(['journal', 'reglages', 'famille'])
+
 export const router = createRouter({
   history: createWebHistory(),
   routes,
@@ -36,5 +39,11 @@ router.beforeEach(async (to) => {
   if (to.meta.requiresAdmin && !isAdmin()) return { name: 'espace' }
   // Un lien de confirmation ou de réinitialisation s'ouvre même connecté.
   if (to.meta.guestOnly && auth.user && !/^#(reset|confirm)=/.test(to.hash)) return { name: 'espace' }
+  // Parent sans famille : les onglets autres que l'accueil renvoient vers la
+  // création (l'accueil la présente). Une erreur réseau n'est pas « sans famille ».
+  if (FAMILY_TABS.has(String(to.name)) && auth.user) {
+    await loadFamily()
+    if (family.status === 'none') return { name: 'espace' }
+  }
   return true
 })

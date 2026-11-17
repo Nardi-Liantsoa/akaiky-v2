@@ -2,12 +2,13 @@
 
 ## État au 17/11/2026
 
-- Socle `app-propre-mobile` généré (create-nosy-app @ 995f746), **aucune fonctionnalité
-  métier**. Ressource d'exemple `notes` retirée (NAR-132, migration `002`).
+- Socle `app-propre-mobile` généré (create-nosy-app @ 995f746). Ressource d'exemple `notes`
+  retirée (NAR-132, migration `002`). Premier métier : familles et garde de rôle par famille
+  (NAR-133, migration `003`) ; un parent sans famille la crée depuis l'accueil.
 - Identifiant `mg.nosytech.akaiky`, nom affiché « Akaiky ». Maquettes résumées dans
   `docs/DESIGN.md` ; jetons et police posés dans `src/style.css` (NAR-132).
-- Vérifié en local (NAR-132) : lint, build, tests front (2/2), tests API contre PostgreSQL
-  jetable (59/59), e2e Chromium (11/11), e2e WebKit (11/11 dans l'image Docker Playwright),
+- Vérifié en local (NAR-133) : lint, build, tests front (7/7), tests API contre PostgreSQL
+  jetable (67/67), e2e Chromium (16/16), e2e WebKit (16/16 dans l'image Docker Playwright),
   `npm audit` 0 vulnérabilité (racine et serveur), gitleaks et Semgrep (`p/javascript`,
   `p/typescript`) sans résultat, image Docker construite (utilisateur `node`),
   `/health` 200 et `/ready` 503 sans base, refus de démarrer en production sans clé MFA.
