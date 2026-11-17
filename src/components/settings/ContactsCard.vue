@@ -97,6 +97,7 @@ h2 {
 }
 .list li {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   padding: 12px 0;
@@ -110,9 +111,8 @@ h2 {
 }
 .who {
   display: flex;
-  flex: 1;
+  flex: 1 0 auto;
   flex-direction: column;
-  min-width: 0;
 }
 .name {
   font-weight: 800;
@@ -132,6 +132,8 @@ h2 {
   display: flex;
   flex: none;
   gap: 2px;
+  /* Écran étroit : les boutons passent sous le contact, alignés à droite. */
+  margin-left: auto;
 }
 .icon {
   display: inline-flex;
