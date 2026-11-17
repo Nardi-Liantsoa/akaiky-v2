@@ -5,10 +5,12 @@
 - Socle `app-propre-mobile` généré (create-nosy-app @ 995f746). Ressource d'exemple `notes`
   retirée (NAR-132, migration `002`). Premier métier : familles et garde de rôle par famille
   (NAR-133, migration `003`) ; un parent sans famille la crée depuis l'accueil.
+  Invitations, rôles et départs (NAR-134, migration `004`). Enfants avec prénom chiffré
+  (NAR-135, migration `005`, clé `DATA_ENCRYPTION_KEY`).
 - Identifiant `mg.nosytech.akaiky`, nom affiché « Akaiky ». Maquettes résumées dans
   `docs/DESIGN.md` ; jetons et police posés dans `src/style.css` (NAR-132).
-- Vérifié en local (NAR-133) : lint, build, tests front (7/7), tests API contre PostgreSQL
-  jetable (67/67), e2e Chromium (16/16), e2e WebKit (16/16 dans l'image Docker Playwright),
+- Vérifié en local (NAR-135) : lint, build, tests front (24/24), tests API contre PostgreSQL
+  jetable, e2e Chromium (31/31), e2e WebKit (dans l'image Docker Playwright),
   `npm audit` 0 vulnérabilité (racine et serveur), gitleaks et Semgrep (`p/javascript`,
   `p/typescript`) sans résultat, image Docker construite (utilisateur `node`),
   `/health` 200 et `/ready` 503 sans base, refus de démarrer en production sans clé MFA.
@@ -86,6 +88,9 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   app tuée avant d'avoir rangé le nouveau jeton) : un voleur qui l'utilise obtient la
   session jusqu'au prochain renouvellement de l'app, qui détecte alors le rejeu et
   ferme la session. L'app sérialise ses renouvellements.
+- **Clé `DATA_ENCRYPTION_KEY`** (prénoms des enfants, NAR-135) : sauvegardée avec la base ;
+  la perdre rend ces données illisibles (aucune récupération possible). Rotation : le
+  format chiffré porte un numéro de version (`server/src/crypto-fields.js`).
 - **Pas d'antivirus** : aucun fichier déposé dans ce starter ; à écrire ici dès
   qu'une ressource en accepte (`ampy-api`, « Fichiers déposés »).
 - **Perte du téléphone d'un admin** : codes de secours, sinon procédure manuelle
