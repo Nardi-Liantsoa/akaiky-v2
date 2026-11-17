@@ -2,7 +2,10 @@
 import { onMounted, ref } from 'vue'
 import { renameFamily } from '../../api/families'
 import { ApiError } from '../../api/http'
+import InviteForm from '../../components/family/InviteForm.vue'
 import LoadError from '../../components/family/LoadError.vue'
+import MembersList from '../../components/family/MembersList.vue'
+import PendingInvitations from '../../components/family/PendingInvitations.vue'
 import { useT } from '../../composables/useT'
 import { familyNameValid } from '../../lib/familyName'
 import { errorText } from '../../lib/errors'
@@ -13,6 +16,7 @@ const editing = ref(false)
 const name = ref('')
 const busy = ref(false)
 const error = ref('')
+const sent = ref(0)
 
 onMounted(() => { void loadFamily() })
 
@@ -67,12 +71,14 @@ async function save() {
 
       <p v-if="error && !editing" class="error" role="alert">{{ error }}</p>
       <h2 class="section">{{ t.family.members }}</h2>
-      <ul class="card members">
-        <li v-for="m in family.data.members" :key="m.userId">
-          <span class="name">{{ m.name }}<span v-if="m.isMe" class="me"> ({{ t.family.you }})</span></span>
-          <span class="role">{{ t.family.roles[m.role] }}</span>
-        </li>
-      </ul>
+      <MembersList />
+
+      <template v-if="canManage()">
+        <PendingInvitations :refresh="sent" />
+        <div class="invite">
+          <InviteForm @sent="sent++" />
+        </div>
+      </template>
     </template>
   </section>
 </template>
@@ -106,27 +112,7 @@ h1 {
   font-size: 1.15rem;
   font-weight: 800;
 }
-.members {
-  list-style: none;
-  margin: 0;
-  padding: 8px 24px;
-}
-.members li {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--border);
-}
-.members li:last-child {
-  border-bottom: none;
-}
-.name {
-  font-weight: 800;
-}
-.me,
-.role {
-  color: var(--text-soft);
-  font-weight: 600;
+.invite {
+  margin-top: 28px;
 }
 </style>

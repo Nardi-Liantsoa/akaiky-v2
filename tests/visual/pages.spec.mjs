@@ -22,7 +22,10 @@ const PARENT = {
   'GET /api/families/me': {
     id: '6f1c2b1e-0000-4000-8000-0000000000f1', name: 'Famille Rakoto', role: 'owner',
     members: [{ userId: HANTA.id, name: 'Hanta', role: 'owner', isMe: true }, { userId: '6f1c2b1e-0000-4000-8000-000000000002', name: 'Rivo', role: 'manager', isMe: false }]
-  }
+  },
+  'GET /api/families/me/invitations': [
+    { id: '6f1c2b1e-0000-4000-8000-0000000000a1', email: 'mamie@exemple.fr', role: 'member', createdAt: '2026-01-14T10:00:00Z', expiresAt: '2026-01-21T10:00:00Z' }
+  ]
 }
 // Parent connecté sans famille : l'accueil présente la création.
 const SANS_FAMILLE = {
@@ -35,7 +38,8 @@ const PAGES = [
   ['connexion', '/connexion', ANONYME],
   ['parent-accueil', '/espace', PARENT],
   ['parent-creer-famille', '/espace', SANS_FAMILLE],
-  ['parent-famille', '/espace/famille', PARENT]
+  ['parent-famille', '/espace/famille', PARENT],
+  ['invitation-sans-session', '/invitation#invite=' + 'T'.repeat(43), ANONYME]
 ]
 
 async function serve(page, api) {
