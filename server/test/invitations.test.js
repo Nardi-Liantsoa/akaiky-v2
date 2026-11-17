@@ -258,8 +258,17 @@ test('acceptation et retrait simultané de l’invitant : jamais d’entrée par
 })
 
 test('invitations simultanées depuis plusieurs familles : aucune ne bloque le pool', async () => {
-  const owners = []
-  for (let i = 0; i < 12; i++) { const o = await newUser(ctx); await family(o, `Pool ${i}`); owners.push(o) }
-  const results = await Promise.all(owners.map((o, i) => invite(o, `pool${i}.${process.pid}@exemple.fr`)))
-  assert.deepEqual([...new Set(results.map((r) => r.statusCode))], [201])
+  // Instance dédiée : la création de 12 comptes dépasserait la limite globale par IP.
+  const app2 = await startApp(dbh.url, { API_RATE_LIMIT: '100000' })
+  try {
+    const owners = []
+    for (let i = 0; i < 12; i++) {
+      const o = await newUser(app2)
+      await call(app2.app, 'POST', '/api/families', { cookie: o.cookie, body: { name: `Pool ${i}` } })
+      owners.push(o)
+    }
+    const results = await Promise.all(owners.map((o, i) =>
+      call(app2.app, 'POST', '/api/families/me/invitations', { cookie: o.cookie, body: { email: `pool${i}.${process.pid}@exemple.fr`, role: 'member' } })))
+    assert.deepEqual([...new Set(results.map((r) => r.statusCode))], [201])
+  } finally { await app2.close() }
 })
