@@ -19,8 +19,12 @@ GRANT INSERT ON audit_log TO app_runtime;
 GRANT INSERT, UPDATE ON security_quotas, login_guards, security_alerts TO app_runtime;
 GRANT INSERT, UPDATE, DELETE ON trusted_devices, mfa_factors, mfa_challenges, mfa_recovery_codes TO app_runtime;
 GRANT UPDATE (used_at) ON mfa_enrollment_invites TO app_runtime;
--- Familles (003_families.sql) : création et renommage ; ni rôle modifiable, ni suppression (à venir).
+-- Familles (003_families.sql) : création et renommage ; jamais de suppression de famille par l'application.
 GRANT INSERT ON families, memberships TO app_runtime;
 GRANT UPDATE (name) ON families TO app_runtime;
+-- Invitations et rôles (004_invitations.sql).
+GRANT INSERT, DELETE ON invitations TO app_runtime;
+GRANT UPDATE (used_at) ON invitations TO app_runtime;
+GRANT UPDATE (role), DELETE ON memberships TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;

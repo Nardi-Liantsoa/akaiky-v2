@@ -29,7 +29,8 @@ test('sans famille : création depuis l’accueil, puis onglets et famille affic
 
   await page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link', { name: 'Famille' }).click()
   await expect(page.getByRole('heading', { name: 'Famille Rakoto' })).toBeVisible()
-  await expect(page.getByRole('listitem')).toHaveText(['Alice (vous)Parent principal'])
+  await expect(page.getByRole('listitem')).toHaveCount(1)
+  await expect(page.getByRole('listitem')).toContainText('Alice (vous)Parent principal')
 })
 
 test('gestionnaire : renommer la famille', async ({ page }) => {
@@ -52,7 +53,7 @@ test('contact : pas de bouton pour renommer', async ({ page }) => {
   await page.goto('/espace/famille')
   await expect(page.getByRole('heading', { name: 'Famille Rabe' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Renommer' })).toHaveCount(0)
-  await expect(page.getByRole('listitem').nth(1)).toHaveText('Alice (vous)Contact')
+  await expect(page.getByRole('listitem').nth(1)).toContainText('Alice (vous)Contact')
 })
 
 test('serveur injoignable : erreur et « Réessayer », jamais l’écran de création', async ({ page }) => {
@@ -91,7 +92,8 @@ test('renommage refusé (rôle retiré ailleurs) : état rechargé, bouton retir
   await page.getByLabel('Nom de la famille').fill('Autre')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page.getByRole('button', { name: 'Renommer' })).toHaveCount(0)
-  await expect(page.getByRole('listitem')).toHaveText(['Alice (vous)Contact'])
+  await expect(page.getByRole('listitem')).toHaveCount(1)
+  await expect(page.getByRole('listitem')).toContainText('Alice (vous)Contact')
   await expect(page.getByRole('alert')).toHaveText('Action non autorisée.')
 })
 

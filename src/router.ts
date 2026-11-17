@@ -21,6 +21,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'famille', name: 'famille', component: () => import('./views/parent/FamilyView.vue'), meta: { requiresFamily: true } }
     ]
   },
+  // Ouverte sans session : la page explique comment se connecter, puis accepter.
+  { path: '/invitation', name: 'invitation', component: () => import('./views/InviteView.vue') },
   { path: '/securite', name: 'securite', component: () => import('./views/SecurityView.vue'), meta: { requiresAuth: true } },
   { path: '/admin', name: 'admin', component: () => import('./views/AdminView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/:pathMatch(.*)*', redirect: '/' }
