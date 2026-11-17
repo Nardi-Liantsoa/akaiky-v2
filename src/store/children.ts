@@ -46,8 +46,9 @@ export function loadChildren(force = false): Promise<void> {
   resetIfOtherScope()
   if (!auth.user || !family.data) return Promise.resolve()
   if (!force && children.status === 'ready') return Promise.resolve()
-  // Un chargement déjà en cours sert à tous les appelants.
-  if (pending) return pending
+  // Un chargement en cours sert aux appelants ordinaires ; un rechargement forcé
+  // veut un état postérieur à l'appel, il repart d'une requête neuve.
+  if (!force && pending) return pending
   const mine = ++generation
   if (children.status !== 'ready') children.status = 'loading'
   const run: Promise<void> = listChildren().then(
@@ -67,14 +68,25 @@ export function loadChildren(force = false): Promise<void> {
   return run
 }
 
+// Une liste demandée avant une modification locale est périmée : elle est
+// ignorée et redemandée, pour ne pas défaire l'ajout, la modification ou le retrait.
+function invalidateInFlight() {
+  if (!pending) return
+  generation++
+  pending = null
+  void loadChildren(true)
+}
+
 // Réponse du serveur appliquée tout de suite (ajout ou modification), sans attendre un rechargement.
 export function upsertChild(child: Child) {
+  invalidateInFlight()
   const i = children.items.findIndex((c) => c.id === child.id)
   children.items = i === -1 ? [...children.items, child] : children.items.map((c) => (c.id === child.id ? child : c))
 }
 
 // Enfant retiré : il disparaît de la liste et de la sélection retenue.
 export function dropChild(id: string) {
+  invalidateInFlight()
   children.items = children.items.filter((c) => c.id !== id)
   try { if (localStorage.getItem(key()) === id) localStorage.removeItem(key()) } catch { /* rien à effacer */ }
   if (children.selectedId === id) children.selectedId = null

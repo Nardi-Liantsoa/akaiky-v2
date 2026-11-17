@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AVATAR_COLORS, colorToken, initial, isAvatarColor } from './avatar'
+import { AVATAR_COLORS, colorToken, initial } from './avatar'
 
 describe('avatar', () => {
   it('initiale : premier caractère visible, en majuscule', () => {
@@ -10,8 +10,6 @@ describe('avatar', () => {
   })
   it('couleurs : liste fermée, chacune liée à un jeton', () => {
     for (const c of AVATAR_COLORS) expect(colorToken(c)).toMatch(/^var\(--[a-z-]+\)$/)
-    expect(isAvatarColor('violet')).toBe(true)
-    expect(isAvatarColor('red')).toBe(false)
-    expect(isAvatarColor(null)).toBe(false)
+    expect(new Set(AVATAR_COLORS.map(colorToken)).size).toBe(AVATAR_COLORS.length)
   })
 })

@@ -91,10 +91,27 @@ describe('enfants de la session', () => {
     expect(selectedChild()?.firstName).toBe('Fyfy')
   })
 
-  it('appels simultanés : un seul chargement', async () => {
+  it('appels ordinaires simultanés : un seul chargement ; un rechargement forcé repart d’une requête neuve', async () => {
     login('u10')
     listChildren.mockResolvedValue([A])
-    await Promise.all([loadChildren(true), loadChildren(true), loadChildren()])
+    await Promise.all([loadChildren(), loadChildren()])
     expect(listChildren).toHaveBeenCalledTimes(1)
+    await Promise.all([loadChildren(true), loadChildren(true)])
+    expect(listChildren).toHaveBeenCalledTimes(3)
+  })
+
+  it('liste demandée avant un retrait : ignorée et redemandée, le retrait n’est pas défait', async () => {
+    login('u11')
+    listChildren.mockResolvedValue([A, B])
+    await loadChildren()
+    let resolveOld!: (v: unknown) => void
+    listChildren.mockReturnValueOnce(new Promise((r) => { resolveOld = r }))
+    const old = loadChildren(true)
+    listChildren.mockResolvedValue([A])
+    dropChild('b')
+    resolveOld([A, B])
+    await old
+    await vi.waitFor(() => expect(children.items.map((c) => c.id)).toEqual(['a']))
+    expect(listChildren).toHaveBeenCalledTimes(3)
   })
 })

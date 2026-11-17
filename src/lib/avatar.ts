@@ -11,7 +11,6 @@ const TOKENS: Record<AvatarColor, string> = {
   yellow: 'var(--accent-yellow)'
 }
 
-export const isAvatarColor = (v: unknown): v is AvatarColor => typeof v === 'string' && (AVATAR_COLORS as readonly string[]).includes(v)
 export const colorToken = (c: AvatarColor) => TOKENS[c]
 
 // Découpe en caractères visibles, créée une fois (absente des vieilles WebView).

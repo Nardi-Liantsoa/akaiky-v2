@@ -77,12 +77,13 @@ async function save() {
 }
 
 async function remove() {
-  if (!existing.value || busy.value) return
+  const target = existing.value?.id
+  if (!target || busy.value) return
   busy.value = true
   error.value = ''
   try {
-    await removeChild(existing.value.id)
-    dropChild(existing.value.id)
+    await removeChild(target)
+    dropChild(target)
     await router.push({ name: 'espace' })
   } catch (e) {
     error.value = message(e)
@@ -121,7 +122,7 @@ async function remove() {
       </div>
     </form>
 
-    <div v-if="existing" class="danger-zone">
+    <div v-if="existing && allowed" class="danger-zone">
       <p class="hint">{{ t.children.removeHint }}</p>
       <button v-if="!confirming" class="btn btn-ghost" type="button" :disabled="busy" @click="confirming = true">{{ t.children.remove }}</button>
       <button v-else class="btn danger" type="button" :disabled="busy" @click="remove">{{ t.children.confirmRemove }}</button>
