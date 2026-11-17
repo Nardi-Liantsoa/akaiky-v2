@@ -10,7 +10,7 @@ const fr = {
   nav: { home: 'Accueil', space: 'Mon espace', security: 'Sécurité', admin: 'Administration', login: 'Connexion', logout: 'Déconnexion' },
   home: {
     title: 'Bienvenue',
-    lead: 'Une application avec comptes, double authentification et données privées par utilisateur.',
+    lead: 'Akaiky relie les parents à leurs enfants : un téléphone simple pour l’enfant, une application pour appeler, recevoir les alertes et tout régler.',
     start: 'Créer un compte',
     open: 'Ouvrir mon espace'
   },
@@ -117,7 +117,7 @@ const mg: Messages = {
   nav: { home: 'Fandraisana', space: 'Ny toerako', security: 'Fiarovana', admin: 'Fitantanana', login: 'Hiditra', logout: 'Hivoaka' },
   home: {
     title: 'Tongasoa',
-    lead: 'Rindranasa misy kaonty, fanamarinana roa sosona ary angona manokana ho an’ny mpampiasa tsirairay.',
+    lead: 'Mampifandray ny ray aman-dreny sy ny zanany i Akaiky: finday tsotra ho an’ny zaza, rindranasa hiantsoana, handraisana fampitandremana ary handrindrana ny zava-drehetra.',
     start: 'Hamorona kaonty',
     open: 'Hanokatra ny habakako'
   },
@@ -222,7 +222,7 @@ const en: Messages = {
   nav: { home: 'Home', space: 'My space', security: 'Security', admin: 'Administration', login: 'Sign in', logout: 'Sign out' },
   home: {
     title: 'Welcome',
-    lead: 'An application with accounts, two-factor authentication and private data for each user.',
+    lead: 'Akaiky connects parents with their children: a simple phone for the child, and an app to call, receive alerts and manage everything.',
     start: 'Create an account',
     open: 'Open my space'
   },

@@ -27,7 +27,7 @@
   --surface-muted: #e9e5dc;
   --ink: #1c2431;
   --ink-soft: #4a5260;
-  --ink-mute: #6b7280;
+  --ink-mute: #5f6673; /* ≥ 4.5:1 sur --bg-parent et --surface-muted */
   --sos: #c8261b;
   --sos-deep: #8e170f;
   --call: #0b795c;
@@ -144,7 +144,7 @@ h1 {
   font: inherit;
 }
 .input:focus {
-  outline: 2px solid var(--accent-soft);
+  outline: 2px solid var(--accent);
   border-color: var(--accent);
 }
 

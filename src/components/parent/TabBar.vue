@@ -18,12 +18,10 @@ const TABS = [
 
 // Onglet actif : celui dont le chemin est le plus long préfixe de l'URL, pour
 // qu'un écran imbriqué (ex. /espace/famille/:id) garde son onglet signalé.
-const active = computed(() => {
-  const within = (base: string) => route.path === base || route.path.startsWith(`${base}/`)
-  return TABS.map((tab) => ({ name: tab.name, path: router.resolve({ name: tab.name }).path }))
-    .filter((tab) => within(tab.path))
-    .sort((a, b) => b.path.length - a.path.length)[0]?.name
-})
+const BY_DEPTH = TABS.map((tab) => ({ name: tab.name, path: router.resolve({ name: tab.name }).path }))
+  .sort((a, b) => b.path.length - a.path.length)
+const active = computed(() =>
+  BY_DEPTH.find((tab) => route.path === tab.path || route.path.startsWith(`${tab.path}/`))?.name)
 </script>
 
 <template>
