@@ -12,6 +12,7 @@ test('numéros normalisés en E.164', () => {
   assert.equal(normalizePhone('+261 (0)34 12 345 67'), '+261341234567')
   assert.equal(normalizePhone('00261 034 12 345 67'), '+261341234567')
   assert.equal(normalizePhone('+33 (0)6 12 34 56 78'), '+33612345678')
+  assert.equal(normalizePhone('+44 (0)7700 900123'), '+447700900123')
 })
 
 test('numéros invalides refusés', () => {

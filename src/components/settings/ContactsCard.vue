@@ -30,6 +30,8 @@ async function move(index: number, delta: number) {
     error.value = contactErrorText(e, t.value)
     if (!(e instanceof ApiError && e.code === 'order_mismatch')) { busy.value = false; return }
   }
+  // Autre enfant choisi pendant l'enregistrement : Réglages charge déjà le sien.
+  if (contacts.childId !== props.childId) { busy.value = false; return }
   await loadContacts(props.childId, true)
   // Ordre enregistré mais liste non relue : le dire, l'ordre affiché est périmé.
   if (contacts.error && !error.value) error.value = `${t.value.contacts.loadError} ${contactErrorText(contacts.error, t.value)}`

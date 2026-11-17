@@ -189,7 +189,7 @@ const fr = {
     tabsLabel: 'Navigation principale',
     home: { title: 'Accueil', empty: 'Les enfants de votre famille apparaîtront ici.' },
     log: { title: 'Journal', empty: 'Les appels, messages et alertes apparaîtront ici.' },
-    settings: { title: 'Réglages', empty: 'Les réglages du téléphone de l’enfant apparaîtront ici.' },
+    settings: { title: 'Réglages' },
     family: { title: 'Famille', empty: 'Les membres de votre famille apparaîtront ici.' }
   },
   admin: {
@@ -394,7 +394,7 @@ const mg: Messages = {
     tabsLabel: 'Fitetezana lehibe',
     home: { title: 'Fandraisana', empty: 'Eto no hiseho ireo ankizy ao amin’ny fianakavianao.' },
     log: { title: 'Tantara', empty: 'Eto no hiseho ny antso, ny hafatra ary ny fampitandremana.' },
-    settings: { title: 'Fandrindrana', empty: 'Eto no hiseho ny fandrindrana ny findain’ny zanakao.' },
+    settings: { title: 'Fandrindrana' },
     family: { title: 'Fianakaviana', empty: 'Eto no hiseho ireo mpikambana ao amin’ny fianakavianao.' }
   },
   admin: {
@@ -597,7 +597,7 @@ const en: Messages = {
     tabsLabel: 'Main navigation',
     home: { title: 'Home', empty: 'Your family’s children will appear here.' },
     log: { title: 'Log', empty: 'Calls, messages and alerts will appear here.' },
-    settings: { title: 'Settings', empty: 'Settings for your child’s phone will appear here.' },
+    settings: { title: 'Settings' },
     family: { title: 'Family', empty: 'Your family members will appear here.' }
   },
   admin: {

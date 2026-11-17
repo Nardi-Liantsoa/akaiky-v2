@@ -32,12 +32,14 @@ const ready = computed(() => children.status === 'ready' && contacts.status === 
 const valid = computed(() => { const n = [...name.value.trim()].length; return n >= 1 && n <= 40 && phone.value.trim().length >= 6 })
 
 onMounted(() => { void loadFamily() })
-watch(() => [family.status, family.data?.role] as const, ([s]) => {
+// Rejoué aussi quand l'adresse change d'enfant (même composant réutilisé).
+watch(() => [family.status, family.data?.role, childId.value] as const, ([s]) => {
   if (s !== 'ready') return
   if (!canManage()) { void router.replace({ name: 'reglages' }); return }
   void loadChildren()
   void loadContacts(childId.value)
 }, { immediate: true })
+const childGone = computed(() => contacts.error instanceof ApiError && contacts.error.code === 'child_not_found')
 
 // Rempli une fois par adresse ; changer d'adresse repart de zéro.
 let filledFor: string | null = null
@@ -70,7 +72,7 @@ async function save() {
   try {
     if (id.value) await updateContact(id.value, input)
     else await addContact(childId.value, input)
-    await loadContacts(childId.value, true)
+    // Réglages relit la liste à son arrivée : pas de relecture ici.
     await back()
   } catch (e) {
     error.value = contactErrorText(e, t.value)
@@ -90,7 +92,6 @@ async function remove() {
   error.value = ''
   try {
     await removeContact(target)
-    await loadContacts(childId.value, true)
     await back()
   } catch (e) {
     error.value = contactErrorText(e, t.value)
@@ -106,8 +107,9 @@ async function remove() {
     <p v-if="child" class="over">{{ t.contacts.phoneOf(child.firstName) }}</p>
     <h1>{{ !id ? t.contacts.addTitle : existing ? t.contacts.editTitle(existing.name) : t.contacts.title }}</h1>
     <LoadError v-if="family.status === 'error'" />
+    <p v-else-if="allowed && childGone" class="error" role="alert">{{ t.children.notFound }}</p>
     <div v-else-if="allowed && (children.status === 'error' || contacts.status === 'error')" class="error" role="alert">
-      <p>{{ t.contacts.loadError }}</p>
+      <p>{{ t.contacts.loadError }} {{ contacts.status === 'error' ? contactErrorText(contacts.error, t) : '' }}</p>
       <button class="btn btn-ghost" type="button" @click="loadChildren(true); loadContacts(childId, true)">{{ t.errors.retry }}</button>
     </div>
     <p v-else-if="!allowed || !ready" class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>

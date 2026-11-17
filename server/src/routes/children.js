@@ -8,6 +8,12 @@ import { MANAGERS, ROLES, lockOwnFamily, requireOwnFamily } from '../families.js
 import { openField, sealField } from '../crypto-fields.js'
 
 export const AVATAR_COLORS = ['orange', 'blue', 'violet', 'green', 'yellow']
+
+// Couleur par défaut : la moins portée parmi `used` (ordre de la liste à égalité).
+export function leastUsedColor(used) {
+  const count = (c) => used.filter((u) => u === c).length
+  return AVATAR_COLORS.reduce((best, c) => (count(c) < count(best) ? c : best))
+}
 export const MAX_CHILDREN = 20
 
 const CREATE = {
@@ -49,9 +55,7 @@ export default async function childrenRoutes(app) {
       const { rows: used } = await conn.query('SELECT avatar_color FROM children WHERE family_id = $1', [own.familyId])
       if (used.length >= MAX_CHILDREN) throw new HttpError(409, 'Nombre maximal d’enfants atteint.', 'too_many_children')
       const id = randomUUID()
-      // Couleur par défaut : la moins portée par les frères et sœurs (ordre de la liste à égalité).
-      const count = (c) => used.filter((r) => r.avatar_color === c).length
-      const color = req.body.avatarColor ?? AVATAR_COLORS.reduce((best, c) => (count(c) < count(best) ? c : best))
+      const color = req.body.avatarColor ?? leastUsedColor(used.map((r) => r.avatar_color))
       const { rows: [created] } = await conn.query(
         `INSERT INTO children(id, family_id, first_name_enc, avatar_color) VALUES ($1, $2, $3, $4)
          RETURNING id, first_name_enc, avatar_color, created_at`, [id, own.familyId, seal(id, name), color])

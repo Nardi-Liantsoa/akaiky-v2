@@ -9,7 +9,7 @@ import { withTransaction } from '../db.js'
 import { MANAGERS, ROLES, lockFamilyMembers, requireOwnFamily } from '../families.js'
 import { blindIndex, openField, sealField } from '../crypto-fields.js'
 import { normalizePhone } from '../phone.js'
-import { AVATAR_COLORS } from './children.js'
+import { AVATAR_COLORS, leastUsedColor } from './children.js'
 
 export const MAX_CONTACTS = 6
 
@@ -103,8 +103,7 @@ export default async function contactsRoutes(app) {
       const { rows: existing } = await conn.query('SELECT avatar_color FROM allowed_contacts WHERE child_id = $1', [req.params.childId])
       if (existing.length >= MAX_CONTACTS) throw new HttpError(409, 'Six contacts au plus par enfant.', 'too_many_contacts')
       const member = await checkMember(conn, own.familyId, req.body.memberUserId)
-      const count = (c) => existing.filter((r) => r.avatar_color === c).length
-      const color = req.body.avatarColor ?? AVATAR_COLORS.reduce((best, c) => (count(c) < count(best) ? c : best))
+      const color = req.body.avatarColor ?? leastUsedColor(existing.map((r) => r.avatar_color))
       const newId = randomUUID()
       await conn.query(
         `INSERT INTO allowed_contacts(id, family_id, child_id, member_user_id, name_enc, phone_enc, phone_index, position, avatar_color)

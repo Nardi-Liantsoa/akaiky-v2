@@ -13,7 +13,8 @@ const invalid = () => new HttpError(400, 'Numéro de téléphone invalide.', 'in
 
 export function normalizePhone(raw, country = 'MG') {
   if (typeof raw !== 'string' || raw.length > 40) throw invalid()
-  let v = raw.replace(/[\s.\-()/]/g, '')
+  // « (0) » après l'indicatif (notation internationale courante) : retiré pour tous les pays.
+  let v = raw.replace(/\(0\)/g, '').replace(/[\s.\-()/]/g, '')
   if (v.startsWith('00')) v = `+${v.slice(2)}`
   // 0 national gardé après l'indicatif (« +261 (0)34… », « +261 034… ») : retiré,
   // sinon le même numéro aurait deux formes et passerait le contrôle de doublon.
