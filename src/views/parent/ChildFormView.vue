@@ -28,8 +28,10 @@ const valid = computed(() => { const n = [...name.value.trim()].length; return n
 const allowed = computed(() => family.status === 'ready' && canManage())
 
 // Enfant retiré ailleurs entre-temps : il quitte aussi la liste affichée.
+// Rôle retiré ailleurs (403) : la famille est relue, les actions disparaissent.
 function forgetIfGone(e: unknown, childId: string | null) {
   if (childId && e instanceof ApiError && e.code === 'child_not_found') dropChild(childId)
+  if (e instanceof ApiError && e.code === 'family_role') void loadFamily(true)
 }
 
 function message(e: unknown): string {
@@ -40,8 +42,8 @@ function message(e: unknown): string {
 
 onMounted(() => { void loadFamily() })
 // Enfants chargés une fois la famille connue (jamais en parallèle avec elle) ;
-// un non-gestionnaire est renvoyé à l'accueil.
-watch(() => family.status, (s) => {
+// un non-gestionnaire est renvoyé à l'accueil, y compris si son rôle change en route.
+watch(() => [family.status, family.data?.role] as const, ([s]) => {
   if (s !== 'ready') return
   if (!canManage()) { void router.replace({ name: 'espace' }); return }
   void loadChildren()
@@ -103,7 +105,7 @@ async function remove() {
 
 <template>
   <section>
-    <h1>{{ existing ? t.children.editTitle(existing.firstName) : t.children.addTitle }}</h1>
+    <h1>{{ !id ? t.children.addTitle : existing ? t.children.editTitle(existing.firstName) : t.children.edit }}</h1>
     <LoadError v-if="family.status === 'error'" />
     <p v-else-if="!allowed" class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
     <div v-else-if="id && children.status === 'error'" class="error" role="alert">

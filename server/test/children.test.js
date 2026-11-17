@@ -141,3 +141,12 @@ test('gestionnaire rétrogradé pendant un ajout : jamais d’ajout après la r�
     }
   }
 })
+
+test('couleur par défaut : la moins portée, même après un retrait', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const a = (await add(owner, 'A')).json(), b = (await add(owner, 'B')).json()
+  assert.deepEqual([a.avatarColor, b.avatarColor], ['orange', 'blue'])
+  await del(owner, a.id)
+  assert.equal((await add(owner, 'C')).json().avatarColor, 'orange')
+})

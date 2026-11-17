@@ -123,3 +123,19 @@ test('modification avec la liste en échec : erreur et « Réessayer », jamais 
   await expect(page.getByLabel('Prénom')).toHaveValue('Fy')
   expect(calls.some((r) => r.method() === 'POST')).toBe(false)
 })
+
+test('rôle retiré pendant la modification : famille relue, retour à l’accueil sans bouton', async ({ page }) => {
+  let role = 'manager'
+  const fy = kid(1, 'Fy')
+  await mockApi(page, {
+    ...me,
+    'GET /api/families/me': () => ({ body: { ...FAMILY, role } }),
+    'GET /api/children': () => ({ body: [fy] }),
+    [`PATCH /api/children/${fy.id}`]: () => { role = 'member'; return { status: 403, body: { error: '…', code: 'family_role' } } }
+  })
+  await page.goto(`/espace/enfant/${fy.id}`)
+  await page.getByLabel('Prénom').fill('Autre')
+  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await expect(page).toHaveURL(/\/espace$/)
+  await expect(page.getByRole('link', { name: 'Modifier' })).toHaveCount(0)
+})
