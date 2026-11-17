@@ -1,0 +1,56 @@
+/* Ajustements natifs. Chargé après style.css, uniquement pertinent quand la
+ * classe `native` est posée sur <html> par main.ts.
+ *
+ * Les encoches et barres système se gèrent par env(safe-area-inset-*), qui
+ * n'a de valeur que parce que main.ts demande à la barre d'état de recouvrir
+ * la WebView. */
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+html.native .nav {
+  padding-top: calc(var(--safe-top) + 12px);
+  padding-left: calc(var(--gutter) + var(--safe-left));
+  padding-right: calc(var(--gutter) + var(--safe-right));
+}
+
+html.native .page {
+  padding-bottom: calc(var(--safe-bottom) + 32px);
+  padding-left: calc(var(--gutter) + var(--safe-left));
+  padding-right: calc(var(--gutter) + var(--safe-right));
+}
+
+/* Pas de sélection ni de menu contextuel sur les éléments d'interface : dans
+ * une application native, un appui long qui surligne du texte trahit la
+ * WebView. Les zones de contenu réel les rétablissent. */
+html.native {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+html.native input,
+html.native textarea,
+html.native [data-selectable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* iOS zoome sur un champ dont la police descend sous 16px, et ne dézoome
+ * jamais ensuite. */
+html.platform-ios input,
+html.platform-ios textarea,
+html.platform-ios select {
+  font-size: max(16px, 1rem);
+}
+
+/* Le rebond de défilement révèle le fond de la WebView, blanc par défaut,
+ * y compris en thème sombre. */
+html.native,
+html.native body {
+  overscroll-behavior-y: none;
+  background: var(--bg);
+}

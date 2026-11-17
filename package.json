@@ -1,0 +1,61 @@
+{
+  "name": "akaiky-v2",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "postinstall": "npm install --prefix server --no-audit --no-fund",
+    "dev": "vite",
+    "dev:db": "docker compose -f compose.dev.yml up -d",
+    "dev:api": "cd server && node --env-file=.env.dev --watch src/server.js",
+    "dev:seed": "cd server && node --env-file=.env.dev bin/dev-seed.js",
+    "build": "vue-tsc -b && vite build",
+    "test": "vitest run",
+    "test:api": "npm test --prefix server",
+    "test:all": "npm run lint && npm run build && npm test && npm run test:api && npm run test:e2e",
+    "sync": "npm run build && npx cap sync",
+    "open:android": "npx cap open android",
+    "open:ios": "npx cap open ios",
+    "icons": "npx --yes @capacitor/assets@3 generate --iconBackgroundColor '#ffffff'",
+    "android:add": "npm run build && npx cap add android && cp native/variables.gradle android/variables.gradle && npx cap sync android",
+    "ios:add": "npm run build && npx cap add ios && npx cap sync ios",
+    "lint": "eslint . --max-warnings 0",
+    "test:e2e": "playwright test",
+    "recette": "node scripts/recette.mjs",
+    "test:visual": "sh scripts/visual.sh"
+  },
+  "dependencies": {
+    "@aparajita/capacitor-secure-storage": "^8.0.1",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/status-bar": "^8.0.2",
+    "@capgo/capacitor-updater": "^8.49.1",
+    "qrcode": "1.5.4",
+    "vue": "^3.5.38",
+    "vue-router": "^5.1.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/cli": "^8.4.0",
+    "@capacitor/ios": "^8.4.0",
+    "@playwright/test": "1.63.0",
+    "@types/node": "^26.0.0",
+    "@types/qrcode": "^1.5.5",
+    "@vitejs/plugin-legacy": "^8.1.0",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.12.0",
+    "eslint-plugin-vue": "^10.11.1",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.71.1",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.9",
+    "vue-eslint-parser": "^10.4.0",
+    "vue-tsc": "^3.3.5"
+  },
+  "overrides": {
+    "xcode": {
+      "uuid": "^11.1.1"
+    }
+  }
+}

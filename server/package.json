@@ -1,0 +1,23 @@
+{
+  "name": "akaiky-v2-server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "API de akaiky-v2 ; sert aussi le front compilé (une seule origine).",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "migrate": "node bin/migrate.js",
+    "make-admin": "node bin/make-admin.js",
+    "mfa-invite": "node bin/mfa-invite.js",
+    "dev:seed": "node bin/dev-seed.js"
+  },
+  "dependencies": {
+    "fastify": "^5.12.5",
+    "nodemailer": "^10.0.16",
+    "pg": "^8.23.1"
+  }
+}

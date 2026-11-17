@@ -1,0 +1,15 @@
+# PostgreSQL de développement, sur 127.0.0.1 uniquement.
+#   npm run dev:db
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app-dev-local
+      POSTGRES_DB: akaiky_v2
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
