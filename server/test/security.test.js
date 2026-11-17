@@ -134,7 +134,7 @@ test('origines localhost : acceptées en développement, refusées en production
   assert.notEqual(dev.statusCode, 403, 'développement : localhost accepté')
   const { buildApp } = await import('../src/app.js')
   const { loadConfig } = await import('../src/config.js')
-  const prodConfig = loadConfig({ NODE_ENV: 'production', MFA_ENCRYPTION_KEY: 'ab'.repeat(32), DATABASE_URL: dbh.url, APP_ORIGIN: 'https://app.test', STATIC_DIR: '/nonexistent', TRUST_PROXY: '10.0.0.0/8' })
+  const prodConfig = loadConfig({ NODE_ENV: 'production', MFA_ENCRYPTION_KEY: 'ab'.repeat(32), DATA_ENCRYPTION_KEY: 'cd'.repeat(32), DATABASE_URL: dbh.url, APP_ORIGIN: 'https://app.test', STATIC_DIR: '/nonexistent', TRUST_PROXY: '10.0.0.0/8' })
   const prod = await buildApp({ config: prodConfig, db: ctx.db, mailer: { async send() {} }, logger: false })
   try {
     const r = await prod.inject({ method: 'POST', url: '/api/auth/login', payload: body, headers: { origin: 'http://localhost:4001', 'x-app': '1' } })
@@ -144,7 +144,7 @@ test('origines localhost : acceptées en développement, refusées en production
 
 test('configuration de production : valeurs dangereuses refusées au démarrage', async () => {
   const { loadConfig } = await import('../src/config.js')
-  const base = { NODE_ENV: 'production', DATABASE_URL: 'postgres://x', APP_ORIGIN: 'https://app.test', MFA_ENCRYPTION_KEY: 'ab'.repeat(32), TRUST_PROXY: '10.0.0.0/8' }
+  const base = { NODE_ENV: 'production', DATABASE_URL: 'postgres://x', APP_ORIGIN: 'https://app.test', MFA_ENCRYPTION_KEY: 'ab'.repeat(32), DATA_ENCRYPTION_KEY: 'cd'.repeat(32), TRUST_PROXY: '10.0.0.0/8' }
   assert.throws(() => loadConfig({ ...base, TRUST_PROXY: undefined }), /TRUST_PROXY requis/)
   assert.throws(() => loadConfig({ ...base, APP_ORIGIN: 'http://app.test' }), /https/)
   assert.throws(() => loadConfig({ ...base, MFA_ENCRYPTION_KEY: undefined }), /MFA_ENCRYPTION_KEY/)

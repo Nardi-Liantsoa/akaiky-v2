@@ -26,5 +26,5 @@ test('boîte d’envoi de recette : emails écrits dans le fichier, refusée en 
   await mailer.send({ to: 'a@exemple.fr', subject: 'Confirmez', text: 'lien' })
   const [mail] = readFileSync(outbox, 'utf8').trim().split('\n').map((l) => JSON.parse(l))
   assert.deepEqual([mail.to, mail.subject], ['a@exemple.fr', 'Confirmez'])
-  assert.throws(() => loadConfig({ NODE_ENV: 'production', MAIL_OUTBOX: outbox, APP_ORIGIN: 'https://app.exemple.fr', DATABASE_URL: 'postgres://x@h/x', MFA_ENCRYPTION_KEY: 'ab'.repeat(32), TRUST_PROXY: '172.21.0.0/16' }), /MAIL_OUTBOX/)
+  assert.throws(() => loadConfig({ NODE_ENV: 'production', MAIL_OUTBOX: outbox, APP_ORIGIN: 'https://app.exemple.fr', DATABASE_URL: 'postgres://x@h/x', MFA_ENCRYPTION_KEY: 'ab'.repeat(32), DATA_ENCRYPTION_KEY: 'cd'.repeat(32), TRUST_PROXY: '172.21.0.0/16' }), /MAIL_OUTBOX/)
 })
