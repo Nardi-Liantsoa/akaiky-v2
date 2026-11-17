@@ -7,10 +7,11 @@
 
 /* Police des maquettes (docs/DESIGN.md) : Nunito variable, sous-ensemble
  * latin servi par l'application elle-même (aucun appel à un tiers, C90).
- * Licence SIL OFL 1.1 : public/fonts/OFL-nunito.txt. */
+ * Chemin relatif : Vite la range, nom haché, dans /assets/ (cache immuable).
+ * Licence SIL OFL 1.1 : public/licenses/OFL-nunito.txt. */
 @font-face {
   font-family: 'Nunito';
-  src: url('/fonts/nunito-latin-wght.woff2') format('woff2');
+  src: url('./assets/fonts/nunito-latin-wght.woff2') format('woff2');
   font-weight: 200 1000;
   font-style: normal;
   font-display: swap;

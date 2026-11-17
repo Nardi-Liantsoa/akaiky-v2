@@ -1,6 +1,6 @@
 import { createApp } from 'vue'
 import { Capacitor } from '@capacitor/core'
-import { StatusBar } from '@capacitor/status-bar'
+import { StatusBar, Style } from '@capacitor/status-bar'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import App from './App.vue'
 import { router } from './router'
@@ -12,6 +12,9 @@ import './mobile.css'
 if (Capacitor.isNativePlatform()) {
   document.documentElement.classList.add('native', `platform-${Capacitor.getPlatform()}`)
   StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {})
+  // Interface toujours claire (pas de mode sombre, docs/DESIGN.md) : texte
+  // sombre dans la barre d'état, même quand le système est en thème sombre.
+  StatusBar.setStyle({ style: Style.Light }).catch(() => {})
 }
 
 createApp(App).use(router).mount('#app')

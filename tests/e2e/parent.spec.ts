@@ -23,12 +23,17 @@ test('parent connecté : quatre onglets, sans rechargement, onglet actif signal�
 })
 
 test('police servie par l’application, aucun appel à un tiers', async ({ page }) => {
-  const fonts: string[] = []
-  page.on('request', (r) => { if (r.resourceType() === 'font') fonts.push(r.url()) })
+  const fonts: { url: string, status: number }[] = []
+  page.on('response', (r) => { if (r.request().resourceType() === 'font') fonts.push({ url: r.url(), status: r.status() }) })
   await mockApi(page, connected)
   await page.goto('/espace')
   await page.evaluate(() => document.fonts.ready)
-  expect(await page.evaluate(() => document.fonts.check('900 16px Nunito'))).toBe(true)
+  // check() répond vrai même pour une police en échec : on lit son état réel.
+  const status = await page.evaluate(() => [...document.fonts].filter((f) => f.family.replace(/"/g, '') === 'Nunito').map((f) => f.status))
+  expect(status).toEqual(['loaded'])
   expect(fonts.length).toBeGreaterThan(0)
-  for (const url of fonts) expect(new URL(url).origin).toBe('http://127.0.0.1:4173')
+  for (const f of fonts) {
+    expect(new URL(f.url).origin).toBe('http://127.0.0.1:4173')
+    expect(f.status).toBe(200)
+  }
 })

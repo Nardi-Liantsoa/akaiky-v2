@@ -5,7 +5,7 @@ dépôt). Couleurs relevées sur le rendu du PDF ; la police y est vectorisée, 
 non identifiable avec certitude : arrondie et très grasse, proche de **Nunito**
 (800–900 pour les titres) — à confirmer avec le designer. Retenue en attendant :
 Nunito variable (Fontsource 5.3.0), sous-ensemble latin `woff2` de 39 Ko servi
-par l'app (`public/fonts/`, licence SIL OFL 1.1), repli `ui-rounded`.
+par l'app (`src/assets/fonts/`, haché par Vite ; licence SIL OFL 1.1 dans `public/licenses/`), repli `ui-rounded`.
 
 **Mode sombre** : absent des maquettes, désactivé explicitement (`color-scheme: light`).
 

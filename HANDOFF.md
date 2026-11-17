@@ -5,7 +5,7 @@
 - Socle `app-propre-mobile` généré (create-nosy-app @ 995f746), **aucune fonctionnalité
   métier**. Ressource d'exemple `notes` retirée (NAR-132, migration `002`).
 - Identifiant `mg.nosytech.akaiky`, nom affiché « Akaiky ». Maquettes résumées dans
-  `docs/DESIGN.md` ; jetons pas encore appliqués à `src/style.css`.
+  `docs/DESIGN.md` ; jetons et police posés dans `src/style.css` (NAR-132).
 - Vérifié en local : lint, build, tests front (2/2), tests API contre PostgreSQL jetable
   (64/64), e2e Chromium (9/9), e2e WebKit (9/9 dans l'image Docker Playwright),
   `npm audit` 0 vulnérabilité (racine et serveur), gitleaks et Semgrep (`p/javascript`,

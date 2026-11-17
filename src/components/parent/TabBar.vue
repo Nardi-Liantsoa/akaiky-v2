@@ -63,7 +63,7 @@ const TABS = [
   font-weight: 800;
 }
 .tab:focus-visible {
-  outline: 3px solid var(--accent-soft);
+  outline: 3px solid var(--call);
   outline-offset: -3px;
 }
 </style>
