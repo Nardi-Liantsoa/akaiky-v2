@@ -75,8 +75,12 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
 
 | Table | Propriétaire | Lecture | Création | Modification | Suppression |
 |---|---|---|---|---|---|
+| `families` | `memberships` (rôle relu en base à chaque requête) | membres (`GET /api/families/me`) | toute session sans famille, qui devient `owner` (une famille par compte en v1) | `owner`, `manager` (nom) | — (suppression du compte, NAR-153 ; aucun DELETE accordé au rôle applicatif) |
+| `memberships` | `family_id` | membres de la même famille (nom et rôle, sans adresse) | création de famille (`owner`) ; invitations (NAR-134) | — (rôles : NAR-134 ; aucun UPDATE accordé) | — (NAR-134, NAR-153) ; cascade depuis `families` et `users` |
 
-Aucune table métier pour l'instant (`notes`, exemple du starter, retirée par NAR-132).
+Garde : `server/src/families.js` — `requireFamilyRole(db, req, familyId, roles)` (pas membre → 404,
+rôle insuffisant → 403) avec la famille lue sur la ligne de la ressource, ou `requireOwnFamily`
+pour la famille de la session. Tests d'isolation : `server/test/families.test.js`.
 Toute nouvelle table ajoute sa ligne ici avant sa première route. Tables métier
 attendues (porteuses d'`org_id` = famille) : familles, adhésions, invitations, enfants,
 appareils, contacts autorisés, applications autorisées, plages horaires, messages

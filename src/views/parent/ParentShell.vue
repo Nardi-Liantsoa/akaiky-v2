@@ -1,13 +1,31 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
+import { watch } from 'vue'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 import TabBar from '../../components/parent/TabBar.vue'
+import { auth } from '../../store/auth'
+import { family } from '../../store/family'
+
+const route = useRoute()
+const router = useRouter()
+// Famille disparue en cours de route (rechargement → no_family, membre retiré) :
+// retour à l'accueil, qui présente la création, plutôt qu'un écran vide sans onglets.
+watch(() => family.status, (status) => {
+  if (status === 'none' && route.meta.requiresFamily) void router.replace({ name: 'espace' })
+})
+// Session perdue sur place (401 pendant un chargement) : connexion, puis retour ici.
+// Une déconnexion volontaire navigue elle-même ensuite, et sa navigation l'emporte.
+watch(() => auth.user, (user) => {
+  if (!user) void router.replace({ name: 'connexion', query: { next: route.fullPath } })
+})
 </script>
 
 <template>
   <main class="shell">
     <RouterView />
   </main>
-  <TabBar />
+  <!-- Onglets seulement quand la famille est connue (ou injoignable) : jamais pendant
+       la création ni pendant le premier chargement. -->
+  <TabBar v-if="family.status === 'ready' || family.status === 'error'" />
 </template>
 
 <style scoped>

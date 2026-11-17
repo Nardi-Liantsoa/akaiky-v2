@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { mockApi, USER } from './mock'
+import { FAMILY, mockApi, USER } from './mock'
 
-const connected = { 'GET /api/auth/me': () => ({ body: { user: USER } }) }
+const connected = { 'GET /api/auth/me': () => ({ body: { user: USER } }), 'GET /api/families/me': () => ({ body: FAMILY }) }
 
 test('parent connecté : quatre onglets, sans rechargement, onglet actif signalé', async ({ page }) => {
   await mockApi(page, connected)
@@ -15,7 +15,7 @@ test('parent connecté : quatre onglets, sans rechargement, onglet actif signal�
   for (const [name, path] of [['Journal', '/espace/journal'], ['Réglages', '/espace/reglages'], ['Famille', '/espace/famille'], ['Accueil', '/espace']]) {
     await tabs.getByRole('link', { name }).click()
     await expect(page).toHaveURL(new RegExp(`${path}$`))
-    await expect(page.getByRole('heading', { name })).toBeVisible()
+    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
     await expect(tabs.getByRole('link', { name })).toHaveAttribute('aria-current', 'page')
     await expect(tabs.locator('[aria-current="page"]')).toHaveCount(1)
   }

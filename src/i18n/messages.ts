@@ -87,6 +87,21 @@ const fr = {
     revoke: 'Retirer',
     revokeAll: 'Tout retirer'
   },
+  family: {
+    createTitle: 'Bienvenue sur Akaiky',
+    createLead: 'Commencez par donner un nom à votre famille. Vous pourrez ensuite ajouter vos enfants et inviter vos proches.',
+    nameLabel: 'Nom de la famille',
+    namePlaceholder: 'Famille Rakoto',
+    create: 'Créer ma famille',
+    rename: 'Renommer',
+    save: 'Enregistrer',
+    cancel: 'Annuler',
+    members: 'Membres',
+    you: 'vous',
+    roles: { owner: 'Parent principal', manager: 'Gestionnaire', member: 'Contact' },
+    loadError: 'Impossible de charger votre famille.',
+    loading: 'Chargement de votre famille…'
+  },
   parent: {
     tabsLabel: 'Navigation principale',
     home: { title: 'Accueil', empty: 'Les enfants de votre famille apparaîtront ici.' },
@@ -194,6 +209,21 @@ const mg: Messages = {
     revoke: 'Esory',
     revokeAll: 'Esory daholo'
   },
+  family: {
+    createTitle: 'Tongasoa eto amin’i Akaiky',
+    createLead: 'Omeo anarana aloha ny fianakavianao. Afaka manampy ny zanakao sy manasa ny havanao ianao avy eo.',
+    nameLabel: 'Anaran’ny fianakaviana',
+    namePlaceholder: 'Fianakaviana Rakoto',
+    create: 'Hamorona ny fianakaviako',
+    rename: 'Hanova anarana',
+    save: 'Tehirizo',
+    cancel: 'Hanafoana',
+    members: 'Mpikambana',
+    you: 'ianao',
+    roles: { owner: 'Ray aman-dreny lehibe', manager: 'Mpitantana', member: 'Mpifandray' },
+    loadError: 'Tsy azo nalaina ny mombamomba ny fianakavianao.',
+    loading: 'Maka ny mombamomba ny fianakavianao…'
+  },
   parent: {
     tabsLabel: 'Fitetezana lehibe',
     home: { title: 'Fandraisana', empty: 'Eto no hiseho ireo ankizy ao amin’ny fianakavianao.' },
@@ -298,6 +328,21 @@ const en: Messages = {
     lastUsed: (d: string) => `last used ${d}`,
     revoke: 'Remove',
     revokeAll: 'Remove all'
+  },
+  family: {
+    createTitle: 'Welcome to Akaiky',
+    createLead: 'Start by naming your family. You can then add your children and invite your loved ones.',
+    nameLabel: 'Family name',
+    namePlaceholder: 'The Rakoto family',
+    create: 'Create my family',
+    rename: 'Rename',
+    save: 'Save',
+    cancel: 'Cancel',
+    members: 'Members',
+    you: 'you',
+    roles: { owner: 'Main parent', manager: 'Manager', member: 'Contact' },
+    loadError: 'Could not load your family.',
+    loading: 'Loading your family…'
   },
   parent: {
     tabsLabel: 'Main navigation',

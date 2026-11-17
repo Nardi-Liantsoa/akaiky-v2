@@ -55,6 +55,13 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     runtime = { app, db: pool, sent }
     const user = await newUser(runtime)
     assert.equal((await call(app, 'GET', '/api/auth/me', { cookie: user.cookie })).json().user.id, user.id)
+    // Familles sous le rôle restreint : création, lecture, renommage (GRANT de 003_families.sql).
+    const family = await call(app, 'POST', '/api/families', { cookie: user.cookie, body: { name: 'Famille durcie' } })
+    assert.equal(family.statusCode, 201, family.body)
+    assert.equal((await call(app, 'PATCH', '/api/families/me', { cookie: user.cookie, body: { name: 'Renommée' } })).statusCode, 200)
+    assert.equal((await call(app, 'GET', '/api/families/me', { cookie: user.cookie })).json().name, 'Renommée')
+    await assert.rejects(pool.query("UPDATE memberships SET role = 'owner'"), /permission denied/)
+    await assert.rejects(pool.query('DELETE FROM families'), /permission denied/)
     const nat = await native(app, 'POST', '/api/auth/native/login', { body: { email: user.email, password: user.password } })
     assert.equal(nat.statusCode, 200, nat.body)
     const renewed = await native(app, 'POST', '/api/auth/native/refresh', { body: { refreshToken: nat.json().refreshToken } })
