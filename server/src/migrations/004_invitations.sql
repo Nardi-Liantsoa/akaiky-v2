@@ -11,9 +11,16 @@ CREATE TABLE invitations (
   expires_at  timestamptz NOT NULL,
   used_at     timestamptz
 );
--- Une seule invitation en attente par adresse et par famille.
-CREATE UNIQUE INDEX invitations_pending ON invitations(family_id, email) WHERE used_at IS NULL;
+-- Une seule invitation en attente par adresse et par famille, garantie par la
+-- route (verrou par famille) : la nouvelle ne remplace l'ancienne qu'une fois
+-- son courriel parti, les deux coexistent donc un instant.
+CREATE INDEX invitations_pending ON invitations(family_id, email) WHERE used_at IS NULL;
 CREATE INDEX invitations_family ON invitations(family_id, created_at DESC);
+
+-- Alerte de supervision propre au budget d'envoi des invitations.
+ALTER TABLE security_alerts DROP CONSTRAINT security_alerts_kind_check;
+ALTER TABLE security_alerts ADD CONSTRAINT security_alerts_kind_check
+  CHECK (kind IN ('login_attack', 'registrations_quota', 'auth_emails_quota', 'invitation_emails_quota', 'refresh_replay'));
 
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_runtime') THEN

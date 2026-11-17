@@ -71,7 +71,7 @@ async function save() {
 
       <p v-if="error && !editing" class="error" role="alert">{{ error }}</p>
       <h2 class="section">{{ t.family.members }}</h2>
-      <MembersList />
+      <MembersList @changed="sent++" />
 
       <template v-if="canManage()">
         <PendingInvitations :refresh="sent" />

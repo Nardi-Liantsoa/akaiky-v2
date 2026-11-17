@@ -38,15 +38,20 @@ export default async function invitationsRoutes(app) {
     const user = app.requireUser(req)
     limit(user)
     return withTransaction(db, async (conn) => {
+      const hash = tokenHash(req.body.token)
+      // Ordre des verrous identique au retrait d'un membre (adhésions, puis
+      // invitations) : un invitant retiré en même temps ne fait pas entrer son invité.
+      const { rows: [found] } = await conn.query('SELECT family_id, invited_by FROM invitations WHERE token_hash = $1', [hash])
+      if (!found) throw invalid()
+      const { rows: [inviter] } = await conn.query(
+        'SELECT 1 FROM memberships WHERE family_id = $1 AND user_id = $2 AND role = ANY($3::text[]) FOR SHARE',
+        [found.family_id, found.invited_by, MANAGERS])
+      if (!inviter) throw invalid()
       const { rows: [inv] } = await conn.query(
-        `SELECT id, family_id, email, role, invited_by FROM invitations
-          WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now() FOR UPDATE`, [tokenHash(req.body.token)])
+        `SELECT id, family_id, email, role FROM invitations
+          WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now() FOR UPDATE`, [hash])
       if (!inv) throw invalid()
       if (inv.email !== user.email) throw new HttpError(403, 'Cette invitation est destinée à une autre adresse.', 'invite_other_account')
-      // L'invitant doit toujours pouvoir inviter : un gestionnaire retiré entre-temps annule son invitation.
-      const { rows: [inviter] } = await conn.query(
-        'SELECT 1 FROM memberships WHERE family_id = $1 AND user_id = $2 AND role = ANY($3::text[])', [inv.family_id, inv.invited_by, MANAGERS])
-      if (!inviter) throw invalid()
       await conn.query('UPDATE invitations SET used_at = now() WHERE id = $1', [inv.id])
       try {
         await conn.query('INSERT INTO memberships(family_id, user_id, role) VALUES ($1, $2, $3)', [inv.family_id, user.id, inv.role])

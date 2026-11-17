@@ -133,37 +133,46 @@ export default async function familiesRoutes(app) {
     const user = app.requireUser(req)
     await requireOwnFamily(db, req, MANAGERS)
     const invitee = emailAddress(req.body.email)
-    if (!invitesPerUser(user.id)) throw new HttpError(429, 'Trop d’invitations envoyées. Réessayez plus tard.')
     const { token, hash } = newToken()
-    // Courriel envoyé AVANT le COMMIT : un échec d'envoi annule tout, y compris le
-    // remplacement d'une invitation précédente encore valable.
+    // 1. Refus métier, budgets, puis enregistrement (sous verrou de la famille).
     const invitation = await transaction(async (conn) => {
       const own = await requireOwnFamily(conn, req, MANAGERS)
       await conn.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`invitations:${own.familyId}`])
       const { rows: [member] } = await conn.query(
         'SELECT 1 FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.family_id = $1 AND u.email = $2', [own.familyId, invitee])
       if (member) throw new HttpError(409, 'Cette personne fait déjà partie de la famille.', 'already_member')
-      // Une nouvelle invitation remplace la précédente pour la même adresse.
-      await conn.query('DELETE FROM invitations WHERE family_id = $1 AND email = $2 AND used_at IS NULL', [own.familyId, invitee])
+      // L'invitation en attente pour la même adresse sera remplacée : elle ne compte pas.
       const { rows: [{ n }] } = await conn.query(
-        'SELECT count(*)::int AS n FROM invitations WHERE family_id = $1 AND used_at IS NULL AND expires_at > now()', [own.familyId])
+        `SELECT count(*)::int AS n FROM invitations
+          WHERE family_id = $1 AND used_at IS NULL AND expires_at > now() AND email <> $2`, [own.familyId, invitee])
       if (n >= MAX_PENDING_INVITATIONS) throw new HttpError(409, 'Trop d’invitations en attente. Annulez-en une d’abord.', 'too_many_invitations')
-      // Budget compté seulement pour un envoi réel, après les refus métier.
-      await consumeQuota(conn, 'invitation-emails', config.quotas.invitationEmailsPerHour)
+      // Budgets comptés seulement pour un envoi réel ; le quota global sur le pool,
+      // hors transaction, pour que son alerte de supervision ne soit pas annulée.
+      if (!invitesPerUser(user.id)) throw new HttpError(429, 'Trop d’invitations envoyées. Réessayez plus tard.')
+      await consumeQuota(db, 'invitation-emails', config.quotas.invitationEmailsPerHour)
       const { rows: [row] } = await conn.query(
-        `INSERT INTO invitations(family_id, email, role, token_hash, invited_by, expires_at)
-         VALUES ($1, $2, $3, $4, $5, now() + make_interval(days => $6))
-         RETURNING id, email, role, created_at, expires_at`,
+        // clock_timestamp() pris sous le verrou : l'ordre des invitations d'une famille est sûr.
+        `INSERT INTO invitations(family_id, email, role, token_hash, invited_by, created_at, expires_at)
+         VALUES ($1, $2, $3, $4, $5, clock_timestamp(), clock_timestamp() + make_interval(days => $6))
+         RETURNING id, family_id, email, role, created_at, expires_at`,
         [own.familyId, invitee, req.body.role, hash, user.id, INVITE_DAYS])
       await audit(conn, req, 'invitation_created', row.id, { role: row.role })
-      try {
-        await mailer.send({ to: invitee, ...emails.invitation(inviteLink(token)) })
-      } catch (e) {
-        req.log.error({ err: e }, 'Envoi d’une invitation impossible')
-        throw new HttpError(503, 'Envoi de l’invitation impossible. Réessayez dans un moment.')
-      }
       return row
     })
+    // 2. Courriel, hors transaction (aucune connexion ni verrou tenu pendant le SMTP).
+    try {
+      await mailer.send({ to: invitee, ...emails.invitation(inviteLink(token)) })
+    } catch (e) {
+      req.log.error({ err: e }, 'Envoi d’une invitation impossible')
+      await db.query('DELETE FROM invitations WHERE id = $1 AND used_at IS NULL', [invitation.id])
+      await audit(db, req, 'invitation_send_failed', invitation.id)
+      throw new HttpError(503, 'Envoi de l’invitation impossible. Réessayez dans un moment.')
+    }
+    // 3. Courriel parti : la nouvelle invitation remplace les PLUS ANCIENNES pour cette
+    //    adresse (deux envois simultanés ne s'effacent pas l'un l'autre).
+    await db.query(
+      'DELETE FROM invitations WHERE family_id = $1 AND email = $2 AND used_at IS NULL AND created_at < $3',
+      [invitation.family_id, invitee, invitation.created_at])
     return reply.code(201).send({
       id: invitation.id, email: invitation.email, role: invitation.role, createdAt: invitation.created_at, expiresAt: invitation.expires_at
     })

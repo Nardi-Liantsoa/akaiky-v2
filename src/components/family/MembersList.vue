@@ -5,6 +5,7 @@ import { useT } from '../../composables/useT'
 import { familyErrorText } from '../../lib/familyErrors'
 import { family, loadFamily } from '../../store/family'
 
+const emit = defineEmits<{ changed: [] }>()
 const t = useT()
 const busy = ref(false)
 const error = ref('')
@@ -33,6 +34,8 @@ async function run(task: () => Promise<unknown>) {
     // Dans tous les cas, l'état affiché est relu : un refus vient souvent d'un changement fait ailleurs.
     await loadFamily(true)
     version.value++
+    // Un rôle retiré ou un départ peut supprimer des invitations en attente.
+    emit('changed')
     busy.value = false
   }
 }

@@ -187,8 +187,10 @@ test('envoi impossible en renvoyant : l’invitation précédente reste valable'
   } finally { ctx.app.mailer.send = send }
   assert.deepEqual((await pending(owner)).json().map((i) => i.role), ['member'])
   assert.equal((await accept(guest, first)).statusCode, 200)
-  const { rows } = await ctx.db.query("SELECT count(*)::int AS n FROM audit_log WHERE action = 'invitation_created' AND details->>'role' = 'manager' AND actor_id = $1", [owner.id])
-  assert.equal(rows[0].n, 0, 'aucune trace d’une invitation qui n’existe pas')
+  // L'échec est tracé à côté de la création qu'il annule.
+  const { rows } = await ctx.db.query(
+    "SELECT action FROM audit_log WHERE actor_id = $1 AND action IN ('invitation_created', 'invitation_send_failed') ORDER BY id", [owner.id])
+  assert.deepEqual(rows.map((r) => r.action), ['invitation_created', 'invitation_created', 'invitation_send_failed'])
 })
 
 test('gestionnaire rétrogradé ou retiré : ses invitations disparaissent, l’aperçu les refuse', async () => {
@@ -221,4 +223,36 @@ test('budget d’envoi propre aux invitations, compté seulement pour un envoi r
     // Les courriels de compte ne sont pas touchés.
     assert.equal((await call(app2.app, 'POST', '/api/auth/forgot-password', { body: { email: owner.email } })).statusCode, 202)
   } finally { await app2.close(); await ctx.db.query("DELETE FROM security_quotas WHERE name = 'invitation-emails'") }
+})
+
+test('deux envois simultanés à la même adresse : une seule invitation reste, la plus récente', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const email = `double.${process.pid}@exemple.fr`
+  const results = await Promise.all([invite(owner, email, 'member'), invite(owner, email, 'manager')])
+  assert.deepEqual(results.map((r) => r.statusCode), [201, 201])
+  const left = (await pending(owner)).json().filter((i) => i.email === email)
+  assert.equal(left.length, 1)
+})
+
+test('acceptation et retrait simultané de l’invitant : jamais d’entrée par un gestionnaire retiré', async () => {
+  for (let round = 0; round < 3; round++) {
+    const owner = await newUser(ctx)
+    await family(owner)
+    const manager = await join(owner, 'manager')
+    const guest = await newUser(ctx)
+    await invite(manager, guest.email, 'manager')
+    const token = tokenFor(guest.email)
+    const [accepted, removed] = await Promise.all([accept(guest, token), remove(owner, manager.id)])
+    assert.equal(removed.statusCode, 200)
+    // Soit l'invité est entré avant le retrait (invitation déjà consommée), soit il est refusé.
+    assert.ok([200, 400].includes(accepted.statusCode), accepted.body)
+    if (accepted.statusCode === 400) assert.equal((await members(owner)).some((m) => m.userId === guest.id), false)
+    else {
+      const { rows } = await ctx.db.query(
+        `SELECT action FROM audit_log WHERE (action = 'invitation_accepted' AND actor_id = $1) OR (action = 'member_removed' AND target = $2::text) ORDER BY id`,
+        [guest.id, manager.id])
+      assert.deepEqual(rows.map((r) => r.action), ['invitation_accepted', 'member_removed'])
+    }
+  }
 })
