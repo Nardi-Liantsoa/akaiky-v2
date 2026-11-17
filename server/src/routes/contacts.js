@@ -1,12 +1,12 @@
 // Contacts autorisés d'un enfant (NAR-140). Lecture : membres de la famille ;
 // écriture : owner et manager, rôle verrouillé dans la transaction. L'enfant est
 // verrouillé (FOR UPDATE) : les écritures d'un même enfant se suivent, le plafond
-// et l'ordre restent justes, et sa config_version avance à chaque changement
-// (le téléphone la compare pour se mettre à jour, NAR-160).
+// et l'ordre restent justes. Sa config_version avance par déclencheur
+// (006_allowed_contacts.sql) ; le téléphone la compare pour se mettre à jour (NAR-160).
 import { randomUUID } from 'node:crypto'
 import { HttpError, audit, isUuid, text } from '../lib.js'
 import { withTransaction } from '../db.js'
-import { MANAGERS, ROLES, lockOwnFamily, requireOwnFamily } from '../families.js'
+import { MANAGERS, ROLES, lockFamilyMembers, requireOwnFamily } from '../families.js'
 import { blindIndex, openField, sealField } from '../crypto-fields.js'
 import { normalizePhone } from '../phone.js'
 import { AVATAR_COLORS } from './children.js'
@@ -56,7 +56,17 @@ export default async function contactsRoutes(app) {
     const { rows } = await conn.query('SELECT id FROM children WHERE id = $1 AND family_id = $2 FOR UPDATE', [childId, familyId])
     if (!rows[0]) throw childNotFound()
   }
-  const bump = (conn, childId) => conn.query('UPDATE children SET config_version = config_version + 1 WHERE id = $1', [childId])
+  // Contact relu dans la transaction, après le verrou de l'enfant : un retrait
+  // simultané se voit ici (404) au lieu d'écrire sur une ligne disparue.
+  async function lockedContact(conn, familyId, contactId) {
+    const { rows: [found] } = await conn.query('SELECT child_id FROM allowed_contacts WHERE id = $1 AND family_id = $2', [contactId, familyId])
+    if (!found) throw contactNotFound()
+    await lockChild(conn, familyId, found.child_id)
+    const { rows: [still] } = await conn.query('SELECT child_id FROM allowed_contacts WHERE id = $1 AND family_id = $2 FOR UPDATE', [contactId, familyId])
+    if (!still) throw contactNotFound()
+    return still.child_id
+  }
+  const readOne = async (conn, id) => serialize((await conn.query(`${SELECT} WHERE c.id = $1`, [id])).rows[0])
   // Membre lié : de la même famille (la clé étrangère composite le garantit aussi).
   async function checkMember(conn, familyId, memberUserId) {
     if (memberUserId === null || memberUserId === undefined) return null
@@ -87,8 +97,8 @@ export default async function contactsRoutes(app) {
   app.post('/children/:childId/contacts', { schema: { body: CREATE } }, async (req, reply) => {
     const name = contactName(req.body.name)
     const phone = normalizePhone(req.body.phone, config.phoneCountry)
-    const id = await unique(() => withTransaction(db, async (conn) => {
-      const own = await lockOwnFamily(conn, req, MANAGERS)
+    const created = await unique(() => withTransaction(db, async (conn) => {
+      const own = await lockFamilyMembers(conn, req, MANAGERS)
       await lockChild(conn, own.familyId, req.params.childId)
       const { rows: existing } = await conn.query('SELECT avatar_color FROM allowed_contacts WHERE child_id = $1', [req.params.childId])
       if (existing.length >= MAX_CONTACTS) throw new HttpError(409, 'Six contacts au plus par enfant.', 'too_many_contacts')
@@ -101,12 +111,10 @@ export default async function contactsRoutes(app) {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [newId, own.familyId, req.params.childId, member, sealField(name, key, aad(newId, 'name')), sealField(phone, key, aad(newId, 'phone')),
           phoneIndex(phone), existing.length + 1, color])
-      await bump(conn, req.params.childId)
       await audit(conn, req, 'contact_added', newId, { childId: req.params.childId })
-      return newId
+      return readOne(conn, newId)
     }))
-    const { rows: [row] } = await db.query(`${SELECT} WHERE c.id = $1`, [id])
-    return reply.code(201).send(serialize(row))
+    return reply.code(201).send(created)
   })
 
   app.patch('/contacts/:id', { schema: { body: UPDATE } }, async (req) => {
@@ -114,11 +122,9 @@ export default async function contactsRoutes(app) {
     const id = req.params.id
     const name = req.body.name === undefined ? undefined : contactName(req.body.name)
     const phone = req.body.phone === undefined ? undefined : normalizePhone(req.body.phone, config.phoneCountry)
-    await unique(() => withTransaction(db, async (conn) => {
-      const own = await lockOwnFamily(conn, req, MANAGERS)
-      const { rows: [contact] } = await conn.query('SELECT child_id FROM allowed_contacts WHERE id = $1 AND family_id = $2', [id, own.familyId])
-      if (!contact) throw contactNotFound()
-      await lockChild(conn, own.familyId, contact.child_id)
+    return unique(() => withTransaction(db, async (conn) => {
+      const own = await lockFamilyMembers(conn, req, MANAGERS)
+      const childId = await lockedContact(conn, own.familyId, id)
       const sets = [], values = [id, own.familyId]
       const set = (column, value) => { values.push(value); sets.push(`${column} = $${values.length}`) }
       if (name !== undefined) set('name_enc', sealField(name, key, aad(id, 'name')))
@@ -126,29 +132,23 @@ export default async function contactsRoutes(app) {
       if (req.body.avatarColor !== undefined) set('avatar_color', req.body.avatarColor)
       if (req.body.memberUserId !== undefined) set('member_user_id', await checkMember(conn, own.familyId, req.body.memberUserId))
       await conn.query(`UPDATE allowed_contacts SET ${sets.join(', ')} WHERE id = $1 AND family_id = $2`, values)
-      await bump(conn, contact.child_id)
-      await audit(conn, req, 'contact_updated', id, { childId: contact.child_id })
+      await audit(conn, req, 'contact_updated', id, { childId })
+      return readOne(conn, id)
     }))
-    const { rows: [row] } = await db.query(`${SELECT} WHERE c.id = $1`, [id])
-    if (!row) throw contactNotFound()
-    return serialize(row)
   })
 
   app.delete('/contacts/:id', async (req) => {
     if (!isUuid(req.params.id)) throw contactNotFound()
     await withTransaction(db, async (conn) => {
-      const own = await lockOwnFamily(conn, req, MANAGERS)
-      const { rows: [contact] } = await conn.query('SELECT child_id FROM allowed_contacts WHERE id = $1 AND family_id = $2', [req.params.id, own.familyId])
-      if (!contact) throw contactNotFound()
-      await lockChild(conn, own.familyId, contact.child_id)
-      await conn.query('DELETE FROM allowed_contacts WHERE id = $1', [req.params.id])
+      const own = await lockFamilyMembers(conn, req, MANAGERS)
+      const childId = await lockedContact(conn, own.familyId, req.params.id)
+      await conn.query('DELETE FROM allowed_contacts WHERE id = $1 AND family_id = $2', [req.params.id, own.familyId])
       // Positions recomptées sans trou : 1, 2, 3…
       await conn.query(
         `UPDATE allowed_contacts c SET position = n.rank
            FROM (SELECT id, row_number() OVER (ORDER BY position) AS rank FROM allowed_contacts WHERE child_id = $1) n
-          WHERE c.id = n.id AND c.position <> n.rank`, [contact.child_id])
-      await bump(conn, contact.child_id)
-      await audit(conn, req, 'contact_removed', req.params.id, { childId: contact.child_id })
+          WHERE c.id = n.id AND c.position <> n.rank`, [childId])
+      await audit(conn, req, 'contact_removed', req.params.id, { childId })
     })
     return { ok: true }
   })
@@ -157,7 +157,7 @@ export default async function contactsRoutes(app) {
   app.put('/children/:childId/contacts/order', { schema: { body: ORDER } }, async (req) => {
     const ids = req.body.ids
     await withTransaction(db, async (conn) => {
-      const own = await lockOwnFamily(conn, req, MANAGERS)
+      const own = await lockFamilyMembers(conn, req, MANAGERS)
       await lockChild(conn, own.familyId, req.params.childId)
       const { rows } = await conn.query('SELECT id FROM allowed_contacts WHERE child_id = $1', [req.params.childId])
       const current = new Set(rows.map((r) => r.id))
@@ -167,7 +167,6 @@ export default async function contactsRoutes(app) {
       await conn.query(
         `UPDATE allowed_contacts c SET position = o.rank
            FROM unnest($1::uuid[]) WITH ORDINALITY AS o(id, rank) WHERE c.id = o.id AND c.child_id = $2`, [ids, req.params.childId])
-      await bump(conn, req.params.childId)
       await audit(conn, req, 'contacts_reordered', req.params.childId)
     })
     return { ok: true }

@@ -23,6 +23,18 @@ CREATE TABLE allowed_contacts (
 );
 CREATE INDEX allowed_contacts_family ON allowed_contacts(family_id);
 
+-- Toute modification des contacts d'un enfant fait avancer sa config_version,
+-- quel que soit l'auteur : routes de l'API, mais aussi la base elle-même (lien
+-- à un membre effacé quand il quitte la famille). Le téléphone la compare (NAR-160).
+CREATE FUNCTION allowed_contacts_bump_version() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  UPDATE children SET config_version = config_version + 1
+   WHERE id = COALESCE(NEW.child_id, OLD.child_id) AND family_id = COALESCE(NEW.family_id, OLD.family_id);
+  RETURN NULL;
+END $$;
+CREATE TRIGGER allowed_contacts_bump_version AFTER INSERT OR UPDATE OR DELETE ON allowed_contacts
+  FOR EACH ROW EXECUTE FUNCTION allowed_contacts_bump_version();
+
 DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_runtime') THEN
     GRANT SELECT, INSERT, DELETE ON allowed_contacts TO app_runtime;

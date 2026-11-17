@@ -27,7 +27,9 @@ export function openField(sealed, keyHex, aad) {
 // Index aveugle : HMAC-SHA256 d'une valeur normalisée, pour tester l'égalité
 // (numéro en double) sans pouvoir lire la valeur. Clé dérivée de la clé des
 // données (HKDF) avec un usage distinct : elle ne chiffre rien.
+const derived = new Map()
 export function blindIndex(value, keyHex, purpose) {
-  const key = Buffer.from(hkdfSync('sha256', Buffer.from(keyHex, 'hex'), Buffer.alloc(0), `akaiky:blind-index:${purpose}`, 32))
-  return createHmac('sha256', key).update(String(value)).digest()
+  const id = `${keyHex}:${purpose}`
+  if (!derived.has(id)) derived.set(id, Buffer.from(hkdfSync('sha256', Buffer.from(keyHex, 'hex'), Buffer.alloc(0), `akaiky:blind-index:${purpose}`, 32)))
+  return createHmac('sha256', derived.get(id)).update(String(value)).digest()
 }

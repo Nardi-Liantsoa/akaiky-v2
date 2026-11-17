@@ -31,6 +31,8 @@ async function move(index: number, delta: number) {
     if (!(e instanceof ApiError && e.code === 'order_mismatch')) { busy.value = false; return }
   }
   await loadContacts(props.childId, true)
+  // Ordre enregistré mais liste non relue : le dire, l'ordre affiché est périmé.
+  if (contacts.error && !error.value) error.value = `${t.value.contacts.loadError} ${contactErrorText(contacts.error, t.value)}`
   busy.value = false
 }
 </script>

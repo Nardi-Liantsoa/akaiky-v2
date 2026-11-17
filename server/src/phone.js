@@ -15,6 +15,11 @@ export function normalizePhone(raw, country = 'MG') {
   if (typeof raw !== 'string' || raw.length > 40) throw invalid()
   let v = raw.replace(/[\s.\-()/]/g, '')
   if (v.startsWith('00')) v = `+${v.slice(2)}`
+  // 0 national gardé après l'indicatif (« +261 (0)34… », « +261 034… ») : retiré,
+  // sinon le même numéro aurait deux formes et passerait le contrôle de doublon.
+  for (const { code } of Object.values(COUNTRIES)) {
+    if (v.startsWith(`+${code}0`)) { v = `+${code}${v.slice(code.length + 2)}`; break }
+  }
   if (!v.startsWith('+')) {
     const rule = COUNTRIES[country]
     const m = rule && rule.local.exec(v)

@@ -58,7 +58,15 @@ async function save() {
   if (busy.value || !valid.value) return
   busy.value = true
   error.value = ''
-  const input: ContactInput = { name: name.value.trim(), phone: phone.value.trim(), memberUserId: memberUserId.value, ...(color.value ? { avatarColor: color.value } : {}) }
+  // Membre lié envoyé seulement s'il a changé : un lien devenu caduc (membre parti)
+  // ne fait pas échouer la modification d'un autre champ.
+  const memberChanged = id.value ? memberUserId.value !== (existing.value?.memberUserId ?? null) : memberUserId.value !== null
+  const input: ContactInput = {
+    name: name.value.trim(),
+    phone: phone.value.trim(),
+    ...(memberChanged ? { memberUserId: memberUserId.value } : {}),
+    ...(color.value ? { avatarColor: color.value } : {})
+  }
   try {
     if (id.value) await updateContact(id.value, input)
     else await addContact(childId.value, input)

@@ -40,6 +40,21 @@ export async function lockOwnFamily(conn, req, roles) {
   return { familyId: rows[0].family_id, role: rows[0].role }
 }
 
+// Comme lockOwnFamily, mais toutes les adhésions de la famille sont verrouillées
+// (FOR SHARE) dans l'ordre des user_id, le même que le retrait d'un membre : une
+// écriture qui touche aussi l'adhésion d'un autre membre (clé étrangère vers un
+// membre lié) ne peut pas s'interbloquer avec un retrait simultané.
+export async function lockFamilyMembers(conn, req, roles) {
+  if (!req.user) throw new HttpError(401, 'Connexion requise.')
+  const own = await familyOf(conn, req.user.id)
+  if (!own) throw notFound()
+  const { rows } = await conn.query('SELECT user_id, role FROM memberships WHERE family_id = $1 ORDER BY user_id FOR SHARE', [own.familyId])
+  const me = rows.find((r) => r.user_id === req.user.id)
+  if (!me) throw notFound()
+  checkRole(me.role, roles)
+  return { familyId: own.familyId, role: me.role }
+}
+
 // Une seule lecture de l'adhésion, faite à chaque requête.
 export async function requireOwnFamily(db, req, roles) {
   if (!req.user) throw new HttpError(401, 'Connexion requise.')

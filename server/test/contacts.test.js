@@ -166,3 +166,41 @@ test('enfant retiré : ses contacts aussi (cascade)', async () => {
   const { rows: [{ n }] } = await ctx.db.query('SELECT count(*)::int AS n FROM allowed_contacts WHERE child_id = $1', [fy.id])
   assert.equal(n, 0)
 })
+
+test('config_version avance aussi quand la base délie un membre qui quitte la famille', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const fy = await child(owner)
+  const manager = await join(owner, 'manager')
+  await add(owner, fy.id, 'Papa', phone(1), { memberUserId: manager.id })
+  const before = (await list(owner, fy.id)).json().version
+  await call(ctx.app, 'DELETE', `/api/families/me/members/${manager.id}`, { cookie: owner.cookie })
+  assert.ok((await list(owner, fy.id)).json().version > before)
+})
+
+test('deux retraits simultanés du même contact : un seul succès, un seul audit', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const fy = await child(owner)
+  const c = (await add(owner, fy.id, 'Maman', phone(1))).json()
+  const results = await Promise.all([del(owner, c.id), del(owner, c.id)])
+  assert.deepEqual(results.map((r) => r.statusCode).sort(), [200, 404])
+  const { rows: [{ n }] } = await ctx.db.query("SELECT count(*)::int AS n FROM audit_log WHERE action = 'contact_removed' AND target = $1", [c.id])
+  assert.equal(n, 1)
+})
+
+test('écriture liée à un membre pendant le retrait d’un autre membre : jamais d’interblocage (500)', async () => {
+  for (let round = 0; round < 4; round++) {
+    const owner = await newUser(ctx)
+    await family(owner, `Verrous ${round}`)
+    const fy = await child(owner)
+    const manager = await join(owner, 'manager'), other = await join(owner, 'member'), linked = await join(owner, 'member')
+    const c = (await add(manager, fy.id, 'Papa', phone(1))).json()
+    const [patched, removed] = await Promise.all([
+      patch(manager, c.id, { memberUserId: linked.id }),
+      call(ctx.app, 'DELETE', `/api/families/me/members/${other.id}`, { cookie: owner.cookie })
+    ])
+    assert.equal(removed.statusCode, 200, removed.body)
+    assert.equal(patched.statusCode, 200, patched.body)
+  }
+})

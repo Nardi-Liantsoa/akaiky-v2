@@ -46,6 +46,8 @@ test('ajouter un contact puis le faire monter : liste, compteur et ordre', async
   await expect(page.getByText('2 sur 6')).toBeVisible()
   const post = calls.find((r) => r.method() === 'POST')!.postDataJSON()
   expect(post).toEqual({ name: 'Papa', phone: '034 12 345 67', memberUserId: USER.id })
+  // Ajout sans membre lié : le champ n'est pas envoyé.
+
   await expect(page.getByText('+261 34 12 345 67')).toBeVisible()
   await expect(page.getByText('Papa · Parent principal')).toBeVisible()
 
@@ -93,4 +95,20 @@ test('sans enfant : Réglages invite à en ajouter un', async ({ page }) => {
   await page.goto('/espace/reglages')
   await expect(page.getByText('Ajoutez d’abord un enfant pour régler son téléphone.')).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link', { name: 'Réglages' })).toHaveAttribute('aria-current', 'page')
+})
+
+test('modifier le nom d’un contact lié : le membre lié n’est pas renvoyé', async ({ page }) => {
+  const linked = { id: cid(1), name: 'Papa', phone: '+261341111111', avatarColor: 'blue', memberUserId: '6f1c2b1e-0000-4000-8000-0000000000aa', memberRole: 'manager' }
+  const calls = await mockApi(page, {
+    ...common,
+    ...contactsApi([linked]).handlers,
+    [`PATCH /api/contacts/${cid(1)}`]: (req) => ({ body: { ...linked, childId: FY.id, position: 1, name: req.postDataJSON().name } })
+  })
+  await page.goto(`/espace/reglages/enfant/${FY.id}/contact/${cid(1)}`)
+  await expect(page.getByLabel('Nom affiché')).toHaveValue('Papa')
+  await page.getByLabel('Nom affiché').fill('Papa Rakoto')
+  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await expect(page).toHaveURL(/\/espace\/reglages$/)
+  const body = calls.find((r) => r.method() === 'PATCH')!.postDataJSON()
+  expect(body).toEqual({ name: 'Papa Rakoto', phone: '+261341111111', avatarColor: 'blue' })
 })
