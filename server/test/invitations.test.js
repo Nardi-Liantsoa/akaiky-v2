@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { startDb, startApp, call, newUser, tokenIn } from './helpers.js'
 
 let dbh, ctx
-before(async () => { dbh = await startDb(); ctx = await startApp(dbh.url) })
+// Budgets relevés : ce fichier envoie plus de 100 invitations et 300 requêtes/min (chacun a son propre test).
+before(async () => { dbh = await startDb(); ctx = await startApp(dbh.url, { INVITATION_EMAILS_PER_HOUR: '100000', API_RATE_LIMIT: '100000' }) })
 after(async () => { await ctx.close(); dbh.stop() })
 
 const family = async (u, name = 'Famille Rabe') => (await call(ctx.app, 'POST', '/api/families', { cookie: u.cookie, body: { name } })).json()
@@ -259,7 +260,7 @@ test('acceptation et retrait simultané de l’invitant : jamais d’entrée par
 
 test('invitations simultanées depuis plusieurs familles : aucune ne bloque le pool', async () => {
   // Instance dédiée : la création de 12 comptes dépasserait la limite globale par IP.
-  const app2 = await startApp(dbh.url, { API_RATE_LIMIT: '100000' })
+  const app2 = await startApp(dbh.url, { API_RATE_LIMIT: '100000', INVITATION_EMAILS_PER_HOUR: '100000' })
   try {
     const owners = []
     for (let i = 0; i < 12; i++) {
@@ -271,4 +272,30 @@ test('invitations simultanées depuis plusieurs familles : aucune ne bloque le p
       call(app2.app, 'POST', '/api/families/me/invitations', { cookie: o.cookie, body: { email: `pool${i}.${process.pid}@exemple.fr`, role: 'member' } })))
     assert.deepEqual([...new Set(results.map((r) => r.statusCode))], [201])
   } finally { await app2.close() }
+})
+
+test('invitations d’un invitant supprimé : ni listées ni comptées', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const manager = await join(owner, 'manager')
+  await invite(manager, `orpheline.${process.pid}@exemple.fr`)
+  assert.equal((await pending(owner)).json().length, 1)
+  await ctx.db.query('UPDATE invitations SET invited_by = NULL WHERE invited_by = $1', [manager.id])
+  assert.deepEqual((await pending(owner)).json(), [])
+})
+
+test('invitation annulée pendant l’envoi : l’invitation précédente pour l’adresse reste', async () => {
+  const owner = await newUser(ctx), guest = await newUser(ctx)
+  await family(owner)
+  const r0 = await invite(owner, guest.email, 'member')
+  assert.equal(r0.statusCode, 201, r0.body)
+  const first = tokenFor(guest.email)
+  const send = ctx.app.mailer.send
+  // Pendant l'envoi de la seconde, elle est annulée (autre gestionnaire, retrait de l'invitant…).
+  ctx.app.mailer.send = async (m) => {
+    await ctx.db.query("DELETE FROM invitations WHERE email = $1 AND role = 'manager'", [guest.email])
+    return send(m)
+  }
+  try { assert.equal((await invite(owner, guest.email, 'manager')).statusCode, 201) } finally { ctx.app.mailer.send = send }
+  assert.equal((await accept(guest, first)).statusCode, 200)
 })

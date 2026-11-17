@@ -33,6 +33,10 @@ const ROLE_BODY = {
 }
 export const INVITE_DAYS = 7
 export const MAX_PENDING_INVITATIONS = 10
+// Invitation encore acceptable : son invitant (ni supprimé ni rétrogradé) est gestionnaire.
+// Mêmes conditions qu'à l'aperçu et à l'acceptation ; $2 = MANAGERS.
+const ACCEPTABLE = `EXISTS (SELECT 1 FROM memberships m
+  WHERE m.family_id = i.family_id AND m.user_id = i.invited_by AND m.role = ANY($2::text[]))`
 const memberNotFound = () => new HttpError(404, 'Membre introuvable.', 'member_not_found')
 const lastOwner = () => new HttpError(409, 'La famille doit garder au moins un parent principal.', 'last_owner')
 
@@ -124,8 +128,9 @@ export default async function familiesRoutes(app) {
   app.get('/me/invitations', async (req) => {
     const own = await requireOwnFamily(db, req, MANAGERS)
     const { rows } = await db.query(
-      `SELECT id, email, role, created_at, expires_at FROM invitations
-        WHERE family_id = $1 AND used_at IS NULL AND expires_at > now() ORDER BY created_at DESC`, [own.familyId])
+      `SELECT i.id, i.email, i.role, i.created_at, i.expires_at FROM invitations i
+        WHERE i.family_id = $1 AND i.used_at IS NULL AND i.expires_at > now() AND ${ACCEPTABLE}
+        ORDER BY i.created_at DESC`, [own.familyId, MANAGERS])
     return rows.map((r) => ({ id: r.id, email: r.email, role: r.role, createdAt: r.created_at, expiresAt: r.expires_at }))
   })
 
@@ -148,8 +153,9 @@ export default async function familiesRoutes(app) {
       if (member) throw new HttpError(409, 'Cette personne fait déjà partie de la famille.', 'already_member')
       // L'invitation en attente pour la même adresse sera remplacée : elle ne compte pas.
       const { rows: [{ n }] } = await conn.query(
-        `SELECT count(*)::int AS n FROM invitations
-          WHERE family_id = $1 AND used_at IS NULL AND expires_at > now() AND email <> $2`, [own.familyId, invitee])
+        `SELECT count(*)::int AS n FROM invitations i
+          WHERE i.family_id = $1 AND i.used_at IS NULL AND i.expires_at > now() AND i.email <> $3 AND ${ACCEPTABLE}`,
+        [own.familyId, MANAGERS, invitee])
       if (n >= MAX_PENDING_INVITATIONS) throw new HttpError(409, 'Trop d’invitations en attente. Annulez-en une d’abord.', 'too_many_invitations')
       const { rows: [row] } = await conn.query(
         // clock_timestamp() pris sous le verrou : l'ordre des invitations d'une famille est sûr.
@@ -167,6 +173,7 @@ export default async function familiesRoutes(app) {
       await consumeQuota(db, 'invitation-emails', config.quotas.invitationEmailsPerHour)
     } catch (e) {
       await db.query('DELETE FROM invitations WHERE id = $1 AND used_at IS NULL', [invitation.id])
+      await audit(db, req, 'invitation_send_failed', invitation.id)
       throw e
     }
     // 3. Courriel, hors transaction (aucune connexion ni verrou tenu pendant le SMTP).
@@ -180,9 +187,12 @@ export default async function familiesRoutes(app) {
     }
     // 4. Courriel parti : la nouvelle invitation remplace les PLUS ANCIENNES pour cette
     //    adresse (deux envois simultanés ne s'effacent pas l'un l'autre).
+    //    Comparaison faite en SQL (précision à la microseconde), et seulement si la
+    //    nouvelle existe encore (pas annulée ni retirée pendant l'envoi).
     await db.query(
-      'DELETE FROM invitations WHERE family_id = $1 AND email = $2 AND used_at IS NULL AND created_at < $3',
-      [invitation.family_id, invitee, invitation.created_at])
+      `DELETE FROM invitations o USING invitations n
+        WHERE n.id = $1 AND o.family_id = n.family_id AND o.email = n.email
+          AND o.used_at IS NULL AND o.created_at < n.created_at`, [invitation.id])
     return reply.code(201).send({
       id: invitation.id, email: invitation.email, role: invitation.role, createdAt: invitation.created_at, expiresAt: invitation.expires_at
     })

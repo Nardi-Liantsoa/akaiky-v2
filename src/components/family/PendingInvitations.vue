@@ -11,9 +11,17 @@ const items = ref<Invitation[]>([])
 const busy = ref(false)
 const error = ref('')
 
+// Seule la réponse du dernier chargement lancé est appliquée.
+let generation = 0
 async function load() {
+  const mine = ++generation
   error.value = ''
-  try { items.value = await listInvitations() } catch (e) { error.value = familyErrorText(e, t.value) }
+  try {
+    const list = await listInvitations()
+    if (mine === generation) items.value = list
+  } catch (e) {
+    if (mine === generation) error.value = familyErrorText(e, t.value)
+  }
 }
 async function cancel(id: string) {
   if (busy.value) return
