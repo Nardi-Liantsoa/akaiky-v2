@@ -22,5 +22,9 @@ GRANT UPDATE (used_at) ON mfa_enrollment_invites TO app_runtime;
 -- Familles (003_families.sql) : création et renommage ; ni rôle modifiable, ni suppression (à venir).
 GRANT INSERT ON families, memberships TO app_runtime;
 GRANT UPDATE (name) ON families TO app_runtime;
+-- Invitations et rôles (004_invitations.sql).
+GRANT INSERT, DELETE ON invitations TO app_runtime;
+GRANT UPDATE (used_at) ON invitations TO app_runtime;
+GRANT UPDATE (role), DELETE ON memberships TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;

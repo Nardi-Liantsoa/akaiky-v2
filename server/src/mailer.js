@@ -53,6 +53,11 @@ export function authEmails(appName) {
       subject: `Réinitialisation de votre mot de passe — ${appName}`,
       text: `Bonjour,\n\nPour choisir un nouveau mot de passe, ouvrez ce lien (valable 1 heure, utilisable une seule fois) :\n\n${link}\n\nToutes vos sessions ouvertes seront déconnectées.\nSi vous n’êtes pas à l’origine de cette demande, ignorez ce message.${sign}`
     }),
+    // Ni le nom de la famille ni celui de l'invitant : textes libres saisis par un tiers.
+    invitation: (link) => ({
+      subject: `Invitation à rejoindre une famille — ${appName}`,
+      text: `Bonjour,\n\nVous êtes invité à rejoindre une famille sur ${appName}, l’application qui relie les parents à leurs enfants.\n\nPour accepter, ouvrez ce lien (valable 7 jours, utilisable une seule fois) puis connectez-vous ou créez votre compte avec cette adresse :\n\n${link}\n\nSi vous ne vous attendiez pas à cette invitation, ignorez simplement ce message.${sign}`
+    }),
     passwordChanged: () => ({
       subject: `Votre mot de passe a été modifié — ${appName}`,
       text: `Bonjour,\n\nLe mot de passe de votre compte vient d’être modifié et toutes vos sessions ont été fermées.\n\nSi vous n’êtes pas à l’origine de ce changement, prévenez-nous immédiatement.${sign}`

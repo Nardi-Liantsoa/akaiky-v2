@@ -60,7 +60,15 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     assert.equal(family.statusCode, 201, family.body)
     assert.equal((await call(app, 'PATCH', '/api/families/me', { cookie: user.cookie, body: { name: 'Renommée' } })).statusCode, 200)
     assert.equal((await call(app, 'GET', '/api/families/me', { cookie: user.cookie })).json().name, 'Renommée')
-    await assert.rejects(pool.query("UPDATE memberships SET role = 'owner'"), /permission denied/)
+    // Invitation, acceptation, rôle et départ sous le rôle restreint (GRANT de 004_invitations.sql).
+    const guest = await newUser(runtime)
+    assert.equal((await call(app, 'POST', '/api/families/me/invitations', { cookie: user.cookie, body: { email: guest.email, role: 'member' } })).statusCode, 201)
+    const token = runtime.sent.findLast((m) => m.to === guest.email).text.match(/#invite=([A-Za-z0-9_-]+)/)[1]
+    assert.equal((await call(app, 'POST', '/api/invitations/accept', { cookie: guest.cookie, body: { token } })).statusCode, 200)
+    assert.equal((await call(app, 'PATCH', `/api/families/me/members/${guest.id}`, { cookie: user.cookie, body: { role: 'manager' } })).statusCode, 200)
+    assert.equal((await call(app, 'DELETE', `/api/families/me/members/${guest.id}`, { cookie: guest.cookie })).statusCode, 200)
+    await assert.rejects(pool.query('UPDATE memberships SET family_id = family_id'), /permission denied/)
+    await assert.rejects(pool.query('UPDATE invitations SET role = role'), /permission denied/)
     await assert.rejects(pool.query('DELETE FROM families'), /permission denied/)
     const nat = await native(app, 'POST', '/api/auth/native/login', { body: { email: user.email, password: user.password } })
     assert.equal(nat.statusCode, 200, nat.body)
