@@ -5,7 +5,6 @@ import { HttpError, SESSION_RULE } from './lib.js'
 import { tokenHash, createLimiter, rateLimitKey } from './security.js'
 import { readAuthCookie } from './auth-cookies.js'
 import authRoutes from './routes/auth.js'
-import notesRoutes from './routes/notes.js'
 import adminRoutes from './routes/admin.js'
 
 // Politique de contenu : tout vient de la même origine, aucun script en ligne,
@@ -248,7 +247,6 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   })
 
   await app.register(authRoutes, { prefix: '/api/auth' })
-  await app.register(notesRoutes, { prefix: '/api/notes' })
   await app.register(adminRoutes, { prefix: '/api/admin' })
 
   const files = await loadStatic(config.staticDir)

@@ -54,10 +54,7 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     const sent = [], app = await buildApp({ config, db: pool, mailer: { async send(m) { sent.push(m) } }, logger: false })
     runtime = { app, db: pool, sent }
     const user = await newUser(runtime)
-    const note = await call(app, 'POST', '/api/notes', { cookie: user.cookie, body: { title: 'Note sûre' } })
-    assert.equal(note.statusCode, 201, note.body)
-    assert.equal((await call(app, 'GET', `/api/notes/${note.json().id}`, { cookie: user.cookie })).statusCode, 200)
-    assert.equal((await call(app, 'DELETE', `/api/notes/${note.json().id}`, { cookie: user.cookie })).statusCode, 200)
+    assert.equal((await call(app, 'GET', '/api/auth/me', { cookie: user.cookie })).json().user.id, user.id)
     const nat = await native(app, 'POST', '/api/auth/native/login', { body: { email: user.email, password: user.password } })
     assert.equal(nat.statusCode, 200, nat.body)
     const renewed = await native(app, 'POST', '/api/auth/native/refresh', { body: { refreshToken: nat.json().refreshToken } })

@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { createPool, migrate } from '../src/db.js'
 import { buildApp } from '../src/app.js'
 import { loadConfig } from '../src/config.js'
+import probeRoutes from './probe.js'
 
 // Base PostgreSQL jetable dans Docker (ou TEST_DATABASE_URL si fournie, en CI).
 export async function startDb() {
@@ -26,6 +27,7 @@ export async function startDb() {
 }
 
 export const ORIGIN = 'https://app.test'
+export const PROBE = '/api/test-probe'
 export const NATIVE = 'capacitor://localhost'
 
 export async function startApp(url, env = {}) {
@@ -43,6 +45,7 @@ export async function startApp(url, env = {}) {
   const sent = []
   const mailer = { sent, async send(m) { sent.push(m) } }
   const app = await buildApp({ config, db, mailer, logger: false })
+  await app.register(probeRoutes, { prefix: PROBE })
   return { app, db, sent, close: async () => { await app.close(); await db.end(); rmSync(dist, { recursive: true, force: true }) } }
 }
 
