@@ -90,7 +90,7 @@ d'acceptation (Docker requis).
 
 Poste macOS 14 : le WebKit de Playwright y est figé (`Unknown setting: PushAPIEnabled`).
 Projet `webkit` dans l'image Linux à la version de `@playwright/test` :
-`docker run --rm -v "$PWD:/w" -v /w/node_modules -v /w/server/node_modules -v /w/dist -w /w mcr.microsoft.com/playwright:v1.63.0-noble sh -c "npm ci --ignore-scripts && npx playwright test --project=webkit"`.
+`docker run --rm -v "$PWD:/w" -v /w/node_modules -v /w/server/node_modules -v /w/dist -w /w mcr.microsoft.com/playwright:v1.65.0-noble sh -c "npm ci --ignore-scripts && npx playwright test --project=webkit"`.
 La recette `iphone` fait foi en CI Linux.
 
 ## Pipeline Linear

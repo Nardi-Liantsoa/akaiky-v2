@@ -43,7 +43,8 @@ async function onLogout() {
   border-bottom: 1px solid var(--border);
 }
 .brand {
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 900;
   letter-spacing: -0.01em;
   color: var(--text);
 }
