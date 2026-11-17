@@ -92,4 +92,23 @@ test('renommage refusé (rôle retiré ailleurs) : état rechargé, bouton retir
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page.getByRole('button', { name: 'Renommer' })).toHaveCount(0)
   await expect(page.getByRole('listitem')).toHaveText(['Alice (vous)Contact'])
+  await expect(page.getByRole('alert')).toHaveText('Action non autorisée.')
+})
+
+test('session révoquée découverte au chargement de la famille : connexion, puis retour à l’onglet visé', async ({ page }) => {
+  // /auth/me répond encore (session vue au démarrage), mais l'appel suivant reçoit 401.
+  let revoked = true
+  await mockApi(page, {
+    'GET /api/auth/me': () => ({ body: { user: USER } }),
+    'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }),
+    'GET /api/families/me': () => revoked ? { status: 401, body: { error: 'Connexion requise.' } } : { body: FAMILY },
+    'POST /api/auth/login': () => { revoked = false; return { body: { user: USER } } }
+  })
+  await page.goto('/espace/journal')
+  await expect(page).toHaveURL(/\/connexion\?next=(\/|%2F)espace(\/|%2F)journal$/)
+  await page.fill('#email', USER.email)
+  await page.fill('#password', 'une phrase de passe longue')
+  await page.getByRole('button', { name: 'Se connecter' }).click()
+  await expect(page).toHaveURL(/\/espace\/journal$/)
+  await expect(page.getByRole('heading', { name: 'Journal' })).toBeVisible()
 })

@@ -47,12 +47,11 @@ export function loadFamily(force = false): Promise<void> {
     },
     (e: unknown) => {
       if (mine !== generation) return
-      // Session expirée ou révoquée : c'est une déconnexion, pas une panne. Le
-      // routeur (import différé : il dépend de ce module) renvoie vers la connexion.
+      // Session expirée ou révoquée : c'est une déconnexion, pas une panne. La
+      // navigation vers la connexion revient au routeur et à la coquille parent,
+      // qui connaissent la page visée.
       if (e instanceof ApiError && e.status === 401) {
         setUser(null)
-        void import('../router').then(({ router }) =>
-          router.replace({ name: 'connexion', query: { next: router.currentRoute.value.fullPath } }))
         return
       }
       const none = e instanceof ApiError && e.status === 404 && e.code === 'no_family'

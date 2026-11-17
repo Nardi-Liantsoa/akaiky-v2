@@ -65,6 +65,7 @@ async function save() {
         </template>
       </div>
 
+      <p v-if="error && !editing" class="error" role="alert">{{ error }}</p>
       <h2 class="section">{{ t.family.members }}</h2>
       <ul class="card members">
         <li v-for="m in family.data.members" :key="m.userId">

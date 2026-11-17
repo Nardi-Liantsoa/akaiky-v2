@@ -42,6 +42,8 @@ router.beforeEach(async (to) => {
   // création (l'accueil la présente). Une erreur réseau n'est pas « sans famille ».
   if (to.meta.requiresFamily && auth.user) {
     await loadFamily()
+    // Session perdue pendant le chargement : connexion, puis retour à la page visée.
+    if (!auth.user) return { name: 'connexion', query: { next: to.fullPath } }
     if (family.status === 'none') return { name: 'espace' }
   }
   return true
