@@ -6,15 +6,14 @@ const anonymous = { 'GET /api/auth/me': () => ({ body: { user: null } }), 'GET /
 test('connexion puis espace, avec l’en-tête anti-CSRF', async ({ page }) => {
   const calls = await mockApi(page, {
     ...anonymous,
-    'POST /api/auth/login': () => ({ body: { user: USER } }),
-    'GET /api/notes': () => ({ body: [] })
+    'POST /api/auth/login': () => ({ body: { user: USER } })
   })
   await page.goto('/connexion')
   await page.fill('#email', USER.email)
   await page.fill('#password', 'une phrase de passe longue')
   await page.getByRole('button', { name: 'Se connecter' }).click()
   await expect(page).toHaveURL(/\/espace$/)
-  await expect(page.getByRole('heading', { name: 'Mes notes' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Accueil' })).toBeVisible()
   const login = calls.find((r) => r.url().endsWith('/api/auth/login'))!
   expect(login.headers()['x-app']).toBe('1')
   expect(login.postDataJSON()).toMatchObject({ email: USER.email, rememberDevice: false })
@@ -33,8 +32,7 @@ test('second facteur demandé puis vérifié', async ({ page }) => {
   await mockApi(page, {
     ...anonymous,
     'POST /api/auth/login': () => ({ body: { mfaRequired: true, enrollmentRequired: false } }),
-    'POST /api/auth/mfa/verify': (req) => req.postDataJSON().code === '123456' ? { body: { user: { ...USER, is_admin: true } } } : { status: 401, body: { error: 'Code invalide.' } },
-    'GET /api/notes': () => ({ body: [] })
+    'POST /api/auth/mfa/verify': (req) => req.postDataJSON().code === '123456' ? { body: { user: { ...USER, is_admin: true } } } : { status: 401, body: { error: 'Code invalide.' } }
   })
   await page.goto('/connexion')
   await page.fill('#email', USER.email)
@@ -65,7 +63,7 @@ test('lien de réinitialisation : jeton retiré de la barre d’adresse et envoy
 })
 
 test('redirection après connexion : jamais vers un autre site', async ({ page }) => {
-  await mockApi(page, { ...anonymous, 'POST /api/auth/login': () => ({ body: { user: USER } }), 'GET /api/notes': () => ({ body: [] }) })
+  await mockApi(page, { ...anonymous, 'POST /api/auth/login': () => ({ body: { user: USER } }) })
   await page.goto('/connexion?next=//evil.example')
   await page.fill('#email', USER.email)
   await page.fill('#password', 'une phrase de passe longue')
@@ -93,8 +91,7 @@ test('démarrage hors ligne : « Réessayer » restaure la session sans nouvelle
   let online = false
   await mockApi(page, {
     'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }),
-    'GET /api/auth/me': () => ({ body: { user: USER } }),
-    'GET /api/notes': () => ({ body: [] })
+    'GET /api/auth/me': () => ({ body: { user: USER } })
   })
   await page.route('**/api/auth/me', (route) => online ? route.fallback() : route.abort('internetdisconnected'))
   await page.goto('/espace')

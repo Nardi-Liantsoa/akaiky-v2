@@ -75,8 +75,8 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
 
 | Table | Propriétaire | Lecture | Création | Modification | Suppression |
 |---|---|---|---|---|---|
-| `notes` (exemple du starter, à retirer) | `owner_id` = session | propriétaire | session | propriétaire | propriétaire |
 
+Aucune table métier pour l'instant (`notes`, exemple du starter, retirée par NAR-132).
 Toute nouvelle table ajoute sa ligne ici avant sa première route. Tables métier
 attendues (porteuses d'`org_id` = famille) : familles, adhésions, invitations, enfants,
 appareils, contacts autorisés, applications autorisées, plages horaires, messages

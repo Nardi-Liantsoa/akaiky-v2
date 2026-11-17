@@ -17,7 +17,7 @@ async function onLogout() {
     <RouterLink class="brand" :to="{ name: 'accueil' }">Akaiky</RouterLink>
     <nav>
       <template v-if="auth.user">
-        <RouterLink :to="{ name: 'espace' }">{{ t.nav.notes }}</RouterLink>
+        <RouterLink :to="{ name: 'espace' }">{{ t.nav.space }}</RouterLink>
         <RouterLink :to="{ name: 'securite' }">{{ t.nav.security }}</RouterLink>
         <RouterLink v-if="isAdmin()" :to="{ name: 'admin' }">{{ t.nav.admin }}</RouterLink>
         <button class="link" type="button" @click="onLogout">{{ t.nav.logout }}</button>

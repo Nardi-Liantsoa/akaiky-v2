@@ -12,10 +12,3 @@ export interface LoginResult {
   enrollmentRequired?: boolean
 }
 
-export interface Note {
-  id: string
-  title: string
-  body: string
-  created_at: string
-  updated_at: string
-}

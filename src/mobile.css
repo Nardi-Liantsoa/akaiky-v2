@@ -54,3 +54,14 @@ html.native body {
   overscroll-behavior-y: none;
   background: var(--bg);
 }
+
+/* Barre d'onglets parent : au-dessus de la barre de gestes. */
+html.native .tabbar {
+  height: calc(var(--tab-height) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+html.native .shell {
+  padding-bottom: calc(var(--tab-height) + var(--safe-bottom) + 24px);
+}

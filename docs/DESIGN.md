@@ -3,17 +3,20 @@
 Source : « Akaiky — mobile app design.pdf » (10 écrans, reçu le 17/11/2026, hors
 dépôt). Couleurs relevées sur le rendu du PDF ; la police y est vectorisée, donc
 non identifiable avec certitude : arrondie et très grasse, proche de **Nunito**
-(800–900 pour les titres) — à confirmer avec le designer. Une police embarquée
-se justifie au poids (sous-ensemble latin, `woff2`, `ampy-capacitor` « Poids du bundle »).
+(800–900 pour les titres) — à confirmer avec le designer. Retenue en attendant :
+Nunito variable (Fontsource 5.3.0), sous-ensemble latin `woff2` de 39 Ko servi
+par l'app (`public/fonts/`, licence SIL OFL 1.1), repli `ui-rounded`.
 
-## Jetons (à poser dans `src/style.css`, jamais de valeur en dur dans un composant)
+**Mode sombre** : absent des maquettes, désactivé explicitement (`color-scheme: light`).
+
+## Jetons (posés dans `src/style.css`, jamais de valeur en dur dans un composant)
 
 | Jeton | Valeur | Usage |
 |---|---|---|
 | `--bg-child` | `#fff8ee` | fond de l'app enfant |
 | `--bg-child-school` | `#e9f0f8` | fond enfant pendant la plage « école » |
 | `--bg-parent` | `#f6f3ee` | fond de l'app parent |
-| `--surface` | `#ffffff` | cartes |
+| `--surface-card` (alias `--surface`) | `#ffffff` | cartes |
 | `--surface-muted` | `#e9e5dc` | puces, tuiles d'état |
 | `--ink` | `#1c2431` | texte principal, bouton « Je prends en charge », toast |
 | `--sos` | `#c8261b` | bouton SOS, écran de maintien, bandeau d'alerte parent |

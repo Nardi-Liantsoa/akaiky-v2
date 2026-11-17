@@ -3,7 +3,7 @@
 ## État au 17/11/2026
 
 - Socle `app-propre-mobile` généré (create-nosy-app @ 995f746), **aucune fonctionnalité
-  métier**. La ressource d'exemple `notes` est encore là : à retirer par le premier ticket.
+  métier**. Ressource d'exemple `notes` retirée (NAR-132, migration `002`).
 - Identifiant `mg.nosytech.akaiky`, nom affiché « Akaiky ». Maquettes résumées dans
   `docs/DESIGN.md` ; jetons pas encore appliqués à `src/style.css`.
 - Vérifié en local : lint, build, tests front (2/2), tests API contre PostgreSQL jetable
