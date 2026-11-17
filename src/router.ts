@@ -15,17 +15,16 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
     children: [
       { path: '', name: 'espace', component: () => import('./views/parent/HomeView.vue') },
-      { path: 'journal', name: 'journal', component: () => import('./views/parent/LogView.vue') },
-      { path: 'reglages', name: 'reglages', component: () => import('./views/parent/SettingsView.vue') },
-      { path: 'famille', name: 'famille', component: () => import('./views/parent/FamilyView.vue') }
+      // requiresFamily : sans famille, retour à l'accueil, qui présente la création.
+      { path: 'journal', name: 'journal', component: () => import('./views/parent/LogView.vue'), meta: { requiresFamily: true } },
+      { path: 'reglages', name: 'reglages', component: () => import('./views/parent/SettingsView.vue'), meta: { requiresFamily: true } },
+      { path: 'famille', name: 'famille', component: () => import('./views/parent/FamilyView.vue'), meta: { requiresFamily: true } }
     ]
   },
   { path: '/securite', name: 'securite', component: () => import('./views/SecurityView.vue'), meta: { requiresAuth: true } },
   { path: '/admin', name: 'admin', component: () => import('./views/AdminView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ]
-
-const FAMILY_TABS = new Set(['journal', 'reglages', 'famille'])
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -41,7 +40,7 @@ router.beforeEach(async (to) => {
   if (to.meta.guestOnly && auth.user && !/^#(reset|confirm)=/.test(to.hash)) return { name: 'espace' }
   // Parent sans famille : les onglets autres que l'accueil renvoient vers la
   // création (l'accueil la présente). Une erreur réseau n'est pas « sans famille ».
-  if (FAMILY_TABS.has(String(to.name)) && auth.user) {
+  if (to.meta.requiresFamily && auth.user) {
     await loadFamily()
     if (family.status === 'none') return { name: 'espace' }
   }

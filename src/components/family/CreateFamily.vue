@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { createFamily } from '../../api/families'
 import { ApiError } from '../../api/http'
 import { useT } from '../../composables/useT'
+import { familyNameValid } from '../../lib/familyName'
 import { errorText } from '../../lib/errors'
 import { loadFamily } from '../../store/family'
 
@@ -12,7 +13,7 @@ const busy = ref(false)
 const error = ref('')
 
 async function submit() {
-  if (busy.value || !name.value.trim()) return
+  if (busy.value || !familyNameValid(name.value)) return
   busy.value = true
   error.value = ''
   try {
@@ -36,9 +37,9 @@ async function submit() {
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <div class="field">
         <label for="family-name">{{ t.family.nameLabel }}</label>
-        <input id="family-name" v-model="name" class="input" maxlength="80" required :placeholder="t.family.namePlaceholder" autocomplete="off" data-selectable />
+        <input id="family-name" v-model="name" class="input" required :placeholder="t.family.namePlaceholder" autocomplete="off" data-selectable />
       </div>
-      <button class="btn" type="submit" :disabled="busy || !name.trim()">{{ t.family.create }}</button>
+      <button class="btn" type="submit" :disabled="busy || !familyNameValid(name)">{{ t.family.create }}</button>
     </form>
   </section>
 </template>

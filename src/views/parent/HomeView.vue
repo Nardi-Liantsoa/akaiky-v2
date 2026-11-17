@@ -15,7 +15,7 @@ onMounted(() => { void loadFamily() })
   <CreateFamily v-if="family.status === 'none'" />
   <LoadError v-else-if="family.status === 'error'" />
   <EmptyState v-else-if="family.status === 'ready'" :title="t.parent.home.title" :text="t.parent.home.empty" />
-  <p v-else class="loading" role="status" :aria-label="t.family.loading" />
+  <p v-else class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
 </template>
 
 <style scoped>

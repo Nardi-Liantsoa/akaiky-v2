@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { renameFamily } from '../../api/families'
 import LoadError from '../../components/family/LoadError.vue'
 import { useT } from '../../composables/useT'
+import { familyNameValid } from '../../lib/familyName'
 import { errorText } from '../../lib/errors'
 import { canManage, family, loadFamily, setFamilyName } from '../../store/family'
 
@@ -21,7 +22,7 @@ function edit() {
 }
 
 async function save() {
-  if (busy.value || !name.value.trim()) return
+  if (busy.value || !familyNameValid(name.value)) return
   busy.value = true
   error.value = ''
   try {
@@ -45,10 +46,10 @@ async function save() {
           <p v-if="error" class="error" role="alert">{{ error }}</p>
           <div class="field">
             <label for="family-rename">{{ t.family.nameLabel }}</label>
-            <input id="family-rename" v-model="name" class="input" maxlength="80" required autocomplete="off" data-selectable />
+            <input id="family-rename" v-model="name" class="input" required autocomplete="off" data-selectable />
           </div>
           <div class="actions">
-            <button class="btn" type="submit" :disabled="busy || !name.trim()">{{ t.family.save }}</button>
+            <button class="btn" type="submit" :disabled="busy || !familyNameValid(name)">{{ t.family.save }}</button>
             <button class="btn btn-ghost" type="button" @click="editing = false">{{ t.family.cancel }}</button>
           </div>
         </form>

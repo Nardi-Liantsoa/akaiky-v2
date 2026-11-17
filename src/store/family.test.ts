@@ -94,6 +94,16 @@ describe('famille de la session', () => {
     expect(family.status).toBe('unknown')
   })
 
+  it('rechargement en échec réseau : la famille connue reste affichée', async () => {
+    login('l')
+    getMyFamily.mockResolvedValue(FAMILY)
+    await loadFamily()
+    getMyFamily.mockRejectedValue(new ApiError(0, 'network'))
+    await loadFamily(true)
+    expect(family.status).toBe('ready')
+    expect(family.data?.name).toBe('Rabe')
+  })
+
   it('renommage appliqué localement', async () => {
     login('k')
     getMyFamily.mockResolvedValue(FAMILY)

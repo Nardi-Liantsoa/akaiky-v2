@@ -48,7 +48,10 @@ export function loadFamily(force = false): Promise<void> {
     (e: unknown) => {
       if (mine !== generation) return
       const none = e instanceof ApiError && e.status === 404 && e.code === 'no_family'
-      Object.assign(family, { status: none ? 'none' : 'error', data: null, error: none ? null : e })
+      if (none) Object.assign(family, { status: 'none', data: null, error: null })
+      // Rechargement en échec (réseau, serveur) : la famille connue reste affichée.
+      else if (family.data) family.error = e
+      else Object.assign(family, { status: 'error', data: null, error: e })
     }
   ).finally(() => { if (pending === run) pending = null })
   pending = run
