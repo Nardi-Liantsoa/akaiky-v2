@@ -26,5 +26,8 @@ GRANT UPDATE (name) ON families TO app_runtime;
 GRANT INSERT, DELETE ON invitations TO app_runtime;
 GRANT UPDATE (used_at) ON invitations TO app_runtime;
 GRANT UPDATE (role), DELETE ON memberships TO app_runtime;
+-- Enfants (005_children.sql) : prénom chiffré, couleur ; jamais la famille d'un enfant.
+GRANT INSERT, DELETE ON children TO app_runtime;
+GRANT UPDATE (first_name_enc, avatar_color) ON children TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;

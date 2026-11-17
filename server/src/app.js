@@ -8,6 +8,7 @@ import authRoutes from './routes/auth.js'
 import adminRoutes from './routes/admin.js'
 import familiesRoutes from './routes/families.js'
 import invitationsRoutes from './routes/invitations.js'
+import childrenRoutes from './routes/children.js'
 
 // Politique de contenu : tout vient de la même origine, aucun script en ligne,
 // aucun tiers (polices hébergées sur place).
@@ -252,6 +253,7 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   await app.register(adminRoutes, { prefix: '/api/admin' })
   await app.register(familiesRoutes, { prefix: '/api/families' })
   await app.register(invitationsRoutes, { prefix: '/api/invitations' })
+  await app.register(childrenRoutes, { prefix: '/api/children' })
 
   const files = await loadStatic(config.staticDir)
   app.setNotFoundHandler(async (req, reply) => {

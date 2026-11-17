@@ -67,6 +67,12 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     assert.equal((await call(app, 'POST', '/api/invitations/accept', { cookie: guest.cookie, body: { token } })).statusCode, 200)
     assert.equal((await call(app, 'PATCH', `/api/families/me/members/${guest.id}`, { cookie: user.cookie, body: { role: 'manager' } })).statusCode, 200)
     assert.equal((await call(app, 'DELETE', `/api/families/me/members/${guest.id}`, { cookie: guest.cookie })).statusCode, 200)
+    // Enfants sous le rôle restreint (GRANT de 005_children.sql).
+    const child = await call(app, 'POST', '/api/children', { cookie: user.cookie, body: { firstName: 'Fy' } })
+    assert.equal(child.statusCode, 201, child.body)
+    assert.equal((await call(app, 'PATCH', `/api/children/${child.json().id}`, { cookie: user.cookie, body: { firstName: 'Fyfy' } })).statusCode, 200)
+    assert.equal((await call(app, 'DELETE', `/api/children/${child.json().id}`, { cookie: user.cookie })).statusCode, 200)
+    await assert.rejects(pool.query('UPDATE children SET family_id = family_id'), /permission denied/)
     await assert.rejects(pool.query('UPDATE memberships SET family_id = family_id'), /permission denied/)
     await assert.rejects(pool.query('UPDATE invitations SET role = role'), /permission denied/)
     await assert.rejects(pool.query('DELETE FROM families'), /permission denied/)

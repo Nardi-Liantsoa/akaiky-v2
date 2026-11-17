@@ -42,6 +42,11 @@ export function loadConfig(env = process.env) {
   if (env.DB_MIGRATIONS && !['auto', 'verify'].includes(env.DB_MIGRATIONS)) throw new Error('DB_MIGRATIONS invalide')
   const mfaKey = env.MFA_ENCRYPTION_KEY || (production ? '' : 'ab'.repeat(32))
   if (!/^[a-f0-9]{64}$/i.test(mfaKey)) throw new Error('MFA_ENCRYPTION_KEY : clé hexadécimale de 32 octets requise (openssl rand -hex 32)')
+  // Données sensibles des familles (prénoms d'enfants…). Clé distincte de celle de la MFA :
+  // la compromission ou la rotation de l'une ne touche pas l'autre.
+  const dataKey = env.DATA_ENCRYPTION_KEY || (production ? '' : 'cd'.repeat(32))
+  if (!/^[a-f0-9]{64}$/i.test(dataKey)) throw new Error('DATA_ENCRYPTION_KEY : clé hexadécimale de 32 octets requise (openssl rand -hex 32)')
+  if (dataKey.toLowerCase() === mfaKey.toLowerCase()) throw new Error('DATA_ENCRYPTION_KEY doit différer de MFA_ENCRYPTION_KEY')
   // Sans mandataire de confiance, toutes les requêtes semblent venir de Traefik :
   // chaque limite par IP deviendrait une limite pour tout le site.
   if (production && !trustedProxies(env.TRUST_PROXY)) throw new Error('TRUST_PROXY requis en production (CIDR du réseau edge du client)')
@@ -51,6 +56,7 @@ export function loadConfig(env = process.env) {
   return {
     appName: env.APP_NAME || 'Akaiky',
     mfaKey,
+    dataKey,
     production,
     migrations: env.DB_MIGRATIONS || 'auto',
     port: positive(env.PORT, 8080),

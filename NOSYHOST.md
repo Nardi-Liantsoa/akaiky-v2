@@ -66,6 +66,7 @@ NODE_ENV=production
 APP_ORIGIN=https://akaiky.a-definir.invalid
 # APP_EXTRA_ORIGINS=https://<domaine temporaire>      # préprod ou bascule
 MFA_ENCRYPTION_KEY=<openssl rand -hex 32>             # à sauvegarder AVEC la base
+DATA_ENCRYPTION_KEY=<openssl rand -hex 32>            # autre clé ; à sauvegarder AVEC la base (prénoms des enfants)
 TRUST_PROXY=<CIDR du réseau edge du client>           # adresses explicites, jamais true
 SMTP_HOST=… SMTP_PORT=465 SMTP_USER=… SMTP_PASS=…
 MAIL_FROM=Akaiky <no-reply@akaiky.a-definir.invalid>         # domaine avec SPF + DKIM aligné + DMARC
@@ -125,3 +126,5 @@ serveur neuf, **recréer `app_runtime` avant de restaurer** (procédure Deploy40
 - **Aucun fichier écrit dans le conteneur** : il est jeté à chaque déploiement.
 - **`MFA_ENCRYPTION_KEY` sauvegardée avec la base** : sans elle, aucun admin
   ne peut plus se connecter après une restauration.
+- **`DATA_ENCRYPTION_KEY` sauvegardée avec la base** : sans elle, les prénoms
+  des enfants (et les futures données chiffrées des familles) sont illisibles.
