@@ -1,7 +1,7 @@
 // Application native : jeton Bearer court + jeton de renouvellement tourné.
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { startDb, startApp, call, native, newUser, NATIVE } from './helpers.js'
+import { startDb, startApp, call, native, newUser, NATIVE, PROBE } from './helpers.js'
 
 let dbh, ctx
 before(async () => { dbh = await startDb(); ctx = await startApp(dbh.url) })
@@ -24,18 +24,19 @@ test('connexion native : jetons Bearer, aucun cookie, CORS sans credentials', as
   assert.equal(r.headers['access-control-allow-credentials'], undefined)
   const me = await native(ctx.app, 'GET', '/api/auth/me', { token: accessToken })
   assert.equal(me.json().user.id, u.id)
-  // Écriture en Bearer : pas d'en-tête anti-CSRF exigé, la ressource reste au propriétaire.
-  const note = await native(ctx.app, 'POST', '/api/notes', { token: accessToken, body: { title: 'Depuis le téléphone' } })
-  assert.equal(note.statusCode, 201, note.body)
-  assert.equal((await call(ctx.app, 'GET', `/api/notes/${note.json().id}`, { cookie: u.cookie })).statusCode, 200)
+  // Écriture en Bearer : pas d'en-tête anti-CSRF exigé, même compte que la session web.
+  const written = await native(ctx.app, 'POST', PROBE, { token: accessToken, body: { title: 'Depuis le téléphone' } })
+  assert.equal(written.statusCode, 201, written.body)
+  assert.equal(written.json().userId, u.id)
+  assert.equal((await call(ctx.app, 'GET', PROBE, { cookie: u.cookie })).json().userId, u.id)
 })
 
 test('pré-vol : origines natives exactes seulement', async () => {
-  const ok = await ctx.app.inject({ method: 'OPTIONS', url: '/api/notes', headers: { origin: NATIVE, 'access-control-request-method': 'POST' } })
+  const ok = await ctx.app.inject({ method: 'OPTIONS', url: PROBE, headers: { origin: NATIVE, 'access-control-request-method': 'POST' } })
   assert.equal(ok.statusCode, 204)
   assert.equal(ok.headers['access-control-allow-origin'], NATIVE)
   assert.match(ok.headers['access-control-allow-headers'], /authorization/)
-  const evil = await ctx.app.inject({ method: 'OPTIONS', url: '/api/notes', headers: { origin: 'https://evil.example', 'access-control-request-method': 'POST' } })
+  const evil = await ctx.app.inject({ method: 'OPTIONS', url: PROBE, headers: { origin: 'https://evil.example', 'access-control-request-method': 'POST' } })
   assert.equal(evil.statusCode, 403)
   assert.equal(evil.headers['access-control-allow-origin'], undefined)
 })
@@ -60,7 +61,7 @@ test('un transport ne remplace pas l’autre', async () => {
   // « Basic » ajouté par un mandataire (préprod protégée) : session web intacte, CSRF toujours exigé.
   const basic = { authorization: 'Basic dXNlcjpwYXNz' }
   assert.equal((await call(ctx.app, 'GET', '/api/auth/me', { cookie: u.cookie, headers: basic })).json().user.id, u.id)
-  assert.equal((await ctx.app.inject({ method: 'POST', url: '/api/notes', payload: { title: 'x' }, headers: { ...basic, cookie: u.cookie, origin: 'https://evil.example' } })).statusCode, 403)
+  assert.equal((await ctx.app.inject({ method: 'POST', url: PROBE, payload: { title: 'x' }, headers: { ...basic, cookie: u.cookie, origin: 'https://evil.example' } })).statusCode, 403)
 })
 
 test('depuis l’app : inscription et mot de passe oublié sans en-tête web, cookie jamais lu', async () => {
@@ -72,7 +73,7 @@ test('depuis l’app : inscription et mot de passe oublié sans en-tête web, co
   const u = await newUser(ctx)
   const withCookie = await native(ctx.app, 'GET', '/api/auth/me', { headers: { cookie: u.cookie } })
   assert.equal(withCookie.json().user, null)
-  assert.equal((await native(ctx.app, 'POST', '/api/notes', { body: { title: 'x' }, headers: { cookie: u.cookie } })).statusCode, 401)
+  assert.equal((await native(ctx.app, 'POST', PROBE, { body: { title: 'x' }, headers: { cookie: u.cookie } })).statusCode, 401)
 })
 
 test('renouvellement : rotation, ancien jeton d’accès invalidé', async () => {
@@ -158,7 +159,7 @@ test('jeton d’accès expiré : 401, puis renouvellement possible', async () =>
   const u = await newUser(ctx)
   const first = (await login(u)).json()
   await ctx.db.query("UPDATE sessions SET expires_at = now() - interval '1 second' WHERE user_id = $1 AND kind = 'bearer'", [u.id])
-  assert.equal((await native(ctx.app, 'GET', '/api/notes', { token: first.accessToken })).statusCode, 401)
+  assert.equal((await native(ctx.app, 'GET', PROBE, { token: first.accessToken })).statusCode, 401)
   assert.equal((await refresh(first.refreshToken)).statusCode, 200)
 })
 

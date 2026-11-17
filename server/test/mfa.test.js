@@ -1,6 +1,6 @@
 import test, { before, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { startDb, startApp, newUser, call, cookieOf, tokenIn } from './helpers.js'
+import { startDb, startApp, newUser, call, cookieOf, tokenIn, PROBE } from './helpers.js'
 import { newToken, tokenHash } from '../src/security.js'
 import { base32, totp, checkTotp, seal, unseal } from '../src/totp.js'
 import { readFile } from 'node:fs/promises'
@@ -46,7 +46,7 @@ test('admin : ancienne session refusée, mot de passe insuffisant, invitation ob
  assert.equal((await call(ctx.app,'GET','/api/auth/me',{cookie:u.cookie})).json().user,null)
  const r=await login(u),c=cookieOf(r)
  assert.equal(r.json().user,undefined);assert.equal(r.json().enrollmentRequired,true)
- assert.equal((await call(ctx.app,'GET','/api/notes',{cookie:c})).statusCode,401)
+ assert.equal((await call(ctx.app,'GET',PROBE,{cookie:c})).statusCode,401)
  assert.equal((await call(ctx.app,'POST','/api/auth/mfa/setup',{cookie:c,body:{}})).statusCode,403)
  assert.equal((await call(ctx.app,'POST','/api/auth/mfa/setup',{cookie:c,body:{invitation:other.invitation}})).statusCode,403)
  const setup=await call(ctx.app,'POST','/api/auth/mfa/setup',{cookie:c,body:{invitation:u.invitation}})

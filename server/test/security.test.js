@@ -1,6 +1,6 @@
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
-import { startDb, startApp, call, cookieOf, tokenIn, newUser, ORIGIN } from './helpers.js'
+import { startDb, startApp, call, cookieOf, tokenIn, newUser, ORIGIN, PROBE } from './helpers.js'
 
 let dbh, ctx
 before(async () => { dbh = await startDb(); ctx = await startApp(dbh.url) })
@@ -39,7 +39,7 @@ test('CSRF : écriture refusée sans la bonne origine ou sans l’en-tête', asy
 })
 
 test('fermé par défaut : une route sans session répond 401, une route admin 403 à un utilisateur', async () => {
-  assert.equal((await call(ctx.app, 'GET', '/api/notes')).statusCode, 401)
+  assert.equal((await call(ctx.app, 'GET', PROBE)).statusCode, 401)
   assert.equal((await call(ctx.app, 'GET', '/api/auth/security')).statusCode, 401)
   assert.equal((await call(ctx.app, 'GET', '/api/admin/users')).statusCode, 401)
   const u = await newUser(ctx)

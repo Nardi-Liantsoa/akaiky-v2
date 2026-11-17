@@ -7,10 +7,10 @@
 
 const fr = {
   lang: { label: 'Langue', mg: 'Malagasy', fr: 'Français', en: 'English' },
-  nav: { home: 'Accueil', notes: 'Mes notes', security: 'Sécurité', admin: 'Administration', login: 'Connexion', logout: 'Déconnexion' },
+  nav: { home: 'Accueil', space: 'Mon espace', security: 'Sécurité', admin: 'Administration', login: 'Connexion', logout: 'Déconnexion' },
   home: {
     title: 'Bienvenue',
-    lead: 'Une application avec comptes, double authentification et données privées par utilisateur.',
+    lead: 'Akaiky relie les parents à leurs enfants : un téléphone simple pour l’enfant, une application pour appeler, recevoir les alertes et tout régler.',
     start: 'Créer un compte',
     open: 'Ouvrir mon espace'
   },
@@ -87,17 +87,12 @@ const fr = {
     revoke: 'Retirer',
     revokeAll: 'Tout retirer'
   },
-  notes: {
-    title: 'Mes notes',
-    lead: 'Exemple de ressource privée : chaque note n’est visible que par son auteur.',
-    newTitle: 'Titre',
-    newBody: 'Contenu',
-    add: 'Ajouter',
-    save: 'Enregistrer',
-    edit: 'Modifier',
-    remove: 'Supprimer',
-    confirmRemove: 'Supprimer cette note ?',
-    empty: 'Aucune note pour l’instant.'
+  parent: {
+    tabsLabel: 'Navigation principale',
+    home: { title: 'Accueil', empty: 'Les enfants de votre famille apparaîtront ici.' },
+    log: { title: 'Journal', empty: 'Les appels, messages et alertes apparaîtront ici.' },
+    settings: { title: 'Réglages', empty: 'Les réglages du téléphone de l’enfant apparaîtront ici.' },
+    family: { title: 'Famille', empty: 'Les membres de votre famille apparaîtront ici.' }
   },
   admin: {
     title: 'Administration',
@@ -119,10 +114,10 @@ export type Messages = typeof fr
 
 const mg: Messages = {
   lang: { label: 'Fiteny', mg: 'Malagasy', fr: 'Français', en: 'English' },
-  nav: { home: 'Fandraisana', notes: 'Ny naotako', security: 'Fiarovana', admin: 'Fitantanana', login: 'Hiditra', logout: 'Hivoaka' },
+  nav: { home: 'Fandraisana', space: 'Ny toerako', security: 'Fiarovana', admin: 'Fitantanana', login: 'Hiditra', logout: 'Hivoaka' },
   home: {
     title: 'Tongasoa',
-    lead: 'Rindranasa misy kaonty, fanamarinana roa sosona ary angona manokana ho an’ny mpampiasa tsirairay.',
+    lead: 'Mampifandray ny ray aman-dreny sy ny zanany i Akaiky: finday tsotra ho an’ny zaza, rindranasa hiantsoana, handraisana fampitandremana ary handrindrana ny zava-drehetra.',
     start: 'Hamorona kaonty',
     open: 'Hanokatra ny habakako'
   },
@@ -199,17 +194,12 @@ const mg: Messages = {
     revoke: 'Esory',
     revokeAll: 'Esory daholo'
   },
-  notes: {
-    title: 'Ny naotako',
-    lead: 'Ohatra amin’ny angona manokana: ny mpanoratra ihany no mahita ny naotany.',
-    newTitle: 'Lohateny',
-    newBody: 'Votoaty',
-    add: 'Ampio',
-    save: 'Tehirizo',
-    edit: 'Ovay',
-    remove: 'Fafao',
-    confirmRemove: 'Hofafana ity naoty ity?',
-    empty: 'Mbola tsy misy naoty.'
+  parent: {
+    tabsLabel: 'Fitetezana lehibe',
+    home: { title: 'Fandraisana', empty: 'Eto no hiseho ireo ankizy ao amin’ny fianakavianao.' },
+    log: { title: 'Tantara', empty: 'Eto no hiseho ny antso, ny hafatra ary ny fampitandremana.' },
+    settings: { title: 'Fandrindrana', empty: 'Eto no hiseho ny fandrindrana ny findain’ny zanakao.' },
+    family: { title: 'Fianakaviana', empty: 'Eto no hiseho ireo mpikambana ao amin’ny fianakavianao.' }
   },
   admin: {
     title: 'Fitantanana',
@@ -229,10 +219,10 @@ const mg: Messages = {
 
 const en: Messages = {
   lang: { label: 'Language', mg: 'Malagasy', fr: 'Français', en: 'English' },
-  nav: { home: 'Home', notes: 'My notes', security: 'Security', admin: 'Administration', login: 'Sign in', logout: 'Sign out' },
+  nav: { home: 'Home', space: 'My space', security: 'Security', admin: 'Administration', login: 'Sign in', logout: 'Sign out' },
   home: {
     title: 'Welcome',
-    lead: 'An application with accounts, two-factor authentication and private data for each user.',
+    lead: 'Akaiky connects parents with their children: a simple phone for the child, and an app to call, receive alerts and manage everything.',
     start: 'Create an account',
     open: 'Open my space'
   },
@@ -309,17 +299,12 @@ const en: Messages = {
     revoke: 'Remove',
     revokeAll: 'Remove all'
   },
-  notes: {
-    title: 'My notes',
-    lead: 'Example of a private resource: each note is visible to its author only.',
-    newTitle: 'Title',
-    newBody: 'Content',
-    add: 'Add',
-    save: 'Save',
-    edit: 'Edit',
-    remove: 'Delete',
-    confirmRemove: 'Delete this note?',
-    empty: 'No notes yet.'
+  parent: {
+    tabsLabel: 'Main navigation',
+    home: { title: 'Home', empty: 'Your family’s children will appear here.' },
+    log: { title: 'Log', empty: 'Calls, messages and alerts will appear here.' },
+    settings: { title: 'Settings', empty: 'Settings for your child’s phone will appear here.' },
+    family: { title: 'Family', empty: 'Your family members will appear here.' }
   },
   admin: {
     title: 'Administration',

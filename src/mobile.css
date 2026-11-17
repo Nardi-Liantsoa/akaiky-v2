@@ -48,7 +48,7 @@ html.platform-ios select {
 }
 
 /* Le rebond de défilement révèle le fond de la WebView, blanc par défaut,
- * y compris en thème sombre. */
+ * sous la couleur de fond de l'app. */
 html.native,
 html.native body {
   overscroll-behavior-y: none;

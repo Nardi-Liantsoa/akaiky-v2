@@ -14,7 +14,7 @@ GRANT USAGE ON SCHEMA public TO app_runtime;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO app_runtime;
 GRANT INSERT (email, name, password_hash) ON users TO app_runtime;
 GRANT UPDATE (name, password_hash, email_verified_at, failed_logins, locked_until) ON users TO app_runtime;
-GRANT INSERT, UPDATE, DELETE ON sessions, user_tokens, notes TO app_runtime;
+GRANT INSERT, UPDATE, DELETE ON sessions, user_tokens TO app_runtime;
 GRANT INSERT ON audit_log TO app_runtime;
 GRANT INSERT, UPDATE ON security_quotas, login_guards, security_alerts TO app_runtime;
 GRANT INSERT, UPDATE, DELETE ON trusted_devices, mfa_factors, mfa_challenges, mfa_recovery_codes TO app_runtime;

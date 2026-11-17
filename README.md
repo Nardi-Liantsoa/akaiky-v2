@@ -44,12 +44,12 @@ justement ce qu'ils vérifient.
 
 | | |
 |---|---|
-| Nouvelle ressource métier | `server/src/routes/<ressource>.js` sur le modèle de `notes.js`, sa migration, son test « A ne touche pas la ressource de B » sur le modèle de `test/notes.test.js` |
+| Nouvelle ressource métier | `server/src/routes/<ressource>.js`, sa migration, sa ligne dans le tableau des ressources de `CLAUDE.md` et son test « A ne touche pas la ressource de B » (skill `ampy-auth`) : propriétaire tiré de la session, filtre dans la requête SQL, 404 pour la ressource d'un autre, schéma qui refuse les champs inconnus, réponse construite champ par champ |
 | Route publique | `{ config: { public: true } }` — sinon elle exige une session |
 | Route d'administration | `{ config: { admin: true } }` |
 | Nouvelle variable | `server/src/config.js` (refus de démarrer si dangereuse en production) + `NOSYHOST.md` |
 | Texte d'interface | `src/i18n/messages.ts`, en malgache, français et anglais |
 
-`notes` est un exemple : à remplacer par les ressources du projet.
+Garanties génériques (fermé par défaut, CSRF, Bearer, CORS natif, schéma strict) : testées sur une route sonde ajoutée par les seuls tests (`server/test/probe.js`).
 
 Hébergement : `NOSYHOST.md`. Limites assumées : `HANDOFF.md`.

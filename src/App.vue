@@ -17,7 +17,7 @@ async function onLogout() {
     <RouterLink class="brand" :to="{ name: 'accueil' }">Akaiky</RouterLink>
     <nav>
       <template v-if="auth.user">
-        <RouterLink :to="{ name: 'espace' }">{{ t.nav.notes }}</RouterLink>
+        <RouterLink :to="{ name: 'espace' }">{{ t.nav.space }}</RouterLink>
         <RouterLink :to="{ name: 'securite' }">{{ t.nav.security }}</RouterLink>
         <RouterLink v-if="isAdmin()" :to="{ name: 'admin' }">{{ t.nav.admin }}</RouterLink>
         <button class="link" type="button" @click="onLogout">{{ t.nav.logout }}</button>
@@ -43,7 +43,8 @@ async function onLogout() {
   border-bottom: 1px solid var(--border);
 }
 .brand {
-  font-weight: 600;
+  font-size: 1.25rem;
+  font-weight: 900;
   letter-spacing: -0.01em;
   color: var(--text);
 }

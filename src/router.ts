@@ -6,7 +6,19 @@ import { auth, init, isAdmin } from './store/auth'
 const routes: RouteRecordRaw[] = [
   { path: '/', name: 'accueil', component: () => import('./views/HomeView.vue') },
   { path: '/connexion', name: 'connexion', component: () => import('./views/AuthView.vue'), meta: { guestOnly: true } },
-  { path: '/espace', name: 'espace', component: () => import('./views/NotesView.vue'), meta: { requiresAuth: true } },
+  {
+    // App parent : coquille à quatre onglets (docs/DESIGN.md). « espace » reste
+    // le nom de l'accueil, cible des redirections après connexion.
+    path: '/espace',
+    component: () => import('./views/parent/ParentShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      { path: '', name: 'espace', component: () => import('./views/parent/HomeView.vue') },
+      { path: 'journal', name: 'journal', component: () => import('./views/parent/LogView.vue') },
+      { path: 'reglages', name: 'reglages', component: () => import('./views/parent/SettingsView.vue') },
+      { path: 'famille', name: 'famille', component: () => import('./views/parent/FamilyView.vue') }
+    ]
+  },
   { path: '/securite', name: 'securite', component: () => import('./views/SecurityView.vue'), meta: { requiresAuth: true } },
   { path: '/admin', name: 'admin', component: () => import('./views/AdminView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/:pathMatch(.*)*', redirect: '/' }

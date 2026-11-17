@@ -12,9 +12,12 @@ const isFile = (f) => { try { return statSync(f).isFile() } catch { return false
 
 // Visiteur non connecté ; ajouter par page les réponses dont elle a besoin.
 const ANONYME = { 'GET /api/auth/me': { user: null }, 'GET /api/auth/mfa/status': { challenge: null } }
+// Parent connecté (coquille à onglets de l'app parent).
+const PARENT = { ...ANONYME, 'GET /api/auth/me': { user: { id: '6f1c2b1e-0000-4000-8000-000000000001', email: 'hanta@exemple.fr', name: 'Hanta', is_admin: false } } }
 const PAGES = [
   ['accueil', '/', ANONYME],
-  ['connexion', '/connexion', ANONYME]
+  ['connexion', '/connexion', ANONYME],
+  ['parent-accueil', '/espace', PARENT]
 ]
 
 async function serve(page, api) {

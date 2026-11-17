@@ -5,40 +5,71 @@
  * clair, un thème sombre ou une charte client atteignables en redéfinissant
  * ce bloc et rien d'autre. */
 
+/* Police des maquettes (docs/DESIGN.md) : Nunito variable, sous-ensemble
+ * latin servi par l'application elle-même (aucun appel à un tiers, C90).
+ * Chemin relatif : Vite la range, nom haché, dans /assets/ (cache immuable).
+ * Licence SIL OFL 1.1 : public/licenses/OFL-nunito.txt. */
+@font-face {
+  font-family: 'Nunito';
+  src: url('./assets/fonts/nunito-latin-wght.woff2') format('woff2');
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
-  --bg: #ffffff;
-  --surface: #f7f8f9;
-  --border: #e4e7ea;
-  --border-strong: #cfd5da;
+  /* Jetons des maquettes (docs/DESIGN.md). */
+  --bg-child: #fff8ee;
+  --bg-child-school: #e9f0f8;
+  --bg-parent: #f6f3ee;
+  --surface-card: #ffffff;
+  --surface-muted: #e9e5dc;
+  --ink: #1c2431;
+  --ink-soft: #4a5260;
+  --ink-mute: #5f6673; /* ≥ 4.5:1 sur --bg-parent et --surface-muted */
+  --sos: #c8261b;
+  --sos-deep: #8e170f;
+  --call: #0b795c;
+  --navy: #203f82;
+  --on-color: #ffffff;
+  --tint-peach: #ffe3ce;
+  --accent-orange: #e9814a;
+  --tint-sky: #d6edff;
+  --accent-blue: #3d80d1;
+  --tint-lilac: #e9e1f9;
+  --accent-violet: #7b5ccc;
+  --tint-mint: #d5f1e3;
+  --tint-butter: #fef0c1;
+  --accent-yellow: #f6b82f;
 
-  --text: #12181d;
-  --text-soft: #40505c;
-  --text-mute: #6b7b88;
+  /* Rôles génériques, adossés aux jetons ci-dessus : les écrans du starter
+   * (connexion, sécurité, administration) les utilisent. */
+  --bg: var(--bg-parent);
+  --surface: var(--surface-card);
+  --border: var(--surface-muted);
+  --border-strong: #8c8576; /* bord de champ ≥ 3:1 (WCAG 1.4.11) */
+  --text: var(--ink);
+  --text-soft: var(--ink-soft);
+  --text-mute: var(--ink-mute);
+  --accent: var(--call);
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --accent-ink: var(--on-color);
+  --danger: var(--sos);
 
-  --accent: #1f6feb;
-  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
-  --on-accent: #ffffff;
-  --danger: #d0342c;
-
-  --radius: 14px;
+  --radius: 24px;
+  --radius-sm: 14px;
+  --tap: 48px;
+  --tab-height: 64px;
   --gutter: clamp(16px, 4vw, 40px);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 
-  --font-body: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-}
+  --font-body: 'Nunito', ui-rounded, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0e1216;
-    --surface: #161c22;
-    --border: #232c34;
-    --border-strong: #33404a;
-    --text: #eef2f5;
-    --text-soft: #b7c2cb;
-    --text-mute: #7d8b96;
-    --accent: #4d94ff;
-    --on-accent: #08111c;
-  }
+  /* Mode sombre : absent des maquettes, donc désactivé explicitement (une
+   * WebView ou un navigateur en thème sombre ne doit pas recolorer les
+   * contrôles natifs sur fond clair). */
+  color-scheme: light;
 }
 
 *,
@@ -58,7 +89,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
-  line-height: 1.6;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -78,14 +109,15 @@ a:hover {
 
 h1 {
   font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-weight: 900;
   line-height: 1.15;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   margin: 0 0 12px;
 }
 
 .card {
   padding: 24px;
-  border: 1px solid var(--border);
+  border: none;
   border-radius: var(--radius);
   background: var(--surface);
 }
@@ -112,7 +144,7 @@ h1 {
   font: inherit;
 }
 .input:focus {
-  outline: 2px solid var(--accent-soft);
+  outline: 2px solid var(--accent);
   border-color: var(--accent);
 }
 
@@ -122,11 +154,13 @@ h1 {
   justify-content: center;
   gap: 8px;
   padding: 11px 20px;
+  min-height: var(--tap);
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 999px;
   background: var(--accent);
-  color: var(--on-accent);
+  color: var(--accent-ink);
   font: inherit;
+  font-weight: 800;
   cursor: pointer;
   transition: opacity 0.25s var(--ease);
 }
