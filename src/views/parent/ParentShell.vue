@@ -12,7 +12,9 @@ import TabBar from '../../components/parent/TabBar.vue'
 
 <style scoped>
 .shell {
-  padding: 24px var(--gutter) calc(var(--tab-height) + 24px);
+  /* Zones sûres en natif comme sur le web (viewport-fit=cover) : --safe-* vaut 0 sans encoche. */
+  padding: 24px calc(var(--gutter) + var(--safe-right)) calc(var(--tab-height) + var(--safe-bottom) + 24px)
+    calc(var(--gutter) + var(--safe-left));
   max-width: 720px;
   margin: 0 auto;
 }

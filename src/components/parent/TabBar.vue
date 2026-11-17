@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
+import { computed } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useT } from '../../composables/useT'
 
 const t = useT()
+const route = useRoute()
+const router = useRouter()
 
 // Ordre et icônes de la maquette (docs/DESIGN.md, app parent). Les icônes sont
 // des tracés en ligne, sans bibliothèque : rien de plus à embarquer.
@@ -12,15 +15,26 @@ const TABS = [
   { name: 'reglages', key: 'settings', icon: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6' },
   { name: 'famille', key: 'family', icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' }
 ] as const
+
+// Onglet actif : celui dont le chemin est le plus long préfixe de l'URL, pour
+// qu'un écran imbriqué (ex. /espace/famille/:id) garde son onglet signalé.
+const active = computed(() => {
+  const within = (base: string) => route.path === base || route.path.startsWith(`${base}/`)
+  return TABS.map((tab) => ({ name: tab.name, path: router.resolve({ name: tab.name }).path }))
+    .filter((tab) => within(tab.path))
+    .sort((a, b) => b.path.length - a.path.length)[0]?.name
+})
 </script>
 
 <template>
   <nav class="tabbar" :aria-label="t.parent.tabsLabel">
-    <RouterLink v-for="tab in TABS" :key="tab.name" :to="{ name: tab.name }" class="tab">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path :d="tab.icon" />
-      </svg>
-      <span>{{ t.parent[tab.key].title }}</span>
+    <RouterLink v-for="tab in TABS" :key="tab.name" v-slot="{ href, navigate }" :to="{ name: tab.name }" custom>
+      <a :href="href" class="tab" :aria-current="active === tab.name ? 'page' : undefined" @click="navigate">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path :d="tab.icon" />
+        </svg>
+        <span>{{ t.parent[tab.key].title }}</span>
+      </a>
     </RouterLink>
   </nav>
 </template>
@@ -32,7 +46,8 @@ const TABS = [
   z-index: 10;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  height: var(--tab-height);
+  height: calc(var(--tab-height) + var(--safe-bottom));
+  padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
   background: var(--surface);
   border-top: 1px solid var(--border);
 }
@@ -57,7 +72,6 @@ const TABS = [
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-/* RouterLink pose aria-current="page" sur l'onglet exactement actif. */
 .tab[aria-current='page'] {
   color: var(--accent);
   font-weight: 800;

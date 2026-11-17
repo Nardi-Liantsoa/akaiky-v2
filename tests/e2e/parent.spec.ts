@@ -23,7 +23,11 @@ test('parent connecté : quatre onglets, sans rechargement, onglet actif signal�
 })
 
 test('police servie par l’application, aucun appel à un tiers', async ({ page, baseURL }) => {
+  const origin = new URL(baseURL!).origin
+  const thirdParty: string[] = []
   const fonts: { url: string, status: number }[] = []
+  // « request » voit aussi les appels tiers, que mockApi coupe avant toute réponse.
+  page.on('request', (r) => { if (new URL(r.url()).origin !== origin) thirdParty.push(r.url()) })
   page.on('response', (r) => { if (r.request().resourceType() === 'font') fonts.push({ url: r.url(), status: r.status() }) })
   await mockApi(page, connected)
   await page.goto('/espace')
@@ -31,9 +35,7 @@ test('police servie par l’application, aucun appel à un tiers', async ({ page
   // check() répond vrai même pour une police en échec : on lit son état réel.
   const status = await page.evaluate(() => [...document.fonts].filter((f) => f.family.replace(/"/g, '') === 'Nunito').map((f) => f.status))
   expect(status).toEqual(['loaded'])
+  expect(thirdParty).toEqual([])
   expect(fonts.length).toBeGreaterThan(0)
-  for (const f of fonts) {
-    expect(new URL(f.url).origin).toBe(new URL(baseURL!).origin)
-    expect(f.status).toBe(200)
-  }
+  for (const f of fonts) expect(f.status).toBe(200)
 })
