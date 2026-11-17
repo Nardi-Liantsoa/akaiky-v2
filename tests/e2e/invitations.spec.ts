@@ -110,3 +110,31 @@ test('invitation pour un autre compte, ou expirée : message clair', async ({ pa
   await page.goto('/invitation')
   await expect(page.getByText('Aucune invitation à afficher.')).toBeVisible()
 })
+
+test('quitter la famille : retour à l’accueil, qui propose d’en créer une', async ({ page }) => {
+  const asMember = { ...FAMILY, role: 'member', members: [{ ...FAMILY.members[0], isMe: false, name: 'Hanta' }, { userId: USER.id, name: USER.name, role: 'member', isMe: true }] }
+  let left = false
+  await mockApi(page, {
+    ...me,
+    'GET /api/families/me': () => left ? { status: 404, body: { error: '', code: 'no_family' } } : { body: asMember },
+    [`DELETE /api/families/me/members/${USER.id}`]: () => { left = true; return { body: { ok: true } } }
+  })
+  await page.goto('/espace/famille')
+  await page.getByRole('button', { name: 'Quitter la famille' }).click()
+  await page.getByRole('button', { name: 'Confirmer : quitter la famille' }).click()
+  await expect(page).toHaveURL(/\/espace$/)
+  await expect(page.getByRole('heading', { name: 'Bienvenue sur Akaiky' })).toBeVisible()
+})
+
+test('changement de rôle refusé : le menu revient au rôle réel', async ({ page }) => {
+  await mockApi(page, {
+    ...me,
+    'GET /api/families/me': () => ({ body: { ...FAMILY, members: [FAMILY.members[0], RIVO] } }),
+    'GET /api/families/me/invitations': () => ({ body: [] }),
+    [`PATCH /api/families/me/members/${RIVO.userId}`]: () => ({ status: 503, body: { error: 'Indisponible.' } })
+  })
+  await page.goto('/espace/famille')
+  await page.getByLabel('Rôle de Rivo').selectOption('owner')
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.getByLabel('Rôle de Rivo')).toHaveValue('member')
+})

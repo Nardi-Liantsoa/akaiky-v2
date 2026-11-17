@@ -43,3 +43,18 @@ export async function verifySchema(pool) {
   const { rows: [r] } = await pool.query('SELECT rolsuper, rolcreatedb, rolcreaterole, rolreplication, rolbypassrls FROM pg_roles WHERE rolname = current_user')
   if (!r || Object.values(r).some(Boolean)) throw new Error('Compte applicatif PostgreSQL trop privilégié')
 }
+
+// Transaction sur une connexion dédiée : COMMIT si fn réussit, ROLLBACK sinon,
+// connexion rendue au pool dans tous les cas.
+export async function withTransaction(pool, fn) {
+  const conn = await pool.connect()
+  try {
+    await conn.query('BEGIN')
+    const result = await fn(conn)
+    await conn.query('COMMIT')
+    return result
+  } catch (e) {
+    await conn.query('ROLLBACK').catch(() => {})
+    throw e
+  } finally { conn.release() }
+}

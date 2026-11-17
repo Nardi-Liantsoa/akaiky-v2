@@ -82,7 +82,9 @@ export function loadConfig(env = process.env) {
     },
     quotas: {
       registrationsPerHour: positive(env.REGISTRATIONS_PER_HOUR, 100),
-      authEmailsPerHour: positive(env.AUTH_EMAILS_PER_HOUR, 200)
+      authEmailsPerHour: positive(env.AUTH_EMAILS_PER_HOUR, 200),
+      // Budget séparé : des invitations en rafale n'épuisent pas celui des courriels de compte.
+      invitationEmailsPerHour: positive(env.INVITATION_EMAILS_PER_HOUR, 100)
     },
     // Anti brute force : tentatives par IP (15 min) et par adresse email (1 h).
     limits: { perIp: positive(env.RATE_LIMIT_IP, 20), perEmail: positive(env.RATE_LIMIT_EMAIL, 5), apiPerMinute: positive(env.API_RATE_LIMIT, 300) }

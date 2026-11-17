@@ -1,7 +1,7 @@
 import { createMfa } from '../mfa.js'
 import { recognizedDevice, rememberDevice } from '../devices.js'
 import { readAuthCookie, authCookie } from '../auth-cookies.js'
-import { HttpError, EMAIL_RE, text, audit, me } from '../lib.js'
+import { HttpError, audit, me, emailAddress, text } from '../lib.js'
 import { hashPassword, verifyPassword, burnPasswordTime, newToken, tokenHash, passwordProblem, createLimiter, rateLimitKey } from '../security.js'
 import { authEmails } from '../mailer.js'
 import { consumeQuota, createAuthQueue } from '../quotas.js'
@@ -14,11 +14,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 const GENERIC_SENT = 'Si cette adresse correspond à un compte, un email vient de lui être envoyé.'
 const PUBLIC = { config: { public: true } }
 
-export function email(v) {
-  const e = text(v, { max: 254, min: 3, field: 'Email' }).toLowerCase()
-  if (!EMAIL_RE.test(e)) throw new HttpError(400, 'Adresse email invalide.')
-  return e
-}
+export const email = emailAddress
 
 export default async function authRoutes(app) {
   const { db, config, mailer } = app

@@ -173,3 +173,52 @@ test('chacun peut partir ; un membre retiré perd l’accès aussitôt', async (
   const { rows } = await ctx.db.query("SELECT action FROM audit_log WHERE target IN ($1, $2) AND action LIKE 'member_%' ORDER BY id", [c.id, m.id])
   assert.deepEqual(rows.map((r) => r.action), ['member_left', 'member_removed'])
 })
+
+test('envoi impossible en renvoyant : l’invitation précédente reste valable', async () => {
+  const owner = await newUser(ctx), guest = await newUser(ctx)
+  await family(owner)
+  await invite(owner, guest.email, 'member')
+  const first = tokenFor(guest.email)
+  const send = ctx.app.mailer.send
+  ctx.app.mailer.send = async () => { throw new Error('SMTP indisponible') }
+  try {
+    const failed = await invite(owner, guest.email, 'manager')
+    assert.equal(failed.statusCode, 503)
+  } finally { ctx.app.mailer.send = send }
+  assert.deepEqual((await pending(owner)).json().map((i) => i.role), ['member'])
+  assert.equal((await accept(guest, first)).statusCode, 200)
+  const { rows } = await ctx.db.query("SELECT count(*)::int AS n FROM audit_log WHERE action = 'invitation_created' AND details->>'role' = 'manager' AND actor_id = $1", [owner.id])
+  assert.equal(rows[0].n, 0, 'aucune trace d’une invitation qui n’existe pas')
+})
+
+test('gestionnaire rétrogradé ou retiré : ses invitations disparaissent, l’aperçu les refuse', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const m1 = await join(owner, 'manager'), m2 = await join(owner, 'manager')
+  const a = await newUser(ctx), b = await newUser(ctx)
+  await invite(m1, a.email); await invite(m2, b.email)
+  const tokenA = tokenFor(a.email)
+  assert.equal((await pending(owner)).json().length, 2)
+  // Retrait direct en base (sans passer par l'API) : l'aperçu ne doit pas promettre une acceptation impossible.
+  await ctx.db.query("UPDATE memberships SET role = 'member' WHERE user_id = $1", [m1.id])
+  assert.equal((await preview(a, tokenA)).json().code, 'invite_invalid')
+  await ctx.db.query("UPDATE memberships SET role = 'manager' WHERE user_id = $1", [m1.id])
+  await setRole(owner, m1.id, 'member')
+  await remove(owner, m2.id)
+  assert.deepEqual((await pending(owner)).json(), [])
+})
+
+test('budget d’envoi propre aux invitations, compté seulement pour un envoi réel', async () => {
+  await ctx.db.query("DELETE FROM security_quotas WHERE name = 'invitation-emails'")
+  const app2 = await startApp(dbh.url, { INVITATION_EMAILS_PER_HOUR: '3' })
+  try {
+    const owner = await newUser(app2)
+    await call(app2.app, 'POST', '/api/families', { cookie: owner.cookie, body: { name: 'Budget' } })
+    const send = (email) => call(app2.app, 'POST', '/api/families/me/invitations', { cookie: owner.cookie, body: { email, role: 'member' } })
+    assert.equal((await send(owner.email)).json().code, 'already_member')
+    for (let i = 0; i < 3; i++) assert.equal((await send(`budget${i}.${process.pid}@exemple.fr`)).statusCode, 201)
+    assert.equal((await send(`budget-de-trop.${process.pid}@exemple.fr`)).statusCode, 429)
+    // Les courriels de compte ne sont pas touchés.
+    assert.equal((await call(app2.app, 'POST', '/api/auth/forgot-password', { body: { email: owner.email } })).statusCode, 202)
+  } finally { await app2.close(); await ctx.db.query("DELETE FROM security_quotas WHERE name = 'invitation-emails'") }
+})

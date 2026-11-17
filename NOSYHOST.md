@@ -71,6 +71,7 @@ SMTP_HOST=… SMTP_PORT=465 SMTP_USER=… SMTP_PASS=…
 MAIL_FROM=Akaiky <no-reply@akaiky.a-definir.invalid>         # domaine avec SPF + DKIM aligné + DMARC
 # NATIVE_ORIGINS=https://localhost,capacitor://localhost   # seulement avec l'app mobile
 # API_RATE_LIMIT=300                                   # requêtes/min/IP ; à relever derrière un NAT d'opérateur
+# INVITATION_EMAILS_PER_HOUR=100                       # invitations envoyées par heure, tous comptes (budget séparé des courriels de compte)
 ```
 
 L'application **refuse de démarrer** si une valeur de production manque ou

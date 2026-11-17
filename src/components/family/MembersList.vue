@@ -10,6 +10,9 @@ const busy = ref(false)
 const error = ref('')
 // Retrait en deux temps (pas de boîte de dialogue native) : id du membre à confirmer.
 const confirming = ref<string | null>(null)
+// Incrémenté après chaque action : la liste est redessinée depuis l'état relu,
+// même si un refus laisse le rôle inchangé (le menu revient alors à la vraie valeur).
+const version = ref(0)
 
 const myRole = computed(() => family.data?.role)
 // Mêmes règles que le serveur, pour n'afficher que les actions possibles :
@@ -29,6 +32,7 @@ async function run(task: () => Promise<unknown>) {
   } finally {
     // Dans tous les cas, l'état affiché est relu : un refus vient souvent d'un changement fait ailleurs.
     await loadFamily(true)
+    version.value++
     busy.value = false
   }
 }
@@ -40,7 +44,7 @@ const remove = (m: FamilyMember) => run(() => removeMember(m.userId))
 <template>
   <div>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <ul v-if="family.data" class="card members">
+    <ul v-if="family.data" :key="version" class="card members">
       <li v-for="m in family.data.members" :key="m.userId">
         <span class="who">
           <span class="name">{{ m.name }}</span><span v-if="m.isMe" class="me"> ({{ t.family.you }})</span>

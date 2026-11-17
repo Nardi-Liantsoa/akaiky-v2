@@ -1,12 +1,12 @@
 // Familles : création par le parent principal (qui en devient owner), lecture
 // par tous ses membres, renommage par owner/manager. Règles : CLAUDE.md,
 // « Ressources : propriétaire et règle par opération ».
-import { HttpError, audit, isUuid, text } from '../lib.js'
+import { HttpError, audit, emailAddress, isUuid, text } from '../lib.js'
+import { withTransaction } from '../db.js'
 import { MANAGERS, ROLES, notFound, requireOwnFamily, roleDenied } from '../families.js'
 import { createLimiter, newToken } from '../security.js'
 import { authEmails } from '../mailer.js'
 import { consumeQuota } from '../quotas.js'
-import { email as normalizeEmail } from './auth.js'
 
 // Le schéma ne fait que borner l'entrée brute ; la règle (1 à 80 caractères
 // après retrait des espaces) est celle de text(), comme char_length en base.
@@ -43,18 +43,11 @@ export default async function familiesRoutes(app) {
   // Le jeton voyage dans le fragment ; l'origine vient de la configuration.
   const inviteLink = (token) => `${config.origin}/invitation#invite=${token}`
 
-  async function transaction(fn) {
-    const conn = await db.connect()
-    try {
-      await conn.query('BEGIN')
-      const result = await fn(conn)
-      await conn.query('COMMIT')
-      return result
-    } catch (e) {
-      await conn.query('ROLLBACK').catch(() => {})
-      throw e
-    } finally { conn.release() }
-  }
+  const transaction = (fn) => withTransaction(db, fn)
+  // Un gestionnaire qui perd ce rôle (retrait, départ, rétrogradation) emporte
+  // ses invitations en attente : elles ne seraient plus acceptables.
+  const dropInvitationsOf = (conn, familyId, userId) =>
+    conn.query('DELETE FROM invitations WHERE family_id = $1 AND invited_by = $2 AND used_at IS NULL', [familyId, userId])
 
   // Adhésions de la famille verrouillées jusqu'à la fin de la transaction :
   // deux changements de rôle simultanés ne peuvent pas retirer le dernier owner.
@@ -70,20 +63,19 @@ export default async function familiesRoutes(app) {
   app.post('/', { schema: { body: NAME } }, async (req, reply) => {
     const user = app.requireUser(req)
     const name = familyName(req.body.name)
-    const conn = await db.connect()
     try {
-      await conn.query('BEGIN')
-      const { rows: [family] } = await conn.query('INSERT INTO families(name) VALUES ($1) RETURNING id, name', [name])
-      // L'unicité de memberships.user_id tranche deux créations simultanées.
-      await conn.query("INSERT INTO memberships(family_id, user_id, role) VALUES ($1, $2, 'owner')", [family.id, user.id])
-      await audit(conn, req, 'family_created', family.id)
-      await conn.query('COMMIT')
+      const family = await transaction(async (conn) => {
+        const { rows: [row] } = await conn.query('INSERT INTO families(name) VALUES ($1) RETURNING id, name', [name])
+        // L'unicité de memberships.user_id tranche deux créations simultanées.
+        await conn.query("INSERT INTO memberships(family_id, user_id, role) VALUES ($1, $2, 'owner')", [row.id, user.id])
+        await audit(conn, req, 'family_created', row.id)
+        return row
+      })
       return reply.code(201).send({ id: family.id, name: family.name, role: 'owner' })
     } catch (e) {
-      await conn.query('ROLLBACK').catch(() => {})
       if (e.code === '23505') throw new HttpError(409, 'Ce compte a déjà une famille.', 'family_exists')
       throw e
-    } finally { conn.release() }
+    }
   })
 
   // Une seule requête : famille, rôle de l'appelant et membres, lus ensemble
@@ -113,9 +105,7 @@ export default async function familiesRoutes(app) {
   app.patch('/me', { schema: { body: NAME } }, async (req) => {
     const user = app.requireUser(req)
     const name = familyName(req.body.name)
-    const conn = await db.connect()
-    try {
-      await conn.query('BEGIN')
+    return transaction(async (conn) => {
       const { rows: [row] } = await conn.query(
         `UPDATE families f SET name = $1 FROM memberships m
           WHERE m.user_id = $2 AND m.family_id = f.id AND m.role = ANY($3::text[])
@@ -125,12 +115,8 @@ export default async function familiesRoutes(app) {
         throw roleDenied()
       }
       await audit(conn, req, 'family_renamed', row.id)
-      await conn.query('COMMIT')
       return { id: row.id, name: row.name, role: row.role }
-    } catch (e) {
-      await conn.query('ROLLBACK').catch(() => {})
-      throw e
-    } finally { conn.release() }
+    })
   })
 
   // --- Invitations (owner, manager) ---
@@ -146,10 +132,11 @@ export default async function familiesRoutes(app) {
   app.post('/me/invitations', { schema: { body: INVITE } }, async (req, reply) => {
     const user = app.requireUser(req)
     await requireOwnFamily(db, req, MANAGERS)
-    const invitee = normalizeEmail(req.body.email)
+    const invitee = emailAddress(req.body.email)
     if (!invitesPerUser(user.id)) throw new HttpError(429, 'Trop d’invitations envoyées. Réessayez plus tard.')
-    await consumeQuota(db, 'auth-emails', config.quotas.authEmailsPerHour)
     const { token, hash } = newToken()
+    // Courriel envoyé AVANT le COMMIT : un échec d'envoi annule tout, y compris le
+    // remplacement d'une invitation précédente encore valable.
     const invitation = await transaction(async (conn) => {
       const own = await requireOwnFamily(conn, req, MANAGERS)
       await conn.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`invitations:${own.familyId}`])
@@ -161,21 +148,22 @@ export default async function familiesRoutes(app) {
       const { rows: [{ n }] } = await conn.query(
         'SELECT count(*)::int AS n FROM invitations WHERE family_id = $1 AND used_at IS NULL AND expires_at > now()', [own.familyId])
       if (n >= MAX_PENDING_INVITATIONS) throw new HttpError(409, 'Trop d’invitations en attente. Annulez-en une d’abord.', 'too_many_invitations')
+      // Budget compté seulement pour un envoi réel, après les refus métier.
+      await consumeQuota(conn, 'invitation-emails', config.quotas.invitationEmailsPerHour)
       const { rows: [row] } = await conn.query(
         `INSERT INTO invitations(family_id, email, role, token_hash, invited_by, expires_at)
          VALUES ($1, $2, $3, $4, $5, now() + make_interval(days => $6))
          RETURNING id, email, role, created_at, expires_at`,
         [own.familyId, invitee, req.body.role, hash, user.id, INVITE_DAYS])
       await audit(conn, req, 'invitation_created', row.id, { role: row.role })
+      try {
+        await mailer.send({ to: invitee, ...emails.invitation(inviteLink(token)) })
+      } catch (e) {
+        req.log.error({ err: e }, 'Envoi d’une invitation impossible')
+        throw new HttpError(503, 'Envoi de l’invitation impossible. Réessayez dans un moment.')
+      }
       return row
     })
-    try {
-      await mailer.send({ to: invitee, ...emails.invitation(inviteLink(token)) })
-    } catch (e) {
-      req.log.error({ err: e }, 'Envoi d’une invitation impossible')
-      await db.query('DELETE FROM invitations WHERE id = $1', [invitation.id])
-      throw new HttpError(503, 'Envoi de l’invitation impossible. Réessayez dans un moment.')
-    }
     return reply.code(201).send({
       id: invitation.id, email: invitation.email, role: invitation.role, createdAt: invitation.created_at, expiresAt: invitation.expires_at
     })
@@ -207,6 +195,7 @@ export default async function familiesRoutes(app) {
       if (target.role === 'owner' && role !== 'owner' && owners === 1) throw lastOwner()
       if (target.role !== role) {
         await conn.query('UPDATE memberships SET role = $1 WHERE family_id = $2 AND user_id = $3', [role, familyId, target.user_id])
+        if (role === 'member') await dropInvitationsOf(conn, familyId, target.user_id)
         await audit(conn, req, 'member_role_changed', target.user_id, { from: target.role, to: role })
       }
       return { userId: target.user_id, role }
@@ -225,6 +214,7 @@ export default async function familiesRoutes(app) {
       if (!leaving && actor.role !== 'owner' && target.role === 'owner') throw roleDenied()
       if (target.role === 'owner' && owners === 1) throw lastOwner()
       await conn.query('DELETE FROM memberships WHERE family_id = $1 AND user_id = $2', [familyId, target.user_id])
+      await dropInvitationsOf(conn, familyId, target.user_id)
       await audit(conn, req, leaving ? 'member_left' : 'member_removed', target.user_id)
       return { ok: true }
     })

@@ -17,6 +17,13 @@ export function text(value, { max, min = 0, field }) {
   return v
 }
 
+// Adresse e-mail normalisée (minuscules) et validée : la même partout (comptes, invitations).
+export function emailAddress(v) {
+  const e = text(v, { max: 254, min: 3, field: 'Email' }).toLowerCase()
+  if (!EMAIL_RE.test(e)) throw new HttpError(400, 'Adresse email invalide.')
+  return e
+}
+
 export function isoDate(value, field) {
   if (value === null || value === '') return null
   if (typeof value !== 'string' || value.length > 40 || Number.isNaN(Date.parse(value))) throw new HttpError(400, `${field} : date invalide.`)

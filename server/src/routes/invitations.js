@@ -2,6 +2,7 @@
 // voyage dans le corps (jamais dans l'URL) ; il est à usage unique, lié à
 // l'adresse invitée, et consommé dans une transaction verrouillée.
 import { HttpError, audit } from '../lib.js'
+import { withTransaction } from '../db.js'
 import { MANAGERS } from '../families.js'
 import { createLimiter, tokenHash } from '../security.js'
 
@@ -22,9 +23,12 @@ export default async function invitationsRoutes(app) {
   app.post('/preview', { schema: { body: TOKEN } }, async (req) => {
     const user = app.requireUser(req)
     limit(user)
+    // Mêmes conditions que l'acceptation, invitant toujours gestionnaire compris.
     const { rows: [inv] } = await db.query(
-      `SELECT i.email, i.role, f.name FROM invitations i JOIN families f ON f.id = i.family_id
-        WHERE i.token_hash = $1 AND i.used_at IS NULL AND i.expires_at > now()`, [tokenHash(req.body.token)])
+      `SELECT i.email, i.role, f.name FROM invitations i
+         JOIN families f ON f.id = i.family_id
+         JOIN memberships m ON m.family_id = i.family_id AND m.user_id = i.invited_by AND m.role = ANY($2::text[])
+        WHERE i.token_hash = $1 AND i.used_at IS NULL AND i.expires_at > now()`, [tokenHash(req.body.token), MANAGERS])
     if (!inv) throw invalid()
     if (inv.email !== user.email) return { forThisAccount: false }
     return { forThisAccount: true, familyName: inv.name, role: inv.role }
@@ -33,9 +37,7 @@ export default async function invitationsRoutes(app) {
   app.post('/accept', { schema: { body: TOKEN } }, async (req) => {
     const user = app.requireUser(req)
     limit(user)
-    const conn = await db.connect()
-    try {
-      await conn.query('BEGIN')
+    return withTransaction(db, async (conn) => {
       const { rows: [inv] } = await conn.query(
         `SELECT id, family_id, email, role, invited_by FROM invitations
           WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now() FOR UPDATE`, [tokenHash(req.body.token)])
@@ -53,11 +55,7 @@ export default async function invitationsRoutes(app) {
         throw e
       }
       await audit(conn, req, 'invitation_accepted', inv.id, { role: inv.role })
-      await conn.query('COMMIT')
       return { familyId: inv.family_id, role: inv.role }
-    } catch (e) {
-      await conn.query('ROLLBACK').catch(() => {})
-      throw e
-    } finally { conn.release() }
+    })
   })
 }
