@@ -81,6 +81,7 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     assert.equal((await call(app, 'PUT', `/api/children/${kid.id}/contacts/order`, { cookie: user.cookie, body: { ids: [contact.json().id] } })).statusCode, 200)
     assert.equal((await call(app, 'DELETE', `/api/contacts/${contact.json().id}`, { cookie: user.cookie })).statusCode, 200)
     await assert.rejects(pool.query('UPDATE allowed_contacts SET child_id = child_id'), /permission denied/)
+    await assert.rejects(pool.query('UPDATE children SET config_version = 0'), /permission denied/)
     await assert.rejects(pool.query('UPDATE memberships SET family_id = family_id'), /permission denied/)
     await assert.rejects(pool.query('UPDATE invitations SET role = role'), /permission denied/)
     await assert.rejects(pool.query('DELETE FROM families'), /permission denied/)

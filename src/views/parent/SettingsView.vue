@@ -38,7 +38,14 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
           <p>{{ t.contacts.loadError }} {{ contactErrorText(contacts.error, t) }}</p>
           <button class="btn btn-ghost" type="button" @click="loadContacts(current.id, true)">{{ t.errors.retry }}</button>
         </div>
-        <ContactsCard v-else-if="contacts.status === 'ready' && contacts.childId === current.id" :child-id="current.id" />
+        <template v-else-if="contacts.status === 'ready' && contacts.childId === current.id">
+          <!-- Relecture en échec : la liste affichée peut être périmée, on le dit. -->
+          <div v-if="contacts.error" class="error" role="alert">
+            <p>{{ t.contacts.loadError }} {{ contactErrorText(contacts.error, t) }}</p>
+            <button class="btn btn-ghost" type="button" @click="loadContacts(current.id, true)">{{ t.errors.retry }}</button>
+          </div>
+          <ContactsCard :child-id="current.id" />
+        </template>
         <p v-else class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
       </template>
     </template>

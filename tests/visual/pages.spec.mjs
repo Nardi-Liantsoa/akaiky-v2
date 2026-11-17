@@ -28,7 +28,7 @@ const PARENT = {
     { id: '6f1c2b1e-0000-4000-8000-000000000102', firstName: 'Tiana', avatarColor: 'green', createdAt: '2026-01-11T10:00:00Z' }
   ],
   'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/contacts': {
-    version: 4, max: 6,
+    version: 4, max: 6, country: 'MG',
     contacts: [
       { id: '6f1c2b1e-0000-4000-8000-000000000201', childId: '6f1c2b1e-0000-4000-8000-000000000101', name: 'Maman', phone: '+261341234567', position: 1, avatarColor: 'orange', memberUserId: '6f1c2b1e-0000-4000-8000-000000000001', memberRole: 'owner' },
       { id: '6f1c2b1e-0000-4000-8000-000000000202', childId: '6f1c2b1e-0000-4000-8000-000000000101', name: 'Papa', phone: '+261331234567', position: 2, avatarColor: 'blue', memberUserId: '6f1c2b1e-0000-4000-8000-000000000002', memberRole: 'manager' },

@@ -13,7 +13,7 @@ function contactsApi(initial: Omit<C, 'childId' | 'position'>[] = []) {
   let next = items.length + 1
   const base = `/api/children/${FY.id}/contacts`
   const handlers: Record<string, (req: Request) => { status?: number, body?: unknown }> = {
-    [`GET ${base}`]: () => ({ body: { version, max: 6, contacts: items } }),
+    [`GET ${base}`]: () => ({ body: { version, max: 6, country: 'MG', contacts: items } }),
     [`POST ${base}`]: (req) => {
       const b = req.postDataJSON()
       if (items.length >= 6) return { status: 409, body: { error: '…', code: 'too_many_contacts' } }
@@ -47,13 +47,20 @@ test('ajouter un contact puis le faire monter : liste, compteur et ordre', async
   const post = calls.find((r) => r.method() === 'POST')!.postDataJSON()
   expect(post).toEqual({ name: 'Papa', phone: '034 12 345 67', memberUserId: USER.id })
   // Ajout sans membre lié : le champ n'est pas envoyé.
+  await page.getByRole('link', { name: '+ Ajouter un contact' }).click()
+  await expect(page.getByLabel('Numéro de téléphone')).toHaveAttribute('placeholder', '034 12 345 67')
+  await page.getByLabel('Nom affiché').fill('Mamie')
+  await page.getByLabel('Numéro de téléphone').fill('033 12 345 67')
+  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await expect(page.getByText('3 sur 6')).toBeVisible()
+  expect(calls.filter((r) => r.method() === 'POST')[1].postDataJSON()).toEqual({ name: 'Mamie', phone: '033 12 345 67' })
 
-  await expect(page.getByText('+261 34 12 345 67')).toBeVisible()
+  await expect(page.getByText('+261 34 12 345 67').first()).toBeVisible()
   await expect(page.getByText('Papa · Parent principal')).toBeVisible()
 
   await page.getByRole('button', { name: 'Monter Papa' }).click()
   await expect(page.getByRole('listitem').first()).toContainText('Papa')
-  expect(api.items().map((c) => c.name)).toEqual(['Papa', 'Maman'])
+  expect(api.items().map((c) => c.name)).toEqual(['Papa', 'Maman', 'Mamie'])
   // Premier de la liste : ne peut plus monter.
   await expect(page.getByRole('button', { name: 'Monter Papa' })).toBeDisabled()
 })

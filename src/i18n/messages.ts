@@ -165,7 +165,7 @@ const fr = {
     name: 'Nom affiché',
     namePlaceholder: 'Maman',
     phone: 'Numéro de téléphone',
-    phonePlaceholder: '034 12 345 67',
+    phonePlaceholder: { MG: '034 12 345 67', FR: '06 12 34 56 78' },
     member: 'Membre de la famille',
     noMember: 'Aucun (numéro seul)',
     color: 'Couleur',
@@ -183,7 +183,8 @@ const fr = {
     tooMany: 'Six contacts au plus par enfant.',
     changed: 'La liste a changé entre-temps. Elle vient d’être rechargée.',
     notFound: 'Ce contact n’existe plus.',
-    memberGone: 'Ce membre ne fait plus partie de la famille.'
+    memberGone: 'Ce membre ne fait plus partie de la famille.',
+    memberLinked: 'Ce membre est déjà lié à un autre contact de cet enfant.'
   },
   parent: {
     tabsLabel: 'Navigation principale',
@@ -370,7 +371,7 @@ const mg: Messages = {
     name: 'Anarana aseho',
     namePlaceholder: 'Neny',
     phone: 'Laharana finday',
-    phonePlaceholder: '034 12 345 67',
+    phonePlaceholder: { MG: '034 12 345 67', FR: '06 12 34 56 78' },
     member: 'Mpikambana ao amin’ny fianakaviana',
     noMember: 'Tsy misy (laharana fotsiny)',
     color: 'Loko',
@@ -388,7 +389,8 @@ const mg: Messages = {
     tooMany: 'Mpifandray enina farafahabetsany isaky ny zaza.',
     changed: 'Niova ny lisitra tamin’izay. Vao naverina nalaina izy.',
     notFound: 'Tsy misy intsony io mpifandray io.',
-    memberGone: 'Tsy ao amin’ny fianakaviana intsony io mpikambana io.'
+    memberGone: 'Tsy ao amin’ny fianakaviana intsony io mpikambana io.',
+    memberLinked: 'Efa mifandray amin’ny mpifandray hafa an’ity zaza ity io mpikambana io.'
   },
   parent: {
     tabsLabel: 'Fitetezana lehibe',
@@ -573,7 +575,7 @@ const en: Messages = {
     name: 'Display name',
     namePlaceholder: 'Mum',
     phone: 'Phone number',
-    phonePlaceholder: '034 12 345 67',
+    phonePlaceholder: { MG: '034 12 345 67', FR: '06 12 34 56 78' },
     member: 'Family member',
     noMember: 'None (number only)',
     color: 'Colour',
@@ -591,7 +593,8 @@ const en: Messages = {
     tooMany: 'Six contacts at most per child.',
     changed: 'The list changed in the meantime. It has just been reloaded.',
     notFound: 'This contact no longer exists.',
-    memberGone: 'This member is no longer in the family.'
+    memberGone: 'This member is no longer in the family.',
+    memberLinked: 'This member is already linked to another contact of this child.'
   },
   parent: {
     tabsLabel: 'Main navigation',

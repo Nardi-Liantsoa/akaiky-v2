@@ -204,3 +204,18 @@ test('écriture liée à un membre pendant le retrait d’un autre membre : jama
     assert.equal(patched.statusCode, 200, patched.body)
   }
 })
+
+test('ordre inchangé : ni écriture ni audit ; un membre lié à un seul contact par enfant', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const fy = await child(owner)
+  const manager = await join(owner, 'manager')
+  const a = (await add(owner, fy.id, 'A', phone(1), { memberUserId: manager.id })).json(), b = (await add(owner, fy.id, 'B', phone(2))).json()
+  const before = (await list(owner, fy.id)).json().version
+  assert.equal((await order(owner, fy.id, [a.id, b.id])).statusCode, 200)
+  assert.equal((await list(owner, fy.id)).json().version, before)
+  const { rows: [{ n }] } = await ctx.db.query("SELECT count(*)::int AS n FROM audit_log WHERE action = 'contacts_reordered' AND target = $1", [fy.id])
+  assert.equal(n, 0)
+  assert.equal((await patch(owner, b.id, { memberUserId: manager.id })).json().code, 'member_already_linked')
+  assert.equal((await list(owner, fy.id)).json().country, 'MG')
+})

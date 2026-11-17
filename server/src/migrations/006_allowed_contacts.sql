@@ -22,16 +22,22 @@ CREATE TABLE allowed_contacts (
   CONSTRAINT allowed_contacts_position UNIQUE (child_id, position) DEFERRABLE INITIALLY DEFERRED
 );
 CREATE INDEX allowed_contacts_family ON allowed_contacts(family_id);
+-- Un membre de la famille est lié à un seul contact par enfant.
+CREATE UNIQUE INDEX allowed_contacts_member ON allowed_contacts(child_id, member_user_id) WHERE member_user_id IS NOT NULL;
 
 -- Toute modification des contacts d'un enfant fait avancer sa config_version,
 -- quel que soit l'auteur : routes de l'API, mais aussi la base elle-même (lien
 -- à un membre effacé quand il quitte la famille). Le téléphone la compare (NAR-160).
-CREATE FUNCTION allowed_contacts_bump_version() RETURNS trigger LANGUAGE plpgsql AS $$
+-- SECURITY DEFINER (propriétaire du schéma, search_path figé) : le rôle applicatif
+-- n'a aucun droit d'écrire config_version lui-même, donc ne peut pas la reculer.
+CREATE FUNCTION allowed_contacts_bump_version() RETURNS trigger LANGUAGE plpgsql
+  SECURITY DEFINER SET search_path = pg_catalog, public AS $$
 BEGIN
   UPDATE children SET config_version = config_version + 1
    WHERE id = COALESCE(NEW.child_id, OLD.child_id) AND family_id = COALESCE(NEW.family_id, OLD.family_id);
   RETURN NULL;
 END $$;
+REVOKE ALL ON FUNCTION allowed_contacts_bump_version() FROM PUBLIC;
 CREATE TRIGGER allowed_contacts_bump_version AFTER INSERT OR UPDATE OR DELETE ON allowed_contacts
   FOR EACH ROW EXECUTE FUNCTION allowed_contacts_bump_version();
 
@@ -39,6 +45,5 @@ DO $$ BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_runtime') THEN
     GRANT SELECT, INSERT, DELETE ON allowed_contacts TO app_runtime;
     GRANT UPDATE (name_enc, phone_enc, phone_index, position, avatar_color, member_user_id) ON allowed_contacts TO app_runtime;
-    GRANT UPDATE (config_version) ON children TO app_runtime;
   END IF;
 END $$;

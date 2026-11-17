@@ -80,18 +80,24 @@ export default async function contactsRoutes(app) {
   const unique = async (fn) => {
     try { return await fn() } catch (e) {
       if (e.code === '23505' && e.constraint === 'allowed_contacts_phone') throw duplicate()
+      if (e.code === '23505' && e.constraint === 'allowed_contacts_member') throw new HttpError(409, 'Ce membre est déjà lié à un autre contact de cet enfant.', 'member_already_linked')
       if (e.code === '23505') throw new HttpError(409, 'La liste a changé entre-temps. Réessayez.', 'order_mismatch')
       throw e
     }
   }
 
+  // Version et liste lues dans une même photo de la base (REPEATABLE READ).
   app.get('/children/:childId/contacts', async (req) => {
     const own = await requireOwnFamily(db, req, ROLES)
     if (!isUuid(req.params.childId)) throw childNotFound()
-    const { rows: [child] } = await db.query('SELECT config_version FROM children WHERE id = $1 AND family_id = $2', [req.params.childId, own.familyId])
-    if (!child) throw childNotFound()
-    const { rows } = await db.query(`${SELECT} WHERE c.child_id = $1 AND c.family_id = $2 ORDER BY c.position`, [req.params.childId, own.familyId])
-    return { version: Number(child.config_version), max: MAX_CONTACTS, contacts: rows.map(serialize) }
+    return withTransaction(db, async (conn) => {
+      await conn.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
+      const { rows: [child] } = await conn.query('SELECT config_version FROM children WHERE id = $1 AND family_id = $2', [req.params.childId, own.familyId])
+      if (!child) throw childNotFound()
+      const { rows } = await conn.query(`${SELECT} WHERE c.child_id = $1 AND c.family_id = $2 ORDER BY c.position`, [req.params.childId, own.familyId])
+      // Pays des numéros saisis sans indicatif : l'écran adapte l'exemple affiché.
+      return { version: Number(child.config_version), max: MAX_CONTACTS, country: config.phoneCountry, contacts: rows.map(serialize) }
+    })
   })
 
   app.post('/children/:childId/contacts', { schema: { body: CREATE } }, async (req, reply) => {
@@ -163,10 +169,11 @@ export default async function contactsRoutes(app) {
       if (ids.length !== current.size || new Set(ids).size !== ids.length || !ids.every((id) => current.has(id))) {
         throw new HttpError(409, 'La liste a changé entre-temps. Rechargez-la.', 'order_mismatch')
       }
-      await conn.query(
+      // Seules les positions qui changent sont écrites ; un ordre identique ne touche rien.
+      const { rowCount } = await conn.query(
         `UPDATE allowed_contacts c SET position = o.rank
-           FROM unnest($1::uuid[]) WITH ORDINALITY AS o(id, rank) WHERE c.id = o.id AND c.child_id = $2`, [ids, req.params.childId])
-      await audit(conn, req, 'contacts_reordered', req.params.childId)
+           FROM unnest($1::uuid[]) WITH ORDINALITY AS o(id, rank) WHERE c.id = o.id AND c.child_id = $2 AND c.position <> o.rank`, [ids, req.params.childId])
+      if (rowCount) await audit(conn, req, 'contacts_reordered', req.params.childId)
     })
     return { ok: true }
   })

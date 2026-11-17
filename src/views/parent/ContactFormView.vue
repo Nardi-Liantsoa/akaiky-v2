@@ -124,7 +124,7 @@ async function remove() {
         </div>
         <div class="field">
           <label for="contact-phone">{{ t.contacts.phone }}</label>
-          <input id="contact-phone" v-model="phone" class="input" type="tel" inputmode="tel" autocomplete="off" required :placeholder="t.contacts.phonePlaceholder" data-selectable />
+          <input id="contact-phone" v-model="phone" class="input" type="tel" inputmode="tel" autocomplete="off" required :placeholder="t.contacts.phonePlaceholder[contacts.country]" data-selectable />
         </div>
         <div class="field">
           <label for="contact-member">{{ t.contacts.member }}</label>

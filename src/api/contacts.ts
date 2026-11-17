@@ -16,6 +16,7 @@ export interface Contact {
 export interface ContactList {
   version: number
   max: number
+  country: 'MG' | 'FR'
   contacts: Contact[]
 }
 

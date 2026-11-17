@@ -13,6 +13,7 @@ export const contacts = reactive({
   items: [] as Contact[],
   max: 6,
   version: 0,
+  country: 'MG' as 'MG' | 'FR',
   error: null as unknown
 })
 
@@ -37,7 +38,7 @@ export async function loadContacts(childId: string, force = false): Promise<void
   try {
     const list = await listContacts(childId)
     if (mine !== generation) return
-    Object.assign(contacts, { status: 'ready', items: list.contacts, max: list.max, version: list.version, error: null })
+    Object.assign(contacts, { status: 'ready', items: list.contacts, max: list.max, version: list.version, country: list.country, error: null })
   } catch (e) {
     if (mine !== generation) return
     if (e instanceof ApiError && e.status === 401) { setUser(null); return }

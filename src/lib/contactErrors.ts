@@ -11,6 +11,7 @@ export function contactErrorText(e: unknown, t: Messages): string {
     if (e.code === 'order_mismatch') return t.contacts.changed
     if (e.code === 'contact_not_found') return t.contacts.notFound
     if (e.code === 'member_not_found') return t.contacts.memberGone
+    if (e.code === 'member_already_linked') return t.contacts.memberLinked
     if (e.code === 'child_not_found') return t.children.notFound
   }
   return errorText(e, t)
