@@ -34,7 +34,8 @@ export default async function globalSetup() {
 }
 
 async function start(dir, name, origin, onServer) {
-  execFileSync('docker', ['run', '-d', '--rm', '--name', name, '-e', 'POSTGRES_PASSWORD=recette', '-e', 'POSTGRES_DB=recette',
+  // Données en RAM : aucun volume anonyme créé par le VOLUME de l'image.
+  execFileSync('docker', ['run', '-d', '--rm', '--tmpfs', '/var/lib/postgresql/data', '--name', name, '-e', 'POSTGRES_PASSWORD=recette', '-e', 'POSTGRES_DB=recette',
     '-p', '127.0.0.1::5432', 'postgres:16-alpine'], { stdio: 'ignore' })
   const dbPort = execFileSync('docker', ['port', name, '5432/tcp']).toString().trim().split(':').pop()
   const ownerUrl = `postgres://postgres:recette@127.0.0.1:${dbPort}/recette`

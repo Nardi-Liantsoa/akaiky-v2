@@ -12,7 +12,9 @@ import { loadConfig } from '../src/config.js'
 export async function startDb() {
   if (process.env.TEST_DATABASE_URL) return { url: process.env.TEST_DATABASE_URL, stop() {} }
   const name = `app-test-${process.pid}-${Math.random().toString(16).slice(2, 8)}`
-  execFileSync('docker', ['run', '-d', '--rm', '--name', name, '-e', 'POSTGRES_PASSWORD=test', '-e', 'POSTGRES_DB=test',
+  // Données en RAM (--tmpfs) : l'image déclare un VOLUME, sans quoi chaque
+  // lancement laisse un volume anonyme orphelin.
+  execFileSync('docker', ['run', '-d', '--rm', '--tmpfs', '/var/lib/postgresql/data', '--name', name, '-e', 'POSTGRES_PASSWORD=test', '-e', 'POSTGRES_DB=test',
     '-p', '127.0.0.1::5432', 'postgres:16-alpine'], { stdio: 'ignore' })
   const port = execFileSync('docker', ['port', name, '5432/tcp']).toString().trim().split('\n')[0].split(':').pop()
   const url = `postgres://postgres:test@127.0.0.1:${port}/test`
@@ -20,7 +22,7 @@ export async function startDb() {
     const pool = createPool(url)
     try { await pool.query('SELECT 1'); await pool.end(); break } catch { await pool.end().catch(() => {}); await new Promise((r) => setTimeout(r, 500)) }
   }
-  return { url, stop: () => execFileSync('docker', ['rm', '-f', name], { stdio: 'ignore' }) }
+  return { url, stop: () => execFileSync('docker', ['rm', '-fv', name], { stdio: 'ignore' }) }
 }
 
 export const ORIGIN = 'https://app.test'
