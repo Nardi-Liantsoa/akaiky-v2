@@ -8,8 +8,9 @@ import { family } from '../../store/family'
   <main class="shell">
     <RouterView />
   </main>
-  <!-- Étape de création de la famille : pas d'onglets tant qu'elle n'existe pas. -->
-  <TabBar v-if="family.status !== 'none'" />
+  <!-- Onglets seulement quand la famille est connue (ou injoignable) : jamais pendant
+       la création ni pendant le premier chargement. -->
+  <TabBar v-if="family.status === 'ready' || family.status === 'error'" />
 </template>
 
 <style scoped>

@@ -99,7 +99,8 @@ const fr = {
     members: 'Membres',
     you: 'vous',
     roles: { owner: 'Parent principal', manager: 'Gestionnaire', member: 'Contact' },
-    loadError: 'Impossible de charger votre famille.'
+    loadError: 'Impossible de charger votre famille.',
+    loading: 'Chargement de votre famille…'
   },
   parent: {
     tabsLabel: 'Navigation principale',
@@ -220,7 +221,8 @@ const mg: Messages = {
     members: 'Mpikambana',
     you: 'ianao',
     roles: { owner: 'Ray aman-dreny lehibe', manager: 'Mpitantana', member: 'Mpifandray' },
-    loadError: 'Tsy azo nalaina ny mombamomba ny fianakavianao.'
+    loadError: 'Tsy azo nalaina ny mombamomba ny fianakavianao.',
+    loading: 'Maka ny mombamomba ny fianakavianao…'
   },
   parent: {
     tabsLabel: 'Fitetezana lehibe',
@@ -339,7 +341,8 @@ const en: Messages = {
     members: 'Members',
     you: 'you',
     roles: { owner: 'Main parent', manager: 'Manager', member: 'Contact' },
-    loadError: 'Could not load your family.'
+    loadError: 'Could not load your family.',
+    loading: 'Loading your family…'
   },
   parent: {
     tabsLabel: 'Main navigation',

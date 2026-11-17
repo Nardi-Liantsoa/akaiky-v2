@@ -28,10 +28,11 @@ export async function requireFamilyRole(db, req, familyId, roles) {
 }
 
 // Famille de la session avec le rôle exigé ; 404 si la session n'a pas de famille.
+// Une seule lecture de l'adhésion, faite à chaque requête.
 export async function requireOwnFamily(db, req, roles) {
   if (!req.user) throw new HttpError(401, 'Connexion requise.')
   const own = await familyOf(db, req.user.id)
   if (!own) throw notFound()
-  await requireFamilyRole(db, req, own.familyId, roles)
+  if (!roles.includes(own.role)) throw new HttpError(403, 'Action réservée aux gestionnaires de la famille.', 'family_role')
   return own
 }

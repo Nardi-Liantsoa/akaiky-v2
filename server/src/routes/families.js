@@ -52,8 +52,21 @@ export default async function familiesRoutes(app) {
   app.patch('/me', { schema: { body: NAME } }, async (req) => {
     const own = await requireOwnFamily(db, req, MANAGERS)
     const name = familyName(req.body.name)
-    const { rows: [family] } = await db.query('UPDATE families SET name = $1 WHERE id = $2 RETURNING id, name', [name, own.familyId])
-    await audit(db, req, 'family_renamed', family.id)
-    return { id: family.id, name: family.name, role: own.role }
+    const conn = await db.connect()
+    try {
+      await conn.query('BEGIN')
+      // Rôle revérifié dans la transaction : un gestionnaire rétrogradé entre-temps ne renomme pas.
+      const { rows: [family] } = await conn.query(
+        `UPDATE families f SET name = $1 FROM memberships m
+          WHERE f.id = $2 AND m.family_id = f.id AND m.user_id = $3 AND m.role = ANY($4::text[])
+          RETURNING f.id, f.name`, [name, own.familyId, req.user.id, MANAGERS])
+      if (!family) throw new HttpError(403, 'Action réservée aux gestionnaires de la famille.', 'family_role')
+      await audit(conn, req, 'family_renamed', family.id)
+      await conn.query('COMMIT')
+      return { id: family.id, name: family.name, role: own.role }
+    } catch (e) {
+      await conn.query('ROLLBACK').catch(() => {})
+      throw e
+    } finally { conn.release() }
   })
 }

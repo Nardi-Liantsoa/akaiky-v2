@@ -11,7 +11,9 @@ export const EMAIL_RE = /^[^\s@<>()[\]\\,;:"]{1,64}@[a-z0-9](?:[a-z0-9-]{0,61}[a
 export function text(value, { max, min = 0, field }) {
   if (typeof value !== 'string') throw new HttpError(400, `${field} invalide.`)
   const v = value.replace(/\u0000/g, '').trim()
-  if (v.length < min || v.length > max) throw new HttpError(400, `${field} : ${min} à ${max} caractères.`)
+  // Longueur en caractères (points de code), comme le schéma JSON et char_length de PostgreSQL.
+  const length = [...v].length
+  if (length < min || length > max) throw new HttpError(400, `${field} : ${min} à ${max} caractères.`)
   return v
 }
 

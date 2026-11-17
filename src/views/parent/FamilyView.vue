@@ -4,7 +4,7 @@ import { renameFamily } from '../../api/families'
 import LoadError from '../../components/family/LoadError.vue'
 import { useT } from '../../composables/useT'
 import { errorText } from '../../lib/errors'
-import { canManage, family, loadFamily } from '../../store/family'
+import { canManage, family, loadFamily, setFamilyName } from '../../store/family'
 
 const t = useT()
 const editing = ref(false)
@@ -25,8 +25,7 @@ async function save() {
   busy.value = true
   error.value = ''
   try {
-    await renameFamily(name.value.trim())
-    await loadFamily(true)
+    setFamilyName((await renameFamily(name.value.trim())).name)
     editing.value = false
   } catch (e) {
     error.value = errorText(e, t.value)

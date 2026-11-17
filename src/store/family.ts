@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 import { ApiError } from '../api/http'
 import { getMyFamily, type Family } from '../api/families'
 import { auth } from './auth'
@@ -15,39 +15,49 @@ export const family = reactive({
   error: null as unknown
 })
 
-// Utilisateur pour lequel l'état ci-dessus a été chargé : un changement de
-// compte (déconnexion, autre connexion) l'invalide.
+// Utilisateur pour lequel l'état ci-dessus vaut, et numéro du dernier
+// chargement lancé : seule la réponse du plus récent est appliquée.
 let loadedFor: string | null = null
+let generation = 0
 let pending: Promise<void> | null = null
 
 function resetIfOtherUser() {
   const id = auth.user?.id ?? null
-  if (id !== loadedFor) {
-    loadedFor = id
-    pending = null
-    Object.assign(family, { status: 'unknown', data: null, error: null })
-  }
+  if (id === loadedFor) return
+  loadedFor = id
+  generation++
+  pending = null
+  Object.assign(family, { status: 'unknown', data: null, error: null })
 }
+// Changement de compte (déconnexion, autre connexion) : l'état du précédent
+// disparaît aussitôt, avant que la moindre vue ne le lise.
+watch(() => auth.user?.id, resetIfOtherUser, { flush: 'sync' })
 
 export function loadFamily(force = false): Promise<void> {
   resetIfOtherUser()
   if (!auth.user) return Promise.resolve()
   if (!force && (family.status === 'ready' || family.status === 'none')) return Promise.resolve()
   if (!force && pending) return pending
-  const forUser = loadedFor
-  family.status = 'loading'
+  const mine = ++generation
+  // Rechargement : l'écran garde l'état connu pendant l'appel (pas de clignotement).
+  if (family.status === 'unknown' || family.status === 'error') family.status = 'loading'
   const run: Promise<void> = getMyFamily().then(
     (data) => {
-      if (loadedFor === forUser) Object.assign(family, { status: 'ready', data, error: null })
+      if (mine === generation) Object.assign(family, { status: 'ready', data, error: null })
     },
     (e: unknown) => {
-      if (loadedFor !== forUser) return
+      if (mine !== generation) return
       const none = e instanceof ApiError && e.status === 404 && e.code === 'no_family'
       Object.assign(family, { status: none ? 'none' : 'error', data: null, error: none ? null : e })
     }
   ).finally(() => { if (pending === run) pending = null })
   pending = run
   return run
+}
+
+// Nom renvoyé par le serveur après un renommage : appliqué sans recharger.
+export function setFamilyName(name: string) {
+  if (family.data) family.data.name = name
 }
 
 export const canManage = () => family.data?.role === 'owner' || family.data?.role === 'manager'

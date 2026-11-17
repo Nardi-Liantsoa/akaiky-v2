@@ -14,5 +14,13 @@ onMounted(() => { void loadFamily() })
   <!-- Sans famille, l'accueil est l'étape de création (NAR-133). -->
   <CreateFamily v-if="family.status === 'none'" />
   <LoadError v-else-if="family.status === 'error'" />
-  <EmptyState v-else :title="t.parent.home.title" :text="t.parent.home.empty" />
+  <EmptyState v-else-if="family.status === 'ready'" :title="t.parent.home.title" :text="t.parent.home.empty" />
+  <p v-else class="loading" role="status" :aria-label="t.family.loading" />
 </template>
+
+<style scoped>
+.loading {
+  min-height: 40vh;
+  margin: 0;
+}
+</style>

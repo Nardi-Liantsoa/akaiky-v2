@@ -6,7 +6,7 @@ const getMyFamily = vi.fn()
 vi.mock('../api/families', () => ({ getMyFamily: () => getMyFamily() }))
 
 const { auth } = await import('./auth')
-const { family, loadFamily, canManage } = await import('./family')
+const { family, loadFamily, canManage, setFamilyName } = await import('./family')
 
 const FAMILY = { id: 'f1', name: 'Rabe', role: 'owner' as const, members: [] }
 const login = (id: string) => { auth.user = { id, email: `${id}@x.fr`, name: id, is_admin: false } }
@@ -66,5 +66,39 @@ describe('famille de la session', () => {
     await first
     expect(family.status).toBe('none')
     expect(family.data).toBeNull()
+  })
+
+  it('rechargement forcé : la réponse la plus récente gagne, sans repasser par « loading »', async () => {
+    login('h')
+    getMyFamily.mockResolvedValue(FAMILY)
+    await loadFamily()
+    let resolveOld!: (v: unknown) => void
+    getMyFamily.mockReturnValueOnce(new Promise((r) => { resolveOld = r }))
+    const old = loadFamily(true)
+    expect(family.status).toBe('ready')
+    getMyFamily.mockResolvedValueOnce({ ...FAMILY, name: 'Nouveau' })
+    await loadFamily(true)
+    resolveOld({ ...FAMILY, name: 'Ancien' })
+    await old
+    expect(family.data?.name).toBe('Nouveau')
+  })
+
+  it('déconnexion : l’état disparaît aussitôt, sans attendre un chargement', async () => {
+    login('i')
+    getMyFamily.mockRejectedValue(new ApiError(404, '', 'no_family'))
+    await loadFamily()
+    expect(family.status).toBe('none')
+    auth.user = null
+    expect(family.status).toBe('unknown')
+    login('j')
+    expect(family.status).toBe('unknown')
+  })
+
+  it('renommage appliqué localement', async () => {
+    login('k')
+    getMyFamily.mockResolvedValue(FAMILY)
+    await loadFamily()
+    setFamilyName('Andria')
+    expect(family.data?.name).toBe('Andria')
   })
 })
