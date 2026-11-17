@@ -1,0 +1,4 @@
+# Faux positifs revus à la main (empreinte = commit:fichier:règle:ligne).
+# 'akaiky-v2.child' : nom de clé localStorage (préférence d'affichage), pas un secret.
+# La règle generic-api-key se déclenche sur le nom de constante KEY (NAR-135).
+25871b4ca8eb2ce36ad5a609b49d3039e18107f9:src/store/children.ts:generic-api-key:9
