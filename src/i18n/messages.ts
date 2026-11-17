@@ -117,7 +117,8 @@ const fr = {
     confirmLeave: 'Confirmer : quitter la famille',
     lastOwner: 'La famille doit garder au moins un parent principal.',
     alreadyMember: 'Cette personne fait déjà partie de la famille.',
-    tooManyInvites: 'Trop d’invitations en attente. Annulez-en une d’abord.'
+    tooManyInvites: 'Trop d’invitations en attente. Annulez-en une d’abord.',
+    invalidEmail: 'Adresse e-mail invalide.'
   },
   invite: {
     title: 'Invitation',
@@ -269,7 +270,8 @@ const mg: Messages = {
     confirmLeave: 'Hamarino: hiala amin’ny fianakaviana',
     lastOwner: 'Tsy maintsy misy ray aman-dreny lehibe iray farafahakeliny ny fianakaviana.',
     alreadyMember: 'Efa mpikambana ao amin’ny fianakaviana io olona io.',
-    tooManyInvites: 'Be loatra ny fanasana miandry. Foano aloha ny iray.'
+    tooManyInvites: 'Be loatra ny fanasana miandry. Foano aloha ny iray.',
+    invalidEmail: 'Tsy mety ny adiresy mailaka.'
   },
   invite: {
     title: 'Fanasana',
@@ -419,7 +421,8 @@ const en: Messages = {
     confirmLeave: 'Confirm: leave the family',
     lastOwner: 'The family must keep at least one main parent.',
     alreadyMember: 'This person is already in the family.',
-    tooManyInvites: 'Too many pending invitations. Cancel one first.'
+    tooManyInvites: 'Too many pending invitations. Cancel one first.',
+    invalidEmail: 'Invalid email address.'
   },
   invite: {
     title: 'Invitation',

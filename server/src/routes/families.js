@@ -166,14 +166,21 @@ export default async function familiesRoutes(app) {
       await audit(conn, req, 'invitation_created', row.id, { role: row.role })
       return row
     })
+    // Invitation enregistrée mais jamais envoyée : effacée et tracée. Un échec de ce
+    // nettoyage est journalisé sans masquer l'erreur d'origine renvoyée au client.
+    const abandon = async () => {
+      try {
+        await db.query('DELETE FROM invitations WHERE id = $1 AND used_at IS NULL', [invitation.id])
+        await audit(db, req, 'invitation_send_failed', invitation.id)
+      } catch (cleanup) { req.log.error({ err: cleanup }, 'Nettoyage d’une invitation non envoyée impossible') }
+    }
     // 2. Budgets, comptés seulement après les refus métier et hors transaction (une
     //    seule connexion à la fois, alerte de supervision jamais annulée).
     try {
       if (!invitesPerUser(user.id)) throw new HttpError(429, 'Trop d’invitations envoyées. Réessayez plus tard.')
       await consumeQuota(db, 'invitation-emails', config.quotas.invitationEmailsPerHour)
     } catch (e) {
-      await db.query('DELETE FROM invitations WHERE id = $1 AND used_at IS NULL', [invitation.id])
-      await audit(db, req, 'invitation_send_failed', invitation.id)
+      await abandon()
       throw e
     }
     // 3. Courriel, hors transaction (aucune connexion ni verrou tenu pendant le SMTP).
@@ -181,8 +188,7 @@ export default async function familiesRoutes(app) {
       await mailer.send({ to: invitee, ...emails.invitation(inviteLink(token)) })
     } catch (e) {
       req.log.error({ err: e }, 'Envoi d’une invitation impossible')
-      await db.query('DELETE FROM invitations WHERE id = $1 AND used_at IS NULL', [invitation.id])
-      await audit(db, req, 'invitation_send_failed', invitation.id)
+      await abandon()
       throw new HttpError(503, 'Envoi de l’invitation impossible. Réessayez dans un moment.')
     }
     // 4. Courriel parti : la nouvelle invitation remplace les PLUS ANCIENNES pour cette

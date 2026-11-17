@@ -20,7 +20,7 @@ export function text(value, { max, min = 0, field }) {
 // Adresse e-mail normalisée (minuscules) et validée : la même partout (comptes, invitations).
 export function emailAddress(v) {
   const e = text(v, { max: 254, min: 3, field: 'Email' }).toLowerCase()
-  if (!EMAIL_RE.test(e)) throw new HttpError(400, 'Adresse email invalide.')
+  if (!EMAIL_RE.test(e)) throw new HttpError(400, 'Adresse email invalide.', 'invalid_email')
   return e
 }
 
