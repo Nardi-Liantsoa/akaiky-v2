@@ -67,3 +67,29 @@ test('serveur injoignable : erreur et « Réessayer », jamais l’écran de cr�
   await page.getByRole('button', { name: 'Réessayer' }).click()
   await expect(page.getByRole('heading', { name: 'Accueil' })).toBeVisible()
 })
+
+test('rechargement qui révèle « pas de famille » : retour à la création, jamais un écran vide', async ({ page }) => {
+  let state: 'down' | 'none' = 'down'
+  await mockApi(page, { ...me, 'GET /api/families/me': () => state === 'down' ? { status: 503, body: { error: 'Indisponible.' } } : noFamily() })
+  await page.goto('/espace/famille')
+  await expect(page.getByRole('alert')).toContainText('Impossible de charger votre famille.')
+  state = 'none'
+  await page.getByRole('button', { name: 'Réessayer' }).click()
+  await expect(page).toHaveURL(/\/espace$/)
+  await expect(page.getByRole('heading', { name: 'Bienvenue sur Akaiky' })).toBeVisible()
+})
+
+test('renommage refusé (rôle retiré ailleurs) : état rechargé, bouton retiré', async ({ page }) => {
+  let role = 'manager'
+  await mockApi(page, {
+    ...me,
+    'GET /api/families/me': () => ({ body: { ...FAMILY, role, members: [{ ...FAMILY.members[0], role }] } }),
+    'PATCH /api/families/me': () => { role = 'member'; return { status: 403, body: { error: 'Action réservée aux gestionnaires de la famille.', code: 'family_role' } } }
+  })
+  await page.goto('/espace/famille')
+  await page.getByRole('button', { name: 'Renommer' }).click()
+  await page.getByLabel('Nom de la famille').fill('Autre')
+  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await expect(page.getByRole('button', { name: 'Renommer' })).toHaveCount(0)
+  await expect(page.getByRole('listitem')).toHaveText(['Alice (vous)Contact'])
+})

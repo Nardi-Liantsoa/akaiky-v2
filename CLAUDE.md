@@ -75,7 +75,6 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
 
 | Table | Propriétaire | Lecture | Création | Modification | Suppression |
 |---|---|---|---|---|---|
-
 | `families` | `memberships` (rôle relu en base à chaque requête) | membres (`GET /api/families/me`) | toute session sans famille, qui devient `owner` (une famille par compte en v1) | `owner`, `manager` (nom) | — (suppression du compte, NAR-153 ; aucun DELETE accordé au rôle applicatif) |
 | `memberships` | `family_id` | membres de la même famille (nom et rôle, sans adresse) | création de famille (`owner`) ; invitations (NAR-134) | — (rôles : NAR-134 ; aucun UPDATE accordé) | — (NAR-134, NAR-153) ; cascade depuis `families` et `users` |
 

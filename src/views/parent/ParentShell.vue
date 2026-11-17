@@ -1,7 +1,16 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
+import { watch } from 'vue'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 import TabBar from '../../components/parent/TabBar.vue'
 import { family } from '../../store/family'
+
+const route = useRoute()
+const router = useRouter()
+// Famille disparue en cours de route (rechargement → no_family, membre retiré) :
+// retour à l'accueil, qui présente la création, plutôt qu'un écran vide sans onglets.
+watch(() => family.status, (status) => {
+  if (status === 'none' && route.meta.requiresFamily) void router.replace({ name: 'espace' })
+})
 </script>
 
 <template>

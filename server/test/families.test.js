@@ -79,7 +79,6 @@ test('rôle, famille ou admin envoyés dans un corps : 400, jamais appliqués', 
   }
   assert.equal((await mine(u)).statusCode, 404)
   const f = (await create(u)).json()
-  await join(f.id, other, 'member').catch(() => {}) // other a déjà sa famille : refusé par l'unicité
   for (const extra of [{ role: 'member' }, { family_id: fo.id }, { is_admin: true }]) {
     assert.equal((await call(ctx.app, 'PATCH', '/api/families/me', { cookie: u.cookie, body: { name: 'Y', ...extra } })).statusCode, 400)
   }
@@ -92,10 +91,12 @@ test('rôle, famille ou admin envoyés dans un corps : 400, jamais appliqués', 
 test('nom vide, trop long ou absent : 400', async () => {
   const u = await newUser(ctx)
   for (const name of ['', '   ', 'x'.repeat(81)]) assert.equal((await create(u, name)).statusCode, 400)
-  // 80 caractères hors plan de base (emoji) : acceptés, comme le schéma et la base les comptent.
-  assert.equal((await create(u, '👨‍'.slice(0, 2).repeat(81))).statusCode, 400)
+  // Longueur en caractères (points de code) : 81 emoji refusés, 80 acceptés ; espaces autour retirés.
+  assert.equal((await create(u, '🏠'.repeat(81))).statusCode, 400)
   const wide = await create(u, '🏠'.repeat(80))
   assert.equal(wide.statusCode, 201, wide.body)
+  const padded = await newUser(ctx)
+  assert.equal((await create(padded, '  ' + 'x'.repeat(80) + '  ')).statusCode, 201)
   assert.equal((await call(ctx.app, 'POST', '/api/families', { cookie: u.cookie, body: {} })).statusCode, 400)
   assert.equal((await call(ctx.app, 'POST', '/api/families', { body: { name: 'Sans session' } })).statusCode, 401)
 })

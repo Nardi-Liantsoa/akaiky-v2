@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { renameFamily } from '../../api/families'
+import { ApiError } from '../../api/http'
 import LoadError from '../../components/family/LoadError.vue'
 import { useT } from '../../composables/useT'
 import { familyNameValid } from '../../lib/familyName'
@@ -30,6 +31,11 @@ async function save() {
     editing.value = false
   } catch (e) {
     error.value = errorText(e, t.value)
+    // Rôle changé ou famille quittée ailleurs : l'état affiché est périmé.
+    if (e instanceof ApiError && (e.status === 403 || e.status === 404)) {
+      editing.value = false
+      await loadFamily(true)
+    }
   } finally {
     busy.value = false
   }

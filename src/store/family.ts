@@ -1,7 +1,7 @@
 import { reactive, watch } from 'vue'
 import { ApiError } from '../api/http'
 import { getMyFamily, type Family } from '../api/families'
-import { auth } from './auth'
+import { auth, setUser } from './auth'
 
 // Famille de la session, état global (une seule famille par compte en v1).
 // `none` : le parent n'a pas encore créé sa famille (404 no_family) ;
@@ -47,6 +47,14 @@ export function loadFamily(force = false): Promise<void> {
     },
     (e: unknown) => {
       if (mine !== generation) return
+      // Session expirée ou révoquée : c'est une déconnexion, pas une panne. Le
+      // routeur (import différé : il dépend de ce module) renvoie vers la connexion.
+      if (e instanceof ApiError && e.status === 401) {
+        setUser(null)
+        void import('../router').then(({ router }) =>
+          router.replace({ name: 'connexion', query: { next: router.currentRoute.value.fullPath } }))
+        return
+      }
       const none = e instanceof ApiError && e.status === 404 && e.code === 'no_family'
       if (none) Object.assign(family, { status: 'none', data: null, error: null })
       // Rechargement en échec (réseau, serveur) : la famille connue reste affichée.

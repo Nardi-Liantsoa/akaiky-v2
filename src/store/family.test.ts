@@ -4,6 +4,8 @@ import { ApiError } from '../api/http'
 // Frontière simulée : l'appel réseau. Le reste (état, transitions) est le vrai code.
 const getMyFamily = vi.fn()
 vi.mock('../api/families', () => ({ getMyFamily: () => getMyFamily() }))
+const replace = vi.fn()
+vi.mock('../router', () => ({ router: { replace, currentRoute: { value: { fullPath: '/espace/famille' } } } }))
 
 const { auth } = await import('./auth')
 const { family, loadFamily, canManage, setFamilyName } = await import('./family')
@@ -102,6 +104,15 @@ describe('famille de la session', () => {
     await loadFamily(true)
     expect(family.status).toBe('ready')
     expect(family.data?.name).toBe('Rabe')
+  })
+
+  it('session expirée (401) : déconnexion et retour à la connexion, pas une panne', async () => {
+    login('m')
+    getMyFamily.mockRejectedValue(new ApiError(401, 'Connexion requise.'))
+    await loadFamily()
+    await vi.waitFor(() => expect(replace).toHaveBeenCalledWith({ name: 'connexion', query: { next: '/espace/famille' } }))
+    expect(auth.user).toBeNull()
+    expect(family.status).toBe('unknown')
   })
 
   it('renommage appliqué localement', async () => {

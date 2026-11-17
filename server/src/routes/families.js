@@ -4,11 +4,13 @@
 import { HttpError, audit, text } from '../lib.js'
 import { MANAGERS, ROLES, notFound, requireOwnFamily, roleDenied } from '../families.js'
 
+// Le schéma ne fait que borner l'entrée brute ; la règle (1 à 80 caractères
+// après retrait des espaces) est celle de text(), comme char_length en base.
 const NAME = {
   type: 'object',
   additionalProperties: false,
   required: ['name'],
-  properties: { name: { type: 'string', minLength: 1, maxLength: 80 } }
+  properties: { name: { type: 'string', maxLength: 200 } }
 }
 const familyName = (v) => text(v, { min: 1, max: 80, field: 'Nom de la famille' })
 
@@ -69,8 +71,8 @@ export default async function familiesRoutes(app) {
           WHERE m.user_id = $2 AND m.family_id = f.id AND m.role = ANY($3::text[])
           RETURNING f.id, f.name, m.role`, [name, user.id, MANAGERS])
       if (!row) {
-        await requireOwnFamily(conn, req, MANAGERS)
-        throw roleDenied() // adhésion conforme mais famille non modifiée : ne devrait pas arriver
+        await requireOwnFamily(conn, req, MANAGERS) // plus membre → 404, rôle insuffisant → 403
+        throw roleDenied()
       }
       await audit(conn, req, 'family_renamed', row.id)
       await conn.query('COMMIT')
