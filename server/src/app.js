@@ -6,6 +6,7 @@ import { tokenHash, createLimiter, rateLimitKey } from './security.js'
 import { readAuthCookie } from './auth-cookies.js'
 import authRoutes from './routes/auth.js'
 import adminRoutes from './routes/admin.js'
+import familiesRoutes from './routes/families.js'
 
 // Politique de contenu : tout vient de la même origine, aucun script en ligne,
 // aucun tiers (polices hébergées sur place).
@@ -248,6 +249,7 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
 
   await app.register(authRoutes, { prefix: '/api/auth' })
   await app.register(adminRoutes, { prefix: '/api/admin' })
+  await app.register(familiesRoutes, { prefix: '/api/families' })
 
   const files = await loadStatic(config.staticDir)
   app.setNotFoundHandler(async (req, reply) => {
