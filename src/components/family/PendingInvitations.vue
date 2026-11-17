@@ -18,8 +18,11 @@ async function load() {
 async function cancel(id: string) {
   if (busy.value) return
   busy.value = true
-  try { await cancelInvitation(id) } catch (e) { error.value = familyErrorText(e, t.value) }
+  let failure: unknown = null
+  try { await cancelInvitation(id) } catch (e) { failure = e }
   await load()
+  // Message posé après le rechargement, qui efface l'erreur précédente.
+  if (failure) error.value = familyErrorText(failure, t.value)
   busy.value = false
 }
 

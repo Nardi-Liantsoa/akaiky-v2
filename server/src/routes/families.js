@@ -131,12 +131,17 @@ export default async function familiesRoutes(app) {
 
   app.post('/me/invitations', { schema: { body: INVITE } }, async (req, reply) => {
     const user = app.requireUser(req)
-    await requireOwnFamily(db, req, MANAGERS)
     const invitee = emailAddress(req.body.email)
     const { token, hash } = newToken()
-    // 1. Refus métier, budgets, puis enregistrement (sous verrou de la famille).
+    // 1. Refus métier puis enregistrement, sous verrou de la famille. L'adhésion de
+    //    l'invitant est verrouillée (FOR SHARE) : une rétrogradation simultanée attend,
+    //    puis supprime l'invitation avec les autres (même ordre de verrous que le retrait).
     const invitation = await transaction(async (conn) => {
       const own = await requireOwnFamily(conn, req, MANAGERS)
+      const { rows: [still] } = await conn.query(
+        'SELECT 1 FROM memberships WHERE family_id = $1 AND user_id = $2 AND role = ANY($3::text[]) FOR SHARE',
+        [own.familyId, user.id, MANAGERS])
+      if (!still) throw roleDenied()
       await conn.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`invitations:${own.familyId}`])
       const { rows: [member] } = await conn.query(
         'SELECT 1 FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.family_id = $1 AND u.email = $2', [own.familyId, invitee])
@@ -146,10 +151,6 @@ export default async function familiesRoutes(app) {
         `SELECT count(*)::int AS n FROM invitations
           WHERE family_id = $1 AND used_at IS NULL AND expires_at > now() AND email <> $2`, [own.familyId, invitee])
       if (n >= MAX_PENDING_INVITATIONS) throw new HttpError(409, 'Trop d’invitations en attente. Annulez-en une d’abord.', 'too_many_invitations')
-      // Budgets comptés seulement pour un envoi réel ; le quota global sur le pool,
-      // hors transaction, pour que son alerte de supervision ne soit pas annulée.
-      if (!invitesPerUser(user.id)) throw new HttpError(429, 'Trop d’invitations envoyées. Réessayez plus tard.')
-      await consumeQuota(db, 'invitation-emails', config.quotas.invitationEmailsPerHour)
       const { rows: [row] } = await conn.query(
         // clock_timestamp() pris sous le verrou : l'ordre des invitations d'une famille est sûr.
         `INSERT INTO invitations(family_id, email, role, token_hash, invited_by, created_at, expires_at)
@@ -159,7 +160,16 @@ export default async function familiesRoutes(app) {
       await audit(conn, req, 'invitation_created', row.id, { role: row.role })
       return row
     })
-    // 2. Courriel, hors transaction (aucune connexion ni verrou tenu pendant le SMTP).
+    // 2. Budgets, comptés seulement après les refus métier et hors transaction (une
+    //    seule connexion à la fois, alerte de supervision jamais annulée).
+    try {
+      if (!invitesPerUser(user.id)) throw new HttpError(429, 'Trop d’invitations envoyées. Réessayez plus tard.')
+      await consumeQuota(db, 'invitation-emails', config.quotas.invitationEmailsPerHour)
+    } catch (e) {
+      await db.query('DELETE FROM invitations WHERE id = $1 AND used_at IS NULL', [invitation.id])
+      throw e
+    }
+    // 3. Courriel, hors transaction (aucune connexion ni verrou tenu pendant le SMTP).
     try {
       await mailer.send({ to: invitee, ...emails.invitation(inviteLink(token)) })
     } catch (e) {
@@ -168,7 +178,7 @@ export default async function familiesRoutes(app) {
       await audit(db, req, 'invitation_send_failed', invitation.id)
       throw new HttpError(503, 'Envoi de l’invitation impossible. Réessayez dans un moment.')
     }
-    // 3. Courriel parti : la nouvelle invitation remplace les PLUS ANCIENNES pour cette
+    // 4. Courriel parti : la nouvelle invitation remplace les PLUS ANCIENNES pour cette
     //    adresse (deux envois simultanés ne s'effacent pas l'un l'autre).
     await db.query(
       'DELETE FROM invitations WHERE family_id = $1 AND email = $2 AND used_at IS NULL AND created_at < $3',

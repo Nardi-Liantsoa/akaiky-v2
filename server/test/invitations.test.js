@@ -256,3 +256,10 @@ test('acceptation et retrait simultané de l’invitant : jamais d’entrée par
     }
   }
 })
+
+test('invitations simultanées depuis plusieurs familles : aucune ne bloque le pool', async () => {
+  const owners = []
+  for (let i = 0; i < 12; i++) { const o = await newUser(ctx); await family(o, `Pool ${i}`); owners.push(o) }
+  const results = await Promise.all(owners.map((o, i) => invite(o, `pool${i}.${process.pid}@exemple.fr`)))
+  assert.deepEqual([...new Set(results.map((r) => r.statusCode))], [201])
+})

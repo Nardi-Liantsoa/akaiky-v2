@@ -30,6 +30,12 @@ function fail(e: unknown) {
 onMounted(async () => {
   token = takeInviteToken()
   if (!token) { state.value = 'missing'; return }
+  // Session non vérifiable (réseau, serveur) : ce n'est pas « déconnecté ».
+  if (!auth.user && auth.offline) {
+    error.value = auth.offline === 'network' ? t.value.errors.network : t.value.errors.busy
+    state.value = 'failed'
+    return
+  }
   if (!auth.user) { state.value = 'signedOut'; return }
   try {
     const preview = await previewInvitation(token)

@@ -13,7 +13,8 @@ export async function consumeQuota(db, name, max) {
       expires_at = CASE WHEN security_quotas.expires_at <= now() THEN now() + interval '1 hour' ELSE security_quotas.expires_at END
     WHERE security_quotas.expires_at <= now() OR security_quotas.hits < $2
     RETURNING hits`, [name, max])
-  if (!rows.length || rows[0].hits >= max) await securityAlert(db, ALERTS[name] ?? 'auth_emails_quota')
+  if (!ALERTS[name]) throw new Error(`Quota inconnu : ${name}`)
+  if (!rows.length || rows[0].hits >= max) await securityAlert(db, ALERTS[name])
   if (!rows.length) throw new HttpError(429, 'Service temporairement limité. Réessayez plus tard.')
 }
 

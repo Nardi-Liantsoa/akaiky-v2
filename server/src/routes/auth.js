@@ -14,7 +14,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 const GENERIC_SENT = 'Si cette adresse correspond à un compte, un email vient de lui être envoyé.'
 const PUBLIC = { config: { public: true } }
 
-export const email = emailAddress
+const email = emailAddress
 
 export default async function authRoutes(app) {
   const { db, config, mailer } = app
