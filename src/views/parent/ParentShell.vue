@@ -12,7 +12,6 @@ import TabBar from '../../components/parent/TabBar.vue'
 
 <style scoped>
 .shell {
-  min-height: 100%;
   padding: 24px var(--gutter) calc(var(--tab-height) + 24px);
   max-width: 720px;
   margin: 0 auto;

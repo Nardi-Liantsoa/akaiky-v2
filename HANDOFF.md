@@ -6,8 +6,8 @@
   métier**. Ressource d'exemple `notes` retirée (NAR-132, migration `002`).
 - Identifiant `mg.nosytech.akaiky`, nom affiché « Akaiky ». Maquettes résumées dans
   `docs/DESIGN.md` ; jetons et police posés dans `src/style.css` (NAR-132).
-- Vérifié en local : lint, build, tests front (2/2), tests API contre PostgreSQL jetable
-  (64/64), e2e Chromium (9/9), e2e WebKit (9/9 dans l'image Docker Playwright),
+- Vérifié en local (NAR-132) : lint, build, tests front (2/2), tests API contre PostgreSQL
+  jetable (59/59), e2e Chromium (11/11), e2e WebKit (11/11 dans l'image Docker Playwright),
   `npm audit` 0 vulnérabilité (racine et serveur), gitleaks et Semgrep (`p/javascript`,
   `p/typescript`) sans résultat, image Docker construite (utilisateur `node`),
   `/health` 200 et `/ready` 503 sans base, refus de démarrer en production sans clé MFA.

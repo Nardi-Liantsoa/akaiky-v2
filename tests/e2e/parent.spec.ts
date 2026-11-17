@@ -22,7 +22,7 @@ test('parent connecté : quatre onglets, sans rechargement, onglet actif signal�
   expect(await page.evaluate(() => (window as unknown as { marker?: number }).marker)).toBe(1)
 })
 
-test('police servie par l’application, aucun appel à un tiers', async ({ page }) => {
+test('police servie par l’application, aucun appel à un tiers', async ({ page, baseURL }) => {
   const fonts: { url: string, status: number }[] = []
   page.on('response', (r) => { if (r.request().resourceType() === 'font') fonts.push({ url: r.url(), status: r.status() }) })
   await mockApi(page, connected)
@@ -33,7 +33,7 @@ test('police servie par l’application, aucun appel à un tiers', async ({ page
   expect(status).toEqual(['loaded'])
   expect(fonts.length).toBeGreaterThan(0)
   for (const f of fonts) {
-    expect(new URL(f.url).origin).toBe('http://127.0.0.1:4173')
+    expect(new URL(f.url).origin).toBe(new URL(baseURL!).origin)
     expect(f.status).toBe(200)
   }
 })

@@ -33,7 +33,7 @@ const TABS = [
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   height: var(--tab-height);
-  background: var(--surface-card);
+  background: var(--surface);
   border-top: 1px solid var(--border);
 }
 .tab {
@@ -43,7 +43,7 @@ const TABS = [
   justify-content: center;
   gap: 2px;
   min-height: var(--tap);
-  color: var(--ink-soft);
+  color: var(--text-soft);
   font-size: 0.8rem;
   font-weight: 700;
   text-decoration: none;
@@ -59,11 +59,11 @@ const TABS = [
 }
 /* RouterLink pose aria-current="page" sur l'onglet exactement actif. */
 .tab[aria-current='page'] {
-  color: var(--call);
+  color: var(--accent);
   font-weight: 800;
 }
 .tab:focus-visible {
-  outline: 3px solid var(--call);
+  outline: 3px solid var(--accent);
   outline-offset: -3px;
 }
 </style>

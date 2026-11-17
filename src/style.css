@@ -54,7 +54,6 @@
   --text-mute: var(--ink-mute);
   --accent: var(--call);
   --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
-  --on-accent: var(--on-color);
   --accent-ink: var(--on-color);
   --danger: var(--sos);
 
@@ -159,10 +158,9 @@ h1 {
   border: 1px solid transparent;
   border-radius: 999px;
   background: var(--accent);
+  color: var(--accent-ink);
+  font: inherit;
   font-weight: 800;
-  color: var(--on-accent);
-  font-family: inherit;
-  font-size: inherit;
   cursor: pointer;
   transition: opacity 0.25s var(--ease);
 }
