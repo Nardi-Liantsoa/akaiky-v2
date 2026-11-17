@@ -22,7 +22,7 @@ function childrenApi(initial: Kid[] = []) {
 
 test('owner sans enfant : ajouter deux enfants, puces affichées, sélection gardée après rechargement', async ({ page }) => {
   const api = childrenApi()
-  await mockApi(page, { ...me, 'GET /api/families/me': () => ({ body: FAMILY }), ...api.handlers })
+  const calls = await mockApi(page, { ...me, 'GET /api/families/me': () => ({ body: FAMILY }), ...api.handlers })
   await page.goto('/espace')
   await expect(page.getByText('Ajoutez votre premier enfant pour configurer son téléphone.')).toBeVisible()
   await page.getByRole('link', { name: 'Ajouter un enfant' }).click()
@@ -30,6 +30,8 @@ test('owner sans enfant : ajouter deux enfants, puces affichées, sélection gar
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page).toHaveURL(/\/espace$/)
   await expect(page.getByRole('heading', { name: 'Fy' })).toBeVisible()
+  // Sans couleur choisie, rien n'est envoyé : la rotation est celle du serveur.
+  expect(calls.find((r) => r.method() === 'POST' && r.url().endsWith('/api/children'))!.postDataJSON()).toEqual({ firstName: 'Fy' })
 
   await page.getByRole('link', { name: 'Ajouter un enfant' }).click()
   await page.getByLabel('Prénom').fill('Tiana')

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { addChild, removeChild, updateChild } from '../../api/children'
 import { ApiError } from '../../api/http'
 import ChildAvatar from '../../components/parent/ChildAvatar.vue'
 import { useT } from '../../composables/useT'
 import { AVATAR_COLORS, type AvatarColor } from '../../lib/avatar'
 import { errorText } from '../../lib/errors'
-import { children, loadChildren, selectChild } from '../../store/children'
+import { children, dropChild, loadChildren, selectChild, upsertChild } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
 
 const t = useT()
@@ -16,13 +16,15 @@ const router = useRouter()
 const id = computed(() => (typeof route.params.id === 'string' ? route.params.id : null))
 const existing = computed(() => (id.value ? children.items.find((c) => c.id === id.value) ?? null : null))
 const name = ref('')
-const color = ref<AvatarColor>(AVATAR_COLORS[0])
+// null : aucune couleur choisie à l'ajout, le serveur applique sa rotation.
+const color = ref<AvatarColor | null>(null)
 const busy = ref(false)
 const error = ref('')
 const confirming = ref(false)
 
-// .loading : hauteur réservée pendant le chargement.
 const valid = computed(() => { const n = [...name.value.trim()].length; return n >= 1 && n <= 40 })
+// Formulaire montré seulement à un gestionnaire, une fois la famille connue.
+const allowed = computed(() => family.status === 'ready' && canManage())
 
 function message(e: unknown): string {
   if (e instanceof ApiError && e.code === 'too_many_children') return t.value.children.tooMany
@@ -30,31 +32,41 @@ function message(e: unknown): string {
   return errorText(e, t.value)
 }
 
-onMounted(async () => {
-  await Promise.all([loadFamily(), loadChildren()])
-  // Réservé aux gestionnaires (le serveur le refuse de toute façon).
-  if (family.status === 'ready' && !canManage()) return router.replace({ name: 'espace' })
-  if (!id.value) color.value = AVATAR_COLORS[children.items.length % AVATAR_COLORS.length]
-})
-// Formulaire prérempli une seule fois par enfant : un rechargement de la liste
-// n'écrase pas une saisie en cours. Changer d'enfant désarme la confirmation.
+onMounted(() => { void loadFamily() })
+// Enfants chargés une fois la famille connue (jamais en parallèle avec elle) ;
+// un non-gestionnaire est renvoyé à l'accueil.
+watch(() => family.status, (s) => {
+  if (s !== 'ready') return
+  if (!canManage()) { void router.replace({ name: 'espace' }); return }
+  void loadChildren()
+}, { immediate: true })
+
+// Formulaire rempli une seule fois par adresse : un rechargement de la liste
+// n'écrase pas une saisie ; changer d'adresse (même composant réutilisé) repart
+// de zéro et désarme la confirmation de retrait.
 let filledFor: string | null = null
+function reset() {
+  filledFor = null
+  name.value = ''
+  color.value = null
+  confirming.value = false
+  error.value = ''
+}
+watch(id, reset)
 watch(existing, (c) => {
   if (c && c.id !== filledFor) { filledFor = c.id; name.value = c.firstName; color.value = c.avatarColor }
 }, { immediate: true })
-watch(id, () => { confirming.value = false; error.value = '' })
 
 async function save() {
   if (busy.value || !valid.value) return
   busy.value = true
   error.value = ''
   try {
-    // L'adresse décide : /enfant/:id modifie, /enfant/nouveau ajoute (jamais un ajout
-    // par défaut parce que la liste n'est pas encore là).
+    // L'adresse décide : /enfant/:id modifie, /enfant/nouveau ajoute.
     const saved = id.value
-      ? await updateChild(id.value, { firstName: name.value.trim(), avatarColor: color.value })
-      : await addChild(name.value.trim(), color.value)
-    await loadChildren(true)
+      ? await updateChild(id.value, { firstName: name.value.trim(), ...(color.value ? { avatarColor: color.value } : {}) })
+      : await addChild(name.value.trim(), color.value ?? undefined)
+    upsertChild(saved)
     selectChild(saved.id)
     await router.push({ name: 'espace' })
   } catch (e) {
@@ -70,11 +82,10 @@ async function remove() {
   error.value = ''
   try {
     await removeChild(existing.value.id)
-    await loadChildren(true)
+    dropChild(existing.value.id)
     await router.push({ name: 'espace' })
   } catch (e) {
     error.value = message(e)
-    await loadChildren(true)
   } finally {
     busy.value = false
   }
@@ -84,7 +95,8 @@ async function remove() {
 <template>
   <section>
     <h1>{{ existing ? t.children.editTitle(existing.firstName) : t.children.addTitle }}</h1>
-    <div v-if="id && children.status === 'error'" class="error" role="alert">
+    <p v-if="!allowed" class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
+    <div v-else-if="id && children.status === 'error'" class="error" role="alert">
       <p>{{ t.children.loadError }}</p>
       <button class="btn btn-ghost" type="button" @click="loadChildren(true)">{{ t.errors.retry }}</button>
     </div>

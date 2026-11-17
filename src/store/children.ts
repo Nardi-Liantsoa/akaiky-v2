@@ -18,6 +18,7 @@ export const children = reactive({
 
 let loadedFor: string | null = null
 let generation = 0
+let pending: Promise<void> | null = null
 
 function stored(): string | null {
   try { return localStorage.getItem(key()) } catch { return null }
@@ -31,6 +32,7 @@ function resetIfOtherScope() {
   if (s === loadedFor) return
   loadedFor = s
   generation++
+  pending = null
   Object.assign(children, { status: 'unknown', items: [], error: null, selectedId: null })
 }
 watch(scope, resetIfOtherScope, { flush: 'sync' })
@@ -40,23 +42,43 @@ function settleSelection() {
   children.selectedId = children.items.find((c) => c.id === wanted)?.id ?? children.items[0]?.id ?? null
 }
 
-export async function loadChildren(force = false): Promise<void> {
+export function loadChildren(force = false): Promise<void> {
   resetIfOtherScope()
-  if (!auth.user || !family.data) return
-  if (!force && children.status === 'ready') return
+  if (!auth.user || !family.data) return Promise.resolve()
+  if (!force && children.status === 'ready') return Promise.resolve()
+  // Un chargement déjà en cours sert à tous les appelants.
+  if (pending) return pending
   const mine = ++generation
   if (children.status !== 'ready') children.status = 'loading'
-  try {
-    const items = await listChildren()
-    if (mine !== generation) return
-    Object.assign(children, { status: 'ready', items, error: null })
-    settleSelection()
-  } catch (e) {
-    if (mine !== generation) return
-    // Rechargement en échec : la liste connue reste affichée.
-    if (children.status === 'ready') children.error = e
-    else Object.assign(children, { status: 'error', error: e })
-  }
+  const run: Promise<void> = listChildren().then(
+    (items) => {
+      if (mine !== generation) return
+      Object.assign(children, { status: 'ready', items, error: null })
+      settleSelection()
+    },
+    (e: unknown) => {
+      if (mine !== generation) return
+      // Rechargement en échec : la liste connue reste affichée.
+      if (children.status === 'ready') children.error = e
+      else Object.assign(children, { status: 'error', error: e })
+    }
+  ).finally(() => { if (pending === run) pending = null })
+  pending = run
+  return run
+}
+
+// Réponse du serveur appliquée tout de suite (ajout ou modification), sans attendre un rechargement.
+export function upsertChild(child: Child) {
+  const i = children.items.findIndex((c) => c.id === child.id)
+  children.items = i === -1 ? [...children.items, child] : children.items.map((c) => (c.id === child.id ? child : c))
+}
+
+// Enfant retiré : il disparaît de la liste et de la sélection retenue.
+export function dropChild(id: string) {
+  children.items = children.items.filter((c) => c.id !== id)
+  try { if (localStorage.getItem(key()) === id) localStorage.removeItem(key()) } catch { /* rien à effacer */ }
+  if (children.selectedId === id) children.selectedId = null
+  settleSelection()
 }
 
 export function selectChild(id: string) {

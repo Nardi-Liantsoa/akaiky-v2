@@ -9,7 +9,9 @@ export interface Child {
 }
 
 export const listChildren = () => api.get<Child[]>('/children')
-export const addChild = (firstName: string, avatarColor: AvatarColor) => api.post<Child>('/children', { firstName, avatarColor })
+// Sans couleur choisie, le serveur applique sa rotation (calculée sous verrou).
+export const addChild = (firstName: string, avatarColor?: AvatarColor) =>
+  api.post<Child>('/children', avatarColor ? { firstName, avatarColor } : { firstName })
 export const updateChild = (id: string, changes: Partial<Pick<Child, 'firstName' | 'avatarColor'>>) =>
   api.patch<Child>(`/children/${encodeURIComponent(id)}`, changes)
 export const removeChild = (id: string) => api.del<{ ok: true }>(`/children/${encodeURIComponent(id)}`)

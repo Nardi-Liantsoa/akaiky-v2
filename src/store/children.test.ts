@@ -8,11 +8,11 @@ vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null, se
 
 const { auth } = await import('./auth')
 const { family } = await import('./family')
-const { children, loadChildren, selectChild, selectedChild } = await import('./children')
+const { children, loadChildren, selectChild, selectedChild, dropChild, upsertChild } = await import('./children')
 const inFamily = (id: string) => { family.data = { id, name: id, role: 'owner', members: [] }; family.status = 'ready' }
 
-const A = { id: 'a', firstName: 'Fy', avatarColor: 'orange', createdAt: '' }
-const B = { id: 'b', firstName: 'Tiana', avatarColor: 'blue', createdAt: '' }
+const A = { id: 'a', firstName: 'Fy', avatarColor: 'orange' as const, createdAt: '' }
+const B = { id: 'b', firstName: 'Tiana', avatarColor: 'blue' as const, createdAt: '' }
 const login = (id: string, fam = 'f1') => { auth.user = { id, email: `${id}@x.fr`, name: id, is_admin: false }; inFamily(fam) }
 
 describe('enfants de la session', () => {
@@ -77,5 +77,24 @@ describe('enfants de la session', () => {
     login('u5')
     expect(children.items).toEqual([])
     expect(children.selectedId).toBeNull()
+  })
+
+  it('retrait de l’enfant sélectionné : sélection retenue oubliée, retour au premier', async () => {
+    login('u9')
+    listChildren.mockResolvedValue([A, B])
+    await loadChildren()
+    selectChild('b')
+    dropChild('b')
+    expect(store.has('akaiky-v2.child.u9')).toBe(false)
+    expect(selectedChild()?.id).toBe('a')
+    upsertChild({ ...A, firstName: 'Fyfy' })
+    expect(selectedChild()?.firstName).toBe('Fyfy')
+  })
+
+  it('appels simultanés : un seul chargement', async () => {
+    login('u10')
+    listChildren.mockResolvedValue([A])
+    await Promise.all([loadChildren(true), loadChildren(true), loadChildren()])
+    expect(listChildren).toHaveBeenCalledTimes(1)
   })
 })
