@@ -10,6 +10,10 @@ defineProps<{ title: string; text: string }>()
 </template>
 
 <style scoped>
+h1 {
+  font-size: 2rem;
+  margin: 8px 0 20px;
+}
 .empty {
   margin: 0;
   color: var(--text-soft);

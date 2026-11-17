@@ -50,6 +50,8 @@ const active = computed(() =>
   border-top: 1px solid var(--border);
 }
 .tab {
+  min-width: 0;
+  padding: 0 2px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -59,7 +61,14 @@ const active = computed(() =>
   color: var(--text-soft);
   font-size: 0.8rem;
   font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
   text-decoration: none;
+}
+/* Libellés malgaches longs (« Fianakaviana ») sur un écran de 320 px. */
+.tab span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .tab svg {
   width: 24px;

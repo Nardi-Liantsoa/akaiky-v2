@@ -48,7 +48,7 @@
   --bg: var(--bg-parent);
   --surface: var(--surface-card);
   --border: var(--surface-muted);
-  --border-strong: #d6d0c4;
+  --border-strong: #8c8576; /* bord de champ ≥ 3:1 (WCAG 1.4.11) */
   --text: var(--ink);
   --text-soft: var(--ink-soft);
   --text-mute: var(--ink-mute);
@@ -191,10 +191,4 @@ h1 {
     transition: none !important;
     animation: none !important;
   }
-}
-
-/* Pages de l'app parent : titre de la maquette, gras et compact. */
-.parent-page h1 {
-  font-size: 2rem;
-  margin: 8px 0 20px;
 }

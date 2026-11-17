@@ -39,3 +39,15 @@ test('police servie par l’application, aucun appel à un tiers', async ({ page
   expect(fonts.length).toBeGreaterThan(0)
   for (const f of fonts) expect(f.status).toBe(200)
 })
+
+test('écran étroit en malgache : libellés des onglets contenus dans leur colonne', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 })
+  await page.addInitScript(() => { try { localStorage.setItem('akaiky-v2.lang', 'mg') } catch { /* stockage indisponible */ } })
+  await mockApi(page, connected)
+  await page.goto('/espace')
+  const tabs = page.getByRole('navigation', { name: 'Fitetezana lehibe' }).getByRole('link')
+  await expect(tabs).toHaveCount(4)
+  const overflow = await tabs.evaluateAll((links) => links.some((a) => a.scrollWidth > a.clientWidth))
+  expect(overflow).toBe(false)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
