@@ -3,7 +3,7 @@
 // associées lient le chiffré à sa ligne et à sa colonne (`table:colonne:id`) :
 // un chiffré recopié sur une autre ligne ou dans une autre colonne ne se
 // déchiffre pas. Premier octet = version du format, pour une rotation de clé.
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto'
+import { createCipheriv, createDecipheriv, createHmac, hkdfSync, randomBytes } from 'node:crypto'
 
 const VERSION = 1
 
@@ -22,4 +22,12 @@ export function openField(sealed, keyHex, aad) {
   decipher.setAAD(Buffer.from(aad))
   decipher.setAuthTag(b.subarray(13, 29))
   return Buffer.concat([decipher.update(b.subarray(29)), decipher.final()]).toString('utf8')
+}
+
+// Index aveugle : HMAC-SHA256 d'une valeur normalisée, pour tester l'égalité
+// (numéro en double) sans pouvoir lire la valeur. Clé dérivée de la clé des
+// données (HKDF) avec un usage distinct : elle ne chiffre rien.
+export function blindIndex(value, keyHex, purpose) {
+  const key = Buffer.from(hkdfSync('sha256', Buffer.from(keyHex, 'hex'), Buffer.alloc(0), `akaiky:blind-index:${purpose}`, 32))
+  return createHmac('sha256', key).update(String(value)).digest()
 }

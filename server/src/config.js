@@ -33,6 +33,12 @@ function nativeOrigins(value) {
   return list
 }
 
+function phoneCountry(v) {
+  const c = (v || 'MG').toUpperCase()
+  if (!['MG', 'FR'].includes(c)) throw new Error('PHONE_DEFAULT_COUNTRY : MG ou FR')
+  return c
+}
+
 export function loadConfig(env = process.env) {
   const production = env.NODE_ENV === 'production'
   const origin = (env.APP_ORIGIN || (production ? '' : 'http://localhost:8080')).replace(/\/$/, '')
@@ -57,6 +63,8 @@ export function loadConfig(env = process.env) {
     appName: env.APP_NAME || 'Akaiky',
     mfaKey,
     dataKey,
+    // Pays des numéros locaux (commençant par 0) : MG ou FR, marché à trancher (CdC §12.1).
+    phoneCountry: phoneCountry(env.PHONE_DEFAULT_COUNTRY),
     production,
     migrations: env.DB_MIGRATIONS || 'auto',
     port: positive(env.PORT, 8080),
