@@ -92,3 +92,18 @@ Poste macOS 14 : le WebKit de Playwright y est figé (`Unknown setting: PushAPIE
 Projet `webkit` dans l'image Linux à la version de `@playwright/test` :
 `docker run --rm -v "$PWD:/w" -v /w/node_modules -v /w/server/node_modules -v /w/dist -w /w mcr.microsoft.com/playwright:v1.63.0-noble sh -c "npm ci --ignore-scripts && npx playwright test --project=webkit"`.
 La recette `iphone` fait foi en CI Linux.
+
+## Pipeline Linear
+
+Workflow automatisé idée → ticket → PR (skills globales `/ampy-idea` et `/ampy-code`).
+
+- **Équipe Linear** : Nardi.L, clé `NAR` (équipe partagée, tient lieu d'équipe générique).
+- **Projet Linear** : `Akaiky v2` (P-NAR-4). Ne pas confondre avec `Akaiky` (P-NAR-3), premier projet.
+- **Repo GitHub** : `Nardi-Liantsoa/akaiky-v2` (privé).
+- **Branches** : identifiant Linear en minuscules + nom de l'app + slug : `nar-12-akaikyv2-slug-court`.
+- **Commandes de qualité** (à passer au vert avant toute PR) : `npm run lint`, `npm run build`,
+  `npm test`, `npm run test:api` (Docker), `npm run test:e2e` ; `npm run recette` si le ticket
+  touche un critère de `recette/criteres.md`.
+- **PR** : description avec `Fixes NAR-<n>` pour la liaison Linear ; ne jamais merger soi-même.
+- **Flux** : `/ampy-idea "<idée>"` crée le ticket en Backlog → l'utilisateur le passe en Todo →
+  `/ampy-code NAR-<n>` implémente et ouvre la PR → review → merge par l'utilisateur.
