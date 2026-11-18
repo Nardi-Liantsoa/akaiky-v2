@@ -39,12 +39,24 @@ enfant sur iOS (CdC §3 : hors périmètre v1).
 
 Durcissements posés dans `AndroidManifest.xml` : `allowBackup="false"` (données
 de mineurs), `res/xml/network_security_config.xml` (HTTPS seulement, explicite :
-Android 8 accepte le clair par défaut). Thème natif clair forcé et icônes sombres
-dans la barre de navigation (`values-v27/styles.xml`), comme l'interface.
+Android 8 accepte le clair par défaut). Thème natif clair forcé ; icônes sombres
+dans les deux barres système par `plugins.SystemBars.style: 'LIGHT'`
+(`capacitor.config.ts`) : sans lui, Capacitor suit le thème du système et la barre
+de navigation à 3 boutons passe en icônes claires sur fond clair (vu sur Android 14
+en thème sombre). Le thème XML (`values-v27/styles.xml`) ne couvre que l'écran de
+démarrage.
+
+**WebView 58 sur Android 8 d'usine** : Capacitor 8 refuse de démarrer sous la
+version 60 (« This app requires a WebView to work »). C'est le cas de l'image
+Android 8 sans services Google, et d'un téléphone jamais mis à jour par le Play
+Store. Constaté sur l'émulateur API 26 ; à trancher avant l'appairage (NAR-138).
 
 **Outils requis** : SDK Android avec la plateforme `android-36` (compileSdk),
-JDK 21 recommandé ; Xcode récent (le framework Capacitor 8 précompilé ne se lit
-pas avec Xcode 15).
+**JDK 21** (`invalid source release: 21` avec le JDK 17 :
+`JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home`) ;
+Xcode récent (le framework Capacitor 8 précompilé ne se lit pas avec Xcode 15).
+Toujours `npm run sync` (ou les scripts `android:*`) avant `gradlew` : l'APK
+embarque le dernier build web copié dans la coque.
 
 ## Trois réglages qui coûtent cher
 
