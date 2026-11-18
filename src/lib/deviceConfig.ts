@@ -6,7 +6,7 @@ import { DeviceError, type DeviceSession, type SecretStore } from './deviceSessi
 // ce sont des données de mineurs (noms et numéros), jamais en localStorage.
 // Le cache est lié à l'enfant : celui d'un autre enfant (téléphone réappairé) est ignoré.
 export interface DeviceContact { id: string, name: string, phone: string, position: number, avatarColor: string }
-export interface DeviceConfig { version: number, contacts: DeviceContact[] }
+export interface DeviceConfig { version: number, country?: string, contacts: DeviceContact[] }
 export const CONFIG_KEY = 'device-config'
 
 interface Cached { childId: string, etag: string | null, config: DeviceConfig }

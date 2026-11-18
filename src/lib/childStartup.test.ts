@@ -3,12 +3,14 @@ import { startChild, type ChildDeps } from './childStartup'
 import { DeviceError, type DeviceSession } from './deviceSession'
 
 // Session et greffon natif simulés : on vérifie l'enchaînement, pas le réseau.
-function deps({ session = false, token = null as string | null, pair = async () => ({ device: { id: 'd' }, child: { id: 'c' } }), me = async () => ({ child: { id: 'c', firstName: 'Fy' } }) as unknown } = {}) {
+function deps({ identity = null as { childId: string, firstName: string } | null, session = false, token = null as string | null, pair = async () => ({ device: { id: 'd' }, child: { id: 'c' } }), me = async () => ({ child: { id: 'c', firstName: 'Fy' } }) as unknown } = {}) {
   let stored = token
+  let known = identity
   const d: ChildDeps & { cleared: () => boolean } = {
     session: { hasSession: async () => session, pair: vi.fn(pair), get: vi.fn(me) } as unknown as DeviceSession,
     provisioning: { token: async () => stored, clear: async () => { stored = null } },
     info: async () => ({ model: 'Pixel' }),
+    identity: { get: async () => known, set: async (v) => { known = v } },
     cleared: () => stored === null
   }
   return d
@@ -71,6 +73,9 @@ describe('startChild', () => {
   it('session refusée (téléphone retiré) sans jeton : retiré ; hors ligne : rien n’est perdu', async () => {
     expect(await startChild(deps({ session: true, me: async () => { throw new DeviceError(401, 'device_session_lost') } }))).toEqual({ kind: 'revoked' })
     expect(await startChild(deps({ session: true, me: async () => { throw new TypeError('offline') } }))).toEqual({ kind: 'offline' })
+    // Session et enfant connu : l'accueil s'ouvre hors ligne, depuis le cache.
+    expect(await startChild(deps({ session: true, identity: { childId: 'c', firstName: 'Fy' }, me: async () => { throw new TypeError('offline') } })))
+      .toEqual({ kind: 'paired', childId: 'c', firstName: 'Fy' })
     // 404 ou 403 inattendu : pas « retiré », on réessaiera.
     expect(await startChild(deps({ session: true, me: async () => { throw new DeviceError(404, null) } }))).toEqual({ kind: 'failed' })
     expect(await startChild(deps({ session: true, me: async () => { throw new DeviceError(503, null) } }))).toEqual({ kind: 'offline' })

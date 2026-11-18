@@ -5,7 +5,7 @@ import { DeviceError, type DeviceInfoBody, type DeviceMe, type DeviceSession } f
 // Le jeton n'est effacé que lorsque le serveur l'a définitivement refusé (401) ou
 // accepté : tout autre échec le garde, pour un nouvel essai sans réinitialiser.
 export type ChildState =
-  | { kind: 'paired', firstName: string, childId: string }
+  | { kind: 'paired', firstName: string, childId: string }   // aussi hors ligne, depuis le cache
   | { kind: 'waiting' }
   | { kind: 'expired' }      // jeton expiré ou déjà utilisé : nouveau QR, donc réinitialisation
   | { kind: 'tooMany' }      // plafond atteint : un parent retire un téléphone, puis on réessaie
@@ -13,19 +13,31 @@ export type ChildState =
   | { kind: 'offline' }      // réseau ou serveur indisponible (5xx, 429) : réessayer
   | { kind: 'failed' }       // autre refus (4xx) : réessayer, puis assistance
 
+export interface ChildIdentity { childId: string, firstName: string }
+
 export interface ChildDeps {
   session: DeviceSession
   provisioning: { token(): Promise<string | null>, clear(): Promise<void> }
   info(): Promise<DeviceInfoBody>
+  // Enfant du téléphone, gardé (Keystore) pour ouvrir l'accueil sans Internet.
+  identity: { get(): Promise<ChildIdentity | null>, set(v: ChildIdentity): Promise<void> }
 }
 
 const refused = (e: unknown) => e instanceof DeviceError && e.status === 401
 // Réseau coupé (pas de DeviceError) ou serveur momentanément indisponible.
 const transient = (e: unknown) => !(e instanceof DeviceError) || e.status >= 500 || e.status === 429
 
-async function me(session: DeviceSession): Promise<ChildState> {
-  const r = await session.get<DeviceMe>('/device/me')
+async function me(deps: ChildDeps): Promise<ChildState> {
+  const r = await deps.session.get<DeviceMe>('/device/me')
+  await deps.identity.set({ childId: r.child.id, firstName: r.child.firstName }).catch(() => {})
   return { kind: 'paired', firstName: r.child.firstName, childId: r.child.id }
+}
+
+// Réseau ou serveur indisponible avec une session : l'accueil s'ouvre depuis le cache
+// (les appels passent par la carte SIM, sans Internet).
+async function offline(deps: ChildDeps): Promise<ChildState> {
+  const known = await deps.identity.get().catch(() => null)
+  return known ? { kind: 'paired', ...known } : { kind: 'offline' }
 }
 
 export async function startChild(deps: ChildDeps): Promise<ChildState> {
@@ -33,10 +45,10 @@ export async function startChild(deps: ChildDeps): Promise<ChildState> {
     const hadSession = await deps.session.hasSession()
     if (hadSession) {
       try {
-        return await me(deps.session)
+        return await me(deps)
       } catch (e) {
         // Seul un 401 dit que le téléphone a été retiré ; un jeton récent peut encore servir.
-        if (!refused(e)) return transient(e) ? { kind: 'offline' } : { kind: 'failed' }
+        if (!refused(e)) return transient(e) ? offline(deps) : { kind: 'failed' }
       }
     }
     // Jeton lu seulement sans session valable : une session saine ne dépend pas du greffon.
@@ -53,7 +65,7 @@ export async function startChild(deps: ChildDeps): Promise<ChildState> {
     }
     // Jeton consommé : l'effacer ne doit pas masquer un appairage réussi.
     await deps.provisioning.clear().catch(() => {})
-    return await me(deps.session)
+    return await me(deps)
   } catch (e) {
     if (refused(e)) return { kind: 'revoked' }
     return transient(e) ? { kind: 'offline' } : { kind: 'failed' }

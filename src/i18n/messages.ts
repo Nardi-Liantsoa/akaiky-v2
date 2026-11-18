@@ -231,7 +231,15 @@ const fr = {
     revokedHint: 'Un parent peut le configurer à nouveau depuis son application.',
     offline: 'Pas de connexion pour l’instant.',
     offlineHint: 'Vérifiez le Wi-Fi ou le réseau, puis réessayez.',
-    retry: 'Réessayer'
+    retry: 'Réessayer',
+    callContact: (name: string) => `Appeler ${name}`,
+    noContacts: 'Aucun contact pour l’instant.',
+    noContactsHint: 'Un parent va les ajouter depuis son application.',
+    sosLabel: 'SOS : appuie 3 secondes pour appeler',
+    sosHint: 'Appuie 3 secondes',
+    emergency: (n: string) => `Secours · ${n}`,
+    callFailed: 'L’appel n’a pas pu partir.',
+    status: { wifi: 'Wi-Fi', cellular: 'Réseau', battery: (n: number) => `${n} %` }
   },
   parent: {
     tabsLabel: 'Navigation principale',
@@ -484,7 +492,15 @@ const mg: Messages = {
     revokedHint: 'Afaka mandrindra azy indray avy amin’ny rindranasany ny ray aman-dreny iray.',
     offline: 'Tsy misy fifandraisana amin’izao.',
     offlineHint: 'Jereo ny Wi-Fi na ny tambajotra, dia andramo indray.',
-    retry: 'Andramo indray'
+    retry: 'Andramo indray',
+    callContact: (name: string) => `Antsoy i ${name}`,
+    noContacts: 'Mbola tsy misy olona azo antsoina.',
+    noContactsHint: 'Ray aman-dreny iray no hanampy azy avy amin’ny rindranasany.',
+    sosLabel: 'SOS : tsindrio 3 segondra hiantsoana',
+    sosHint: 'Tsindrio 3 segondra',
+    emergency: (n: string) => `Vonjy maika · ${n}`,
+    callFailed: 'Tsy lasa ny antso.',
+    status: { wifi: 'Wi-Fi', cellular: 'Tambajotra', battery: (n: number) => `${n} %` }
   },
   parent: {
     tabsLabel: 'Fitetezana lehibe',
@@ -735,7 +751,15 @@ const en: Messages = {
     revokedHint: 'A parent can set it up again from their app.',
     offline: 'No connection right now.',
     offlineHint: 'Check the Wi-Fi or network, then try again.',
-    retry: 'Try again'
+    retry: 'Try again',
+    callContact: (name: string) => `Call ${name}`,
+    noContacts: 'No contacts yet.',
+    noContactsHint: 'A parent will add them from their app.',
+    sosLabel: 'SOS: hold 3 seconds to call',
+    sosHint: 'Hold for 3 seconds',
+    emergency: (n: string) => `Emergency · ${n}`,
+    callFailed: 'The call couldn’t go through.',
+    status: { wifi: 'Wi-Fi', cellular: 'Network', battery: (n: number) => `${n}%` }
   },
   parent: {
     tabsLabel: 'Main navigation',

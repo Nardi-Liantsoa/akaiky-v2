@@ -5,12 +5,19 @@ import { App } from '@capacitor/app'
 import { useT } from '../../composables/useT'
 import { appKind } from '../../lib/appKind'
 import { startChild, type ChildState } from '../../lib/childStartup'
-import { configSync, deviceSession as session } from '../../lib/deviceSessionInstance'
+import { childIdentity, configSync, deviceSession as session } from '../../lib/deviceSessionInstance'
 import { deviceConfig, pause, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
-import { AkaikyDevice } from '../../native/akaikyDevice'
+import { emergencyNumber } from '../../lib/emergency'
+import { sosPlan } from '../../lib/sos'
+import { AkaikyCall } from '../../native/akaikyCall'
+import { AkaikyDevice, type DeviceStatus } from '../../native/akaikyDevice'
+import ChildStatusBar from '../../components/child/ChildStatusBar.vue'
+import ContactTile from '../../components/child/ContactTile.vue'
+import SosButton from '../../components/child/SosButton.vue'
 
-// Écran de l'app enfant (NAR-164) : échange du jeton reçu au provisionnement (QR),
-// puis écran de l'enfant. L'accueil complet (contacts, SOS) arrive avec NAR-142.
+// Écran de l'app enfant : échange du jeton reçu au provisionnement (NAR-164), puis
+// accueil (NAR-142, maquette écran 1) : heure, contacts à appeler en un appui, SOS.
+// Fonctionne sans Internet : contacts et enfant gardés, appels par la carte SIM.
 const t = useT()
 const state = ref<ChildState | { kind: 'loading' }>({ kind: 'loading' })
 const busy = ref(false)
@@ -30,7 +37,8 @@ async function start() {
       info: async () => {
         const i = await AkaikyDevice.getInfo()
         return { model: i.model, osVersion: i.osVersion, appVersion: i.appVersion }
-      }
+      },
+      identity: childIdentity
     })
   } finally {
     busy.value = false
@@ -48,13 +56,13 @@ onMounted(async () => {
   if (!Capacitor.isNativePlatform()) return
   const handle = await App.addListener('appStateChange', ({ isActive }) => {
     foreground = isActive
-    if (isActive && state.value.kind === 'paired') resume(); else pause()
+    if (isActive && state.value.kind === 'paired') { resume(); startStatus() } else { pause(); stopStatus() }
   })
   if (unmounted) { void handle.remove(); return }
   lifecycle = handle
   // État réel au moment de l'écoute : lancée en arrière-plan, l'app ne relève rien.
   foreground = (await App.getState()).isActive
-  if (foreground && state.value.kind === 'paired') resume()
+  if (foreground && state.value.kind === 'paired') { resume(); startStatus() }
 })
 // Chaque nouvel état (même « appairé » → « appairé » pour un autre enfant) repart de zéro.
 watch(state, async (s) => {
@@ -67,9 +75,73 @@ watch(state, async (s) => {
   await startDeviceConfig(configSync, s.childId)
   if (!unmounted && foreground && state.value === s) resume()
 })
+// Liste blanche du natif : il refuse tout numéro qui n'y est pas, quoi que demande l'écran.
+// Transmise à chaque changement, et de nouveau juste avant chaque appel.
+const allowedNumbers = () => (deviceConfig.config?.contacts ?? []).map((c) => c.phone)
+watch(() => deviceConfig.config?.contacts, (contacts) => {
+  // Configuration pas encore chargée : on ne remplace pas la liste gardée par le natif.
+  if (!Capacitor.isNativePlatform() || !contacts) return
+  void AkaikyCall.setAllowed({ numbers: allowedNumbers() }).catch(() => {})
+}, { immediate: true })
+
+// Batterie et réseau, relus toutes les minutes tant que l'accueil est affiché.
+const status = ref<DeviceStatus | null>(null)
+let statusTimer: ReturnType<typeof setInterval> | undefined
+async function readStatus() {
+  status.value = await AkaikyDevice.getStatus().catch(() => null)
+}
+function stopStatus() { clearInterval(statusTimer); statusTimer = undefined }
+function startStatus() {
+  stopStatus()
+  if (state.value.kind !== 'paired' || !foreground || !Capacitor.isNativePlatform()) return
+  void readStatus()
+  statusTimer = setInterval(() => { void readStatus() }, 60_000)
+}
+watch(() => state.value.kind === 'paired', startStatus)
+
+const contacts = computed(() => [...(deviceConfig.config?.contacts ?? [])].sort((a, b) => a.position - b.position))
+const emergency = computed(() => emergencyNumber(deviceConfig.config?.country))
+const calling = ref(false)
+const callError = ref(false)
+// Un appui, un appel : l'appli téléphone prend le relais. Pas de double appel en rafale.
+async function call(phone: string) {
+  if (calling.value) return
+  calling.value = true
+  callError.value = false
+  try {
+    // Au mieux : la liste gardée par le natif sert si cet envoi échoue.
+    await AkaikyCall.setAllowed({ numbers: allowedNumbers() }).catch(() => {})
+    await AkaikyCall.call({ number: phone })
+  } catch {
+    callError.value = true
+  } finally {
+    setTimeout(() => { calling.value = false }, 1500)
+  }
+}
+// SOS maintenu 3 s : en attendant l'alerte complète (NAR-149), premier contact puis,
+// si l'appel ne part pas, le numéro d'urgence. Jamais bloqué par un appel en cours.
+async function sos() {
+  callError.value = false
+  await AkaikyCall.setAllowed({ numbers: allowedNumbers() }).catch(() => {})
+  for (const step of sosPlan(contacts.value, emergency.value)) {
+    try {
+      if (step.kind === 'contact') await AkaikyCall.call({ number: step.number })
+      else await AkaikyCall.emergency({ number: step.number })
+      return
+    } catch {
+      // Étape suivante.
+    }
+  }
+  callError.value = true
+}
+async function callEmergency() {
+  callError.value = false
+  await AkaikyCall.emergency({ number: emergency.value }).catch(() => { callError.value = true })
+}
+
 // Téléphone retiré pendant l'usage : l'écran le dit.
 watch(() => deviceConfig.status, (s) => { if (s === 'lost') state.value = { kind: 'revoked' } })
-onBeforeUnmount(() => { unmounted = true; pause(); void lifecycle?.remove() })
+onBeforeUnmount(() => { unmounted = true; pause(); stopStatus(); void lifecycle?.remove() })
 
 const text = computed(() => {
   const c = t.value.child
@@ -87,14 +159,25 @@ const text = computed(() => {
 </script>
 
 <template>
-  <main class="child">
+  <main v-if="state.kind === 'paired'" class="home">
+    <ChildStatusBar :status="status" />
+    <p v-if="callError" class="call-error" role="alert">{{ t.child.callFailed }}</p>
+    <section v-if="contacts.length" class="grid" :class="{ single: contacts.length === 1 }">
+      <ContactTile v-for="c in contacts" :key="c.id" :name="c.name" :color="c.avatarColor" :busy="calling" @call="call(c.phone)" />
+    </section>
+    <section v-else class="empty">
+      <p class="waiting">{{ t.child.noContacts }}</p>
+      <p class="hint">{{ t.child.noContactsHint }}</p>
+    </section>
+    <footer class="actions">
+      <SosButton @trigger="sos" />
+      <button class="emergency" type="button" @click="callEmergency">{{ t.child.emergency(emergency) }}</button>
+    </footer>
+  </main>
+  <main v-else class="child">
     <h1>Akaiky</h1>
     <p class="waiting" role="status">{{ text.title }}</p>
     <p v-if="text.hint" class="hint">{{ text.hint }}</p>
-    <!-- Contacts autorisés reçus du parent (NAR-160) ; l'accueil complet arrive avec NAR-142. -->
-    <ul v-if="state.kind === 'paired' && deviceConfig.config?.contacts.length" class="contacts">
-      <li v-for="c in deviceConfig.config.contacts" :key="c.id">{{ c.name }}</li>
-    </ul>
     <button v-if="state.kind === 'offline' || state.kind === 'tooMany' || state.kind === 'failed'" class="btn retry" type="button" :disabled="busy" @click="start">{{ t.child.retry }}</button>
   </main>
 </template>
@@ -126,20 +209,49 @@ h1 {
   max-width: 28em;
   color: var(--text-soft);
 }
-.contacts {
-  list-style: none;
-  margin: 16px 0 0;
-  padding: 0;
+.home {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 100vh;
+  padding: calc(var(--safe-top) + 12px) calc(var(--gutter) + var(--safe-right)) calc(var(--safe-bottom) + 16px) calc(var(--gutter) + var(--safe-left));
+  background: var(--bg-child);
+  box-sizing: border-box;
 }
-.contacts li {
-  padding: 8px 16px;
+/* 1 contact : une grande vignette ; 2 à 6 : deux colonnes (maquette : 2×2). */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.grid.single {
+  grid-template-columns: 1fr;
+}
+.empty {
+  text-align: center;
+}
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+}
+.emergency {
+  min-height: 64px;
+  padding: 0 24px;
+  border: 2px solid var(--sos);
   border-radius: 999px;
-  background: var(--surface-card);
+  background: transparent;
+  color: var(--sos);
+  font: inherit;
+  font-weight: 900;
+}
+.call-error {
+  margin: 0;
+  text-align: center;
   font-weight: 800;
+  color: var(--sos);
 }
 .retry {
   margin-top: 16px;

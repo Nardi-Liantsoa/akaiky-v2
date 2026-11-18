@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDay } from './format'
+import { formatClock, formatDay, formatLongDate } from './format'
 
 describe('formatDay', () => {
   it('jour et mois à l’heure de Madagascar, dans les trois langues', () => {
@@ -11,5 +11,20 @@ describe('formatDay', () => {
   })
   it('date illisible : chaîne vide', () => {
     expect(formatDay('pas une date', 'fr')).toBe('')
+  })
+})
+
+describe('formatClock et formatLongDate (écran de l’enfant)', () => {
+  // 18/11/2026 11:05 UTC = 14:05 à Antananarivo (UTC+3), un mercredi.
+  const d = new Date('2026-11-18T11:05:00Z')
+  it('heure de Madagascar sur 24 h', () => {
+    expect(formatClock(d)).toBe('14:05')
+    expect(formatClock(new Date('2026-11-18T21:30:00Z'))).toBe('00:30')
+  })
+  it('jour et date dans les trois langues, noms malgaches écrits', () => {
+    expect(formatLongDate(d, 'fr')).toBe('mercredi 18 novembre')
+    expect(formatLongDate(d, 'en')).toBe('Wednesday 18 November')
+    expect(formatLongDate(d, 'mg')).toBe('Alarobia 18 Novambra')
+    expect(formatLongDate(new Date('x'), 'fr')).toBe('')
   })
 })

@@ -13,6 +13,17 @@ const TOKENS: Record<AvatarColor, string> = {
 
 export const colorToken = (c: AvatarColor) => TOKENS[c]
 
+// Teinte claire d'une vignette de contact (écran de l'enfant, maquette écran 1).
+const TINTS: Record<AvatarColor, string> = {
+  orange: 'var(--tint-peach)',
+  blue: 'var(--tint-sky)',
+  violet: 'var(--tint-lilac)',
+  green: 'var(--tint-mint)',
+  yellow: 'var(--tint-butter)'
+}
+export const tintToken = (c: string) => TINTS[c as AvatarColor] ?? TINTS.orange
+export const accentToken = (c: string) => TOKENS[c as AvatarColor] ?? TOKENS.orange
+
 // Découpe en caractères visibles, créée une fois (absente des vieilles WebView).
 const graphemes = typeof Intl !== 'undefined' && 'Segmenter' in Intl ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null
 
