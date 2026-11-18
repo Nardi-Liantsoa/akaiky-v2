@@ -11,8 +11,9 @@ test('un parent crée sa famille, ajoute un enfant et obtient un QR d’appairag
   await page.getByLabel('Prénom').fill('Fy')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page).toHaveURL(/\/espace$/)
-  await page.getByRole('link', { name: 'Modifier' }).click()
-  await page.getByRole('link', { name: 'Configurer le téléphone' }).click()
+  // Menu « ⋯ » de la carte de l'enfant (NAR-174) : « Téléphone ».
+  await page.getByRole('button', { name: 'Actions pour Fy' }).click()
+  await page.getByRole('link', { name: 'Téléphone' }).click()
   await expect(page.getByRole('heading', { name: 'Configurer le téléphone de Fy' })).toBeVisible()
   await page.getByRole('button', { name: 'Afficher le QR code' }).click()
   await expect(page.getByRole('img', { name: 'QR code de configuration du téléphone' })).toBeVisible()

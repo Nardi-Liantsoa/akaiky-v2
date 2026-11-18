@@ -11,7 +11,8 @@ import LogItem from '../log/LogItem.vue'
 // « Aujourd'hui » sur l'accueil parent (NAR-152, maquette écran 6) : les 3 derniers
 // événements du jour, puis « Tout le journal ». Messages affichés = vus (NAR-150). Relu
 // toutes les 30 s tant que l'accueil est ouvert (le push viendra avec NAR-141).
-const props = defineProps<{ childId: string }>()
+// bare : sans cadre de carte (affiché dans la carte dépliée de l'enfant, NAR-174).
+const props = defineProps<{ childId: string, bare?: boolean }>()
 const t = useT()
 const items = ref<JournalItem[]>([])
 const status = ref<'loading' | 'ready' | 'error'>('loading')
@@ -57,7 +58,7 @@ onBeforeUnmount(() => { clearInterval(timer); generation++ })
 </script>
 
 <template>
-  <section class="card today" :class="{ stale: reloading && status === 'ready' }" :aria-busy="reloading">
+  <section class="today" :class="{ card: !bare, bare, stale: reloading && status === 'ready' }" :aria-busy="reloading">
     <header>
       <h2>{{ t.parent.log.todayTitle }}</h2>
       <RouterLink class="all" :to="{ name: 'journal' }">{{ t.parent.log.allLog }}</RouterLink>
@@ -76,7 +77,14 @@ onBeforeUnmount(() => { clearInterval(timer); generation++ })
   pointer-events: none;
   transition: opacity 0.15s;
 }
-.today {
+.bare {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  /* Hauteur réservée : la carte dépliée ne grandit pas une seconde fois au chargement. */
+  min-height: 140px;
+}
+.today:not(.bare) {
   margin-top: 16px;
   /* Hauteur réservée : la carte ne saute pas pendant une relecture (changement d'enfant). */
   min-height: 120px;

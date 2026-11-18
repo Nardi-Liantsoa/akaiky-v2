@@ -1,3 +1,4 @@
+import { closeAllSheets } from './composables/useSheetStack'
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { auth, init, isAdmin } from './store/auth'
 import { family, loadFamily } from './store/family'
@@ -40,7 +41,8 @@ const routes: RouteRecordRaw[] = [
 export const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior: (_to, _from, saved) => saved ?? { top: 0 }
+  // Ancre (« ⋯ › Code parent » → #code-parent) : la page s'ouvre sur cet élément.
+  scrollBehavior: (to, _from, saved) => saved ?? (to.hash ? { el: to.hash, top: 8 } : { top: 0 })
 })
 
 router.beforeEach(async (to) => {
@@ -64,3 +66,6 @@ router.beforeEach(async (to) => {
   }
   return true
 })
+
+// Nouvel écran : aucune feuille ne reste ouverte par-dessus (pile des feuilles, ampy-vue).
+router.afterEach(() => { closeAllSheets() })

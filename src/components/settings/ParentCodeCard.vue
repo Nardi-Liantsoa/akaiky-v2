@@ -97,7 +97,7 @@ async function unlockNow() {
 </script>
 
 <template>
-  <section class="card parent-code">
+  <section id="code-parent" class="card parent-code" tabindex="-1">
     <h2>{{ t.parentCode.title }}</h2>
     <p class="hint">{{ t.parentCode.hint }}</p>
     <p class="state" :class="{ missing: !child.parentCodeSetAt }">

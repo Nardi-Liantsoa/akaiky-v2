@@ -41,7 +41,10 @@ const PARENT_CODE = {
 // Échéance renvoyée seulement tant qu'elle n'est pas passée (parents et téléphone).
 export const REMOTE_UNLOCK_MINUTES = 15
 export const REMOTE_UNLOCK_SQL = 'CASE WHEN remote_unlock_until > now() THEN remote_unlock_until END AS remote_unlock_until'
-const COLUMNS = `id, first_name_enc, avatar_color, created_at, parent_code_set_at, ${REMOTE_UNLOCK_SQL}`
+// Dernier passage d'un téléphone appairé non révoqué (état « vu à … » de la carte, NAR-174).
+const LAST_SEEN_SQL = `(SELECT max(d.last_seen_at) FROM child_devices d
+  WHERE d.child_id = children.id AND d.family_id = children.family_id AND d.revoked_at IS NULL) AS phone_last_seen_at`
+const COLUMNS = `id, first_name_enc, avatar_color, created_at, parent_code_set_at, ${REMOTE_UNLOCK_SQL}, ${LAST_SEEN_SQL}`
 const firstName = (v) => text(v, { min: 1, max: 40, field: 'Prénom' })
 const notFound = () => new HttpError(404, 'Enfant introuvable.', 'child_not_found')
 const aad = (id) => `children:first_name:${id}`
@@ -56,7 +59,8 @@ export default async function childrenRoutes(app) {
     avatarColor: r.avatar_color,
     createdAt: r.created_at,
     parentCodeSetAt: r.parent_code_set_at ?? null,
-    remoteUnlockUntil: r.remote_unlock_until ?? null
+    remoteUnlockUntil: r.remote_unlock_until ?? null,
+    phoneLastSeenAt: r.phone_last_seen_at ?? null
   })
   const childId = (req) => { if (!isUuid(req.params.id)) throw notFound(); return req.params.id }
 

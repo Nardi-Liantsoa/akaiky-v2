@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, nextTick, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { RouterLink } from 'vue-router'
 import LoadError from '../../components/family/LoadError.vue'
-import ChildPicker from '../../components/parent/ChildPicker.vue'
+import ChildSwitcher from '../../components/parent/ChildSwitcher.vue'
 import ContactsCard from '../../components/settings/ContactsCard.vue'
 import ParentCodeCard from '../../components/settings/ParentCodeCard.vue'
 import { useT } from '../../composables/useT'
@@ -13,6 +14,15 @@ import { canManage, family, loadFamily } from '../../store/family'
 
 const t = useT()
 const current = computed(selectedChild)
+// Arrivée par « ⋯ › Code parent » (NAR-174) : la carte du code est amenée à l'écran.
+const route = useRoute()
+watch(() => [route.hash, children.status] as const, async ([hash, status]) => {
+  if (hash !== '#code-parent' || status !== 'ready') return
+  await nextTick()
+  const card = document.getElementById('code-parent')
+  card?.scrollIntoView({ block: 'start' })
+  card?.focus({ preventScroll: true })
+}, { immediate: true })
 onMounted(() => { void loadFamily() })
 watch(() => family.status, (s) => { if (s === 'ready') void loadChildren(true) }, { immediate: true })
 // Contacts de l'enfant sélectionné, relus à chaque arrivée et à chaque changement d'enfant.
@@ -34,7 +44,7 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
         <RouterLink v-if="canManage()" class="btn" :to="{ name: 'enfant-nouveau' }">{{ t.children.add }}</RouterLink>
       </div>
       <template v-else-if="current">
-        <ChildPicker v-if="children.items.length > 1" />
+        <ChildSwitcher v-if="children.items.length > 1" />
         <div v-if="contacts.status === 'error'" class="error" role="alert">
           <p>{{ t.contacts.loadError }} {{ contactErrorText(contacts.error, t) }}</p>
           <button class="btn btn-ghost" type="button" @click="loadContacts(current.id, true)">{{ t.errors.retry }}</button>
