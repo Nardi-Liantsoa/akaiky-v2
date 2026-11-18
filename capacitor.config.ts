@@ -15,7 +15,8 @@ const config: CapacitorConfig = {
     // vite.config.ts : modernTargets). Capacitor laisse passer dès 60 par défaut : un
     // WebView 60 à 63 afficherait un écran blanc figé. En dessous de 64, Capacitor charge
     // server.errorPath à la place (NAR-161 ; src/lib/webviewTarget.test.ts garde les
-    // deux alignés).
+    // deux alignés). Ne couvre pas le WebView Huawei (com.huawei.webview), comparé à
+    // minHuaweiWebViewVersion, qui suit une autre numérotation : limite documentée.
     minWebViewVersion: 64
   },
   server: {

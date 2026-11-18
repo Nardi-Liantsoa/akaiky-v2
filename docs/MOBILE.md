@@ -64,8 +64,19 @@ sur un écran blanc.
 
 Cas réel visé : un téléphone Android 8.0 ou 8.1 réinitialisé (les mises à jour du
 WebView sont effacées avec les données) et jamais remis à jour. Android 9 et suivants
-sortent d'usine avec un WebView 64 ou plus. L'appairage (NAR-138) passe par le Wi-Fi :
-le parent met le WebView à jour depuis le Play Store si l'écran de repli s'affiche.
+sortent d'usine avec un WebView 64 ou plus.
+
+**Téléphone d'enfant sous Android 8.x : à régler dans l'appairage (NAR-138).** Le QR
+de provisionnement exige une réinitialisation, qui remet le WebView d'usine (61 à 63
+sur Android 8.0 et 8.1). Une fois l'app verrouillée (Device Owner, lock task), ni
+l'enfant ni le parent n'atteignent le Play Store : l'écran de repli resterait affiché.
+L'appairage doit donc vérifier la version du WebView **avant** le verrouillage, et
+faire mettre à jour le WebView (ou refuser l'appareil) tant qu'elle est sous 64.
+
+**Huawei** : Capacitor compare `com.huawei.webview` à `minHuaweiWebViewVersion`
+(numérotation propre à Huawei, défaut 10), pas à `minWebViewVersion`. Un WebView Huawei
+basé sur Chromium < 64 donnerait un écran blanc. Non réglé faute de correspondance
+fiable entre les deux numérotations ; à vérifier sur un appareil Huawei réel.
 
 Ce poste ne peut pas vérifier Android 8 : l'image ARM API 26 n'a pas de WebView
 utilisable (« No WebView installed » au lancement ; l'écran « This app requires a

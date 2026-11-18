@@ -13,7 +13,7 @@ describe('WebView minimal', () => {
     expect(chrome).toBeDefined()
     expect(min).toBe(chrome)
     // Plancher de la syntaxe que le bundle garde telle quelle : import() (Chrome 63) et
-    // import.meta (Chrome 64), qu'esbuild n'abaisse pas, quelle que soit la cible.
+    // import.meta (Chrome 64), que la compilation (oxc, Vite 8) n'abaisse pas, quelle que soit la cible.
     expect(Number(min)).toBeGreaterThanOrEqual(64)
   })
 
@@ -22,6 +22,6 @@ describe('WebView minimal', () => {
     expect(path).toBe('webview.html')
     const html = read(`../../public/${path}`)
     expect(html).not.toMatch(/<script/i)
-    for (const lang of ['mg', 'fr', 'en']) expect(html).toContain(`<section lang="${lang}">`)
+    for (const lang of ['mg', 'fr', 'en']) expect(html).toMatch(new RegExp(`<section[^>]*\\blang="${lang}"`))
   })
 })

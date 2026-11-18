@@ -26,7 +26,7 @@ export default defineConfig(({ command, mode }) => {
       // démarrage. Un seul bundle moderne transpilé, sans chunks SystemJS (leurs
       // scripts en ligne seraient bloqués par la CSP).
       // Chrome 64 et plus : le bundle garde import() (Chrome 63) et import.meta (Chrome 64),
-      // qu'esbuild ne sait pas abaisser. android.minWebViewVersion (capacitor.config.ts) suit.
+      // que la compilation (oxc, Vite 8) n'abaisse pas. android.minWebViewVersion (capacitor.config.ts) suit.
       legacy({
         modernTargets: 'chrome >= 64, safari >= 13',
         modernPolyfills: true,
