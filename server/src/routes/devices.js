@@ -207,11 +207,13 @@ export async function deviceSessionRoutes(app) {
   // même photo de la base, que lorsqu'elles ont changé.
   app.get('/config', { config: { device: true } }, async (req, reply) => {
     const tagOf = (version) => `"${req.device.childId}.${version}"`
-    const { rows: [current] } = await db.query(
-      'SELECT config_version FROM children WHERE id = $1 AND family_id = $2', [req.device.childId, req.device.familyId])
-    if (!current) throw new HttpError(401, 'Session de l’appareil expirée.')
-    if (matches(req.headers['if-none-match'], tagOf(current.config_version))) {
-      return reply.header('etag', tagOf(current.config_version)).code(304).send()
+    if (req.headers['if-none-match']) {
+      const { rows: [current] } = await db.query(
+        'SELECT config_version FROM children WHERE id = $1 AND family_id = $2', [req.device.childId, req.device.familyId])
+      if (!current) throw new HttpError(401, 'Session de l’appareil expirée.')
+      if (matches(req.headers['if-none-match'], tagOf(current.config_version))) {
+        return reply.header('etag', tagOf(current.config_version)).code(304).send()
+      }
     }
     return withTransaction(db, async (conn) => {
       await conn.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')

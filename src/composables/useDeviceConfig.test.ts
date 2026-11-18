@@ -10,7 +10,7 @@ describe('useDeviceConfig', () => {
 
   it('dernière liste connue tout de suite, puis relevé ; un changement arrive en moins d’une minute', async () => {
     const refresh = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(v(4, ['Maman', 'Papa']))
-    await startDeviceConfig({ load: async () => v(3, ['Maman']), refresh })
+    await startDeviceConfig({ load: async () => v(3, ['Maman']), refresh }, 'c')
     expect(deviceConfig.config?.contacts.map((c) => c.name)).toEqual(['Maman'])
     resume()
     await vi.advanceTimersByTimeAsync(0)
@@ -22,7 +22,7 @@ describe('useDeviceConfig', () => {
 
   it('arrière-plan : plus aucun relevé ; retour au premier plan : relevé immédiat', async () => {
     const refresh = vi.fn().mockResolvedValue(null)
-    await startDeviceConfig({ load: async () => null, refresh })
+    await startDeviceConfig({ load: async () => null, refresh }, 'c')
     resume()
     await vi.advanceTimersByTimeAsync(0)
     pause()
@@ -35,7 +35,7 @@ describe('useDeviceConfig', () => {
   })
 
   it('hors ligne : la dernière liste reste affichée, état « hors ligne »', async () => {
-    await startDeviceConfig({ load: async () => v(3, ['Maman']), refresh: async () => { throw new TypeError('Failed to fetch') } })
+    await startDeviceConfig({ load: async () => v(3, ['Maman']), refresh: async () => { throw new TypeError('Failed to fetch') } }, 'c')
     resume()
     await vi.advanceTimersByTimeAsync(0)
     expect(deviceConfig.status).toBe('offline')
@@ -44,7 +44,7 @@ describe('useDeviceConfig', () => {
 
   it('téléphone retiré : liste effacée, relevés arrêtés', async () => {
     const refresh = vi.fn(async () => { throw new DeviceError(401, 'device_session_lost') })
-    await startDeviceConfig({ load: async () => v(3, ['Maman']), refresh })
+    await startDeviceConfig({ load: async () => v(3, ['Maman']), refresh }, 'c')
     resume()
     await vi.advanceTimersByTimeAsync(0)
     expect(deviceConfig.status).toBe('lost')
@@ -53,8 +53,20 @@ describe('useDeviceConfig', () => {
     expect(refresh).toHaveBeenCalledTimes(1)
     // Réappairé : un nouveau départ relève de nouveau.
     const again = vi.fn().mockResolvedValue(v(1, ['Papa']))
-    await startDeviceConfig({ load: async () => null, refresh: again })
+    await startDeviceConfig({ load: async () => null, refresh: again }, 'c')
     resume()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(deviceConfig.config?.contacts.map((c) => c.name)).toEqual(['Papa'])
+  })
+
+  it('relevé en cours pendant un redémarrage : son résultat est ignoré', async () => {
+    let release: (v: unknown) => void = () => {}
+    const slow = vi.fn(() => new Promise((r) => { release = r }))
+    await startDeviceConfig({ load: async () => null, refresh: slow as never }, 'a')
+    resume()
+    await vi.advanceTimersByTimeAsync(0)
+    await startDeviceConfig({ load: async () => v(1, ['Papa']), refresh: vi.fn().mockResolvedValue(null) }, 'b')
+    release(v(9, ['Ancien']))
     await vi.advanceTimersByTimeAsync(0)
     expect(deviceConfig.config?.contacts.map((c) => c.name)).toEqual(['Papa'])
   })

@@ -5,7 +5,7 @@ import { DeviceError, type DeviceInfoBody, type DeviceMe, type DeviceSession } f
 // Le jeton n'est effacé que lorsque le serveur l'a définitivement refusé (401) ou
 // accepté : tout autre échec le garde, pour un nouvel essai sans réinitialiser.
 export type ChildState =
-  | { kind: 'paired', firstName: string }
+  | { kind: 'paired', firstName: string, childId: string }
   | { kind: 'waiting' }
   | { kind: 'expired' }      // jeton expiré ou déjà utilisé : nouveau QR, donc réinitialisation
   | { kind: 'tooMany' }      // plafond atteint : un parent retire un téléphone, puis on réessaie
@@ -25,7 +25,7 @@ const transient = (e: unknown) => !(e instanceof DeviceError) || e.status >= 500
 
 async function me(session: DeviceSession): Promise<ChildState> {
   const r = await session.get<DeviceMe>('/device/me')
-  return { kind: 'paired', firstName: r.child.firstName }
+  return { kind: 'paired', firstName: r.child.firstName, childId: r.child.id }
 }
 
 export async function startChild(deps: ChildDeps): Promise<ChildState> {

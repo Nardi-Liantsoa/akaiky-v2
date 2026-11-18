@@ -6,7 +6,7 @@ import { useT } from '../../composables/useT'
 import { appKind } from '../../lib/appKind'
 import { startChild, type ChildState } from '../../lib/childStartup'
 import { configSync, deviceSession as session } from '../../lib/deviceSessionInstance'
-import { deviceConfig, pause, resume, startDeviceConfig } from '../../composables/useDeviceConfig'
+import { deviceConfig, pause, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
 import { AkaikyDevice } from '../../native/akaikyDevice'
 
 // Écran de l'app enfant (NAR-164) : échange du jeton reçu au provisionnement (QR),
@@ -43,19 +43,29 @@ onMounted(start)
 // (premier lancement ou réappairage) repart d'un relevé neuf.
 let unmounted = false
 let lifecycle: PluginListenerHandle | undefined
-let foreground = true
+let foreground = false
 onMounted(async () => {
   if (!Capacitor.isNativePlatform()) return
   const handle = await App.addListener('appStateChange', ({ isActive }) => {
     foreground = isActive
     if (isActive && state.value.kind === 'paired') resume(); else pause()
   })
-  if (unmounted) void handle.remove(); else lifecycle = handle
+  if (unmounted) { void handle.remove(); return }
+  lifecycle = handle
+  // État réel au moment de l'écoute : lancée en arrière-plan, l'app ne relève rien.
+  foreground = (await App.getState()).isActive
+  if (foreground && state.value.kind === 'paired') resume()
 })
-watch(() => state.value.kind, async (kind) => {
-  if (kind !== 'paired') { pause(); return }
-  await startDeviceConfig(configSync)
-  if (!unmounted && foreground && state.value.kind === 'paired') resume()
+// Chaque nouvel état (même « appairé » → « appairé » pour un autre enfant) repart de zéro.
+watch(state, async (s) => {
+  if (s.kind !== 'paired') {
+    stopDeviceConfig()
+    // Plus d'enfant appairé ici : aucune liste de contacts gardée sur le téléphone.
+    if (s.kind === 'waiting' || s.kind === 'expired' || s.kind === 'revoked') void configSync.clear()
+    return
+  }
+  await startDeviceConfig(configSync, s.childId)
+  if (!unmounted && foreground && state.value === s) resume()
 })
 // Téléphone retiré pendant l'usage : l'écran le dit.
 watch(() => deviceConfig.status, (s) => { if (s === 'lost') state.value = { kind: 'revoked' } })

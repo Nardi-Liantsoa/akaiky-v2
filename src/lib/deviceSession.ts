@@ -24,10 +24,10 @@ export class DeviceError extends Error {
 
 export const REFRESH_KEY = 'device-refresh-token'
 
-// `wipe` : clés de données liées à la session (configuration de l'enfant), effacées
-// quand la session est perdue ou remplacée par un nouvel appairage : jamais les
-// contacts d'un autre enfant affichés, ni gardés sur un téléphone retiré.
-export function createDeviceSession({ base, store, fetch: doFetch, wipe = [] }: { base: string, store: SecretStore, fetch: typeof fetch, wipe?: string[] }) {
+// `onReset` : efface les données liées à la session (configuration de l'enfant) quand
+// elle est perdue ou remplacée par un nouvel appairage : jamais les contacts d'un
+// autre enfant affichés, ni gardés sur un téléphone retiré.
+export function createDeviceSession({ base, store, fetch: doFetch, onReset }: { base: string, store: SecretStore, fetch: typeof fetch, onReset?: () => Promise<void> }) {
   let access: string | null = null
   let refreshing: Promise<boolean> | null = null
 
@@ -46,7 +46,7 @@ export function createDeviceSession({ base, store, fetch: doFetch, wipe = [] }: 
     await clearData()
   }
   async function clearData() {
-    for (const key of wipe) await store.remove(key).catch(() => {})
+    await onReset?.().catch(() => {})
   }
   const post = (path: string, body: unknown) => doFetch(`${base}${path}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'omit'

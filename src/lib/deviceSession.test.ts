@@ -48,14 +48,13 @@ describe('createDeviceSession', () => {
 
   it('données liées effacées : au nouvel appairage et à la perte de session', async () => {
     const store = memoryStore()
-    store.data.set('device-config', 'ancien enfant')
-    const ok = createDeviceSession({ base: '', store, wipe: ['device-config'], fetch: async () => json(201, { ...TOKENS, device: { id: 'd' }, child: { id: 'c' } }) })
+    const onReset = vi.fn(async () => {})
+    const ok = createDeviceSession({ base: '', store, onReset, fetch: async () => json(201, { ...TOKENS, device: { id: 'd' }, child: { id: 'c' } }) })
     await ok.pair('x', {})
-    expect(store.data.has('device-config')).toBe(false)
-    store.data.set('device-config', 'liste')
-    const lost = createDeviceSession({ base: '', store, wipe: ['device-config'], fetch: async () => json(401, {}) })
+    expect(onReset).toHaveBeenCalledTimes(1)
+    const lost = createDeviceSession({ base: '', store, onReset, fetch: async () => json(401, {}) })
     await expect(lost.get('/device/me')).rejects.toMatchObject({ status: 401 })
-    expect(store.data.has('device-config')).toBe(false)
+    expect(onReset).toHaveBeenCalledTimes(2)
   })
 
   it('appairage refusé : erreur avec le code du serveur, rien de stocké', async () => {

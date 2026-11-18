@@ -1,6 +1,5 @@
 import { reactive } from 'vue'
-import { DeviceError } from '../lib/deviceSession'
-import type { DeviceConfig } from '../lib/deviceConfig'
+import { isLost, type DeviceConfig } from '../lib/deviceConfig'
 
 // Configuration du téléphone de l'enfant, partagée par l'app (singleton : un seul
 // relevé à la fois). Relevé toutes les 30 s au premier plan, suspendu en arrière-plan
@@ -8,7 +7,7 @@ import type { DeviceConfig } from '../lib/deviceConfig'
 // connecté). Le réveil par notification silencieuse viendra avec NAR-141.
 export const POLL_MS = 30_000
 
-export interface ConfigSync { load(): Promise<DeviceConfig | null>, refresh(): Promise<DeviceConfig | null> }
+export interface ConfigSync { load(childId: string): Promise<DeviceConfig | null>, refresh(): Promise<DeviceConfig | null> }
 
 export const deviceConfig = reactive({
   config: null as DeviceConfig | null,
@@ -19,16 +18,21 @@ export const deviceConfig = reactive({
 let timer: ReturnType<typeof setInterval> | undefined
 let running: Promise<void> | null = null
 let source: ConfigSync | null = null
+// Génération : un relevé lancé avant un redémarrage n'applique pas son résultat.
+let generation = 0
 
 function poll(): Promise<void> {
+  const gen = generation
   running ??= (async () => {
     try {
       const fresh = await source!.refresh()
+      if (gen !== generation) return
       if (fresh) deviceConfig.config = fresh
       deviceConfig.status = 'ready'
     } catch (e) {
+      if (gen !== generation) return
       // Téléphone retiré : plus de données gardées, plus de relevé.
-      if (e instanceof DeviceError && e.status === 401) { deviceConfig.config = null; deviceConfig.status = 'lost'; pause() }
+      if (isLost(e)) { deviceConfig.config = null; deviceConfig.status = 'lost'; pause() }
       else deviceConfig.status = 'offline'
     } finally {
       running = null
@@ -37,7 +41,7 @@ function poll(): Promise<void> {
   return running
 }
 
-// Premier plan : relevé immédiat puis toutes les 30 s.
+// Premier plan : relevé immédiat puis toutes les 30 s (sans effet pendant un chargement).
 export function resume() {
   if (!source || deviceConfig.status === 'lost' || timer) return
   void poll()
@@ -49,20 +53,29 @@ export function pause() {
   timer = undefined
 }
 
-// Démarre avec la dernière configuration connue (hors ligne), puis relève.
-// Rappelée à chaque (ré)appairage : repart de l'état « inactif », même après « perdu ».
-export async function startDeviceConfig(sync: ConfigSync) {
+// Rappelée à chaque (ré)appairage : dernière liste connue de cet enfant, puis relevés
+// (resume) ; repart de l'état « inactif », même après « perdu ».
+export async function startDeviceConfig(sync: ConfigSync, childId: string) {
   pause()
-  source = sync
-  deviceConfig.config = await sync.load()
+  generation++
+  running = null
+  source = null
+  const gen = generation
+  const config = await sync.load(childId)
+  if (gen !== generation) return
+  deviceConfig.config = config
   deviceConfig.status = 'idle'
+  source = sync
 }
 
-// Tests : état et minuteries remis à zéro.
-export function resetDeviceConfig() {
+// Plus d'enfant appairé : relevés arrêtés, rien d'affiché.
+export function stopDeviceConfig() {
   pause()
+  generation++
   source = null
   running = null
   deviceConfig.config = null
   deviceConfig.status = 'idle'
 }
+
+export const resetDeviceConfig = stopDeviceConfig
