@@ -52,7 +52,7 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     await verifySchema(pool)
     const config = loadConfig({
       DATABASE_URL: url.toString(), APP_ORIGIN: 'https://app.test', RATE_LIMIT_IP: '10000', NATIVE_ORIGINS: 'capacitor://localhost,https://localhost',
-      DEVICE_APK_URL: 'https://app.test/downloads/akaiky-enfant.apk', DEVICE_APK_SIGNATURE_SHA256: 'A'.repeat(43)
+      DEVICE_APK_URL: 'https://cdn.app.test/akaiky-enfant.apk', DEVICE_APK_SIGNATURE_SHA256: 'A'.repeat(43)
     })
     const sent = [], app = await buildApp({ config, db: pool, mailer: { async send(m) { sent.push(m) } }, logger: false })
     runtime = { app, db: pool, sent }

@@ -61,6 +61,9 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   obligatoire) : back-office web **sans accès aux positions ni aux journaux d'appels**.
 - **Argent** : aucun en v1 (CdC §9).
 - **Langues** : `mg`, `fr`, `en`, malgache par défaut ; catalogues typés (`ampy-vue`).
+- **APK enfant (NAR-165, 18/11/2026)** : signé par un keystore hors dépôt
+  (`~/.config/akaiky-v2/`), embarqué dans l'image et servi à `/downloads/akaiky-enfant.apk`.
+  Somme du certificat : `Gg-Buz0ZeueZt6lby12Z4DwwXw43F_xwO0XBWYshbyU` (`NOSYHOST.md` § 6).
 - **WebView minimal (NAR-161, 18/11/2026)** : 64, la cible Chrome du bundle (`import()`,
   `import.meta`). En dessous, écran de repli statique en trois langues
   (`public/webview.html`) qui demande la mise à jour d'« Android System WebView ».

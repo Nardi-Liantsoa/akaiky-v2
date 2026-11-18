@@ -24,7 +24,8 @@
     "android:parent": "npm run build && npx cap sync android && cd android && ./gradlew assembleParentDebug",
     "android:enfant": "npm run build && npx cap sync android && cd android && ./gradlew assembleEnfantDebug",
     "android:both": "npm run build && npx cap sync android && cd android && ./gradlew assembleParentDebug assembleEnfantDebug",
-    "audit:deps": "node scripts/audit.mjs"
+    "audit:deps": "node scripts/audit.mjs",
+    "android:enfant:release": "sh scripts/android-release-enfant.sh"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.1",

@@ -121,6 +121,46 @@ effacer le journal d'audit.
 serveur neuf, **recréer `app_runtime` avant de restaurer** (procédure Deploy4000 :
 `nosyhost/docs/DURCISSEMENT-DEPLOY4000-20261001.md`).
 
+## 6. APK de l'app enfant (NAR-165)
+
+Le téléphone de l'enfant télécharge l'APK pendant l'appairage par QR. L'image le sert
+à `/downloads/akaiky-enfant.apk` ; le QR porte son adresse et la somme du certificat
+de signature, qu'Android vérifie avant d'installer.
+
+**Keystore de release** : `~/.config/akaiky-v2/akaiky-enfant-release.jks` et ses mots
+de passe dans `~/.config/akaiky-v2/keystore.properties` (créés le 18/11/2026, hors
+dépôt, droits 600). **À sauvegarder dans le gestionnaire de mots de passe** (fichier
+et mots de passe) : sans lui, aucune mise à jour de l'app enfant n'est possible sur
+les téléphones déjà configurés. Autre poste : `AKAIKY_KEYSTORE_PROPERTIES=<chemin>`.
+
+Publier une version de l'APK (avant `make release`) :
+
+```bash
+# 1. Monter versionCode et versionName du bloc `enfant { }` (android/app/build.gradle),
+#    propres à l'app enfant ; sans cela, les téléphones refusent la mise à jour.
+# 2. Construire, signer, vérifier, copier dans downloads/ :
+JAVA_HOME=$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home npm run android:enfant:release
+#    → affiche DEVICE_APK_SIGNATURE_SHA256 (identique tant que le keystore ne change pas)
+# 3. Construire et livrer l'image (section 2) avec --build-arg REQUIRE_APK=1 :
+#    downloads/akaiky-enfant.apk et son empreinte (akaiky-enfant.cert-sha256) y sont copiés.
+```
+
+Variables de l'app (avec `NATIVE_ORIGINS` contenant `https://localhost`) :
+
+```
+DEVICE_APK_URL=https://<domaine>/downloads/akaiky-enfant.apk
+DEVICE_APK_SIGNATURE_SHA256=Gg-Buz0ZeueZt6lby12Z4DwwXw43F_xwO0XBWYshbyU
+```
+
+La somme est publique (empreinte du certificat, pas un secret) ; elle ne change que si
+le keystore change, ce qui rendrait les téléphones existants impossibles à mettre à jour.
+Le contexte de build Docker exclut `android/`, `ios/` et tout fichier de keystore ; seul
+`downloads/akaiky-enfant.apk` est copié dans l'image. Si `DEVICE_APK_URL` pointe vers ce
+serveur et que l'APK manque à l'image, l'API le journalise au démarrage et refuse les QR
+(503) plutôt que d'en émettre qui mèneraient à une page introuvable ; de même si
+l'empreinte écrite par la release diffère de `DEVICE_APK_SIGNATURE_SHA256`. Le script
+refuse aussi un `versionCode` qui ne monte pas (`ALLOW_SAME_VERSION=1` pour reconstruire).
+
 ## Ce qu'il ne faut pas casser
 
 - **`/health` n'interroge pas la base** : il pilote le déploiement
