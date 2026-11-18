@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { getJournal, type JournalFilter, type JournalItem } from '../../api/journal'
+import { getJournal, type JournalFilter, type JournalItem, type JournalToday } from '../../api/journal'
 import { markShownAsRead } from '../../api/messages'
 import LoadError from '../../components/family/LoadError.vue'
-import LogFilters from '../../components/log/LogFilters.vue'
+import LogSummary from '../../components/log/LogSummary.vue'
 import LogItem from '../../components/log/LogItem.vue'
 import ChildSwitcher from '../../components/parent/ChildSwitcher.vue'
 import EmptyState from '../../components/parent/EmptyState.vue'
@@ -20,8 +20,8 @@ const current = computed(selectedChild)
 const filter = ref<JournalFilter>('all')
 const items = ref<JournalItem[]>([])
 const next = ref<string | null>(null)
-// null : compteur inconnu (chargement d'un autre enfant), affiché sans nombre.
-const blocked = ref<number | null>(null)
+// Nombres du jour (tuiles) ; null pendant le chargement d'un autre enfant.
+const today = ref<JournalToday | null>(null)
 const status = ref<'loading' | 'ready' | 'error'>('loading')
 const loadingMore = ref(false)
 const refreshing = ref(false)
@@ -39,11 +39,13 @@ async function load() {
   if (status.value !== 'ready') status.value = 'loading'
   refreshing.value = true
   try {
+    // Nombres du jour relus à chaque chargement (une seule requête légère) : les tuiles
+    // restent d'accord avec la liste, y compris après minuit.
     const page = await getJournal(childId, { kind: filter.value, counts: true })
     if (mine !== generation) return
     items.value = page.items
     next.value = page.next
-    if (page.counts) blocked.value = page.counts.blocked
+    if (page.today) today.value = page.today
     status.value = 'ready'
     // Données affichées : la liste redevient nette tout de suite (le « vu » suit en fond).
     refreshing.value = false
@@ -62,10 +64,9 @@ async function load() {
     if (mine === generation) refreshing.value = false
   }
 }
-// Autre enfant : rien de l'enfant précédent ne reste affiché.
 // Autre enfant : la liste précédente reste affichée, estompée et inactive, jusqu'à la
-// nouvelle (pas de clignement) ; compteur et curseur repartent de zéro.
-watch(() => current.value?.id, () => { next.value = null; blocked.value = null; loadingMore.value = false; refreshing.value = true })
+// nouvelle (pas de clignement) ; nombres du jour et curseur repartent de zéro.
+watch(() => current.value?.id, () => { next.value = null; today.value = null; loadingMore.value = false; refreshing.value = true })
 watch(() => [current.value?.id, filter.value] as const, () => { void load() }, { immediate: true })
 
 async function more() {
@@ -98,13 +99,20 @@ const dayLabel = (g: { when: string, date: Date }) =>
     <h1>{{ t.parent.log.title }}</h1>
     <template v-if="children.status === 'ready' && current">
       <ChildSwitcher v-if="children.items.length > 1" />
-      <LogFilters v-model="filter" :blocked="blocked" />
+      <LogSummary v-model="filter" :today="today" />
+      <!-- Zone annoncée toujours présente (une zone insérée déjà remplie n'est pas lue) ;
+           le bouton est à côté, pas dedans. -->
+      <div class="active-filter">
+        <p role="status" class="filter-status">{{ filter !== 'all' ? t.parent.log.activeFilter(t.parent.log.summary[filter]) : '' }}</p>
+        <button v-if="filter !== 'all'" type="button" class="show-all" @click="filter = 'all'">{{ t.parent.log.showAll }}</button>
+      </div>
       <p v-if="status === 'error'" class="error" role="alert">{{ t.parent.log.loadError }}</p>
       <div v-else-if="status === 'ready' && !items.length" class="card"><p class="empty">{{ t.parent.log.empty }}</p></div>
-      <div v-else-if="status === 'ready'" class="card" :class="{ refreshing }" :aria-busy="refreshing">
+      <!-- Une carte par jour, sous un titre bien visible (NAR-175). -->
+      <div v-else-if="status === 'ready'" class="days" :class="{ refreshing }" :aria-busy="refreshing">
         <section v-for="g in groups" :key="g.key" class="day">
           <h2>{{ dayLabel(g) }}</h2>
-          <ul class="list">
+          <ul class="card list">
             <LogItem v-for="i in g.items" :key="i.id" :item="i" :child-id="current.id" :can-allow="canManage()" />
           </ul>
         </section>
@@ -123,21 +131,45 @@ h1 {
   font-size: 2rem;
   margin: 8px 0 16px;
 }
-.day h2 {
-  margin: 16px 0 0;
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: var(--text-soft);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.active-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin: -4px 0 12px;
+  font-weight: 700;
 }
-.day:first-child h2 {
-  margin-top: 0;
+.active-filter:has(.filter-status:empty) {
+  margin: 0;
+}
+.filter-status {
+  margin: 0;
+}
+.show-all {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.show-all:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.day + .day {
+  margin-top: 20px;
+}
+.day h2 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+  font-weight: 900;
 }
 .list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 4px 16px;
 }
 .refreshing {
   opacity: 0.45;
