@@ -5,7 +5,7 @@ import { App } from '@capacitor/app'
 import { useT } from '../../composables/useT'
 import { appKind } from '../../lib/appKind'
 import { startChild, type ChildState } from '../../lib/childStartup'
-import { callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore, remoteUnlockSeen } from '../../lib/deviceSessionInstance'
+import { callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore, remoteUnlockSeen, messageOutbox } from '../../lib/deviceSessionInstance'
 import { deviceConfig, pause, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
 import { emergencyNumber } from '../../lib/emergency'
 import { sosPlan } from '../../lib/sos'
@@ -15,6 +15,7 @@ import ChildStatusBar from '../../components/child/ChildStatusBar.vue'
 import ContactTile from '../../components/child/ContactTile.vue'
 import SosButton from '../../components/child/SosButton.vue'
 import UnlockPanel from '../../components/child/UnlockPanel.vue'
+import QuickMessagesPanel from '../../components/child/QuickMessagesPanel.vue'
 import { armKiosk, disarmKiosk, isUnlocked, kiosk, lockNow, refreshKiosk, unlockKiosk, useKioskPlugin } from '../../composables/useKiosk'
 import { AkaikyKiosk, UNLOCK_MINUTES } from '../../native/kiosk'
 import { formatClock } from '../../lib/format'
@@ -131,6 +132,8 @@ const callError = ref(false)
 let journalRetry: ReturnType<typeof setTimeout> | undefined
 function syncJournal() {
   clearTimeout(journalRetry)
+  // Messages rapides restés hors ligne (NAR-150) : envoyés au même rythme.
+  void messageOutbox.flush().catch(() => {})
   // Une erreur d'import n'empêche jamais l'envoi du reste du journal.
   void importScreened().catch(() => {})
     .then(() => callJournal.complete())
@@ -288,6 +291,8 @@ async function onUnlocked() {
 }
 
 const unlocking = ref(false)
+// « Dire à mes parents » (NAR-150).
+const messaging = ref(false)
 const canUnlock = computed(() => !!kiosk.status?.deviceOwner && !!kiosk.status.armed && !isUnlocked())
 // Téléphone retiré, ou jamais relié : pendant une sortie, le parent peut le libérer
 // (plus de verrou ni de restriction, réinitialisable et réappairable).
@@ -349,6 +354,8 @@ const text = computed(() => {
       <p class="waiting">{{ t.child.noContacts }}</p>
       <p class="hint">{{ t.child.noContactsHint }}</p>
     </section>
+    <button class="messages" type="button" @click="messaging = true">{{ t.child.quick.open }}</button>
+    <QuickMessagesPanel v-if="messaging" @close="messaging = false" />
     <footer class="actions">
       <SosButton @trigger="sos" />
       <button class="emergency" type="button" @click="callEmergency">{{ t.child.emergency(emergency) }}</button>
@@ -438,6 +445,16 @@ h1 {
   background: transparent;
   color: var(--sos);
   font: inherit;
+  font-weight: 900;
+}
+.messages {
+  min-height: 64px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--tint-butter);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.2rem;
   font-weight: 900;
 }
 .unlocked {

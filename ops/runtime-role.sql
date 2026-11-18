@@ -45,5 +45,7 @@ GRANT INSERT, DELETE ON device_sessions TO app_runtime;
 GRANT UPDATE (token_hash, expires_at, last_seen_at, refresh_hash, previous_refresh_hash, discarded_refresh_hash, rotated_at, refresh_expires_at) ON device_sessions TO app_runtime;
 -- Journal du téléphone (008_device_events.sql) : ajout seul.
 GRANT INSERT ON device_events TO app_runtime;
+-- Messages rapides (012_quick_messages.sql) : ajout seul.
+GRANT INSERT ON quick_messages, quick_message_reads TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;

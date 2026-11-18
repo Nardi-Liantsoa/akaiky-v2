@@ -29,7 +29,7 @@ test('owner sans enfant : ajouter deux enfants, puces affichées, sélection gar
   await page.getByLabel('Prénom').fill('Fy')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page).toHaveURL(/\/espace$/)
-  await expect(page.getByRole('heading', { name: 'Fy' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Fy', exact: true })).toBeVisible()
   // Sans couleur choisie, rien n'est envoyé : la rotation est celle du serveur.
   expect(calls.find((r) => r.method() === 'POST' && r.url().endsWith('/api/children'))!.postDataJSON()).toEqual({ firstName: 'Fy' })
 
@@ -48,7 +48,7 @@ test('owner sans enfant : ajouter deux enfants, puces affichées, sélection gar
   await expect(page.getByRole('group', { name: 'Enfants de la famille' }).getByRole('button', { name: 'Fy' })).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('group', { name: 'Enfants de la famille' }).getByRole('button', { name: 'Tiana' }).click()
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Tiana' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Tiana', exact: true })).toBeVisible()
 })
 
 test('renommer puis retirer un enfant (retrait en deux temps)', async ({ page }) => {
@@ -67,7 +67,7 @@ test('renommer puis retirer un enfant (retrait en deux temps)', async ({ page })
   await expect(page.getByLabel('Prénom')).toHaveValue('Fy')
   await page.getByLabel('Prénom').fill('Fyfy')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
-  await expect(page.getByRole('heading', { name: 'Fyfy' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Fyfy', exact: true })).toBeVisible()
 
   await page.getByRole('link', { name: 'Modifier' }).click()
   await page.getByRole('button', { name: 'Retirer cet enfant' }).click()
@@ -80,7 +80,7 @@ test('contact : voit les enfants, ni ajout ni modification', async ({ page }) =>
   const api = childrenApi([kid(1, 'Fy')])
   await mockApi(page, { ...me, 'GET /api/families/me': () => ({ body: { ...FAMILY, role: 'member' } }), ...api.handlers })
   await page.goto('/espace')
-  await expect(page.getByRole('heading', { name: 'Fy' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Fy', exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Ajouter un enfant' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Modifier' })).toHaveCount(0)
   // Adresse du formulaire tapée à la main : retour à l'accueil.

@@ -35,7 +35,7 @@ leur moyen de preuve est à fixer avec le ticket qui les construit.
 - [C11] (prévu) Sans Internet sur le téléphone de l'enfant, un SOS envoie quand même un SMS avec la position à chaque parent. (CdC C09, natif)
 - [C12] (prévu) Pendant un SOS, si le parent 1 ne décroche pas, le téléphone appelle le parent 2. (CdC C10, natif)
 - [C13] (prévu) Un parent qui marque le SOS « pris en charge » est visible comme tel par les autres parents. (CdC C11)
-- [C14] (prévu) Un message rapide envoyé par l'enfant arrive chez les parents. (CdC C12)
+- [C14] Un message rapide envoyé par l'enfant arrive chez les parents. (CdC C12)
 - [C15] (prévu) Une modification des contacts ou des applications autorisées faite par le parent s'applique sur le téléphone de l'enfant en moins d'une minute, s'il est connecté. (CdC C13)
 - [C16] (prévu) Pendant une plage horaire « école », seuls les parents et le SOS restent utilisables. (CdC C14)
 - [C17] (prévu) Le parent reçoit une alerte quand la batterie de l'enfant passe sous 15 %. (CdC C15)

@@ -2,6 +2,7 @@ import { SecureStorage } from '@aparajita/capacitor-secure-storage'
 import { API_BASE } from '../api/base'
 import { createConfigSync } from './deviceConfig'
 import { createUnlockGuard } from './unlockGuard'
+import { createMessageOutbox, type OutgoingMessage } from './messageOutbox'
 import { createCallJournal, type DeviceEvent } from './callJournal'
 import { uuidV4 } from './uuid'
 import { AkaikyCall } from '../native/akaikyCall'
@@ -20,7 +21,7 @@ export const secureStore: SecretStore = {
 // Session perdue ou remplacée : la configuration gardée (contacts) est effacée.
 export const deviceSession = createDeviceSession({
   base: API_BASE, store: secureStore, fetch: (...args) => fetch(...args),
-  onReset: async () => { await configSync.clear(); await childIdentity.clear(); await callJournal.clear() }
+  onReset: async () => { await configSync.clear(); await childIdentity.clear(); await callJournal.clear(); await messageOutbox.clear() }
 })
 export const configSync = createConfigSync({ session: deviceSession, store: secureStore })
 
@@ -95,3 +96,11 @@ export const remoteUnlockSeen = {
   },
   set: (until: string) => secureStore.set(REMOTE_SEEN_KEY, JSON.stringify({ until }))
 }
+
+// Messages rapides (NAR-150) : file d'envoi dans le Keystore, partie au retour du réseau.
+export const messageOutbox = createMessageOutbox({
+  store: secureStore,
+  post: (m: OutgoingMessage) => deviceSession.post('/device/messages', m),
+  uuid: uuidV4,
+  now: () => Date.now()
+})
