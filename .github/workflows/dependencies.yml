@@ -25,4 +25,9 @@ jobs:
         with:
           node-version: 24
       - run: npm ci --ignore-scripts
-      - run: npm audit --audit-level=moderate
+      # Front : exceptions datées (audit-exceptions.json, scripts/audit.mjs, NAR-159).
+      # Serveur : npm audit brut, sans exception.
+      - if: matrix.directory == '.'
+        run: node scripts/audit.mjs
+      - if: matrix.directory != '.'
+        run: npm audit --audit-level=moderate
