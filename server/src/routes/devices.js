@@ -103,7 +103,7 @@ const EVENTS = {
     }
   }
 }
-const eventAad = (id, column) => `device_events:${column}:${id}`
+export const eventAad = (id, column) => `device_events:${column}:${id}`
 const REFRESH = { type: 'object', additionalProperties: false, required: ['refreshToken'], properties: { refreshToken: TOKEN } }
 
 // Routes de compte (préfixe /api).
