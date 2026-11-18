@@ -1,0 +1,30 @@
+<!doctype html>
+<!-- Écran de repli natif (capacitor.config.ts, server.errorPath) : affiché par Capacitor
+     quand le WebView du téléphone est plus ancien qu'android.minWebViewVersion, ou quand
+     la page principale ne se charge pas. HTML et CSS seuls, sans JavaScript : il doit
+     s'afficher sur le WebView le plus ancien. Les trois langues, malgache d'abord. -->
+<html lang="mg">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Akaiky</title>
+    <link rel="stylesheet" href="webview.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Akaiky</h1>
+      <section lang="mg">
+        <h2>Tsy afaka misokatra amin'ity finday ity i Akaiky.</h2>
+        <p>Havaozy ao amin'ny Play Store ny « Android System WebView » (na Google Chrome), dia avereno sokafana i Akaiky.</p>
+      </section>
+      <section lang="fr">
+        <h2>Akaiky ne peut pas s'ouvrir sur ce téléphone.</h2>
+        <p>Mettez à jour « Android System WebView » (ou Google Chrome) depuis le Play Store, puis relancez Akaiky.</p>
+      </section>
+      <section lang="en">
+        <h2>Akaiky can't open on this phone.</h2>
+        <p>Update “Android System WebView” (or Google Chrome) from the Play Store, then open Akaiky again.</p>
+      </section>
+    </main>
+  </body>
+</html>

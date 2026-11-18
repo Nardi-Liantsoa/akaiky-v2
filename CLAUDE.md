@@ -61,6 +61,10 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   obligatoire) : back-office web **sans accès aux positions ni aux journaux d'appels**.
 - **Argent** : aucun en v1 (CdC §9).
 - **Langues** : `mg`, `fr`, `en`, malgache par défaut ; catalogues typés (`ampy-vue`).
+- **WebView minimal (NAR-161, 18/11/2026)** : 61, la cible Chrome du bundle. En dessous,
+  écran de repli statique en trois langues (`public/webview.html`) qui demande la mise
+  à jour d'« Android System WebView ». Pas de bundle pour Chrome 58–60 (Android 8.0
+  jamais mis à jour) : il faudrait les chunks SystemJS que la CSP bloque.
 - **Hors connexion** : appels et SOS par SMS sans Internet (natif enfant). L'app
   parent démarre hors ligne et le dit, sans déconnecter.
 - **Notifications** : FCM (Android) et APNs (iOS), comptes au nom du client. Alertes
