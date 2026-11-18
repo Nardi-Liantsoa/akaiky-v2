@@ -14,6 +14,9 @@ const events = (device, list) => native(ctx.app, 'POST', '/api/device/events', {
 const message = (device, slot) => native(ctx.app, 'POST', '/api/device/messages', { token: device.accessToken, body: { id: randomUUID(), slot, sentAt: new Date().toISOString() } })
 const journal = (u, childId, query = '') => call(ctx.app, 'GET', `/api/children/${childId}/journal${query}`, { cookie: u.cookie })
 const at = (minutesAgo) => new Date(Date.now() - minutesAgo * 60_000).toISOString()
+// Quelques secondes avant maintenant : toujours « aujourd'hui », sauf dans les 6 premières
+// secondes après minuit à Antananarivo.
+const secondsAgo = (s) => new Date(Date.now() - s * 1000).toISOString()
 
 async function join(owner, role) {
   const guest = await newUser(ctx)
@@ -36,18 +39,19 @@ test('journal : appels, bloqués, déverrouillages et messages, du plus récent 
   const member = await join(owner, 'member')
   const fy = await pairedChild(owner, 'Fy')
   const maman = (await call(ctx.app, 'POST', `/api/children/${fy.kid.id}/contacts`, { cookie: owner.cookie, body: { name: 'Maman', phone: '034 12 345 67' } })).json()
-  const out = { id: randomUUID(), kind: 'call_out', contactId: maman.id, name: 'Maman', phone: '+261341234567', startedAt: at(50), durationS: 42 }
-  const inc = { id: randomUUID(), kind: 'call_in', contactId: maman.id, name: 'Maman', phone: '+261341234567', startedAt: at(40), durationS: 10 }
-  const b1 = { id: randomUUID(), kind: 'call_blocked', phone: '+261329876543', startedAt: at(30) }
-  const b2 = { id: randomUUID(), kind: 'call_blocked', startedAt: at(20) }
-  const unlock = { id: randomUUID(), kind: 'unlock', source: 'code', startedAt: at(10), durationS: 900 }
+  const out = { id: randomUUID(), kind: 'call_out', contactId: maman.id, name: 'Maman', phone: '+261341234567', startedAt: secondsAgo(6), durationS: 42 }
+  const inc = { id: randomUUID(), kind: 'call_in', contactId: maman.id, name: 'Maman', phone: '+261341234567', startedAt: secondsAgo(5), durationS: 10 }
+  const b1 = { id: randomUUID(), kind: 'call_blocked', phone: '+261329876543', startedAt: secondsAgo(4) }
+  const b2 = { id: randomUUID(), kind: 'call_blocked', startedAt: secondsAgo(3) }
+  const unlock = { id: randomUUID(), kind: 'unlock', source: 'code', startedAt: secondsAgo(2), durationS: 900 }
   assert.equal((await events(fy.device, [out, inc, b1, b2, unlock])).json().accepted.length, 5)
   assert.equal((await message(fy.device, 2)).statusCode, 200)
 
   const all = await journal(member, fy.kid.id, '?counts=1')
   assert.equal(all.statusCode, 200, all.body)
   assert.deepEqual(all.json().items.map((i) => i.kind), ['message', 'unlock', 'call_blocked', 'call_blocked', 'call_in', 'call_out'])
-  assert.equal(all.json().counts.blocked, 2)
+  // Tuiles du jour (heure de Madagascar) : 2 appels, 2 bloqués, 1 message, 1 déverrouillage.
+  assert.deepEqual(all.json().today, { calls: 2, blocked: 2, messages: 1, unlocks: 1 })
   const [msg, unl, hidden, blocked] = all.json().items
   assert.equal(msg.slot, 2)
   assert.deepEqual(msg.readBy, [])
@@ -59,7 +63,22 @@ test('journal : appels, bloqués, déverrouillages et messages, du plus récent 
   assert.deepEqual((await journal(owner, fy.kid.id, '?kind=calls')).json().items.map((i) => i.kind), ['call_in', 'call_out'])
   assert.deepEqual((await journal(owner, fy.kid.id, '?kind=blocked')).json().items.map((i) => i.id), [b2.id, b1.id])
   assert.deepEqual((await journal(owner, fy.kid.id, '?kind=messages')).json().items.map((i) => i.kind), ['message'])
-  assert.equal((await journal(owner, fy.kid.id)).json().counts, undefined, 'compteur sur demande seulement')
+  assert.deepEqual((await journal(owner, fy.kid.id, '?kind=unlocks')).json().items.map((i) => i.kind), ['unlock'])
+  assert.equal((await journal(owner, fy.kid.id)).json().today, undefined, 'nombres sur demande seulement')
+})
+
+test('tuiles du jour : un événement d’hier (heure de Madagascar) ne compte pas aujourd’hui', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const fy = await pairedChild(owner, 'Fy')
+  // Minuit à Antananarivo (UTC+3) = 21:00 UTC la veille : 22:00 UTC « hier » est déjà aujourd'hui.
+  const { rows: [{ start }] } = await ctx.db.query("SELECT date_trunc('day', now() AT TIME ZONE 'Indian/Antananarivo') AT TIME ZONE 'Indian/Antananarivo' AS start")
+  const before = new Date(start.getTime() - 60_000).toISOString(), after = new Date(start.getTime() + 60_000).toISOString()
+  const ok = [{ id: randomUUID(), kind: 'call_blocked', phone: '+261329876543', startedAt: before }]
+  if (Date.parse(after) < Date.now()) ok.push({ id: randomUUID(), kind: 'call_blocked', phone: '+261329876543', startedAt: after })
+  await events(fy.device, ok)
+  const res = (await journal(owner, fy.kid.id, '?counts=1')).json()
+  assert.equal(res.today.blocked, ok.length - 1)
 })
 
 test('cloisonnement : autre famille 404, sans session 401, admin sans accès', async () => {

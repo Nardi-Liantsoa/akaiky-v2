@@ -1,6 +1,6 @@
 // Journal de l'enfant (NAR-152) : appels sortants, reçus et bloqués, déverrouillages
 // (device_events) et messages rapides (quick_messages), du plus récent au plus ancien.
-//   GET /children/:id/journal?kind=all|calls|blocked|messages&before=<curseur>&limit=&counts=1
+//   GET /children/:id/journal?kind=all|calls|blocked|messages|unlocks&before=<curseur>&limit=&counts=1
 // Tous les membres de la famille ; jamais l'admin de la plateforme (pas membre). Pages
 // par curseur (date, identifiant) : ni doublon ni trou si de nouveaux événements arrivent
 // pendant la lecture. Numéros et noms déchiffrés ici seulement, champ par champ.
@@ -15,7 +15,8 @@ const KINDS = {
   all: { events: ['call_out', 'call_in', 'call_blocked', 'unlock'], messages: true },
   calls: { events: ['call_out', 'call_in'], messages: false },
   blocked: { events: ['call_blocked'], messages: false },
-  messages: { events: [], messages: true }
+  messages: { events: [], messages: true },
+  unlocks: { events: ['unlock'], messages: false }
 }
 const childNotFound = () => new HttpError(404, 'Enfant introuvable.', 'child_not_found')
 
@@ -76,9 +77,21 @@ export async function journalRoutes(app) {
     const last = page.at(-1)
     const next = rows.length > limit && last ? `${last.at.toISOString()}_${last.id}` : null
     if (cursor[0] || req.query.counts !== '1') return { items, next }
-    // Compteur « Bloqués » (filtre de la maquette) : demandé par l'écran Journal, première page.
-    const { rows: [{ blocked }] } = await db.query(
-      "SELECT count(*)::int AS blocked FROM device_events WHERE child_id = $1 AND family_id = $2 AND kind = 'call_blocked'", [child.id, own.familyId])
-    return { items, next, counts: { blocked } }
+    // Nombres du jour (tuiles de synthèse, NAR-175) : jour de Madagascar, borné des deux
+    // côtés (un téléphone en avance ne compte jamais demain dans aujourd'hui). Seulement sur
+    // demande et en première page : ils ne dépendent ni du filtre ni de la page.
+    const { rows: [c] } = await db.query(
+      `WITH day AS (
+         SELECT date_trunc('day', now() AT TIME ZONE 'Indian/Antananarivo') AT TIME ZONE 'Indian/Antananarivo' AS start,
+                (date_trunc('day', now() AT TIME ZONE 'Indian/Antananarivo') + interval '1 day') AT TIME ZONE 'Indian/Antananarivo' AS stop)
+       SELECT
+         count(*) FILTER (WHERE e.kind IN ('call_out', 'call_in'))::int AS calls,
+         count(*) FILTER (WHERE e.kind = 'call_blocked')::int AS blocked,
+         count(*) FILTER (WHERE e.kind = 'unlock')::int AS unlocks,
+         (SELECT count(*)::int FROM quick_messages q, day WHERE q.child_id = $1 AND q.family_id = $2 AND q.created_at >= day.start AND q.created_at < day.stop) AS messages
+       FROM day LEFT JOIN device_events e
+         ON e.child_id = $1 AND e.family_id = $2 AND e.started_at >= day.start AND e.started_at < day.stop`,
+      [child.id, own.familyId])
+    return { items, next, today: { calls: c.calls, blocked: c.blocked, messages: c.messages, unlocks: c.unlocks } }
   })
 }
