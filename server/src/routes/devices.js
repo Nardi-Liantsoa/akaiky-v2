@@ -274,9 +274,9 @@ export async function deviceSessionRoutes(app) {
 
   // Événements du téléphone (NAR-166). L'enfant vient de la session. Un contact
   // d'un autre enfant est refusé ; un contact retiré entre l'appel et l'envoi (file hors
-  // ligne) est accepté avec l'instantané envoyé (nom, numéro composé), sans lien. Chaque
-  // événement dans son propre point de sauvegarde : un seul en échec ne bloque pas les
-  // autres. Idempotent : un identifiant déjà enregistré pour cet enfant est accepté.
+  // ligne) est accepté avec l'instantané envoyé (nom, numéro composé), sans lien : un
+  // téléphone modifié ne peut écrire que dans le journal de SON enfant. Idempotent : un
+  // identifiant déjà enregistré pour cet enfant est accepté.
   const eventsLimit = createLimiter({ max: 60, windowMs: 60_000 })
   app.post('/events', { config: { device: true }, schema: { body: EVENTS } }, async (req) => {
     if (!eventsLimit(`device:${req.device.id}`)) throw new HttpError(429, 'Trop d’envois. Réessayez dans une minute.')
@@ -294,25 +294,29 @@ export async function deviceSessionRoutes(app) {
         const contact = known.get(e.contactId)
         const foreign = contact && (contact.child_id !== req.device.childId || contact.family_id !== req.device.familyId)
         if (!plausible || foreign) { rejected.push(e.id); continue }
+        const name = typeof e.name === 'string' ? e.name.trim().slice(0, 80) : ''
+        const insert = (contactId) => conn.query(
+          `INSERT INTO device_events(id, family_id, child_id, device_id, kind, contact_id, name_enc, phone_enc, started_at, duration_s)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (id) DO NOTHING`,
+          [e.id, req.device.familyId, req.device.childId, req.device.id, e.kind, contactId,
+            name ? sealField(name, config.dataKey, eventAad(e.id, 'name')) : null,
+            e.phone ? sealField(e.phone, config.dataKey, eventAad(e.id, 'phone')) : null,
+            new Date(started), e.durationS ?? null])
         await conn.query('SAVEPOINT ev')
+        let rowCount
         try {
-          const name = typeof e.name === 'string' ? e.name.trim().slice(0, 80) : ''
-          const { rowCount } = await conn.query(
-            `INSERT INTO device_events(id, family_id, child_id, device_id, kind, contact_id, name_enc, phone_enc, started_at, duration_s)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (id) DO NOTHING`,
-            [e.id, req.device.familyId, req.device.childId, req.device.id, e.kind, contact ? contact.id : null,
-              name ? sealField(name, config.dataKey, eventAad(e.id, 'name')) : null,
-              e.phone ? sealField(e.phone, config.dataKey, eventAad(e.id, 'phone')) : null,
-              new Date(started), e.durationS ?? null])
-          // Rejeu par ce même enfant : accepté ; identifiant pris par un autre enfant : refusé.
-          const mine = rowCount || (await conn.query('SELECT 1 FROM device_events WHERE id = $1 AND child_id = $2', [e.id, req.device.childId])).rowCount
-          await conn.query('RELEASE SAVEPOINT ev')
-          ;(mine ? accepted : rejected).push(e.id)
+          ;({ rowCount } = await insert(contact ? contact.id : null))
         } catch (err) {
+          // Contact retiré entre la lecture du lot et l'écriture : enregistré sans lien.
+          // Toute autre erreur remonte (500) : la file du téléphone est gardée pour un nouvel essai.
+          if (err.code !== '23503') throw err
           await conn.query('ROLLBACK TO SAVEPOINT ev')
-          req.log.error({ err, event: e.id }, 'événement d’appareil refusé')
-          rejected.push(e.id)
+          ;({ rowCount } = await insert(null))
         }
+        await conn.query('RELEASE SAVEPOINT ev')
+        // Rejeu par ce même enfant : accepté ; identifiant pris par un autre enfant : refusé.
+        const mine = rowCount || (await conn.query('SELECT 1 FROM device_events WHERE id = $1 AND child_id = $2', [e.id, req.device.childId])).rowCount
+        ;(mine ? accepted : rejected).push(e.id)
       }
     })
     return { accepted, rejected }

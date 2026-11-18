@@ -27,7 +27,7 @@ export const configSync = createConfigSync({ session: deviceSession, store: secu
 export const callJournal = createCallJournal({
   store: secureStore,
   post: (events: CallEvent[]) => deviceSession.post('/device/events', { events }),
-  lastOutgoing: (number, since) => AkaikyCall.lastOutgoing({ number, since }),
+  lastOutgoing: (number, since, until) => AkaikyCall.lastOutgoing({ number, since, ...(until === undefined ? {} : { until }) }),
   now: () => Date.now(),
   uuid: uuidV4
 })

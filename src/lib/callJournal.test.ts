@@ -25,7 +25,7 @@ describe('createCallJournal', () => {
     await s.journal.started({ id: 'maman', name: 'Maman' }, '+261341234567')
     expect(s.pending()).toHaveLength(1)
     await s.journal.complete()
-    expect(s.deps.lastOutgoing).toHaveBeenCalledWith('+261341234567', 1_000_000 - 10_000, undefined)
+    expect(s.deps.lastOutgoing).toHaveBeenCalledWith('+261341234567', 1_000_000 - 2_000, undefined)
     expect(s.queue()).toEqual([{ id: 'id-1', kind: 'call_out', contactId: 'maman', name: 'Maman', phone: '+261341234567', startedAt: new Date(1_000_500).toISOString(), durationS: 42 }])
     await s.journal.flush()
     expect(s.deps.post).toHaveBeenCalledTimes(1)
@@ -76,13 +76,13 @@ describe('createCallJournal', () => {
   })
 
   it('deux appels au même numéro : chacun cherche sa durée avant le suivant', async () => {
-    const s = setup({ lastOutgoing: vi.fn(async (_n: string, since: number) => ({ found: true, startedAt: since + 10_000, durationS: since > 1_000_000 ? 7 : 3 })) })
+    const s = setup({ lastOutgoing: vi.fn(async (_n: string, since: number) => ({ found: true, startedAt: since + 10_000, durationS: since > 1_100_000 ? 7 : 3 })) })
     await s.journal.started({ id: 'maman', name: 'Maman' }, '+261341234567')
     s.advance(120_000)
     await s.journal.started({ id: 'maman', name: 'Maman' }, '+261341234567')
     await s.journal.complete()
-    expect(s.deps.lastOutgoing).toHaveBeenNthCalledWith(1, '+261341234567', 990_000, 1_110_000)
-    expect(s.deps.lastOutgoing).toHaveBeenNthCalledWith(2, '+261341234567', 1_110_000, undefined)
+    expect(s.deps.lastOutgoing).toHaveBeenNthCalledWith(1, '+261341234567', 998_000, 1_120_000)
+    expect(s.deps.lastOutgoing).toHaveBeenNthCalledWith(2, '+261341234567', 1_118_000, undefined)
     expect(s.queue().map((e: { durationS: number }) => e.durationS)).toEqual([3, 7])
   })
 
@@ -93,5 +93,23 @@ describe('createCallJournal', () => {
     expect(s.pending()).toEqual([])
     await s.journal.started({ id: 'papa', name: 'Papa' }, '+261331234567')
     expect(await s.journal.complete()).toBe(1)
+  })
+
+  it('permission du journal d’Android refusée : envoyé tout de suite, sans durée', async () => {
+    const s = setup({ lastOutgoing: vi.fn(async () => ({ found: false, permission: false })) })
+    await s.journal.started({ id: 'maman', name: 'Maman' }, '+261341234567')
+    expect(await s.journal.complete()).toBe(0)
+    expect(s.queue()[0].durationS).toBeNull()
+  })
+
+  it('un envoi réseau en cours ne retarde pas un appel qui part', async () => {
+    let release: () => void = () => {}
+    const s = setup({ post: vi.fn(() => new Promise<{ accepted: string[], rejected: string[] }>((r) => { release = () => r({ accepted: [], rejected: [] }) })) })
+    await s.journal.started({ id: 'maman', name: 'Maman' }, '+261341234567')
+    await s.journal.complete()
+    const flushing = s.journal.flush()
+    await expect(Promise.race([s.journal.started({ id: 'papa', name: 'Papa' }, '+261331234567'), new Promise((r) => setTimeout(() => r('bloqué'), 50))])).resolves.not.toBe('bloqué')
+    release()
+    await flushing
   })
 })

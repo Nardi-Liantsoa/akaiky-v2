@@ -92,8 +92,13 @@ class CallPlugin : Plugin() {
         val since = call.getLong("since") ?: 0L
         val until = call.getLong("until") ?: Long.MAX_VALUE
         val result = com.getcapacitor.JSObject().put("found", false)
-        if (number == null || !(isGranted(Manifest.permission.READ_CALL_LOG) || grant(Manifest.permission.READ_CALL_LOG))) {
+        if (number == null) {
             call.resolve(result)
+            return
+        }
+        // Permission impossible à obtenir : le web envoie l'appel sans durée, sans attendre.
+        if (!(isGranted(Manifest.permission.READ_CALL_LOG) || grant(Manifest.permission.READ_CALL_LOG))) {
+            call.resolve(result.put("permission", false))
             return
         }
         try {

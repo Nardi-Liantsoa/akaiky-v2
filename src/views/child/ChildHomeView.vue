@@ -56,7 +56,7 @@ onMounted(async () => {
   if (!Capacitor.isNativePlatform()) return
   const handle = await App.addListener('appStateChange', ({ isActive }) => {
     foreground = isActive
-    if (isActive && state.value.kind === 'paired') { resume(); startStatus(); syncJournal() } else { pause(); stopStatus() }
+    if (isActive && state.value.kind === 'paired') { resume(); startStatus(); syncJournal() } else { pause(); stopStatus(); clearTimeout(journalRetry) }
   })
   if (unmounted) { void handle.remove(); return }
   lifecycle = handle
@@ -68,6 +68,7 @@ onMounted(async () => {
 watch(state, async (s) => {
   if (s.kind !== 'paired') {
     stopDeviceConfig()
+    clearTimeout(journalRetry)
     // Plus d'enfant appairé ici : aucune liste de contacts gardée sur le téléphone.
     if (s.kind === 'waiting' || s.kind === 'expired' || s.kind === 'revoked') void configSync.clear()
     return

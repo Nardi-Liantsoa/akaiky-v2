@@ -7,7 +7,7 @@ export interface AkaikyCallPlugin {
   call(options: { number: string }): Promise<void>
   emergency(options: { number: string }): Promise<void>
   // Dernier appel sortant vers `number` depuis `since` (ms), lu dans le journal d'Android (NAR-166).
-  lastOutgoing(options: { number: string, since: number, until?: number }): Promise<{ found: boolean, startedAt?: number, durationS?: number }>
+  lastOutgoing(options: { number: string, since: number, until?: number }): Promise<{ found: boolean, permission?: boolean, startedAt?: number, durationS?: number }>
 }
 
 export const AkaikyCall = registerPlugin<AkaikyCallPlugin>('AkaikyCall')
