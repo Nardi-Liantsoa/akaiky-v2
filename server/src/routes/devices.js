@@ -16,7 +16,7 @@ import { withTransaction } from '../db.js'
 import { MANAGERS, ROLES, lockOwnFamily, requireOwnFamily } from '../families.js'
 import { createLimiter, newToken, rateLimitKey, tokenHash } from '../security.js'
 import { securityAlert } from '../login-guard.js'
-import { openField } from '../crypto-fields.js'
+import { openField, sealField } from '../crypto-fields.js'
 import { contactAad } from './contacts.js'
 
 export const PAIRING_MINUTES = 15
@@ -66,6 +66,36 @@ const PAIR = {
   required: ['token'],
   properties: { token: TOKEN, model: LABEL, osVersion: LABEL, appVersion: LABEL }
 }
+// Journal du téléphone (NAR-166) : lots d'événements, identifiant choisi par le téléphone.
+export const MAX_EVENTS = 50
+const EVENTS = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['events'],
+  properties: {
+    events: {
+      type: 'array',
+      minItems: 1,
+      maxItems: MAX_EVENTS,
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['id', 'kind', 'contactId', 'startedAt'],
+        properties: {
+          id: { type: 'string', maxLength: 36 },
+          kind: { type: 'string', enum: ['call_out'] },
+          contactId: { type: 'string', maxLength: 36 },
+          // Instantané au moment de l'appel : le contact peut être retiré avant l'envoi.
+          name: { type: 'string', maxLength: 200 },
+          phone: { type: 'string', pattern: '^\\+[1-9][0-9]{6,14}$' },
+          startedAt: { type: 'string', maxLength: 40 },
+          durationS: { type: ['integer', 'null'], minimum: 0, maximum: 86400 }
+        }
+      }
+    }
+  }
+}
+const eventAad = (id, column) => `device_events:${column}:${id}`
 const REFRESH = { type: 'object', additionalProperties: false, required: ['refreshToken'], properties: { refreshToken: TOKEN } }
 
 // Routes de compte (préfixe /api).
@@ -240,6 +270,56 @@ export async function deviceSessionRoutes(app) {
         }))
       }
     })
+  })
+
+  // Événements du téléphone (NAR-166). L'enfant vient de la session. Un contact
+  // d'un autre enfant est refusé ; un contact retiré entre l'appel et l'envoi (file hors
+  // ligne) est accepté avec l'instantané envoyé (nom, numéro composé), sans lien : un
+  // téléphone modifié ne peut écrire que dans le journal de SON enfant. Idempotent : un
+  // identifiant déjà enregistré pour cet enfant est accepté.
+  const eventsLimit = createLimiter({ max: 60, windowMs: 60_000 })
+  app.post('/events', { config: { device: true }, schema: { body: EVENTS } }, async (req) => {
+    if (!eventsLimit(`device:${req.device.id}`)) throw new HttpError(429, 'Trop d’envois. Réessayez dans une minute.')
+    const now = Date.now()
+    const accepted = [], rejected = []
+    await withTransaction(db, async (conn) => {
+      const ids = [...new Set(req.body.events.map((e) => e.contactId).filter(isUuid))]
+      // Contacts du lot lus d'un coup : ceux de cet enfant, et ceux qui existent ailleurs.
+      const { rows } = await conn.query('SELECT id, child_id, family_id FROM allowed_contacts WHERE id = ANY($1::uuid[])', [ids])
+      const known = new Map(rows.map((r) => [r.id, r]))
+      for (const e of req.body.events) {
+        const started = Date.parse(e.startedAt)
+        const plausible = isUuid(e.id) && isUuid(e.contactId) && !Number.isNaN(started)
+          && started <= now + 5 * 60000 && started >= now - 90 * 86400000
+        const contact = known.get(e.contactId)
+        const foreign = contact && (contact.child_id !== req.device.childId || contact.family_id !== req.device.familyId)
+        if (!plausible || foreign) { rejected.push(e.id); continue }
+        const name = typeof e.name === 'string' ? e.name.trim().slice(0, 80) : ''
+        const insert = (contactId) => conn.query(
+          `INSERT INTO device_events(id, family_id, child_id, device_id, kind, contact_id, name_enc, phone_enc, started_at, duration_s)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (id) DO NOTHING`,
+          [e.id, req.device.familyId, req.device.childId, req.device.id, e.kind, contactId,
+            name ? sealField(name, config.dataKey, eventAad(e.id, 'name')) : null,
+            e.phone ? sealField(e.phone, config.dataKey, eventAad(e.id, 'phone')) : null,
+            new Date(started), e.durationS ?? null])
+        await conn.query('SAVEPOINT ev')
+        let rowCount
+        try {
+          ;({ rowCount } = await insert(contact ? contact.id : null))
+        } catch (err) {
+          // Contact retiré entre la lecture du lot et l'écriture : enregistré sans lien.
+          // Toute autre erreur remonte (500) : la file du téléphone est gardée pour un nouvel essai.
+          if (err.code !== '23503') throw err
+          await conn.query('ROLLBACK TO SAVEPOINT ev')
+          ;({ rowCount } = await insert(null))
+        }
+        await conn.query('RELEASE SAVEPOINT ev')
+        // Rejeu par ce même enfant : accepté ; identifiant pris par un autre enfant : refusé.
+        const mine = rowCount || (await conn.query('SELECT 1 FROM device_events WHERE id = $1 AND child_id = $2', [e.id, req.device.childId])).rowCount
+        ;(mine ? accepted : rejected).push(e.id)
+      }
+    })
+    return { accepted, rejected }
   })
 
   app.get('/me', { config: { device: true } }, async (req) => {

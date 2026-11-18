@@ -94,6 +94,13 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     assert.equal((await native(app, 'GET', '/api/device/me', { token: phone.json().accessToken })).statusCode, 200)
     const renewedPhone = await native(app, 'POST', '/api/device/refresh', { body: { refreshToken: phone.json().refreshToken } })
     assert.equal(renewedPhone.statusCode, 200, renewedPhone.body)
+    // Journal du téléphone sous le rôle restreint (GRANT de 008_device_events.sql) : ajout seul.
+    const papa = (await call(app, 'POST', `/api/children/${kid.id}/contacts`, { cookie: user.cookie, body: { name: 'Papa', phone: '033 12 345 67' } })).json()
+    const ev = { id: crypto.randomUUID(), kind: 'call_out', contactId: papa.id, startedAt: new Date().toISOString(), durationS: 3 }
+    const logged = await native(app, 'POST', '/api/device/events', { token: renewedPhone.json().accessToken, body: { events: [ev] } })
+    assert.deepEqual(logged.json(), { accepted: [ev.id], rejected: [] })
+    await assert.rejects(pool.query('UPDATE device_events SET duration_s = 0'), /permission denied/)
+    await assert.rejects(pool.query('DELETE FROM device_events'), /permission denied/)
     assert.equal((await call(app, 'POST', `/api/devices/${phone.json().device.id}/revoke`, { cookie: user.cookie })).statusCode, 200)
     await assert.rejects(pool.query('UPDATE child_devices SET child_id = child_id'), /permission denied/)
     await assert.rejects(pool.query('UPDATE child_devices SET family_id = family_id'), /permission denied/)

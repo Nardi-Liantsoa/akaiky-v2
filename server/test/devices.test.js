@@ -292,3 +292,77 @@ test('configuration : ETag lié à l’enfant ; validateur faible et liste accep
   // Même version chez l'enfant de B : l'ETag de A n'y vaut pas 304.
   assert.equal((await native(ctx.app, 'GET', '/api/device/config', { token: b.device.accessToken, headers: { 'if-none-match': tag } })).statusCode, 200)
 })
+
+const uuid = () => crypto.randomUUID()
+const events = (token, list) => native(ctx.app, 'POST', '/api/device/events', { token, body: { events: list } })
+
+test('journal : appel sortant enregistré avec sa durée, chiffré ; rejoué, enregistré une fois', async () => {
+  const { owner, fy, device } = await paired()
+  const maman = (await call(ctx.app, 'POST', `/api/children/${fy.id}/contacts`, { cookie: owner.cookie, body: { name: 'Maman', phone: '034 12 345 67' } })).json()
+  const ev = { id: uuid(), kind: 'call_out', contactId: maman.id, name: 'Maman', phone: '+261341234567', startedAt: new Date(Date.now() - 60000).toISOString(), durationS: 42 }
+  const first = await events(device.accessToken, [ev])
+  assert.equal(first.statusCode, 200, first.body)
+  assert.deepEqual(first.json(), { accepted: [ev.id], rejected: [] })
+  // File hors ligne rejouée : même identifiant, accepté, pas de doublon.
+  assert.deepEqual((await events(device.accessToken, [ev])).json(), { accepted: [ev.id], rejected: [] })
+  const { rows } = await ctx.db.query('SELECT child_id, device_id, kind, contact_id, duration_s, name_enc, phone_enc FROM device_events WHERE child_id = $1', [fy.id])
+  assert.equal(rows.length, 1)
+  assert.equal(rows[0].duration_s, 42)
+  assert.equal(rows[0].device_id, device.device.id)
+  // Nom et numéro chiffrés en base.
+  assert.ok(!rows[0].name_enc.toString('latin1').includes('Maman'))
+  assert.ok(!rows[0].phone_enc.toString('latin1').includes('261341234567'))
+})
+
+test('journal : contact d’un autre enfant ou d’une autre famille refusé ; dates absurdes refusées', async () => {
+  const a = await paired()
+  const b = await paired()
+  const tiana = await child(a.owner, 'Tiana')
+  const theirs = (await call(ctx.app, 'POST', `/api/children/${tiana.id}/contacts`, { cookie: a.owner.cookie, body: { name: 'Papa', phone: '033 12 345 67' } })).json()
+  const other = (await call(ctx.app, 'POST', `/api/children/${b.fy.id}/contacts`, { cookie: b.owner.cookie, body: { name: 'Voisin', phone: '032 98 765 43' } })).json()
+  const now = Date.now()
+  const list = [
+    { id: uuid(), kind: 'call_out', contactId: theirs.id, startedAt: new Date(now).toISOString() },
+    { id: uuid(), kind: 'call_out', contactId: other.id, startedAt: new Date(now).toISOString() },
+    { id: uuid(), kind: 'call_out', contactId: theirs.id, startedAt: new Date(now + 3600000).toISOString() },
+    { id: 'pas-un-uuid', kind: 'call_out', contactId: theirs.id, startedAt: new Date(now).toISOString() }
+  ]
+  const res = await events(a.device.accessToken, list)
+  assert.equal(res.statusCode, 200)
+  assert.deepEqual(res.json().accepted, [])
+  assert.equal(res.json().rejected.length, 4)
+  assert.equal((await ctx.db.query('SELECT 1 FROM device_events WHERE child_id = ANY($1)', [[a.fy.id, tiana.id, b.fy.id]])).rowCount, 0)
+})
+
+test('journal : contact retiré avant l’envoi (file hors ligne) → enregistré avec l’instantané, sans lien', async () => {
+  const { owner, fy, device } = await paired()
+  const papa = (await call(ctx.app, 'POST', `/api/children/${fy.id}/contacts`, { cookie: owner.cookie, body: { name: 'Papa', phone: '033 12 345 67' } })).json()
+  assert.equal((await call(ctx.app, 'DELETE', `/api/contacts/${papa.id}`, { cookie: owner.cookie })).statusCode, 200)
+  const ev = { id: uuid(), kind: 'call_out', contactId: papa.id, name: 'Papa', phone: '+261331234567', startedAt: new Date().toISOString(), durationS: 12 }
+  assert.deepEqual((await events(device.accessToken, [ev])).json(), { accepted: [ev.id], rejected: [] })
+  const { rows: [row] } = await ctx.db.query('SELECT contact_id, name_enc FROM device_events WHERE id = $1', [ev.id])
+  assert.equal(row.contact_id, null)
+  assert.ok(row.name_enc)
+})
+
+test('journal : identifiant déjà pris par l’événement d’un autre enfant → refusé, rien d’écrasé', async () => {
+  const a = await paired(); const b = await paired()
+  const ma = (await call(ctx.app, 'POST', `/api/children/${a.fy.id}/contacts`, { cookie: a.owner.cookie, body: { name: 'Maman', phone: '034 12 345 67' } })).json()
+  const mb = (await call(ctx.app, 'POST', `/api/children/${b.fy.id}/contacts`, { cookie: b.owner.cookie, body: { name: 'Papa', phone: '033 12 345 67' } })).json()
+  const id = uuid(), at = new Date().toISOString()
+  assert.deepEqual((await events(a.device.accessToken, [{ id, kind: 'call_out', contactId: ma.id, startedAt: at, durationS: 5 }])).json().accepted, [id])
+  assert.deepEqual((await events(b.device.accessToken, [{ id, kind: 'call_out', contactId: mb.id, startedAt: at, durationS: 99 }])).json(), { accepted: [], rejected: [id] })
+  const { rows } = await ctx.db.query('SELECT child_id, duration_s FROM device_events WHERE id = $1', [id])
+  assert.deepEqual(rows.map((r) => [r.child_id, r.duration_s]), [[a.fy.id, 5]])
+})
+
+test('journal : sans session d’appareil, session de compte, champ inconnu ou lot trop gros → refusé', async () => {
+  const { owner, device } = await paired()
+  const ev = { id: uuid(), kind: 'call_out', contactId: uuid(), startedAt: new Date().toISOString() }
+  assert.equal((await events(undefined, [ev])).statusCode, 401)
+  const nat = await native(ctx.app, 'POST', '/api/auth/native/login', { body: { email: owner.email, password: owner.password } })
+  assert.equal((await events(nat.json().accessToken, [ev])).statusCode, 401)
+  assert.equal((await events(device.accessToken, [{ ...ev, childId: uuid() }])).statusCode, 400)
+  assert.equal((await events(device.accessToken, Array.from({ length: 51 }, () => ev))).statusCode, 400)
+  assert.equal((await events(device.accessToken, [{ ...ev, kind: 'sms' }])).statusCode, 400)
+})

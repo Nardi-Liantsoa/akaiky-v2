@@ -3,6 +3,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Appel d'un contact en un appui (NAR-142) ; accordée d'office en Device Owner. -->
     <uses-permission android:name="android.permission.CALL_PHONE" />
+    <!-- Durée des appels sortants pour le journal parent (NAR-166) ; accordée d'office en Device Owner. -->
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <application>
         <receiver

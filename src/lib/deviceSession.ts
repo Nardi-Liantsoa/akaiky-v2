@@ -75,8 +75,8 @@ export function createDeviceSession({ base, store, fetch: doFetch, onReset }: { 
     return refreshing
   }
 
-  async function authorized(path: string, extra: Record<string, string>): Promise<Response> {
-    const call = () => doFetch(`${base}${path}`, { headers: { ...extra, ...(access ? { Authorization: `Bearer ${access}` } : {}) }, credentials: 'omit' })
+  async function authorized(path: string, extra: Record<string, string>, init: RequestInit = {}): Promise<Response> {
+    const call = () => doFetch(`${base}${path}`, { ...init, headers: { ...extra, ...(access ? { Authorization: `Bearer ${access}` } : {}) }, credentials: 'omit' })
     let res = access ? await call() : null
     if (!res || res.status === 401) {
       if (!(await refresh())) throw new DeviceError(401, 'device_session_lost')
@@ -108,6 +108,13 @@ export function createDeviceSession({ base, store, fetch: doFetch, onReset }: { 
     // Session refusée par le serveur → DeviceError 401 (session effacée).
     async get<T>(path: string): Promise<T> {
       const res = await authorized(path, {})
+      if (!res.ok) throw await failure(res)
+      return res.json() as Promise<T>
+    },
+
+    // POST authentifié (journal du téléphone).
+    async post<T>(path: string, body: unknown): Promise<T> {
+      const res = await authorized(path, { 'Content-Type': 'application/json' }, { method: 'POST', body: JSON.stringify(body) })
       if (!res.ok) throw await failure(res)
       return res.json() as Promise<T>
     },
