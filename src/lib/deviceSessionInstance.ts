@@ -1,6 +1,7 @@
 import { SecureStorage } from '@aparajita/capacitor-secure-storage'
 import { API_BASE } from '../api/base'
 import { createConfigSync } from './deviceConfig'
+import { createUnlockGuard } from './unlockGuard'
 import { createCallJournal, type CallEvent } from './callJournal'
 import { uuidV4 } from './uuid'
 import { AkaikyCall } from '../native/akaikyCall'
@@ -46,4 +47,32 @@ export const childIdentity = {
   },
   set: (v: ChildIdentity) => secureStore.set(IDENTITY_KEY, JSON.stringify(v)),
   clear: () => secureStore.remove(IDENTITY_KEY).catch(() => {})
+}
+
+// Essais du code parent sur le téléphone (NAR-167) : compteur gardé dans le Keystore.
+// Pas effacé avec la session : un réappairage ne remet pas les essais à zéro.
+export const unlockGuard = createUnlockGuard({ store: secureStore, now: () => Date.now() })
+
+// Hachage du code parent (NAR-167), gardé à part de la configuration : il survit à une
+// session perdue (retrait, panne), pour que le parent puisse toujours sortir du verrou.
+// Effacé seulement quand le téléphone est libéré (disarm), après saisie du code.
+const PARENT_CODE_KEY = 'parent-code'
+export const parentCodeStore = {
+  async get(): Promise<string | null> {
+    const v = await secureStore.get(PARENT_CODE_KEY).catch(() => null)
+    return typeof v === 'string' && v.startsWith('pbkdf2-sha256$') ? v : null
+  },
+  set: (hash: string) => secureStore.set(PARENT_CODE_KEY, hash),
+  clear: () => secureStore.remove(PARENT_CODE_KEY).catch(() => {})
+}
+
+// Pays des numéros (numéro d'urgence) gardé de même : le bouton « Secours » des écrans
+// d'erreur d'un téléphone verrouillé compose le bon numéro national.
+const COUNTRY_KEY = 'device-country'
+export const countryStore = {
+  async get(): Promise<string | null> {
+    const v = await secureStore.get(COUNTRY_KEY).catch(() => null)
+    return typeof v === 'string' && /^[A-Z]{2}$/.test(v) ? v : null
+  },
+  set: (country: string) => secureStore.set(COUNTRY_KEY, country).catch(() => {})
 }

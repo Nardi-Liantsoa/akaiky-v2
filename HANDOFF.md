@@ -67,6 +67,30 @@
   planning, sprints 1 à 3. Tester sur un Android bas de gamme réinitialisé.
 - Les critères « natif » de `recette/criteres.md` ne sont pas atteignables par
   Playwright : leur preuve (test instrumenté, procédure filmée) se fixe dans leur ticket.
+- **Mise à jour de la coque enfant (NAR-167)** : le verrou pose `DISALLOW_INSTALL_APPS`,
+  qui bloque aussi l'installation d'une nouvelle version de l'APK enfant (vu sur
+  émulateur). À régler avant la première mise à jour de coque : l'app lève la
+  restriction le temps de sa propre mise à jour (ticket à créer).
+
+## Téléphone de l'enfant bloqué : sortie de secours (NAR-167)
+
+Le verrou ne s'applique qu'une fois le téléphone appairé **et** un code parent choisi
+(Réglages de l'app parent) ; il se lève :
+
+1. **Code parent** (6 chiffres) : 15 minutes, puis le verrou revient seul (alarme), et
+   tout redémarrage le remet. Le hachage du code reste sur le téléphone même s'il perd sa
+   session : le bouton « Code parent » est présent sur tous les écrans, erreurs comprises.
+2. **Téléphone retiré** par un gestionnaire : il reste verrouillé (un refus ponctuel du
+   serveur ne doit pas le rendre à l'enfant). Le parent saisit le code, puis touche
+   « Libérer ce téléphone » : plus de verrou, de restriction ni de lanceur par défaut ;
+   il peut être réinitialisé, puis réappairé par QR.
+3. **Téléphone hors service ou app qui ne démarre plus** : réinitialisation d'usine par
+   le mode de récupération (touches physiques, propres à chaque marque). La restriction
+   `DISALLOW_FACTORY_RESET` ne bloque que les Réglages ; aucun compte Google n'est ajouté,
+   donc pas de protection FRP au redémarrage.
+
+Développement : la version debug garde le débogage USB. Pour réinstaller, appeler
+`AkaikyKiosk.disarm()` (inspecteur WebView), installer, relancer : l'app se réarme.
 
 
 ## Lancer, tester, livrer
@@ -86,6 +110,18 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   serveur, motifs issus de notre configuration. `npm run audit:deps` (`scripts/audit.mjs`)
   échoue sur tout autre avis moderate ou plus, à l'échéance, et dès que l'exception ne sert
   plus : fusionner alors la mise à jour de Dependabot et retirer l'exception.
+
+- **Composeur d'urgence et écran d'appel (NAR-167)** : le composeur système et Telecom
+  sont autorisés dans le verrou, sans quoi l'écran d'appel (décrocher, raccrocher) et le
+  composeur d'urgence ne s'affichent pas (vérifié sur émulateur Android 14). Depuis ce
+  composeur (bouton « Secours ») ou « Ajouter un appel », l'enfant peut composer un autre
+  numéro. Messages, contacts et réglages restent bloqués. À fermer par un filtre des
+  appels sortants (ticket à créer).
+- **Android 8.x** : `setLockTaskFeatures` n'existe qu'à partir d'Android 9 ; l'affichage
+  d'un appel entrant pendant le verrou reste à vérifier sur un vrai Android 8 (l'émulateur
+  ARM API 26 n'a pas de WebView).
+- **Volet des notifications** : affiché pendant le verrou (sans réglages rapides), car il
+  porte l'appel entrant. Toucher une notification ou « Gérer » n'ouvre rien.
 
 - **NAT des opérateurs mobiles** : beaucoup d'utilisateurs partagent une adresse IPv4.
   Le renouvellement natif n'a pas de limite par IP ; la limite globale de l'API

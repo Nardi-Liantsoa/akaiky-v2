@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Aucune politique demandée pour l'instant : le verrouillage (lock task) arrive avec NAR-139. -->
+<!-- Aucune politique « admin » demandée : le verrou (NAR-167) passe par les droits de
+     Device Owner (lock task, restrictions), qui ne se déclarent pas ici. -->
 <device-admin>
     <uses-policies />
 </device-admin>

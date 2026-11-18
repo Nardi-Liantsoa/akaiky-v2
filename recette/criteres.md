@@ -25,9 +25,9 @@ Android (mode appareil dédié, appels, SMS) : Playwright ne les atteint pas,
 leur moyen de preuve est à fixer avec le ticket qui les construit.
 
 - [C03] Un parent crée un compte, ajoute un enfant et obtient un QR d'appairage. (CdC C01)
-- [C04] (prévu) Un téléphone Android réinitialisé, qui scanne ce QR, se configure et s'ouvre sur l'écran de l'enfant sans autre manipulation. (CdC C02, natif)
-- [C05] (prévu) Sur le téléphone de l'enfant, il est impossible d'ouvrir les réglages, le Play Store, le navigateur ou une application non autorisée sans le code parent. (CdC C03, natif)
-- [C06] (prévu) Après un redémarrage, le téléphone de l'enfant revient directement sur son écran d'accueil. (CdC C04, natif)
+- [C04] (prévu) Un téléphone Android réinitialisé, qui scanne ce QR, se configure et s'ouvre sur l'écran de l'enfant sans autre manipulation. (CdC C02, natif) Preuve : procédure filmée sur un téléphone réel réinitialisé (Android 8 et récent), jointe au ticket ; les vérifications sur émulateur (NAR-167) ne la remplacent pas.
+- [C05] (prévu) Sur le téléphone de l'enfant, il est impossible d'ouvrir les réglages, le Play Store, le navigateur ou une application non autorisée sans le code parent. (CdC C03, natif) Preuve : procédure filmée sur un téléphone réel réinitialisé (Android 8 et récent), jointe au ticket ; les vérifications sur émulateur (NAR-167) ne la remplacent pas.
+- [C06] (prévu) Après un redémarrage, le téléphone de l'enfant revient directement sur son écran d'accueil. (CdC C04, natif) Preuve : procédure filmée sur un téléphone réel réinitialisé (Android 8 et récent), jointe au ticket ; les vérifications sur émulateur (NAR-167) ne la remplacent pas.
 - [C07] (prévu) L'enfant appelle un contact autorisé en un seul appui. (CdC C05, natif)
 - [C08] (prévu) Un numéro qui n'est pas dans les contacts autorisés ne fait pas sonner le téléphone de l'enfant, et l'appel apparaît dans le journal du parent. (CdC C06, natif)
 - [C09] (prévu) Le numéro d'urgence du pays est toujours appelable depuis le téléphone de l'enfant. (CdC C07, natif)
