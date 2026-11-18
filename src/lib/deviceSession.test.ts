@@ -26,6 +26,17 @@ describe('createDeviceSession', () => {
     vi.unstubAllGlobals()
   })
 
+  it('Keystore en panne après l’appairage : session gardée en mémoire pour ce lancement', async () => {
+    const store = memoryStore()
+    const broken = { ...store, set: async () => { throw new Error('keystore') } }
+    const fetch = vi.fn(async (url: string, init?: RequestInit) => url.endsWith('/device/pair')
+      ? json(201, { ...TOKENS, device: { id: 'd' }, child: { id: 'c' } })
+      : (new Headers(init?.headers).get('Authorization') === 'Bearer a1' ? json(200, { ok: 1 }) : json(401, {})))
+    const s = createDeviceSession({ base: '', store: broken, fetch: fetch as unknown as typeof globalThis.fetch })
+    await s.pair('x', {})
+    expect(await s.get('/device/me')).toEqual({ ok: 1 })
+  })
+
   it('écriture du Keystore en échec une fois : seconde tentative, session gardée', async () => {
     const store = memoryStore()
     let fails = 1

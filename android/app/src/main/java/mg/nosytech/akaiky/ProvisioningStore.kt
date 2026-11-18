@@ -19,7 +19,6 @@ object ProvisioningStore {
     private val TOKEN = Regex("^[A-Za-z0-9_-]{43}$")
 
     /** Retient le jeton des extras (PersistableBundle ou Bundle), s'il a la bonne forme. */
-    @JvmStatic
     fun saveFrom(context: Context, extras: BaseBundle?) {
         @Suppress("DEPRECATION")
         val token = extras?.get(EXTRA_PAIRING) as? String ?: return
@@ -27,10 +26,8 @@ object ProvisioningStore {
         prefs(context).edit().putString(KEY_TOKEN, token).commit()
     }
 
-    @JvmStatic
     fun token(context: Context): String? = prefs(context).getString(KEY_TOKEN, null)
 
-    @JvmStatic
     fun clear(context: Context) {
         prefs(context).edit().remove(KEY_TOKEN).commit()
     }

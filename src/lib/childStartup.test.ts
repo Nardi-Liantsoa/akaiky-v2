@@ -38,10 +38,22 @@ describe('startChild', () => {
     expect(d.cleared()).toBe(false)
   })
 
-  it('autre refus (400, 404…) : pas « expiré », jeton gardé', async () => {
+  it('autre refus (400, 403…) : « échec », pas « hors ligne » ni « expiré », jeton gardé', async () => {
     const d = deps({ token: 't', pair: async () => { throw new DeviceError(400, null) } })
-    expect(await startChild(d)).toEqual({ kind: 'offline' })
+    expect(await startChild(d)).toEqual({ kind: 'failed' })
     expect(d.cleared()).toBe(false)
+  })
+
+  it('session saine : le greffon n’est pas consulté (même en panne)', async () => {
+    const d = deps({ session: true })
+    d.provisioning.token = async () => { throw new Error('greffon absent') }
+    expect(await startChild(d)).toEqual({ kind: 'paired', firstName: 'Fy' })
+  })
+
+  it('effacement du jeton en échec après un appairage réussi : écran de l’enfant quand même', async () => {
+    const d = deps({ token: 't' })
+    d.provisioning.clear = async () => { throw new Error('greffon') }
+    expect(await startChild(d)).toEqual({ kind: 'paired', firstName: 'Fy' })
   })
 
   it('hors ligne pendant l’échange : jeton gardé pour un nouvel essai', async () => {
@@ -60,6 +72,7 @@ describe('startChild', () => {
     expect(await startChild(deps({ session: true, me: async () => { throw new DeviceError(401, 'device_session_lost') } }))).toEqual({ kind: 'revoked' })
     expect(await startChild(deps({ session: true, me: async () => { throw new TypeError('offline') } }))).toEqual({ kind: 'offline' })
     // 404 ou 403 inattendu : pas « retiré », on réessaiera.
-    expect(await startChild(deps({ session: true, me: async () => { throw new DeviceError(404, null) } }))).toEqual({ kind: 'offline' })
+    expect(await startChild(deps({ session: true, me: async () => { throw new DeviceError(404, null) } }))).toEqual({ kind: 'failed' })
+    expect(await startChild(deps({ session: true, me: async () => { throw new DeviceError(503, null) } }))).toEqual({ kind: 'offline' })
   })
 })

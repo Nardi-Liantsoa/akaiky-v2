@@ -171,6 +171,7 @@ watch(childId, () => {
           <img :src="qr" width="280" height="280" :alt="t.pairing.qrLabel" />
           <p class="validity">{{ t.pairing.validity }}</p>
           <p class="countdown" aria-live="off">{{ left ? t.pairing.remaining(left) : '' }}</p>
+          <p class="hint">{{ t.pairing.openApp }}</p>
         </template>
         <p v-else-if="expired" class="hint" role="status">{{ t.pairing.expired }}</p>
         <button v-if="!qr" class="btn" type="button" :disabled="busy" @click="show">

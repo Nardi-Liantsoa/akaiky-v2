@@ -12,10 +12,8 @@ object WebViewVersion {
     const val MINIMUM = 64
 
     /** Version majeure (« 113.0.5672.136 » → 113), 0 si illisible. */
-    @JvmStatic
     fun major(versionName: String?): Int = versionName?.substringBefore('.')?.toIntOrNull() ?: 0
 
     /** Vrai si le WebView actuel peut faire tourner l'app (à vérifier avant tout verrouillage). */
-    @JvmStatic
     fun sufficient(): Boolean = major(WebView.getCurrentWebViewPackage()?.versionName) >= MINIMUM
 }

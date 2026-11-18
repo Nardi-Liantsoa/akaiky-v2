@@ -44,6 +44,7 @@ const text = computed(() => {
     case 'tooMany': return { title: c.tooMany, hint: c.tooManyHint }
     case 'revoked': return { title: c.revoked, hint: c.revokedHint }
     case 'offline': return { title: c.offline, hint: c.offlineHint }
+    case 'failed': return { title: c.failed, hint: c.failedHint }
     case 'loading': return { title: c.connecting, hint: '' }
     default: return { title: c.waiting, hint: c.hint }
   }
@@ -55,7 +56,7 @@ const text = computed(() => {
     <h1>Akaiky</h1>
     <p class="waiting" role="status">{{ text.title }}</p>
     <p v-if="text.hint" class="hint">{{ text.hint }}</p>
-    <button v-if="state.kind === 'offline' || state.kind === 'tooMany'" class="btn retry" type="button" :disabled="busy" @click="start">{{ t.child.retry }}</button>
+    <button v-if="state.kind === 'offline' || state.kind === 'tooMany' || state.kind === 'failed'" class="btn retry" type="button" :disabled="busy" @click="start">{{ t.child.retry }}</button>
   </main>
 </template>
 

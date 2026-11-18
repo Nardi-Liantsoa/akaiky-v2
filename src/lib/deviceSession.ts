@@ -28,11 +28,14 @@ export function createDeviceSession({ base, store, fetch: doFetch }: { base: str
   let access: string | null = null
   let refreshing: Promise<boolean> | null = null
 
-  // Un échec d'écriture dans le Keystore après un appairage réussi coûterait le jeton
-  // (déjà consommé côté serveur) : une seconde tentative avant d'abandonner.
+  // Un échec d'écriture dans le Keystore après un appairage réussi ne doit pas jeter
+  // une session que le serveur vient d'ouvrir (le jeton d'appairage est consommé) :
+  // seconde tentative, puis session gardée en mémoire pour ce lancement.
   async function keep(t: { accessToken: string, refreshToken: string }) {
     access = t.accessToken
-    await store.set(REFRESH_KEY, t.refreshToken).catch(() => store.set(REFRESH_KEY, t.refreshToken))
+    await store.set(REFRESH_KEY, t.refreshToken)
+      .catch(() => store.set(REFRESH_KEY, t.refreshToken))
+      .catch(() => {})
   }
   async function forget() {
     access = null

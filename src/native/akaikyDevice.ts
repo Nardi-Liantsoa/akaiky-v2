@@ -1,6 +1,6 @@
 import { registerPlugin } from '@capacitor/core'
 
-// Greffon local de l'app enfant (android/app/src/main/java/.../AkaikyDevicePlugin.java).
+// Greffon local de l'app enfant (android/app/src/main/java/.../AkaikyDevicePlugin.kt).
 // Android seulement ; appelé uniquement quand appKind() vaut « enfant ».
 export interface DeviceInfo {
   model?: string
