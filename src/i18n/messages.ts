@@ -133,6 +133,33 @@ const fr = {
     missing: 'Aucune invitation à afficher. Rouvrez le lien reçu par e-mail.',
     goHome: 'Aller à mon espace'
   },
+  pairing: {
+    title: (name: string) => `Configurer le téléphone de ${name}`,
+    open: 'Configurer le téléphone',
+    steps: [
+      'Réinitialisez le téléphone de l’enfant (paramètres d’usine).',
+      'Sur l’écran de bienvenue, touchez 6 fois le même endroit de l’écran.',
+      'Scannez ce QR code, puis connectez le Wi-Fi.'
+    ],
+    step: (n: number, total: number) => `Étape ${n} sur ${total}`,
+    show: 'Afficher le QR code',
+    renew: 'Nouveau QR code',
+    validity: 'Valable 15 minutes · usage unique',
+    remaining: (time: string) => `Encore ${time}`,
+    expired: 'Ce QR code a expiré.',
+    qrLabel: 'QR code de configuration du téléphone',
+    warning: 'Une fois configuré, le téléphone est verrouillé : on n’en sort qu’avec le code parent à 6 chiffres.',
+    unavailable: 'La configuration des téléphones n’est pas encore disponible sur ce serveur.',
+    devices: 'Téléphones appairés',
+    none: 'Aucun téléphone appairé pour l’instant.',
+    paired: 'Téléphone appairé.',
+    unknownModel: 'Téléphone Android',
+    since: (date: string) => `Appairé le ${date}`,
+    revoke: 'Retirer',
+    confirmRevoke: 'Confirmer le retrait',
+    revokeHint: 'Le téléphone retiré perd son accès tout de suite.',
+    loadError: 'Impossible de charger les téléphones.'
+  },
   children: {
     pickerLabel: 'Enfants de la famille',
     add: 'Ajouter un enfant',
@@ -343,6 +370,33 @@ const mg: Messages = {
     missing: 'Tsy misy fanasana haseho. Sokafy indray ny rohy tao amin’ny mailaka.',
     goHome: 'Mankany amin’ny toerako'
   },
+  pairing: {
+    title: (name: string) => `Handrindra ny findain’i ${name}`,
+    open: 'Handrindra ny finday',
+    steps: [
+      'Avereno amin’ny toerana niaviany ny findain’ilay zaza (paramètres d’usine).',
+      'Eo amin’ny efijery fandraisana, kitiho in-6 eo amin’ny toerana iray ihany.',
+      'Scanneo ity QR code ity, dia ampifandraiso amin’ny Wi-Fi.'
+    ],
+    step: (n: number, total: number) => `Dingana ${n} amin’ny ${total}`,
+    show: 'Asehoy ny QR code',
+    renew: 'QR code vaovao',
+    validity: 'Manan-kery 15 minitra · indray mandeha ihany',
+    remaining: (time: string) => `Mbola ${time}`,
+    expired: 'Lany daty ity QR code ity.',
+    qrLabel: 'QR code handrindrana ny finday',
+    warning: 'Rehefa voarindra, hihidy ny finday : tsy azo ivoahana raha tsy amin’ny kaody 6 isa an’ny ray aman-dreny.',
+    unavailable: 'Mbola tsy misy eto amin’ity mpizara ity ny fandrindrana finday.',
+    devices: 'Finday mifandray',
+    none: 'Mbola tsy misy finday mifandray.',
+    paired: 'Mifandray ny finday.',
+    unknownModel: 'Finday Android',
+    since: (date: string) => `Nampifandraisina ny ${date}`,
+    revoke: 'Esorina',
+    confirmRevoke: 'Hamafiso ny fanesorana',
+    revokeHint: 'Very avy hatrany ny fidirany ny finday esorina.',
+    loadError: 'Tsy azo alaina ny finday.'
+  },
   children: {
     pickerLabel: 'Ankizy ao amin’ny fianakaviana',
     add: 'Hanampy zaza',
@@ -550,6 +604,33 @@ const en: Messages = {
     alreadyInFamily: 'Your account already belongs to a family.',
     missing: 'No invitation to show. Open the link from the email again.',
     goHome: 'Go to my space'
+  },
+  pairing: {
+    title: (name: string) => `Set up ${name}’s phone`,
+    open: 'Set up the phone',
+    steps: [
+      'Reset the child’s phone (factory settings).',
+      'On the welcome screen, tap the same spot 6 times.',
+      'Scan this QR code, then connect to Wi-Fi.'
+    ],
+    step: (n: number, total: number) => `Step ${n} of ${total}`,
+    show: 'Show the QR code',
+    renew: 'New QR code',
+    validity: 'Valid for 15 minutes · single use',
+    remaining: (time: string) => `${time} left`,
+    expired: 'This QR code has expired.',
+    qrLabel: 'Phone setup QR code',
+    warning: 'Once set up, the phone is locked: it can only be left with the 6-digit parent code.',
+    unavailable: 'Phone setup is not available on this server yet.',
+    devices: 'Paired phones',
+    none: 'No paired phone yet.',
+    paired: 'Phone paired.',
+    unknownModel: 'Android phone',
+    since: (date: string) => `Paired on ${date}`,
+    revoke: 'Remove',
+    confirmRevoke: 'Confirm removal',
+    revokeHint: 'A removed phone loses its access immediately.',
+    loadError: 'Couldn’t load the phones.'
   },
   children: {
     pickerLabel: 'Children in the family',

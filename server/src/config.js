@@ -39,6 +39,23 @@ function phoneCountry(v) {
   return c
 }
 
+// APK de l'app enfant, dont l'adresse et la somme du certificat de signature vont
+// dans le QR d'appairage (NAR-138 ; fichier servi et signé par NAR-165). Absentes :
+// pas de QR possible (la route d'appairage répond 503), sans empêcher le démarrage.
+function deviceApk(env, production) {
+  const url = env.DEVICE_APK_URL || ''
+  const checksum = env.DEVICE_APK_SIGNATURE_SHA256 || ''
+  if (!url && !checksum) return null
+  if (!url || !checksum) throw new Error('DEVICE_APK_URL et DEVICE_APK_SIGNATURE_SHA256 vont ensemble')
+  if (!/^https:\/\/[a-z0-9.-]+(:\d+)?\/[^\s?#]*\.apk$/i.test(url) && !(!production && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(url))) {
+    throw new Error('DEVICE_APK_URL : adresse https d’un fichier .apk')
+  }
+  // SHA-256 du certificat de signature, en base64url sans remplissage (43 caractères),
+  // le format qu'Android attend dans PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM.
+  if (!/^[A-Za-z0-9_-]{43}$/.test(checksum)) throw new Error('DEVICE_APK_SIGNATURE_SHA256 : SHA-256 en base64url (43 caractères)')
+  return { url, signatureChecksum: checksum }
+}
+
 export function loadConfig(env = process.env) {
   const production = env.NODE_ENV === 'production'
   const origin = (env.APP_ORIGIN || (production ? '' : 'http://localhost:8080')).replace(/\/$/, '')
@@ -73,6 +90,7 @@ export function loadConfig(env = process.env) {
     // Seconde origine acceptée pour les requêtes (ex. domaine temporaire de la prod).
     extraOrigins: (env.APP_EXTRA_ORIGINS || '').split(',').map((s) => s.trim().replace(/\/$/, '')).filter(Boolean),
     nativeOrigins: nativeOrigins(env.NATIVE_ORIGINS),
+    deviceApk: deviceApk(env, production),
     staticDir: env.STATIC_DIR || new URL('../../dist/web', import.meta.url).pathname,
     // Traefik est le seul mandataire devant l'application.
     trustProxy: trustedProxies(env.TRUST_PROXY),

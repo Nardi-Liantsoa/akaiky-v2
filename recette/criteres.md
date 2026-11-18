@@ -24,7 +24,7 @@ entre parenthèses). Ceux marqués « natif » se vérifient sur un vrai télép
 Android (mode appareil dédié, appels, SMS) : Playwright ne les atteint pas,
 leur moyen de preuve est à fixer avec le ticket qui les construit.
 
-- [C03] (prévu) Un parent crée un compte, ajoute un enfant et obtient un QR d'appairage. (CdC C01)
+- [C03] Un parent crée un compte, ajoute un enfant et obtient un QR d'appairage. (CdC C01)
 - [C04] (prévu) Un téléphone Android réinitialisé, qui scanne ce QR, se configure et s'ouvre sur l'écran de l'enfant sans autre manipulation. (CdC C02, natif)
 - [C05] (prévu) Sur le téléphone de l'enfant, il est impossible d'ouvrir les réglages, le Play Store, le navigateur ou une application non autorisée sans le code parent. (CdC C03, natif)
 - [C06] (prévu) Après un redémarrage, le téléphone de l'enfant revient directement sur son écran d'accueil. (CdC C04, natif)

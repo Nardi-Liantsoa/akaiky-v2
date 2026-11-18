@@ -22,6 +22,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'famille', name: 'famille', component: () => import('./views/parent/FamilyView.vue'), meta: { requiresFamily: true } },
       { path: 'enfant/nouveau', name: 'enfant-nouveau', component: () => import('./views/parent/ChildFormView.vue'), meta: { requiresFamily: true } },
       { path: 'enfant/:id', name: 'enfant', component: () => import('./views/parent/ChildFormView.vue'), meta: { requiresFamily: true } },
+      { path: 'enfant/:id/telephone', name: 'telephone', component: () => import('./views/parent/PairingView.vue'), meta: { requiresFamily: true } },
       { path: 'reglages/enfant/:childId/contact/nouveau', name: 'contact-nouveau', component: () => import('./views/parent/ContactFormView.vue'), meta: { requiresFamily: true } },
       { path: 'reglages/enfant/:childId/contact/:id', name: 'contact', component: () => import('./views/parent/ContactFormView.vue'), meta: { requiresFamily: true } }
     ]

@@ -50,7 +50,10 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     const url = new URL(db.url); url.username = 'app_runtime'; url.password = 'runtime-test-only'
     const pool = createPool(url.toString())
     await verifySchema(pool)
-    const config = loadConfig({ DATABASE_URL: url.toString(), APP_ORIGIN: 'https://app.test', RATE_LIMIT_IP: '10000', NATIVE_ORIGINS: 'capacitor://localhost' })
+    const config = loadConfig({
+      DATABASE_URL: url.toString(), APP_ORIGIN: 'https://app.test', RATE_LIMIT_IP: '10000', NATIVE_ORIGINS: 'capacitor://localhost',
+      DEVICE_APK_URL: 'https://app.test/downloads/akaiky-enfant.apk', DEVICE_APK_SIGNATURE_SHA256: 'A'.repeat(43)
+    })
     const sent = [], app = await buildApp({ config, db: pool, mailer: { async send(m) { sent.push(m) } }, logger: false })
     runtime = { app, db: pool, sent }
     const user = await newUser(runtime)
@@ -82,6 +85,22 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     assert.equal((await call(app, 'DELETE', `/api/contacts/${contact.json().id}`, { cookie: user.cookie })).statusCode, 200)
     await assert.rejects(pool.query('UPDATE allowed_contacts SET child_id = child_id'), /permission denied/)
     await assert.rejects(pool.query('UPDATE children SET config_version = 0'), /permission denied/)
+    // Appairage sous le rôle restreint (GRANT de 007_devices.sql).
+    const qr = await call(app, 'POST', `/api/children/${kid.id}/pairing`, { cookie: user.cookie })
+    assert.equal(qr.statusCode, 201, qr.body)
+    const pairingToken = qr.json().provisioning['android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE']['akaiky.pairing']
+    const phone = await native(app, 'POST', '/api/device/pair', { body: { token: pairingToken, model: 'Pixel' } })
+    assert.equal(phone.statusCode, 201, phone.body)
+    assert.equal((await native(app, 'GET', '/api/device/me', { token: phone.json().accessToken })).statusCode, 200)
+    const renewedPhone = await native(app, 'POST', '/api/device/refresh', { body: { refreshToken: phone.json().refreshToken } })
+    assert.equal(renewedPhone.statusCode, 200, renewedPhone.body)
+    assert.equal((await call(app, 'POST', `/api/devices/${phone.json().device.id}/revoke`, { cookie: user.cookie })).statusCode, 200)
+    await assert.rejects(pool.query('UPDATE child_devices SET child_id = child_id'), /permission denied/)
+    await assert.rejects(pool.query('UPDATE child_devices SET family_id = family_id'), /permission denied/)
+    await assert.rejects(pool.query('UPDATE device_sessions SET device_id = device_id'), /permission denied/)
+    await assert.rejects(pool.query('UPDATE pairing_tokens SET child_id = child_id'), /permission denied/)
+    await assert.rejects(pool.query('UPDATE pairing_tokens SET expires_at = now()'), /permission denied/)
+    await assert.rejects(pool.query('DELETE FROM child_devices'), /permission denied/)
     await assert.rejects(pool.query('UPDATE memberships SET family_id = family_id'), /permission denied/)
     await assert.rejects(pool.query('UPDATE invitations SET role = role'), /permission denied/)
     await assert.rejects(pool.query('DELETE FROM families'), /permission denied/)

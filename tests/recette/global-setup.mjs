@@ -63,7 +63,9 @@ async function start(dir, name, origin, onServer) {
       DATABASE_URL: `postgres://${role}:recette-uniquement@127.0.0.1:${dbPort}/recette`,
       DB_MIGRATIONS: 'verify', MAIL_OUTBOX: outbox,
       // Les parcours enchaînent beaucoup de connexions depuis la même adresse.
-      RATE_LIMIT_IP: '100000', RATE_LIMIT_EMAIL: '1000', REGISTRATIONS_PER_HOUR: '100000', AUTH_EMAILS_PER_HOUR: '100000', API_RATE_LIMIT: '100000'
+      RATE_LIMIT_IP: '100000', RATE_LIMIT_EMAIL: '1000', REGISTRATIONS_PER_HOUR: '100000', AUTH_EMAILS_PER_HOUR: '100000', API_RATE_LIMIT: '100000',
+      // QR d'appairage (C03) : adresse et somme fictives, l'APK n'est pas téléchargé ici.
+      DEVICE_APK_URL: 'https://akaiky.test/downloads/akaiky-enfant.apk', DEVICE_APK_SIGNATURE_SHA256: 'A'.repeat(43)
     },
     stdio: ['ignore', 'ignore', 'inherit']
   })

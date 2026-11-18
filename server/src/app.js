@@ -10,6 +10,7 @@ import familiesRoutes from './routes/families.js'
 import invitationsRoutes from './routes/invitations.js'
 import childrenRoutes from './routes/children.js'
 import contactsRoutes from './routes/contacts.js'
+import { devicesRoutes, deviceSessionRoutes } from './routes/devices.js'
 
 // Politique de contenu : tout vient de la même origine, aucun script en ligne,
 // aucun tiers (polices hébergées sur place).
@@ -69,6 +70,8 @@ export const CSRF_HEADER = 'x-app'
 
 // Requêtes de l'application native : jeton Bearer, jamais de cookie.
 const NATIVE_PATH = /^\/api\/auth\/native\//
+// Téléphone de l'enfant (NAR-138) : ses seules routes, avec sa propre session.
+const DEVICE_PATH = /^\/api\/device(?:[/?]|$)/
 const BEARER = /^Bearer /
 const bearerOf = (req) => {
   const m = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(req.headers.authorization || '')
@@ -164,7 +167,7 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
       }).send()
     }
     if (!app.dbReady) throw new HttpError(503, 'Service en cours de démarrage. Réessayez dans un instant.')
-    if (NATIVE_PATH.test(req.url) && !natives.has(origin)) throw new HttpError(403, 'Origine refusée.')
+    if ((NATIVE_PATH.test(req.url) || DEVICE_PATH.test(req.url)) && !natives.has(origin)) throw new HttpError(403, 'Origine refusée.')
     // Le transport se décide UNE fois, ici, et le hook de session le relit :
     // application native (origine exacte de la WebView, qu'une page web ne peut
     // pas usurper) ou en-tête Authorization (qui ne part jamais tout seul depuis
@@ -191,8 +194,30 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   app.decorateRequest('sessionHash', null)
   // 'cookie' tant que onRequest n'a pas tranché : c'est le cas qui exige le contrôle CSRF.
   app.decorateRequest('authTransport', 'cookie')
+  app.decorateRequest('device', null)
   app.addHook('preHandler', async (req) => {
     if (!req.url.startsWith('/api/')) return
+    // Session d'appareil : cherchée parmi les seules sessions d'appareil, jamais par
+    // cookie ni parmi les sessions de compte. Un appareil révoqué n'en a plus.
+    // Réciproquement, plus bas, une session de compte n'atteint jamais ces routes.
+    if (DEVICE_PATH.test(req.url)) {
+      const token = bearerOf(req)
+      if (token) {
+        const { rows } = await db.query(
+          `UPDATE device_sessions s SET last_seen_at = now() FROM child_devices d
+            WHERE s.token_hash = $1 AND s.expires_at > now() AND d.id = s.device_id AND d.revoked_at IS NULL
+            RETURNING d.id, d.family_id, d.child_id, d.last_seen_at`, [tokenHash(token)])
+        if (rows[0]) {
+          req.device = { id: rows[0].id, familyId: rows[0].family_id, childId: rows[0].child_id }
+          if (Date.now() - new Date(rows[0].last_seen_at).getTime() > 60000) {
+            await db.query('UPDATE child_devices SET last_seen_at = now() WHERE id = $1', [rows[0].id])
+          }
+        }
+      }
+      const route = req.routeOptions
+      if (route.url && !route.config?.public && !req.device) throw new HttpError(401, 'Session de l’appareil expirée.')
+      return
+    }
     const kind = req.authTransport
     const token = kind === 'bearer' ? bearerOf(req) : readAuthCookie(req, config, 'session')
     if (token) {
@@ -216,6 +241,8 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
     // déclarée `config: { public: true }`. Une route oubliée est fermée, pas ouverte.
     const route = req.routeOptions
     if (route.url && !route.config?.public && !req.user) throw new HttpError(401, 'Connexion requise.')
+    // Une route d'appareil hors de /api/device/ serait une erreur de montage : fermée.
+    if (route.config?.device) throw new HttpError(401, 'Connexion requise.')
     if (route.config?.admin && !req.user?.is_admin) throw new HttpError(403, 'Action réservée à l’équipe.')
   })
 
@@ -256,6 +283,8 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   await app.register(invitationsRoutes, { prefix: '/api/invitations' })
   await app.register(childrenRoutes, { prefix: '/api/children' })
   await app.register(contactsRoutes, { prefix: '/api' })
+  await app.register(devicesRoutes, { prefix: '/api' })
+  await app.register(deviceSessionRoutes, { prefix: '/api/device' })
 
   const files = await loadStatic(config.staticDir)
   app.setNotFoundHandler(async (req, reply) => {
