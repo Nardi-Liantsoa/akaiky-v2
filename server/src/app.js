@@ -292,6 +292,20 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   await app.register(devicesRoutes, { prefix: '/api' })
   await app.register(deviceSessionRoutes, { prefix: '/api/device' })
 
+  // APK de l'app enfant (NAR-165) : lu une fois au démarrage, servi tel quel, sans
+  // session (Android le télécharge pendant le provisionnement par QR). L'intégrité
+  // est garantie par la somme du certificat de signature portée par le QR.
+  const childApk = await readFile(join(config.downloadsDir, 'akaiky-enfant.apk')).catch(() => null)
+  const sendApk = async (req, reply) => {
+    if (!childApk) return reply.code(404).type('text/plain; charset=utf-8').send('Introuvable')
+    return reply
+      .type('application/vnd.android.package-archive')
+      .header('content-disposition', 'attachment; filename="akaiky-enfant.apk"')
+      .header('cache-control', 'no-cache')
+      .send(childApk)
+  }
+  app.get('/downloads/akaiky-enfant.apk', sendApk)
+
   const files = await loadStatic(config.staticDir)
   app.setNotFoundHandler(async (req, reply) => {
     if (req.url.startsWith('/api/') || !['GET', 'HEAD'].includes(req.method)) {

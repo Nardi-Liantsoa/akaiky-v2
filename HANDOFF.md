@@ -11,7 +11,8 @@
   téléphone de l'enfant attend l'appairage (NAR-160, bloqué par NAR-138).
   Appairage côté parent et serveur (NAR-138) : QR de provisionnement Android (jeton 15 min,
   usage unique), sessions d'appareil séparées, révocation. Côté téléphone : NAR-164 ; APK
-  signé et servi : NAR-165 (sans `DEVICE_APK_URL`/`DEVICE_APK_SIGNATURE_SHA256`, pas de QR).
+  signé et servi : NAR-165 — keystore de release hors dépôt (`~/.config/akaiky-v2/`), **à
+  sauvegarder dans le gestionnaire de mots de passe** ; procédure dans `NOSYHOST.md` § 6.
   Coques Android (variantes `parent` et `enfant`) et iOS générées (NAR-137). Les deux APK
   s'installent côte à côte (Android 8 et 14). WebView 64 minimum, écran de repli en trois
   langues en dessous (NAR-161, `docs/MOBILE.md`) ; Android 8 non vérifiable sur ce poste

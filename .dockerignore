@@ -10,3 +10,9 @@ dist
 coverage
 playwright-report
 test-results
+# Rien de la signature Android dans le contexte de build (NAR-165).
+**/*.jks
+**/*.keystore
+**/keystore.properties
+android
+ios

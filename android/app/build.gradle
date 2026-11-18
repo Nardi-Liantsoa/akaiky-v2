@@ -1,6 +1,14 @@
 apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
 
+// Signature de release de l'app enfant (NAR-165) : keystore HORS du dépôt, décrit par
+// un fichier de propriétés (storeFile, storePassword, keyAlias, keyPassword).
+// Chemin : AKAIKY_KEYSTORE_PROPERTIES, sinon ~/.config/akaiky-v2/keystore.properties.
+// Absent (CI, autre poste) : la release enfant n'est pas signée, le debug est inchangé.
+def keystoreProperties = new Properties()
+def keystoreFile = file(System.getenv('AKAIKY_KEYSTORE_PROPERTIES') ?: "${System.getProperty('user.home')}/.config/akaiky-v2/keystore.properties")
+if (keystoreFile.exists()) keystoreFile.withInputStream { keystoreProperties.load(it) }
+
 android {
     namespace = "mg.nosytech.akaiky"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -21,6 +29,16 @@ android {
     //  - parent : Play Store (et App Store pour iOS) ;
     //  - enfant : Android seul, installée par le QR d'appairage (Device Owner, NAR-138/139).
     // Identifiants définitifs une fois publiés. Nom affiché : src/<variante>/res/values/strings.xml.
+    signingConfigs {
+        if (keystoreProperties['storeFile']) {
+            enfantRelease {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
     flavorDimensions = ['app']
     productFlavors {
         parent {
@@ -30,6 +48,8 @@ android {
             dimension 'app'
             // mg.nosytech.akaiky.enfant : CHILD_APP_ID de src/lib/appKind.ts.
             applicationIdSuffix '.enfant'
+            // Release seulement : le type debug garde sa propre signature de debug.
+            if (keystoreProperties['storeFile']) signingConfig signingConfigs.enfantRelease
         }
     }
     // Même cible que le Java de Capacitor (capacitor.build.gradle : VERSION_21).

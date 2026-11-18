@@ -96,6 +96,8 @@ export function loadConfig(env = process.env) {
     nativeOrigins: natives,
     deviceApk: deviceApk(env, production, natives),
     staticDir: env.STATIC_DIR || new URL('../../dist/web', import.meta.url).pathname,
+    // APK de l'app enfant embarqué dans l'image (NAR-165), servi à /downloads/akaiky-enfant.apk.
+    downloadsDir: env.DOWNLOADS_DIR || new URL('../../downloads', import.meta.url).pathname,
     // Traefik est le seul mandataire devant l'application.
     trustProxy: trustedProxies(env.TRUST_PROXY),
     session: {
