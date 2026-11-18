@@ -3,7 +3,7 @@ import { startChild, type ChildDeps } from './childStartup'
 import { DeviceError, type DeviceSession } from './deviceSession'
 
 // Session et greffon natif simulés : on vérifie l'enchaînement, pas le réseau.
-function deps({ session = false, token = null as string | null, pair = async () => ({ device: { id: 'd' }, child: { id: 'c' } }), me = async () => ({ child: { firstName: 'Fy' } }) as unknown } = {}) {
+function deps({ session = false, token = null as string | null, pair = async () => ({ device: { id: 'd' }, child: { id: 'c' } }), me = async () => ({ child: { id: 'c', firstName: 'Fy' } }) as unknown } = {}) {
   let stored = token
   const d: ChildDeps & { cleared: () => boolean } = {
     session: { hasSession: async () => session, pair: vi.fn(pair), get: vi.fn(me) } as unknown as DeviceSession,
@@ -21,7 +21,7 @@ describe('startChild', () => {
 
   it('jeton du QR : échangé, effacé, puis écran de l’enfant', async () => {
     const d = deps({ token: 't' })
-    expect(await startChild(d)).toEqual({ kind: 'paired', firstName: 'Fy' })
+    expect(await startChild(d)).toEqual({ kind: 'paired', firstName: 'Fy', childId: 'c' })
     expect(d.session.pair).toHaveBeenCalledWith('t', { model: 'Pixel' })
     expect(d.cleared()).toBe(true)
   })
@@ -47,13 +47,13 @@ describe('startChild', () => {
   it('session saine : le greffon n’est pas consulté (même en panne)', async () => {
     const d = deps({ session: true })
     d.provisioning.token = async () => { throw new Error('greffon absent') }
-    expect(await startChild(d)).toEqual({ kind: 'paired', firstName: 'Fy' })
+    expect(await startChild(d)).toEqual({ kind: 'paired', firstName: 'Fy', childId: 'c' })
   })
 
   it('effacement du jeton en échec après un appairage réussi : écran de l’enfant quand même', async () => {
     const d = deps({ token: 't' })
     d.provisioning.clear = async () => { throw new Error('greffon') }
-    expect(await startChild(d)).toEqual({ kind: 'paired', firstName: 'Fy' })
+    expect(await startChild(d)).toEqual({ kind: 'paired', firstName: 'Fy', childId: 'c' })
   })
 
   it('hors ligne pendant l’échange : jeton gardé pour un nouvel essai', async () => {
@@ -64,7 +64,7 @@ describe('startChild', () => {
 
   it('session existante : écran de l’enfant sans nouvel échange', async () => {
     const d = deps({ session: true, token: 't' })
-    expect(await startChild(d)).toEqual({ kind: 'paired', firstName: 'Fy' })
+    expect(await startChild(d)).toEqual({ kind: 'paired', firstName: 'Fy', childId: 'c' })
     expect(d.session.pair).not.toHaveBeenCalled()
   })
 

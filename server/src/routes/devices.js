@@ -17,6 +17,7 @@ import { MANAGERS, ROLES, lockOwnFamily, requireOwnFamily } from '../families.js
 import { createLimiter, newToken, rateLimitKey, tokenHash } from '../security.js'
 import { securityAlert } from '../login-guard.js'
 import { openField } from '../crypto-fields.js'
+import { contactAad } from './contacts.js'
 
 export const PAIRING_MINUTES = 15
 // Téléphones actifs par enfant : le sien, plus un de rechange pendant un changement.
@@ -32,6 +33,13 @@ export const DEVICE_REFRESH_DAYS = 180
 const PREVIOUS_DAYS = 7
 
 const PUBLIC = { config: { public: true } }
+
+// If-None-Match : liste séparée par des virgules, validateurs faibles (W/) acceptés
+// (un mandataire qui compresse affaiblit l'ETag), `*` exclu.
+function matches(header, etag) {
+  if (typeof header !== 'string') return false
+  return header.split(',').some((t) => t.trim().replace(/^W\//, '') === etag)
+}
 
 // Place libre pour un téléphone de plus (enfant verrouillé par l'appelant). Même
 // règle au QR et à l'échange. Un téléphone dont la session ne peut plus être
@@ -190,6 +198,44 @@ export async function deviceSessionRoutes(app) {
       await securityAlert(db, 'device_refresh_replay')
     }
     throw new HttpError(401, 'Session de l’appareil expirée.')
+  })
+
+  // Configuration du téléphone (NAR-160) : contacts autorisés de SON enfant, lu sur la
+  // session (jamais un identifiant envoyé par le téléphone). ETag = enfant + version :
+  // une configuration d'un autre enfant (téléphone réappairé) ne vaut jamais 304.
+  // Le 304 ne coûte qu'une lecture ; version et liste ne sont lues ensemble, dans une
+  // même photo de la base, que lorsqu'elles ont changé.
+  app.get('/config', { config: { device: true } }, async (req, reply) => {
+    const tagOf = (version) => `"${req.device.childId}.${version}"`
+    if (req.headers['if-none-match']) {
+      const { rows: [current] } = await db.query(
+        'SELECT config_version FROM children WHERE id = $1 AND family_id = $2', [req.device.childId, req.device.familyId])
+      if (!current) throw new HttpError(401, 'Session de l’appareil expirée.')
+      if (matches(req.headers['if-none-match'], tagOf(current.config_version))) {
+        return reply.header('etag', tagOf(current.config_version)).code(304).send()
+      }
+    }
+    return withTransaction(db, async (conn) => {
+      await conn.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
+      const { rows: [child] } = await conn.query(
+        'SELECT config_version FROM children WHERE id = $1 AND family_id = $2', [req.device.childId, req.device.familyId])
+      if (!child) throw new HttpError(401, 'Session de l’appareil expirée.')
+      reply.header('etag', tagOf(child.config_version))
+      const { rows } = await conn.query(
+        `SELECT id, name_enc, phone_enc, position, avatar_color FROM allowed_contacts
+          WHERE child_id = $1 AND family_id = $2 ORDER BY position`, [req.device.childId, req.device.familyId])
+      // Champ par champ : ni membre lié ni rôle, seulement ce que le téléphone affiche et appelle.
+      return {
+        version: Number(child.config_version),
+        contacts: rows.map((r) => ({
+          id: r.id,
+          name: openField(r.name_enc, config.dataKey, contactAad(r.id, 'name')),
+          phone: openField(r.phone_enc, config.dataKey, contactAad(r.id, 'phone')),
+          position: r.position,
+          avatarColor: r.avatar_color
+        }))
+      }
+    })
   })
 
   app.get('/me', { config: { device: true } }, async (req) => {

@@ -231,3 +231,63 @@ test('sans APK configuré : pas de QR (503) ; configuration incomplète refusée
   assert.throws(() => loadConfig({ ...base, ...APK, NATIVE_ORIGINS: 'capacitor://localhost' }), /NATIVE_ORIGINS/)
   assert.ok(loadConfig({ ...base, ...APK, NATIVE_ORIGINS: 'https://localhost' }).deviceApk)
 })
+
+test('configuration : contacts de SON enfant seulement, ETag et 304, changement vu tout de suite', async () => {
+  const { owner, fy, device } = await paired()
+  const add = (childId, name, phone) => call(ctx.app, 'POST', `/api/children/${childId}/contacts`, { cookie: owner.cookie, body: { name, phone } })
+  assert.equal((await add(fy.id, 'Maman', '034 12 345 67')).statusCode, 201)
+  // Un autre enfant de la même famille, et un enfant d'une autre famille : jamais visibles.
+  const tiana = await child(owner, 'Tiana')
+  assert.equal((await add(tiana.id, 'Dadabe', '033 11 222 33')).statusCode, 201)
+  const other = await paired()
+  assert.equal((await call(ctx.app, 'POST', `/api/children/${other.fy.id}/contacts`, { cookie: other.owner.cookie, body: { name: 'Voisin', phone: '032 98 765 43' } })).statusCode, 201)
+
+  const first = await native(ctx.app, 'GET', '/api/device/config', { token: device.accessToken })
+  assert.equal(first.statusCode, 200, first.body)
+  assert.deepEqual(first.json().contacts.map((c) => [c.name, c.phone, c.position]), [['Maman', '+261341234567', 1]])
+  assert.deepEqual(Object.keys(first.json().contacts[0]).sort(), ['avatarColor', 'id', 'name', 'phone', 'position'])
+  const etag = first.headers.etag
+  assert.match(etag, /^"[0-9a-f-]+\.\d+"$/)
+  assert.equal(first.headers['access-control-expose-headers'], 'etag')
+
+  // Rien n'a changé : 304 sans corps.
+  const same = await native(ctx.app, 'GET', '/api/device/config', { token: device.accessToken, headers: { 'if-none-match': etag } })
+  assert.equal(same.statusCode, 304)
+  assert.equal(same.body, '')
+  // Le parent ajoute un contact : la version change, le relevé suivant le voit.
+  assert.equal((await add(fy.id, 'Papa', '033 12 345 67')).statusCode, 201)
+  const next = await native(ctx.app, 'GET', '/api/device/config', { token: device.accessToken, headers: { 'if-none-match': etag } })
+  assert.equal(next.statusCode, 200)
+  assert.notEqual(next.headers.etag, etag)
+  assert.deepEqual(next.json().contacts.map((c) => c.name), ['Maman', 'Papa'])
+  // Le téléphone ne choisit pas l'enfant : aucun paramètre accepté pour un autre.
+  assert.equal((await native(ctx.app, 'GET', `/api/device/config?childId=${tiana.id}`, { token: device.accessToken })).json().contacts.length, 2)
+})
+
+test('configuration : sans session d’appareil, ou téléphone révoqué → 401 ; session de compte refusée', async () => {
+  const { owner, device } = await paired()
+  assert.equal((await native(ctx.app, 'GET', '/api/device/config')).statusCode, 401)
+  const nat = await native(ctx.app, 'POST', '/api/auth/native/login', { body: { email: owner.email, password: owner.password } })
+  assert.equal((await native(ctx.app, 'GET', '/api/device/config', { token: nat.json().accessToken })).statusCode, 401)
+  await call(ctx.app, 'POST', `/api/devices/${device.device.id}/revoke`, { cookie: owner.cookie })
+  assert.equal((await native(ctx.app, 'GET', '/api/device/config', { token: device.accessToken })).statusCode, 401)
+})
+
+test('pré-vol CORS de l’app enfant : if-none-match autorisé', async () => {
+  const res = await ctx.app.inject({ method: 'OPTIONS', url: '/api/device/config', headers: { origin: 'https://localhost', 'access-control-request-method': 'GET', 'access-control-request-headers': 'authorization, if-none-match' } })
+  assert.equal(res.statusCode, 204)
+  assert.match(res.headers['access-control-allow-headers'], /if-none-match/)
+})
+
+test('configuration : ETag lié à l’enfant ; validateur faible et liste acceptés ; autre enfant → 200', async () => {
+  const a = await paired()
+  const b = await paired()
+  const ra = await native(ctx.app, 'GET', '/api/device/config', { token: a.device.accessToken })
+  const tag = ra.headers.etag
+  assert.ok(tag.includes(a.fy.id))
+  assert.equal((await native(ctx.app, 'GET', '/api/device/config', { token: a.device.accessToken, headers: { 'if-none-match': `W/${tag}` } })).statusCode, 304)
+  assert.equal((await native(ctx.app, 'GET', '/api/device/config', { token: a.device.accessToken, headers: { 'if-none-match': `"x", ${tag}` } })).statusCode, 304)
+  assert.equal((await native(ctx.app, 'GET', '/api/device/config', { token: a.device.accessToken, headers: { 'if-none-match': '*' } })).statusCode, 200)
+  // Même version chez l'enfant de B : l'ETag de A n'y vaut pas 304.
+  assert.equal((await native(ctx.app, 'GET', '/api/device/config', { token: b.device.accessToken, headers: { 'if-none-match': tag } })).statusCode, 200)
+})
