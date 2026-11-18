@@ -5,7 +5,7 @@ import type { JournalItem } from '../../api/journal'
 import { useT } from '../../composables/useT'
 import { formatClock } from '../../lib/format'
 import { formatPhone, isE164 } from '../../lib/phone'
-import { QUICK_TINT } from '../../lib/quickMessages'
+import { QUICK_TINT, quickText } from '../../lib/quickMessages'
 import QuickIcon from '../messages/QuickIcon.vue'
 
 // Une ligne du journal (NAR-152, maquette écran 9). Appel bloqué : « Autoriser » ouvre
@@ -27,7 +27,7 @@ const view = computed(() => {
     case 'call_in': return { tone: 'call', title: log.callIn(i.name ?? (i.phone ? formatPhone(i.phone) : log.unknownContact)), detail: duration(i.durationS) }
     case 'call_blocked': return { tone: 'blocked', title: log.blocked, detail: `${i.phone ? formatPhone(i.phone) : log.hiddenNumber} · ${log.notRung}` }
     case 'unlock': return { tone: 'unlock', title: i.source === 'remote' ? log.unlockRemote : log.unlockCode, detail: i.durationS ? log.unlockFor(Math.max(1, Math.round(i.durationS / 60))) : '' }
-    default: return { tone: 'message', title: t.value.child.quick.texts[i.slot - 1], detail: i.readBy.length ? t.value.parent.home.seenBy(i.readBy.map((r) => r.name).join(', ')) : '' }
+    default: return { tone: 'message', title: quickText(i.slot, t.value.child.quick.texts, i.text), detail: i.readBy.length ? t.value.parent.home.seenBy(i.readBy.map((r) => r.name).join(', ')) : '' }
   }
 })
 // Seul un numéro E.164 complet peut devenir un contact (même règle que le formulaire) ;

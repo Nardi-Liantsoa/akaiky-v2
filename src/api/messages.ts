@@ -11,3 +11,9 @@ export async function markShownAsRead(items: { id: string, kind?: string, readBy
   const results = await Promise.all(unseen.map((m) => markRead(m.id).then(() => true, () => false)))
   return results.some(Boolean)
 }
+
+// Textes des 4 messages rapides d'un enfant (NAR-173) ; null = texte par défaut traduit.
+export interface MessageTemplate { slot: 1 | 2 | 3 | 4, text: string | null }
+export const getTemplates = (childId: string) => api.get<MessageTemplate[]>(`/children/${encodeURIComponent(childId)}/message-templates`)
+export const putTemplate = (childId: string, slot: number, text: string | null) =>
+  api.put<MessageTemplate>(`/children/${encodeURIComponent(childId)}/message-templates/${slot}`, { text })

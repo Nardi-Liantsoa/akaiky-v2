@@ -6,7 +6,7 @@ export type JournalFilter = 'all' | 'calls' | 'blocked' | 'messages' | 'unlocks'
 export type JournalItem =
   | { id: string, kind: 'call_out' | 'call_in' | 'call_blocked', at: string, contactId: string | null, name: string | null, phone: string | null, durationS: number | null }
   | { id: string, kind: 'unlock', at: string, source: 'code' | 'remote', durationS: number | null }
-  | { id: string, kind: 'message', at: string, slot: QuickSlot, readBy: { name: string, readAt: string }[], readByMe: boolean }
+  | { id: string, kind: 'message', at: string, slot: QuickSlot, text?: string | null, readBy: { name: string, readAt: string }[], readByMe: boolean }
 
 // today : nombres du jour (heure de Madagascar) pour les tuiles de synthèse (NAR-175).
 export interface JournalToday { calls: number, blocked: number, messages: number, unlocks: number }
