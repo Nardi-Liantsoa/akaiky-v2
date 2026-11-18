@@ -1,0 +1,37 @@
+package mg.nosytech.akaiky
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class CallPolicyTest {
+    private val allowed = setOf("+261341234567", "+261331234567")
+
+    @Test fun contactDeLaListe() {
+        assertTrue(CallPolicy.isAllowed("+261341234567", allowed))
+        assertTrue(CallPolicy.isAllowed(" +261 34 12 345 67 ", allowed))
+    }
+
+    @Test fun numeroHorsListeRefuse() {
+        assertFalse(CallPolicy.isAllowed("+261321234567", allowed))
+        assertFalse(CallPolicy.isAllowed("0341234567", allowed))
+        assertFalse(CallPolicy.isAllowed("*#06#", allowed))
+        assertFalse(CallPolicy.isAllowed(null, allowed))
+        assertFalse(CallPolicy.isAllowed("+261341234567", emptySet()))
+    }
+
+    @Test fun urgence() {
+        assertTrue(CallPolicy.isEmergency("117"))
+        assertTrue(CallPolicy.isEmergency("112"))
+        assertFalse(CallPolicy.isEmergency("+261341234567"))
+        assertFalse(CallPolicy.isEmergency("1170"))
+    }
+
+    @Test fun normalisation() {
+        assertEquals("+261341234567", CallPolicy.normalize("+261 34-12.345 67"))
+        assertNull(CallPolicy.normalize("abc"))
+        assertNull(CallPolicy.normalize("1234567890123456"))
+    }
+}

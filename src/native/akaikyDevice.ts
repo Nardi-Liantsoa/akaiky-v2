@@ -12,7 +12,10 @@ export interface DeviceInfo {
   deviceOwner: boolean
 }
 
+export interface DeviceStatus { battery?: number, charging?: boolean, network: 'wifi' | 'cellular' | 'other' | 'none' }
+
 export interface AkaikyDevicePlugin {
+  getStatus(): Promise<DeviceStatus>
   getProvisioning(): Promise<{ pairingToken?: string }>
   clearProvisioning(): Promise<void>
   getInfo(): Promise<DeviceInfo>

@@ -245,6 +245,7 @@ test('configuration : contacts de SON enfant seulement, ETag et 304, changement 
   const first = await native(ctx.app, 'GET', '/api/device/config', { token: device.accessToken })
   assert.equal(first.statusCode, 200, first.body)
   assert.deepEqual(first.json().contacts.map((c) => [c.name, c.phone, c.position]), [['Maman', '+261341234567', 1]])
+  assert.equal(first.json().country, 'MG')
   assert.deepEqual(Object.keys(first.json().contacts[0]).sort(), ['avatarColor', 'id', 'name', 'phone', 'position'])
   const etag = first.headers.etag
   assert.match(etag, /^"[0-9a-f-]+\.\d+"$/)

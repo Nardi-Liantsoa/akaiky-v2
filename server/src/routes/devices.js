@@ -227,6 +227,8 @@ export async function deviceSessionRoutes(app) {
       // Champ par champ : ni membre lié ni rôle, seulement ce que le téléphone affiche et appelle.
       return {
         version: Number(child.config_version),
+        // Pays des numéros (MG, FR) : numéro d'urgence affiché par le téléphone (NAR-142).
+        country: config.phoneCountry,
         contacts: rows.map((r) => ({
           id: r.id,
           name: openField(r.name_enc, config.dataKey, contactAad(r.id, 'name')),

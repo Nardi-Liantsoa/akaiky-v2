@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // Greffon local (pas un paquet npm) : enregistré avant le pont.
         registerPlugin(AkaikyDevicePlugin.class);
+        registerPlugin(CallPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

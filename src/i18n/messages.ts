@@ -22,7 +22,15 @@ const fr = {
     forbidden: 'Action non autorisée.',
     notFound: 'Élément introuvable.',
     generic: 'Une erreur est survenue. Réessayez.',
-    retry: 'Réessayer'
+    retry: 'Réessayer',
+    callContact: (name: string) => `Appeler ${name}`,
+    noContacts: 'Aucun contact pour l’instant.',
+    noContactsHint: 'Un parent va les ajouter depuis son application.',
+    sosLabel: 'SOS : appuie fort 3 secondes',
+    sosHint: 'Appuie fort 3 secondes',
+    emergency: (n: string) => `Secours · ${n}`,
+    callFailed: 'L’appel n’a pas pu partir.',
+    status: { wifi: 'Wi-Fi', cellular: 'Réseau', noNetwork: 'Pas de réseau', battery: (n: number) => `${n} %` }
   },
   auth: {
     loginTitle: 'Connexion',
@@ -231,7 +239,15 @@ const fr = {
     revokedHint: 'Un parent peut le configurer à nouveau depuis son application.',
     offline: 'Pas de connexion pour l’instant.',
     offlineHint: 'Vérifiez le Wi-Fi ou le réseau, puis réessayez.',
-    retry: 'Réessayer'
+    retry: 'Réessayer',
+    callContact: (name: string) => `Appeler ${name}`,
+    noContacts: 'Aucun contact pour l’instant.',
+    noContactsHint: 'Un parent va les ajouter depuis son application.',
+    sosLabel: 'SOS : appuie fort 3 secondes',
+    sosHint: 'Appuie fort 3 secondes',
+    emergency: (n: string) => `Secours · ${n}`,
+    callFailed: 'L’appel n’a pas pu partir.',
+    status: { wifi: 'Wi-Fi', cellular: 'Réseau', noNetwork: 'Pas de réseau', battery: (n: number) => `${n} %` }
   },
   parent: {
     tabsLabel: 'Navigation principale',
@@ -275,7 +291,15 @@ const mg: Messages = {
     forbidden: 'Tsy azo atao izany.',
     notFound: 'Tsy hita.',
     generic: 'Nisy olana. Andramo indray.',
-    retry: 'Andramo indray'
+    retry: 'Andramo indray',
+    callContact: (name: string) => `Antsoy i ${name}`,
+    noContacts: 'Mbola tsy misy olona azo antsoina.',
+    noContactsHint: 'Ray aman-dreny iray no hanampy azy avy amin’ny rindranasany.',
+    sosLabel: 'SOS : tsindrio mafy 3 segondra',
+    sosHint: 'Tsindrio mafy 3 segondra',
+    emergency: (n: string) => `Vonjy maika · ${n}`,
+    callFailed: 'Tsy lasa ny antso.',
+    status: { wifi: 'Wi-Fi', cellular: 'Tambajotra', noNetwork: 'Tsy misy tambajotra', battery: (n: number) => `${n} %` }
   },
   auth: {
     loginTitle: 'Hiditra',
@@ -484,7 +508,15 @@ const mg: Messages = {
     revokedHint: 'Afaka mandrindra azy indray avy amin’ny rindranasany ny ray aman-dreny iray.',
     offline: 'Tsy misy fifandraisana amin’izao.',
     offlineHint: 'Jereo ny Wi-Fi na ny tambajotra, dia andramo indray.',
-    retry: 'Andramo indray'
+    retry: 'Andramo indray',
+    callContact: (name: string) => `Antsoy i ${name}`,
+    noContacts: 'Mbola tsy misy olona azo antsoina.',
+    noContactsHint: 'Ray aman-dreny iray no hanampy azy avy amin’ny rindranasany.',
+    sosLabel: 'SOS : tsindrio mafy 3 segondra',
+    sosHint: 'Tsindrio mafy 3 segondra',
+    emergency: (n: string) => `Vonjy maika · ${n}`,
+    callFailed: 'Tsy lasa ny antso.',
+    status: { wifi: 'Wi-Fi', cellular: 'Tambajotra', noNetwork: 'Tsy misy tambajotra', battery: (n: number) => `${n} %` }
   },
   parent: {
     tabsLabel: 'Fitetezana lehibe',
@@ -526,7 +558,15 @@ const en: Messages = {
     forbidden: 'Action not allowed.',
     notFound: 'Not found.',
     generic: 'Something went wrong. Please try again.',
-    retry: 'Try again'
+    retry: 'Try again',
+    callContact: (name: string) => `Call ${name}`,
+    noContacts: 'No contacts yet.',
+    noContactsHint: 'A parent will add them from their app.',
+    sosLabel: 'SOS: press hard for 3 seconds',
+    sosHint: 'Press hard for 3 seconds',
+    emergency: (n: string) => `Emergency · ${n}`,
+    callFailed: 'The call couldn’t go through.',
+    status: { wifi: 'Wi-Fi', cellular: 'Network', noNetwork: 'No network', battery: (n: number) => `${n}%` }
   },
   auth: {
     loginTitle: 'Sign in',
@@ -735,7 +775,15 @@ const en: Messages = {
     revokedHint: 'A parent can set it up again from their app.',
     offline: 'No connection right now.',
     offlineHint: 'Check the Wi-Fi or network, then try again.',
-    retry: 'Try again'
+    retry: 'Try again',
+    callContact: (name: string) => `Call ${name}`,
+    noContacts: 'No contacts yet.',
+    noContactsHint: 'A parent will add them from their app.',
+    sosLabel: 'SOS: press hard for 3 seconds',
+    sosHint: 'Press hard for 3 seconds',
+    emergency: (n: string) => `Emergency · ${n}`,
+    callFailed: 'The call couldn’t go through.',
+    status: { wifi: 'Wi-Fi', cellular: 'Network', noNetwork: 'No network', battery: (n: number) => `${n}%` }
   },
   parent: {
     tabsLabel: 'Main navigation',
