@@ -8,5 +8,6 @@ declare module 'vue-router' {
     requiresAdmin?: boolean
     guestOnly?: boolean
     requiresFamily?: boolean
+    childApp?: boolean
   }
 }

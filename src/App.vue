@@ -2,6 +2,7 @@
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { auth, isAdmin, logout } from './store/auth'
 import { useT, locale, LOCALE_LIST } from './composables/useT'
+import { currentKind } from './lib/appKind'
 
 const t = useT()
 const router = useRouter()
@@ -13,7 +14,9 @@ async function onLogout() {
 </script>
 
 <template>
-  <header class="nav">
+  <!-- En-tête dès que l'on sait être l'app parent (immédiat sur le web), sans attendre
+       /auth/me ; jamais dans l'app enfant, pas même pendant la lecture de l'identifiant. -->
+  <header v-if="currentKind === 'parent'" class="nav">
     <RouterLink class="brand" :to="{ name: 'accueil' }">Akaiky</RouterLink>
     <nav>
       <template v-if="auth.user">

@@ -7,7 +7,10 @@ const config: CapacitorConfig = {
   // par l'API pour le web et embarqué dans les coques.
   webDir: 'dist/web',
   android: {
-    allowMixedContent: false
+    allowMixedContent: false,
+    // Deux variantes (android/app/build.gradle) : `npx cap run android` lance la
+    // variante parent par défaut ; l'enfant avec `--flavor enfant`.
+    flavor: 'parent'
   },
   server: {
     // Origine https://localhost : contexte sécurisé (caméra, géolocalisation…)
@@ -15,6 +18,12 @@ const config: CapacitorConfig = {
     androidScheme: 'https'
   },
   plugins: {
+    // Interface toujours claire (docs/DESIGN.md) : icônes sombres dans les deux barres
+    // système, même en thème sombre. Sinon Capacitor suit le système, et la barre de
+    // navigation à 3 boutons devient illisible sur fond clair (constaté sur Android 14).
+    SystemBars: {
+      style: 'LIGHT'
+    },
     // Mises à jour OTA (@capgo/capacitor-updater) pilotées par le code ; un
     // bundle qui n'appelle pas notifyAppReady() à temps est annulé au lancement suivant.
     CapacitorUpdater: {

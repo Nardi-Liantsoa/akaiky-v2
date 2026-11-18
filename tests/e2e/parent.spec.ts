@@ -31,6 +31,8 @@ test('police servie par l’application, aucun appel à un tiers', async ({ page
   page.on('response', (r) => { if (r.request().resourceType() === 'font') fonts.push({ url: r.url(), status: r.status() }) })
   await mockApi(page, connected)
   await page.goto('/espace')
+  // La police se charge quand du texte en a besoin : attendre le rendu, puis le chargement.
+  await expect(page.locator('header.nav')).toBeVisible()
   await page.evaluate(() => document.fonts.ready)
   // check() répond vrai même pour une police en échec : on lit son état réel.
   const status = await page.evaluate(() => [...document.fonts].filter((f) => f.family.replace(/"/g, '') === 'Nunito').map((f) => f.status))
@@ -50,4 +52,10 @@ test('écran étroit en malgache : libellés des onglets contenus dans leur colo
   const overflow = await tabs.evaluateAll((links) => links.some((a) => a.scrollWidth > a.clientWidth))
   expect(overflow).toBe(false)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
+test('app parent (web) : l’écran de l’app enfant n’est pas atteignable', async ({ page }) => {
+  await mockApi(page, { 'GET /api/auth/me': () => ({ body: { user: null } }), 'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }) })
+  await page.goto('/enfant')
+  await expect(page).toHaveURL(/\/$/)
 })

@@ -9,6 +9,10 @@
   (NAR-135, migration `005`, clé `DATA_ENCRYPTION_KEY`).
   Contacts autorisés côté parent (NAR-140, migration `006`) ; la synchronisation vers le
   téléphone de l'enfant attend l'appairage (NAR-160, bloqué par NAR-138).
+  Coques Android (variantes `parent` et `enfant`) et iOS générées (NAR-137). Les deux APK
+  s'installent côte à côte (Android 8 et 14) ; l'app ne démarre pas sur un Android 8 au
+  WebView d'usine 58 (Capacitor 8 exige 60, voir `docs/MOBILE.md`). iOS non construit :
+  Xcode 15.3 trop ancien sur ce poste.
 - Identifiant `mg.nosytech.akaiky`, nom affiché « Akaiky ». Maquettes résumées dans
   `docs/DESIGN.md` ; jetons et police posés dans `src/style.css` (NAR-132).
 - Vérifié en local (NAR-140) : lint, build, tests front (34/34), tests API contre PostgreSQL
@@ -21,8 +25,8 @@
   Mac (WebKit figé, macOS 14), donc verdict non validé en local.
 - **Non vérifié** : audit du contrat NosyHost (`make audit-image`) — dépôt `nosyhost`
   absent de ce poste ; recette `iphone` et comparaison visuelle (pas encore de `main`
-  de référence au-delà du premier commit) ; coques Android et iOS pas encore ajoutées
-  (`npm run android:add`, `npm run ios:add`).
+  de référence au-delà du premier commit) ; coque iOS non construite (Xcode 15.3
+  trop ancien sur ce poste).
 
 ## Décisions datées
 

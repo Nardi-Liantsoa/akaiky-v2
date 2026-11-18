@@ -4,18 +4,64 @@ Conventions reprises de **bible-mg** et **tia-baiboly**, les deux applications
 mobiles de référence du laboratoire. Ce qui suit a été payé au prix fort au
 moins une fois : ne pas s'en écarter sans raison.
 
-## Créer les coques
+## Les coques
+
+`android/` et `ios/` sont dans le dépôt (NAR-137) : variantes, durcissements et
+thème y vivent, `android/variables.gradle` porte `minSdkVersion = 26`. Ne pas les
+recréer par `npx cap add` (refusé tant que le dossier existe, et le supprimer
+perdrait ces réglages). Après un changement web :
 
 ```bash
 cp .env.example .env.local    # VITE_API_ORIGIN : adresse publique de l'API
-npm run android:add           # build, cap add android, minSdk 26 (native/variables.gradle), sync
-npm run ios:add               # build, cap add ios, sync (macOS + Xcode)
+npm run sync                  # build web + cap sync (Android et iOS)
 ```
 
-Le `capacitor.config.ts` est déjà rempli — ne pas lancer `npx cap init`, il
-l'écraserait. `native/variables.gradle` est hors de `android/` exprès : si le
-dossier existait déjà, `npx cap add android` refuserait de créer la coque.
-Capacitor y remet `minSdkVersion = 24` par défaut ; le script le remplace.
+Après chaque `cap sync` ou mise à jour de Capacitor, vérifier que
+`android/variables.gradle` garde `minSdkVersion = 26`. Ne jamais lancer
+`npx cap init` : il écraserait `capacitor.config.ts`.
+
+## Deux applications Android : variantes `parent` et `enfant`
+
+`android/app/build.gradle` déclare deux variantes de produit (dimension `app`) :
+
+| Variante | Identifiant | Nom affiché | Distribution |
+|---|---|---|---|
+| `parent` | `mg.nosytech.akaiky` | Akaiky | Play Store (iOS : App Store, même identifiant) |
+| `enfant` | `mg.nosytech.akaiky.enfant` (suffixe `.enfant`) | Akaiky Enfant | APK servi par le serveur, installé par le QR d'appairage (NAR-138) |
+
+```bash
+npm run android:parent   # build web, sync, assembleParentDebug
+npm run android:enfant   # build web, sync, assembleEnfantDebug
+npm run android:both     # les deux, une seule synchronisation
+```
+
+Les deux APK s'installent côte à côte. Le web sait dans quelle application il
+tourne par `src/lib/appKind.ts` (identifiant natif lu par `@capacitor/app`) :
+l'app enfant n'ouvre que ses écrans (`/enfant`), l'app parent jamais ceux-là.
+Noms : `android/app/src/<variante>/res/values/strings.xml`. Pas de variante
+enfant sur iOS (CdC §3 : hors périmètre v1).
+
+Durcissements posés dans `AndroidManifest.xml` : `allowBackup="false"` (données
+de mineurs), `res/xml/network_security_config.xml` (HTTPS seulement, explicite :
+Android 8 accepte le clair par défaut). Thème natif clair forcé ; icônes sombres
+dans les deux barres système par `plugins.SystemBars.style: 'LIGHT'`
+(`capacitor.config.ts`) : sans lui, Capacitor suit le thème du système et la barre
+de navigation à 3 boutons passe en icônes claires sur fond clair (vu sur Android 14
+en thème sombre). Le thème de l'app (`AppTheme.NoActionBar`, `values/styles.xml`)
+pose une barre blanche (`values/colors_nav.xml`) ; ses icônes sombres viennent du
+greffon dès Android 8.0, de l'attribut de thème avant son chargement à partir de 8.1.
+
+**WebView 58 sur Android 8 d'usine** : Capacitor 8 refuse de démarrer sous la
+version 60 (« This app requires a WebView to work »). C'est le cas de l'image
+Android 8 sans services Google, et d'un téléphone jamais mis à jour par le Play
+Store. Constaté sur l'émulateur API 26 ; à trancher avant l'appairage (NAR-138).
+
+**Outils requis** : SDK Android avec la plateforme `android-36` (compileSdk),
+**JDK 21** (`invalid source release: 21` avec le JDK 17 :
+`JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home`) ;
+Xcode récent (le framework Capacitor 8 précompilé ne se lit pas avec Xcode 15).
+Toujours `npm run sync` (ou les scripts `android:*`) avant `gradlew` : l'APK
+embarque le dernier build web copié dans la coque.
 
 ## Trois réglages qui coûtent cher
 
