@@ -24,4 +24,19 @@ object CallPolicy {
     }
 
     fun isEmergency(number: String?): Boolean = normalize(number)?.let { it in EMERGENCY } == true
+
+    /** Décision sur un appel entrant (NAR-145). */
+    enum class Incoming { RING, BLOCK_UNKNOWN, BLOCK_HIDDEN }
+
+    /**
+     * Seul un contact autorisé fait sonner le téléphone ; un numéro masqué ou hors liste
+     * est rejeté. `matches` compare deux numéros (PhoneNumberUtils sur le téléphone :
+     * format national ou international). Liste vide : rien ne sonne, sauf si le filtrage
+     * est inactif (`filtering` faux : téléphone pas encore appairé ou libéré).
+     */
+    fun screenIncoming(number: String?, filtering: Boolean, allowed: Set<String>, matches: (String, String) -> Boolean): Incoming {
+        if (!filtering) return Incoming.RING
+        val n = normalize(number) ?: return Incoming.BLOCK_HIDDEN
+        return if (allowed.any { matches(n, it) }) Incoming.RING else Incoming.BLOCK_UNKNOWN
+    }
 }
