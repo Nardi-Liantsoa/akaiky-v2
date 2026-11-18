@@ -42,4 +42,23 @@ describe('appKind', () => {
     expect(await appKind()).toBe('enfant')
     expect(await appKind()).toBe('parent')
   })
+
+  it('natif, identifiant vide : enfant (échec fermé), puis nouvel essai', async () => {
+    native.value = true
+    getInfo.mockResolvedValueOnce({ id: '' }).mockResolvedValueOnce({ id: 'mg.nosytech.akaiky' })
+    const { appKind } = await import('./appKind')
+    expect(await appKind()).toBe('enfant')
+    expect(await appKind()).toBe('parent')
+  })
+
+  it('currentKind suit la dernière lecture (en-tête de l’app)', async () => {
+    native.value = true
+    getInfo.mockRejectedValueOnce(new Error('indisponible')).mockResolvedValueOnce({ id: 'mg.nosytech.akaiky' })
+    const { appKind, currentKind } = await import('./appKind')
+    expect(currentKind.value).toBeNull()
+    await appKind()
+    expect(currentKind.value).toBe('enfant')
+    await appKind()
+    expect(currentKind.value).toBe('parent')
+  })
 })

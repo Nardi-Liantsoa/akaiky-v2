@@ -4,18 +4,21 @@ Conventions reprises de **bible-mg** et **tia-baiboly**, les deux applications
 mobiles de référence du laboratoire. Ce qui suit a été payé au prix fort au
 moins une fois : ne pas s'en écarter sans raison.
 
-## Créer les coques
+## Les coques
+
+`android/` et `ios/` sont dans le dépôt (NAR-137) : variantes, durcissements et
+thème y vivent, `android/variables.gradle` porte `minSdkVersion = 26`. Ne pas les
+recréer par `npx cap add` (refusé tant que le dossier existe, et le supprimer
+perdrait ces réglages). Après un changement web :
 
 ```bash
 cp .env.example .env.local    # VITE_API_ORIGIN : adresse publique de l'API
-npm run android:add           # build, cap add android, minSdk 26 (native/variables.gradle), sync
-npm run ios:add               # build, cap add ios, sync (macOS + Xcode)
+npm run sync                  # build web + cap sync (Android et iOS)
 ```
 
-Le `capacitor.config.ts` est déjà rempli — ne pas lancer `npx cap init`, il
-l'écraserait. `native/variables.gradle` est hors de `android/` exprès : si le
-dossier existait déjà, `npx cap add android` refuserait de créer la coque.
-Capacitor y remet `minSdkVersion = 24` par défaut ; le script le remplace.
+Après chaque `cap sync` ou mise à jour de Capacitor, vérifier que
+`android/variables.gradle` garde `minSdkVersion = 26`. Ne jamais lancer
+`npx cap init` : il écraserait `capacitor.config.ts`.
 
 ## Deux applications Android : variantes `parent` et `enfant`
 
@@ -24,7 +27,7 @@ Capacitor y remet `minSdkVersion = 24` par défaut ; le script le remplace.
 | Variante | Identifiant | Nom affiché | Distribution |
 |---|---|---|---|
 | `parent` | `mg.nosytech.akaiky` | Akaiky | Play Store (iOS : App Store, même identifiant) |
-| `enfant` | `mg.nosytech.akaiky.enfant` | Akaiky Enfant | APK servi par le serveur, installé par le QR d'appairage (NAR-138) |
+| `enfant` | `mg.nosytech.akaiky.enfant` (suffixe `.enfant`) | Akaiky Enfant | APK servi par le serveur, installé par le QR d'appairage (NAR-138) |
 
 ```bash
 npm run android:parent   # build web, sync, assembleParentDebug

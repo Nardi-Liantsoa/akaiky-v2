@@ -2,6 +2,8 @@ import { createApp } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
+import { App as NativeApp } from '@capacitor/app'
+import { appKind } from './lib/appKind'
 import App from './App.vue'
 import { router } from './router'
 import './style.css'
@@ -18,6 +20,13 @@ if (Capacitor.isNativePlatform()) {
 }
 
 createApp(App).use(router).mount('#app')
+
+// App enfant : un seul écran, sans historique. Le bouton retour d'Android fermerait
+// l'activité et sortirait l'enfant d'Akaiky ; poser un écouteur annule ce comportement.
+// Écouteur unique, au niveau de l'app (aucune pile de feuilles côté enfant).
+if (Capacitor.getPlatform() === 'android') {
+  appKind().then((kind) => { if (kind === 'enfant') NativeApp.addListener('backButton', () => {}).catch(() => {}) })
+}
 
 // Confirme au plugin OTA que ce bundle démarre. Jamais derrière un await
 // réseau : sans cet appel à temps, le bundle est annulé au lancement suivant.

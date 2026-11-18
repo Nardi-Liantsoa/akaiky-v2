@@ -37,7 +37,8 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
     Android 8+ et iOS 16+, publiée sur les stores.
   - Enfant : `mg.nosytech.akaiky.enfant`, Android 8+ seulement, installée par le QR de
     provisionnement (Device Owner) qui télécharge l'APK depuis le serveur du projet,
-    hors Play Store. Variante Android à poser dans le ticket d'appairage.
+    hors Play Store. Variante Android `enfant` posée par NAR-137 (`android/app/build.gradle`,
+    `src/lib/appKind.ts`) ; l'appairage (NAR-138) s'appuie dessus.
   - Identifiants définitifs une fois publiés.
 - **Module natif Android (Kotlin)** côté enfant : mode appareil dédié (Device Owner,
   lock task, lanceur par défaut, redémarrage dans l'app), filtrage des appels entrants

@@ -17,8 +17,6 @@
     "open:android": "npx cap open android",
     "open:ios": "npx cap open ios",
     "icons": "npx --yes @capacitor/assets@3 generate --iconBackgroundColor '#ffffff'",
-    "android:add": "npm run build && npx cap add android && cp native/variables.gradle android/variables.gradle && npx cap sync android",
-    "ios:add": "npm run build && npx cap add ios && npx cap sync ios",
     "lint": "eslint . --max-warnings 0",
     "test:e2e": "playwright test",
     "recette": "node scripts/recette.mjs",

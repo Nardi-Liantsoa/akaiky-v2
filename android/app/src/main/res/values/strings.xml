@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <!-- app_name, title_activity_main, package_name, custom_url_scheme : propres à chaque
-         variante (src/parent, src/enfant), pour que les deux apps ne réclament pas le même schéma. -->
+    <!-- app_name, title_activity_main : propres à chaque variante (src/parent, src/enfant).
+         package_name, custom_url_scheme : générés depuis l'applicationId (build.gradle). -->
 </resources>

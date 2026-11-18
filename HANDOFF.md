@@ -25,8 +25,8 @@
   Mac (WebKit figé, macOS 14), donc verdict non validé en local.
 - **Non vérifié** : audit du contrat NosyHost (`make audit-image`) — dépôt `nosyhost`
   absent de ce poste ; recette `iphone` et comparaison visuelle (pas encore de `main`
-  de référence au-delà du premier commit) ; coques Android et iOS pas encore ajoutées
-  (`npm run android:add`, `npm run ios:add`).
+  de référence au-delà du premier commit) ; coque iOS non construite (Xcode 15.3
+  trop ancien sur ce poste).
 
 ## Décisions datées
 

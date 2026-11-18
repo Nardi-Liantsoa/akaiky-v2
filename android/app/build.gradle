@@ -24,12 +24,18 @@ android {
     productFlavors {
         parent {
             dimension 'app'
-            applicationId 'mg.nosytech.akaiky'
         }
         enfant {
             dimension 'app'
-            applicationId 'mg.nosytech.akaiky.enfant'
+            // mg.nosytech.akaiky.enfant : CHILD_APP_ID de src/lib/appKind.ts.
+            applicationIdSuffix '.enfant'
         }
+    }
+    // Schéma d'URL et nom de paquet propres à chaque variante, tirés de l'identifiant
+    // final : les deux apps installées ne réclament pas les mêmes liens.
+    applicationVariants.all { variant ->
+        variant.resValue 'string', 'package_name', variant.applicationId
+        variant.resValue 'string', 'custom_url_scheme', variant.applicationId
     }
     buildTypes {
         release {

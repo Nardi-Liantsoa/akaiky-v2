@@ -2,6 +2,4 @@
 <resources>
     <string name="app_name">Akaiky Enfant</string>
     <string name="title_activity_main">Akaiky Enfant</string>
-    <string name="package_name">mg.nosytech.akaiky.enfant</string>
-    <string name="custom_url_scheme">mg.nosytech.akaiky.enfant</string>
 </resources>
