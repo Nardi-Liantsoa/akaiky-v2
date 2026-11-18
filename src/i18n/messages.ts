@@ -159,7 +159,7 @@ const fr = {
     confirmRevoke: 'Confirmer le retrait',
     revokeHint: 'Le téléphone retiré perd son accès tout de suite.',
     loadError: 'Impossible de charger les téléphones.',
-    tooMany: 'Trois téléphones sont déjà appairés pour cet enfant : retirez-en un avant d’en configurer un autre.'
+    tooMany: 'Nombre maximal de téléphones atteint pour cet enfant : retirez-en un avant d’en configurer un autre.'
   },
   children: {
     pickerLabel: 'Enfants de la famille',
@@ -397,7 +397,7 @@ const mg: Messages = {
     confirmRevoke: 'Hamafiso ny fanesorana',
     revokeHint: 'Very avy hatrany ny fidirany ny finday esorina.',
     loadError: 'Tsy azo alaina ny finday.',
-    tooMany: 'Efa misy finday telo mifandray amin’ity zaza ity : esory ny iray alohan’ny handrindrana hafa.'
+    tooMany: 'Tratra ny isa ambony indrindra amin’ny finday ho an’ity zaza ity : esory ny iray alohan’ny handrindrana hafa.'
   },
   children: {
     pickerLabel: 'Ankizy ao amin’ny fianakaviana',
@@ -633,7 +633,7 @@ const en: Messages = {
     confirmRevoke: 'Confirm removal',
     revokeHint: 'A removed phone loses its access immediately.',
     loadError: 'Couldn’t load the phones.',
-    tooMany: 'Three phones are already paired for this child: remove one before setting up another.'
+    tooMany: 'This child has reached the maximum number of phones: remove one before setting up another.'
   },
   children: {
     pickerLabel: 'Children in the family',

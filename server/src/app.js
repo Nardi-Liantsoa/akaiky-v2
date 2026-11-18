@@ -209,6 +209,9 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
           `WITH s AS (
              SELECT d.id, d.family_id, d.child_id FROM device_sessions s JOIN child_devices d ON d.id = s.device_id
               WHERE s.token_hash = $1 AND s.expires_at > now() AND d.revoked_at IS NULL
+              -- Verrou partagé : une révocation en cours (UPDATE de l'appareil, DELETE
+              -- des sessions) est attendue, puis la ligne relue : jamais servie après.
+              FOR SHARE OF s, d
            ), seen AS (
              UPDATE child_devices c SET last_seen_at = now() FROM s
               WHERE c.id = s.id AND c.last_seen_at < now() - interval '1 minute'

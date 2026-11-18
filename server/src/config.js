@@ -42,7 +42,7 @@ function phoneCountry(v) {
 // APK de l'app enfant, dont l'adresse et la somme du certificat de signature vont
 // dans le QR d'appairage (NAR-138 ; fichier servi et signé par NAR-165). Absentes :
 // pas de QR possible (la route d'appairage répond 503), sans empêcher le démarrage.
-function deviceApk(env, production) {
+function deviceApk(env, production, natives) {
   const url = env.DEVICE_APK_URL || ''
   const checksum = env.DEVICE_APK_SIGNATURE_SHA256 || ''
   if (!url && !checksum) return null
@@ -53,18 +53,15 @@ function deviceApk(env, production) {
   // SHA-256 du certificat de signature, en base64url sans remplissage (43 caractères),
   // le format qu'Android attend dans PROVISIONING_DEVICE_ADMIN_SIGNATURE_CHECKSUM.
   if (!/^[A-Za-z0-9_-]{43}$/.test(checksum)) throw new Error('DEVICE_APK_SIGNATURE_SHA256 : SHA-256 en base64url (43 caractères)')
+  // Le téléphone appelle /api/device/* depuis la WebView Android (https://localhost) :
+  // sans cette origine autorisée, un QR serait émis pour un échange toujours refusé.
+  if (!natives.includes('https://localhost')) throw new Error('DEVICE_APK_URL exige NATIVE_ORIGINS avec https://localhost (WebView Android)')
   return { url, signatureChecksum: checksum }
-}
-
-// Le téléphone appelle /api/device/* depuis la WebView Android (https://localhost) :
-// sans cette origine autorisée, un QR serait émis pour un échange toujours refusé.
-function deviceApkWithOrigin(apk, origins) {
-  if (apk && !origins.includes('https://localhost')) throw new Error('DEVICE_APK_URL exige NATIVE_ORIGINS avec https://localhost (WebView Android)')
-  return apk
 }
 
 export function loadConfig(env = process.env) {
   const production = env.NODE_ENV === 'production'
+  const natives = nativeOrigins(env.NATIVE_ORIGINS)
   const origin = (env.APP_ORIGIN || (production ? '' : 'http://localhost:8080')).replace(/\/$/, '')
   if (!/^https?:\/\/[a-z0-9.-]+(:\d+)?$/i.test(origin)) throw new Error('APP_ORIGIN invalide (ex. https://akaiky.a-definir.invalid)')
   if (production && !origin.startsWith('https://')) throw new Error('APP_ORIGIN doit être en https en production')
@@ -96,8 +93,8 @@ export function loadConfig(env = process.env) {
     origin,
     // Seconde origine acceptée pour les requêtes (ex. domaine temporaire de la prod).
     extraOrigins: (env.APP_EXTRA_ORIGINS || '').split(',').map((s) => s.trim().replace(/\/$/, '')).filter(Boolean),
-    nativeOrigins: nativeOrigins(env.NATIVE_ORIGINS),
-    deviceApk: deviceApkWithOrigin(deviceApk(env, production), nativeOrigins(env.NATIVE_ORIGINS)),
+    nativeOrigins: natives,
+    deviceApk: deviceApk(env, production, natives),
     staticDir: env.STATIC_DIR || new URL('../../dist/web', import.meta.url).pathname,
     // Traefik est le seul mandataire devant l'application.
     trustProxy: trustedProxies(env.TRUST_PROXY),

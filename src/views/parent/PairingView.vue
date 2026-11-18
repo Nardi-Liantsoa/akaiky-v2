@@ -74,6 +74,9 @@ async function show() {
   justPaired.value = false
   const target = childId.value
   try {
+    // Liste de référence chargée avant le QR : le téléphone qui s'appaire s'y détecte.
+    if (devicesStatus.value !== 'ready') await refreshDevices()
+    if (target !== childId.value) return
     const pairing = await createPairing(target)
     // QR généré dans l'app : le jeton ne passe par aucun service d'image externe.
     const image = await QRCode.toDataURL(JSON.stringify(pairing.provisioning), { margin: 1, width: 280, errorCorrectionLevel: 'M' })
@@ -93,6 +96,8 @@ async function show() {
     error.value = e instanceof ApiError && e.code === 'pairing_unavailable' ? t.value.pairing.unavailable
       : e instanceof ApiError && e.code === 'too_many_devices' ? t.value.pairing.tooMany
       : errorText(e, t.value)
+    // Un téléphone ajouté ailleurs explique le refus : la liste est relue.
+    if (e instanceof ApiError && e.code === 'too_many_devices') void refreshDevices()
     forgetIfGone(e)
   } finally {
     busy.value = false

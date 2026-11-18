@@ -181,7 +181,8 @@ test('plafond de téléphones actifs : refusé dès le QR, et à l’échange s�
   for (let i = 2; i < MAX_DEVICES; i++) assert.equal((await pair(tokenOf(await pairing(owner, fy.id)))).statusCode, 201)
   // QR émis sous le plafond ; un téléphone s'ajoute avant l'échange : refusé à l'échange.
   const last = tokenOf(await pairing(owner, fy.id))
-  await ctx.db.query('INSERT INTO child_devices(family_id, child_id) SELECT family_id, id FROM children WHERE id = $1', [fy.id])
+  const { rows: [extra] } = await ctx.db.query('INSERT INTO child_devices(family_id, child_id) SELECT family_id, id FROM children WHERE id = $1 RETURNING id', [fy.id])
+  await ctx.db.query("INSERT INTO device_sessions(token_hash, device_id, expires_at, refresh_hash, refresh_expires_at) VALUES (sha256(random()::text::bytea), $1, now(), sha256(random()::text::bytea), now() + interval '1 day')", [extra.id])
   const late = await pair(last)
   assert.equal(late.statusCode, 409)
   assert.equal(late.json().code, 'too_many_devices')
@@ -189,6 +190,9 @@ test('plafond de téléphones actifs : refusé dès le QR, et à l’échange s�
   const atQr = await pairing(owner, fy.id)
   assert.equal(atQr.statusCode, 409)
   assert.equal(atQr.json().code, 'too_many_devices')
+  // Un téléphone dont la session ne se renouvelle plus libère sa place.
+  await ctx.db.query("UPDATE device_sessions SET refresh_expires_at = now() - interval '1 second' WHERE device_id = $1", [extra.id])
+  assert.equal((await pairing(owner, fy.id)).statusCode, 201)
 })
 
 test('un enfant retiré emporte ses téléphones', async () => {

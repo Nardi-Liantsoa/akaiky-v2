@@ -25,11 +25,24 @@ export const MAX_DEVICES = 3
 export const DEVICE_ADMIN_COMPONENT = 'mg.nosytech.akaiky.enfant/mg.nosytech.akaiky.AkaikyDeviceAdminReceiver'
 // Session d'appareil : renouvelable 180 jours après le dernier usage, sans plafond
 // absolu. Un téléphone d'enfant ne se réappaire qu'en le réinitialisant : on ne le
-// déconnecte pas au bout d'un an. Il reste révocable à tout moment par un gestionnaire.
+// déconnecte pas au bout d'un an. Contrepartie assumée : un jeton de renouvellement
+// volé et tourné régulièrement reste valable tant qu'un gestionnaire ne révoque pas
+// le téléphone (rejeu détecté seulement si le vrai téléphone renouvelle aussi).
 export const DEVICE_REFRESH_DAYS = 180
 const PREVIOUS_DAYS = 7
 
 const PUBLIC = { config: { public: true } }
+
+// Place libre pour un téléphone de plus (enfant verrouillé par l'appelant). Même
+// règle au QR et à l'échange. Un téléphone dont la session ne peut plus être
+// renouvelée (perdu, réinitialisé, éteint plus de 180 jours) ne garde pas sa place.
+async function assertDeviceSlot(conn, childId) {
+  const { rows: [{ n }] } = await conn.query(
+    `SELECT count(*)::int AS n FROM child_devices d
+      WHERE d.child_id = $1 AND d.revoked_at IS NULL
+        AND EXISTS (SELECT 1 FROM device_sessions s WHERE s.device_id = d.id AND s.refresh_expires_at > now())`, [childId])
+  if (n >= MAX_DEVICES) throw new HttpError(409, 'Nombre maximal de téléphones atteint pour cet enfant.', 'too_many_devices')
+}
 const childNotFound = () => new HttpError(404, 'Enfant introuvable.', 'child_not_found')
 const deviceNotFound = () => new HttpError(404, 'Téléphone introuvable.', 'device_not_found')
 // Même réponse pour un jeton inconnu, expiré ou déjà utilisé : rien à apprendre en sondant.
@@ -62,8 +75,7 @@ export async function devicesRoutes(app) {
       if (!child) throw childNotFound()
       // Plafond vérifié dès le QR : sinon le refus n'arriverait qu'après la
       // réinitialisation du téléphone, laissé configuré mais sans session.
-      const { rows: [{ n }] } = await conn.query('SELECT count(*)::int AS n FROM child_devices WHERE child_id = $1 AND revoked_at IS NULL', [id])
-      if (n >= MAX_DEVICES) throw new HttpError(409, 'Trop de téléphones déjà appairés pour cet enfant.', 'too_many_devices')
+      await assertDeviceSlot(conn, id)
       // Un seul QR valable par enfant : le nouveau remplace les précédents encore inutilisés.
       await conn.query('DELETE FROM pairing_tokens WHERE child_id = $1 AND family_id = $2 AND (used_at IS NULL OR created_at < now() - interval \'1 day\')', [id, own.familyId])
       const { rows: [row] } = await conn.query(
@@ -138,8 +150,7 @@ export async function deviceSessionRoutes(app) {
       // Enfant verrouillé : le plafond d'appareils tient sous deux appairages simultanés.
       const { rows: [child] } = await conn.query('SELECT id FROM children WHERE id = $1 AND family_id = $2 FOR UPDATE', [used.child_id, used.family_id])
       if (!child) throw pairingInvalid()
-      const { rows: [{ n }] } = await conn.query('SELECT count(*)::int AS n FROM child_devices WHERE child_id = $1 AND revoked_at IS NULL', [child.id])
-      if (n >= MAX_DEVICES) throw new HttpError(409, 'Trop de téléphones déjà appairés pour cet enfant.', 'too_many_devices')
+      await assertDeviceSlot(conn, child.id)
       const { rows: [device] } = await conn.query(
         `INSERT INTO child_devices(family_id, child_id, model, os_version, app_version) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
         [used.family_id, child.id, clean(b.model, 80), clean(b.osVersion, 40), clean(b.appVersion, 40)])
