@@ -16,7 +16,8 @@ def keystorePath = { String p ->
 }
 // Jamais d'APK enfant de release non signé : sans keystore, la tâche échoue.
 gradle.taskGraph.whenReady { graph ->
-  if (!keystoreProperties['storeFile'] && graph.allTasks.any { it.name.toLowerCase().contains('enfantrelease') }) {
+  def packaging = ['assembleEnfantRelease', 'bundleEnfantRelease', 'packageEnfantRelease', 'installEnfantRelease']
+  if (!keystoreProperties['storeFile'] && graph.allTasks.any { it.name in packaging }) {
     throw new GradleException("Release enfant sans keystore : AKAIKY_KEYSTORE_PROPERTIES ou ${keystoreFile} (NOSYHOST.md § 6)")
   }
 }

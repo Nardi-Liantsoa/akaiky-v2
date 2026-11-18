@@ -13,3 +13,4 @@ tsconfig.tsbuildinfo
 
 # APK enfant signé, embarqué dans l'image (NAR-165), jamais dans Git
 downloads/*.apk
+downloads/*.cert-sha256

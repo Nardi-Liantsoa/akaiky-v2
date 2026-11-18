@@ -141,7 +141,8 @@ Publier une version de l'APK (avant `make release`) :
 # 2. Construire, signer, vérifier, copier dans downloads/ :
 JAVA_HOME=$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home npm run android:enfant:release
 #    → affiche DEVICE_APK_SIGNATURE_SHA256 (identique tant que le keystore ne change pas)
-# 3. Construire et livrer l'image (section 2) : downloads/akaiky-enfant.apk y est copié.
+# 3. Construire et livrer l'image (section 2) avec --build-arg REQUIRE_APK=1 :
+#    downloads/akaiky-enfant.apk et son empreinte (akaiky-enfant.cert-sha256) y sont copiés.
 ```
 
 Variables de l'app (avec `NATIVE_ORIGINS` contenant `https://localhost`) :
@@ -156,7 +157,9 @@ le keystore change, ce qui rendrait les téléphones existants impossibles à me
 Le contexte de build Docker exclut `android/`, `ios/` et tout fichier de keystore ; seul
 `downloads/akaiky-enfant.apk` est copié dans l'image. Si `DEVICE_APK_URL` pointe vers ce
 serveur et que l'APK manque à l'image, l'API le journalise au démarrage et refuse les QR
-(503) plutôt que d'en émettre qui mèneraient à une page introuvable.
+(503) plutôt que d'en émettre qui mèneraient à une page introuvable ; de même si
+l'empreinte écrite par la release diffère de `DEVICE_APK_SIGNATURE_SHA256`. Le script
+refuse aussi un `versionCode` qui ne monte pas (`ALLOW_SAME_VERSION=1` pour reconstruire).
 
 ## Ce qu'il ne faut pas casser
 

@@ -41,7 +41,10 @@ COPY ops/runtime-role.sql ops/runtime-role.sql
 COPY --from=web /w/dist/web dist/web
 # APK de l'app enfant signé (NAR-165), produit hors de l'image par
 # `npm run android:enfant:release` (keystore jamais dans le contexte de build).
-COPY downloads/README.md downloads/akaiky-enfant.ap[k] downloads/
+COPY downloads/README.md downloads/akaiky-enfant.ap[k] downloads/akaiky-enfant.cert-sha25[6] downloads/
+# Livraison : `--build-arg REQUIRE_APK=1` fait échouer le build si l'APK manque.
+ARG REQUIRE_APK=0
+RUN [ "$REQUIRE_APK" != 1 ] || { [ -f downloads/akaiky-enfant.apk ] && [ -f downloads/akaiky-enfant.cert-sha256 ]; } || { echo "APK enfant absent : npm run android:enfant:release" >&2; exit 1; }
 # Lockfiles : auditer exactement ce qui tourne, sans secret de production.
 COPY package.json package-lock.json /app/audit/site/
 COPY server/package.json server/package-lock.json /app/audit/server/

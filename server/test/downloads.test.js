@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { startDb, startApp } from './helpers.js'
+import { startDb, startApp, call, newUser } from './helpers.js'
 
 const APK = Buffer.from('PK\u0003\u0004 faux APK de test')
 let dbh, withApk, without, dir
@@ -38,25 +38,39 @@ test('ETag : 304 si l’APK n’a pas changé ; limite de téléchargements par 
   const first = await withApk.app.inject({ method: 'GET', url: '/downloads/akaiky-enfant.apk' })
   const etag = first.headers.etag
   assert.match(etag, /^"[A-Za-z0-9_-]{43}"$/)
-  const again = await withApk.app.inject({ method: 'GET', url: '/downloads/akaiky-enfant.apk', headers: { 'if-none-match': etag } })
-  assert.equal(again.statusCode, 304)
+  for (const h of [etag, `W/${etag}`, `"x", ${etag}`, '*']) {
+    assert.equal((await withApk.app.inject({ method: 'GET', url: '/downloads/akaiky-enfant.apk', headers: { 'if-none-match': h } })).statusCode, 304, h)
+  }
+  // Les 304 et HEAD ne comptent pas dans la limite : seuls les envois complets.
+  for (let i = 0; i < 40; i++) await withApk.app.inject({ method: 'GET', url: '/downloads/akaiky-enfant.apk', remoteAddress: '203.0.113.7', headers: { 'if-none-match': etag } })
+  assert.equal((await withApk.app.inject({ method: 'GET', url: '/downloads/akaiky-enfant.apk', remoteAddress: '203.0.113.7' })).statusCode, 200)
   let last
   for (let i = 0; i < 40; i++) last = await withApk.app.inject({ method: 'GET', url: '/downloads/akaiky-enfant.apk', remoteAddress: '203.0.113.9' })
   assert.equal(last.statusCode, 429)
 })
 
-test('QR vers ce serveur sans APK dans l’image : refusé (503), jamais un lien mort', async () => {
-  const own = await startApp(dbh.url, {
-    DOWNLOADS_DIR: join(dir, 'absent'), NATIVE_ORIGINS: 'https://localhost',
-    DEVICE_APK_URL: 'https://app.test/downloads/akaiky-enfant.apk', DEVICE_APK_SIGNATURE_SHA256: 'A'.repeat(43)
+test('QR vers ce serveur sans l’APK attendu (absent ou autre certificat) : 503, jamais un lien mort', async () => {
+  const env = (downloads) => ({
+    DOWNLOADS_DIR: downloads, NATIVE_ORIGINS: 'https://localhost', API_RATE_LIMIT: '100000',
+    DEVICE_APK_URL: 'https://APP.test/downloads/akaiky-enfant.apk', DEVICE_APK_SIGNATURE_SHA256: 'A'.repeat(43)
   })
+  const pairingStatus = async (ctx) => {
+    const owner = await newUser(ctx)
+    await call(ctx.app, 'POST', '/api/families', { cookie: owner.cookie, body: { name: 'F' } })
+    const kid = (await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { firstName: 'Fy' } })).json()
+    return (await call(ctx.app, 'POST', `/api/children/${kid.id}/pairing`, { cookie: owner.cookie })).statusCode
+  }
+  const apps = []
   try {
-    assert.equal(own.app.childApkMissing, true)
-    const embedded = await startApp(dbh.url, {
-      DOWNLOADS_DIR: dir, NATIVE_ORIGINS: 'https://localhost',
-      DEVICE_APK_URL: 'https://app.test/downloads/akaiky-enfant.apk', DEVICE_APK_SIGNATURE_SHA256: 'A'.repeat(43)
-    })
-    assert.equal(embedded.app.childApkMissing, false)
-    await embedded.close()
-  } finally { await own.close() }
+    writeFileSync(join(dir, 'akaiky-enfant.cert-sha256'), 'B'.repeat(43) + '\n')
+    apps.push(await startApp(dbh.url, env(join(dir, 'absent'))))
+    assert.equal(await pairingStatus(apps.at(-1)), 503)
+    apps.push(await startApp(dbh.url, env(dir)))
+    assert.equal(await pairingStatus(apps.at(-1)), 503)
+    writeFileSync(join(dir, 'akaiky-enfant.cert-sha256'), 'A'.repeat(43) + '\n')
+    apps.push(await startApp(dbh.url, env(dir)))
+    assert.equal(await pairingStatus(apps.at(-1)), 201)
+  } finally {
+    for (const a of apps) await a.close()
+  }
 })

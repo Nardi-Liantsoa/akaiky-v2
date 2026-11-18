@@ -299,17 +299,27 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   // En mémoire (quelques Mo) : servi sans accès disque ni chemin fourni par le visiteur.
   const childApk = await readFile(join(config.downloadsDir, 'akaiky-enfant.apk')).catch(() => null)
   const apkTag = childApk && `"${createHash('sha256').update(childApk).digest('base64url')}"`
-  // QR qui pointerait vers ce serveur sans APK embarqué : refusé (routes/devices.js).
-  const ownApkUrl = `${config.origin}/downloads/akaiky-enfant.apk`
-  app.decorate('childApkMissing', Boolean(config.deviceApk?.url === ownApkUrl && !childApk))
-  if (app.childApkMissing) app.log.error('DEVICE_APK_URL désigne ce serveur, mais downloads/akaiky-enfant.apk manque à l’image : aucun QR ne sera émis (NOSYHOST.md § 6).')
-  // Hors /api, donc hors du limiteur global : le sien, large (un appairage = un téléchargement).
+  // QR qui pointerait vers ce serveur sans l'APK attendu : refusé (routes/devices.js).
+  // APK absent, ou empreinte de son certificat (écrite par la release) différente de
+  // DEVICE_APK_SIGNATURE_SHA256 : Android refuserait l'installation sur le téléphone.
+  const apkCert = (await readFile(join(config.downloadsDir, 'akaiky-enfant.cert-sha256'), 'utf8').catch(() => '')).trim()
+  const hosts = new Set([config.origin, ...config.extraOrigins].map((o) => new URL(o).host.toLowerCase()))
+  const apkUrl = config.deviceApk ? new URL(config.deviceApk.url) : null
+  const servedHere = Boolean(apkUrl && hosts.has(apkUrl.host.toLowerCase()) && apkUrl.pathname === '/downloads/akaiky-enfant.apk')
+  const apkProblem = !servedHere ? null
+    : !childApk ? 'downloads/akaiky-enfant.apk manque à l’image'
+    : apkCert !== config.deviceApk.signatureChecksum ? 'l’empreinte du certificat de l’APK embarqué diffère de DEVICE_APK_SIGNATURE_SHA256'
+    : null
+  app.decorate('childApkMissing', Boolean(apkProblem))
+  if (apkProblem) app.log.error(`DEVICE_APK_URL désigne ce serveur, mais ${apkProblem} : aucun QR ne sera émis (NOSYHOST.md § 6).`)
+  // Hors /api, donc hors du limiteur global : le sien, qui ne compte que les envois complets.
   const apkLimit = createLimiter({ max: 30, windowMs: 15 * 60000 })
+  const fresh = (header) => typeof header === 'string' && header.split(',').some((t) => { const v = t.trim().replace(/^W\//, ''); return v === '*' || v === apkTag })
   app.get('/downloads/akaiky-enfant.apk', async (req, reply) => {
     if (!childApk) return reply.code(404).type('text/plain; charset=utf-8').send('Introuvable')
-    if (!apkLimit(rateLimitKey(req.ip))) return reply.code(429).header('retry-after', '900').type('text/plain; charset=utf-8').send('Trop de téléchargements.')
     reply.header('etag', apkTag).header('cache-control', 'no-cache')
-    if (req.headers['if-none-match'] === apkTag) return reply.code(304).send()
+    if (fresh(req.headers['if-none-match'])) return reply.code(304).send()
+    if (req.method === 'GET' && !apkLimit(rateLimitKey(req.ip))) return reply.code(429).header('retry-after', '900').type('text/plain; charset=utf-8').send('Trop de téléchargements.')
     return reply
       .type('application/vnd.android.package-archive')
       .header('content-disposition', 'attachment; filename="akaiky-enfant.apk"')
