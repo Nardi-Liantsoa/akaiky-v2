@@ -69,6 +69,11 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   (`public/webview.html`) qui demande la mise à jour d'« Android System WebView ».
   Pas de bundle pour Chrome 58–63 (Android 8.x jamais mis à jour) : il faudrait les
   chunks SystemJS que la CSP bloque.
+- **Mode appareil dédié (NAR-167, 18/11/2026)** : armé par l'écran de l'enfant une fois
+  appairé et le code parent connu ; levé seulement par le parent (code, puis « Libérer »). Lock task avec le composeur système et Telecom
+  (sans eux, ni écran d'appel ni composeur d'urgence) ; sortie par le code parent, vérifié
+  hors ligne, 15 minutes au plus, refermée par alarme et par redémarrage. Limites et
+  sortie de secours : `HANDOFF.md`.
 - **Hors connexion** : appels et SOS par SMS sans Internet (natif enfant). L'app
   parent démarre hors ligne et le dit, sans déconnecter.
 - **Notifications** : FCM (Android) et APNs (iOS), comptes au nom du client. Alertes

@@ -79,8 +79,18 @@ Android 12 pour le QR), dans `android/app/src/enfant/`. Le jeton d'appairage des
 (`akaiky.pairing`) est gardé dans les préférences privées le temps de l'échange
 (`ProvisioningStore`), puis effacé ; la session d'appareil va dans le Keystore
 (`src/lib/deviceSession.ts`). L'adresse de l'API est celle compilée (`src/api/base.ts`),
-jamais celle du QR. `WebViewVersion.sufficient()` est à appeler avant tout verrouillage
-(NAR-139).
+jamais celle du QR.
+
+**Mode appareil dédié (NAR-167, variante enfant)** : `Kiosk.kt` (règles pures dans
+`KioskPolicy.kt`, testées), pont `KioskPlugin.kt` (`src/native/kiosk.ts`), alarme de fin de
+sortie `RelockReceiver.kt`. Le verrou est **armé par l'écran de l'enfant** une fois le
+téléphone appairé et un code parent reçu (jamais de verrou sans sortie) : un WebView trop ancien (écran de repli, JS jamais lancé) ne verrouille
+donc jamais un téléphone qu'il ne saurait pas déverrouiller. Armé : restrictions
+(réinitialisation, mode sans échec, installation, heure, mode avion…), lanceur par défaut,
+lock task avec le composeur et Telecom (écran d'appel), barre d'état coupée. Code parent
+vérifié hors ligne (`src/lib/parentCodeVerify.ts`), essais limités
+(`src/lib/unlockGuard.ts`) ; sortie de 15 minutes, fermée par alarme, par l'écran et par
+tout redémarrage. Sortie de secours : `HANDOFF.md`.
 
 Vérification locale (émulateur, sans QR) :
 `adb shell dpm set-device-owner mg.nosytech.akaiky.enfant/mg.nosytech.akaiky.AkaikyDeviceAdminReceiver`
