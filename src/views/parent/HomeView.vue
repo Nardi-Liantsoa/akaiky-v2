@@ -5,7 +5,7 @@ import CreateFamily from '../../components/family/CreateFamily.vue'
 import LoadError from '../../components/family/LoadError.vue'
 import ChildAvatar from '../../components/parent/ChildAvatar.vue'
 import ChildPicker from '../../components/parent/ChildPicker.vue'
-import ChildMessages from '../../components/parent/ChildMessages.vue'
+import TodayLog from '../../components/parent/TodayLog.vue'
 import { useT } from '../../composables/useT'
 import { errorText } from '../../lib/errors'
 import { children, loadChildren, selectedChild } from '../../store/children'
@@ -37,7 +37,7 @@ watch(() => family.status, (s) => { if (s === 'ready') void loadChildren(true) }
           <h2>{{ current.firstName }}</h2>
           <RouterLink v-if="canManage()" class="btn btn-ghost" :to="{ name: 'enfant', params: { id: current.id } }">{{ t.children.edit }}</RouterLink>
         </article>
-        <ChildMessages v-if="current" :child-id="current.id" :child-name="current.firstName" />
+        <TodayLog v-if="current" :child-id="current.id" />
       </template>
       <div v-else class="card empty">
         <p>{{ canManage() ? t.children.emptyManager : t.children.emptyMember }}</p>

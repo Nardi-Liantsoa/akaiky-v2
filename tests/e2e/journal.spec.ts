@@ -1,0 +1,59 @@
+import { expect, test } from '@playwright/test'
+import { FAMILY, mockApi, USER } from './mock'
+
+const me = { 'GET /api/auth/me': () => ({ body: { user: USER } }), 'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }) }
+const FY = { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'yellow', createdAt: '2026-11-10T10:00:00Z', parentCodeSetAt: null, remoteUnlockUntil: null }
+const now = Date.now()
+const ago = (h: number) => new Date(now - h * 3_600_000).toISOString()
+const ITEMS = [
+  { id: '6f1c2b1e-0000-4000-8000-000000000401', kind: 'call_blocked', at: ago(0.1), contactId: null, name: null, phone: '+261329876543', durationS: null },
+  { id: '6f1c2b1e-0000-4000-8000-000000000402', kind: 'call_blocked', at: ago(0.2), contactId: null, name: null, phone: null, durationS: null },
+  { id: '6f1c2b1e-0000-4000-8000-000000000403', kind: 'call_in', at: ago(30), contactId: 'c1', name: 'Maman', phone: '+261341234567', durationS: 134 }
+]
+
+function journalApi(role = 'owner') {
+  const queries: string[] = []
+  return {
+    queries,
+    handlers: {
+      ...me,
+      'GET /api/families/me': () => ({ body: { ...FAMILY, role } }),
+      'GET /api/children': () => ({ body: [FY] }),
+      [`GET /api/children/${FY.id}/contacts`]: () => ({ body: { version: 1, max: 6, country: 'MG', contacts: [] } }),
+      [`GET /api/children/${FY.id}/journal`]: (req: { url(): string }) => {
+        const kind = new URL(req.url()).searchParams.get('kind')
+        queries.push(kind ?? '')
+        const items = kind === 'blocked' ? ITEMS.filter((i) => i.kind === 'call_blocked') : kind === 'calls' ? ITEMS.filter((i) => i.kind === 'call_in') : ITEMS
+        return { body: { items, next: null, counts: { blocked: 2 } } }
+      }
+    }
+  }
+}
+
+test('journal : groupé par jour, compteur « Bloqués », filtres, « Autoriser » pré-remplit le contact', async ({ page }) => {
+  const api = journalApi()
+  await mockApi(page, api.handlers)
+  await page.goto('/espace/journal')
+  await expect(page.getByRole('heading', { name: 'Aujourd’hui' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Hier' }).or(page.getByRole('heading', { level: 2 }).nth(1))).toBeVisible()
+  await expect(page.getByText('numéro masqué · n’a pas sonné')).toBeVisible()
+  await expect(page.getByText('Appel de Maman')).toBeVisible()
+  await expect(page.getByText('2 min 14 s')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Bloqués · 2' }).click()
+  await expect(page.getByText('Appel de Maman')).toHaveCount(0)
+  expect(api.queries).toContain('blocked')
+
+  // Un seul « Autoriser » : le numéro masqué ne peut pas devenir un contact.
+  await expect(page.getByRole('link', { name: 'Autoriser' })).toHaveCount(1)
+  await page.getByRole('link', { name: 'Autoriser' }).click()
+  await expect(page).toHaveURL(new RegExp(`/contact/nouveau\\?phone=%2B261329876543$`))
+  await expect(page.getByLabel('Numéro de téléphone')).toHaveValue('+261329876543')
+})
+
+test('journal : un contact (member) ne voit pas « Autoriser »', async ({ page }) => {
+  await mockApi(page, journalApi('member').handlers)
+  await page.goto('/espace/journal')
+  await expect(page.getByText('numéro masqué · n’a pas sonné')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Autoriser' })).toHaveCount(0)
+})
