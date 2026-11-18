@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.CallLog
+import android.telephony.PhoneNumberUtils
 import androidx.core.content.ContextCompat
 import com.getcapacitor.JSArray
 import com.getcapacitor.Plugin
@@ -79,14 +80,17 @@ class CallPlugin : Plugin() {
     }
 
     /**
-     * Durée d'un appel sortant (NAR-166), lue dans le journal d'appels du système :
-     * le dernier appel sortant vers `number` commencé après `since` (ms). Sans permission
-     * ni Device Owner, ou appel introuvable : `found = false` (l'événement part sans durée).
+     * Durée d'un appel sortant (NAR-166), lue dans le journal d'appels du système : le
+     * PREMIER appel sortant vers `number` commencé dans [since, until) (ms) ; `until` est le
+     * début de l'appel suivant au même numéro, pour que chaque appel garde sa propre durée.
+     * Numéros comparés par PhoneNumberUtils (format national ou international). Sans
+     * permission, ou appel pas encore écrit par Android : `found = false`.
      */
     @PluginMethod
     fun lastOutgoing(call: PluginCall) {
         val number = CallPolicy.normalize(call.getString("number"))
         val since = call.getLong("since") ?: 0L
+        val until = call.getLong("until") ?: Long.MAX_VALUE
         val result = com.getcapacitor.JSObject().put("found", false)
         if (number == null || !(isGranted(Manifest.permission.READ_CALL_LOG) || grant(Manifest.permission.READ_CALL_LOG))) {
             call.resolve(result)
@@ -96,12 +100,12 @@ class CallPlugin : Plugin() {
             context.contentResolver.query(
                 CallLog.Calls.CONTENT_URI,
                 arrayOf(CallLog.Calls.NUMBER, CallLog.Calls.DATE, CallLog.Calls.DURATION),
-                "${CallLog.Calls.TYPE} = ? AND ${CallLog.Calls.DATE} >= ?",
-                arrayOf(CallLog.Calls.OUTGOING_TYPE.toString(), since.toString()),
-                "${CallLog.Calls.DATE} DESC"
+                "${CallLog.Calls.TYPE} = ? AND ${CallLog.Calls.DATE} >= ? AND ${CallLog.Calls.DATE} < ?",
+                arrayOf(CallLog.Calls.OUTGOING_TYPE.toString(), since.toString(), until.toString()),
+                "${CallLog.Calls.DATE} ASC"
             )?.use { cursor ->
                 while (cursor.moveToNext()) {
-                    if (CallPolicy.normalize(cursor.getString(0)) != number) continue
+                    if (!PhoneNumberUtils.compare(context, cursor.getString(0) ?: continue, number)) continue
                     result.put("found", true).put("startedAt", cursor.getLong(1)).put("durationS", cursor.getLong(2))
                     break
                 }

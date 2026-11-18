@@ -13,14 +13,15 @@ const BATCH = 50
 // Après ce délai sans trace dans le journal d'Android, l'appel part sans durée.
 const GIVE_UP_MS = 60 * 60_000
 
-export interface PendingCall { id: string, contactId: string, number: string, startedAt: number }
-export interface CallEvent { id: string, kind: 'call_out', contactId: string, startedAt: string, durationS: number | null }
+export interface PendingCall { id: string, contactId: string, name: string, number: string, startedAt: number }
+// name et phone : instantané au moment de l'appel (contact retiré ou modifié avant l'envoi).
+export interface CallEvent { id: string, kind: 'call_out', contactId: string, name: string, phone: string, startedAt: string, durationS: number | null }
 export interface CallLogEntry { found: boolean, startedAt?: number, durationS?: number }
 
 export interface JournalDeps {
   store: SecretStore
   post(events: CallEvent[]): Promise<{ accepted: string[], rejected: string[] }>
-  lastOutgoing(number: string, since: number): Promise<CallLogEntry>
+  lastOutgoing(number: string, since: number, until?: number): Promise<CallLogEntry>
   now(): number
   uuid(): string
 }
@@ -34,8 +35,9 @@ async function readList<T>(store: SecretStore, key: string, valid: (v: unknown) 
     return []
   }
 }
-const isPending = (v: unknown): v is PendingCall => typeof (v as PendingCall)?.id === 'string' && typeof (v as PendingCall).number === 'string' && typeof (v as PendingCall).startedAt === 'number'
-const isEvent = (v: unknown): v is CallEvent => typeof (v as CallEvent)?.id === 'string' && (v as CallEvent).kind === 'call_out'
+const isPending = (v: unknown): v is PendingCall => typeof (v as PendingCall)?.id === 'string' && typeof (v as PendingCall).number === 'string'
+  && typeof (v as PendingCall).name === 'string' && typeof (v as PendingCall).startedAt === 'number'
+const isEvent = (v: unknown): v is CallEvent => typeof (v as CallEvent)?.id === 'string' && (v as CallEvent).kind === 'call_out' && typeof (v as CallEvent).phone === 'string'
 
 export function createCallJournal(deps: JournalDeps) {
   // Une seule opération à la fois : lecture, modification, écriture des listes sans course.
@@ -48,33 +50,49 @@ export function createCallJournal(deps: JournalDeps) {
   const save = (key: string, list: unknown[]) => deps.store.set(key, JSON.stringify(list))
 
   return {
-    // Appel lancé vers un contact : noté avant de quitter l'app pour le composeur.
-    started(contactId: string, number: string): Promise<void> {
+    // Appel sur le point de partir : noté AVANT de céder la main au composeur (l'app peut
+    // être suspendue pendant l'appel). Renvoie son identifiant, pour l'annuler s'il échoue.
+    started(contact: { id: string, name: string }, number: string): Promise<string> {
       return serial(async () => {
         const pending = await readList(deps.store, PENDING_KEY, isPending)
-        pending.push({ id: deps.uuid(), contactId, number, startedAt: deps.now() })
+        const id = deps.uuid()
+        pending.push({ id, contactId: contact.id, name: contact.name, number, startedAt: deps.now() })
         await save(PENDING_KEY, pending.slice(-MAX_QUEUE))
+        return id
       })
     },
 
-    // Retour au premier plan : durée cherchée dans le journal d'Android pour chaque appel en cours.
-    complete(): Promise<void> {
+    // Appel qui n'est pas parti (refus natif, composeur absent) : rien à journaliser.
+    cancel(id: string): Promise<void> {
+      return serial(async () => {
+        await save(PENDING_KEY, (await readList(deps.store, PENDING_KEY, isPending)).filter((p) => p.id !== id))
+      })
+    },
+
+    // Durée cherchée dans le journal d'Android pour chaque appel en cours ; renvoie le
+    // nombre d'appels encore en attente (Android écrit son journal après la fin de l'appel :
+    // l'appelant réessaie un peu plus tard). Fenêtre de chaque appel : de son début (moins
+    // 10 s d'écart) au début de l'appel suivant au même numéro.
+    complete(): Promise<number> {
       return serial(async () => {
         const pending = await readList(deps.store, PENDING_KEY, isPending)
-        if (!pending.length) return
+        if (!pending.length) return 0
         const queue = await readList(deps.store, QUEUE_KEY, isEvent)
         const left: PendingCall[] = []
-        for (const p of pending) {
-          const log = await deps.lastOutgoing(p.number, p.startedAt - 10_000).catch(() => ({ found: false }) as CallLogEntry)
+        const ordered = [...pending].sort((a, b) => a.startedAt - b.startedAt)
+        for (const [i, p] of ordered.entries()) {
+          const next = ordered.slice(i + 1).find((q) => q.number === p.number)
+          const log = await deps.lastOutgoing(p.number, p.startedAt - 10_000, next ? next.startedAt - 10_000 : undefined).catch(() => ({ found: false }) as CallLogEntry)
           if (!log.found && deps.now() - p.startedAt < GIVE_UP_MS) { left.push(p); continue }
           queue.push({
-            id: p.id, kind: 'call_out', contactId: p.contactId,
+            id: p.id, kind: 'call_out', contactId: p.contactId, name: p.name, phone: p.number,
             startedAt: new Date(log.found && log.startedAt ? log.startedAt : p.startedAt).toISOString(),
             durationS: log.found && typeof log.durationS === 'number' ? log.durationS : null
           })
         }
         await save(QUEUE_KEY, queue.slice(-MAX_QUEUE))
         await save(PENDING_KEY, left)
+        return left.length
       })
     },
 

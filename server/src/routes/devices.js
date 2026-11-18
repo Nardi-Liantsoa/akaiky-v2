@@ -85,6 +85,9 @@ const EVENTS = {
           id: { type: 'string', maxLength: 36 },
           kind: { type: 'string', enum: ['call_out'] },
           contactId: { type: 'string', maxLength: 36 },
+          // Instantané au moment de l'appel : le contact peut être retiré avant l'envoi.
+          name: { type: 'string', maxLength: 200 },
+          phone: { type: 'string', pattern: '^\\+[1-9][0-9]{6,14}$' },
           startedAt: { type: 'string', maxLength: 40 },
           durationS: { type: ['integer', 'null'], minimum: 0, maximum: 86400 }
         }
@@ -269,34 +272,47 @@ export async function deviceSessionRoutes(app) {
     })
   })
 
-  // Événements du téléphone (NAR-166). L'enfant vient de la session ; chaque contact est
-  // cherché parmi les siens (celui d'un autre enfant est refusé, jamais enregistré).
-  // Idempotent : un identifiant déjà connu n'est pas réenregistré (file hors ligne rejouée).
+  // Événements du téléphone (NAR-166). L'enfant vient de la session. Un contact
+  // d'un autre enfant est refusé ; un contact retiré entre l'appel et l'envoi (file hors
+  // ligne) est accepté avec l'instantané envoyé (nom, numéro composé), sans lien. Chaque
+  // événement dans son propre point de sauvegarde : un seul en échec ne bloque pas les
+  // autres. Idempotent : un identifiant déjà enregistré pour cet enfant est accepté.
+  const eventsLimit = createLimiter({ max: 60, windowMs: 60_000 })
   app.post('/events', { config: { device: true }, schema: { body: EVENTS } }, async (req) => {
+    if (!eventsLimit(`device:${req.device.id}`)) throw new HttpError(429, 'Trop d’envois. Réessayez dans une minute.')
     const now = Date.now()
     const accepted = [], rejected = []
     await withTransaction(db, async (conn) => {
+      const ids = [...new Set(req.body.events.map((e) => e.contactId).filter(isUuid))]
+      // Contacts du lot lus d'un coup : ceux de cet enfant, et ceux qui existent ailleurs.
+      const { rows } = await conn.query('SELECT id, child_id, family_id FROM allowed_contacts WHERE id = ANY($1::uuid[])', [ids])
+      const known = new Map(rows.map((r) => [r.id, r]))
       for (const e of req.body.events) {
         const started = Date.parse(e.startedAt)
-        // Fenêtre plausible : pas dans le futur (5 min d'écart d'horloge), pas plus vieux que la rétention.
         const plausible = isUuid(e.id) && isUuid(e.contactId) && !Number.isNaN(started)
           && started <= now + 5 * 60000 && started >= now - 90 * 86400000
-        if (!plausible) { rejected.push(e.id); continue }
-        const { rows: [contact] } = await conn.query(
-          'SELECT id, name_enc, phone_enc FROM allowed_contacts WHERE id = $1 AND child_id = $2 AND family_id = $3',
-          [e.contactId, req.device.childId, req.device.familyId])
-        if (!contact) { rejected.push(e.id); continue }
-        const name = openField(contact.name_enc, config.dataKey, contactAad(contact.id, 'name'))
-        const phone = openField(contact.phone_enc, config.dataKey, contactAad(contact.id, 'phone'))
-        const { rowCount } = await conn.query(
-          `INSERT INTO device_events(id, family_id, child_id, device_id, kind, contact_id, name_enc, phone_enc, started_at, duration_s)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (id) DO NOTHING`,
-          [e.id, req.device.familyId, req.device.childId, req.device.id, e.kind, contact.id,
-            sealField(name, config.dataKey, eventAad(e.id, 'name')), sealField(phone, config.dataKey, eventAad(e.id, 'phone')),
-            new Date(started), e.durationS ?? null])
-        // Déjà enregistré par ce même enfant (rejeu) : accepté ; par un autre : refusé.
-        if (rowCount || (await conn.query('SELECT 1 FROM device_events WHERE id = $1 AND child_id = $2', [e.id, req.device.childId])).rowCount) accepted.push(e.id)
-        else rejected.push(e.id)
+        const contact = known.get(e.contactId)
+        const foreign = contact && (contact.child_id !== req.device.childId || contact.family_id !== req.device.familyId)
+        if (!plausible || foreign) { rejected.push(e.id); continue }
+        await conn.query('SAVEPOINT ev')
+        try {
+          const name = typeof e.name === 'string' ? e.name.trim().slice(0, 80) : ''
+          const { rowCount } = await conn.query(
+            `INSERT INTO device_events(id, family_id, child_id, device_id, kind, contact_id, name_enc, phone_enc, started_at, duration_s)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (id) DO NOTHING`,
+            [e.id, req.device.familyId, req.device.childId, req.device.id, e.kind, contact ? contact.id : null,
+              name ? sealField(name, config.dataKey, eventAad(e.id, 'name')) : null,
+              e.phone ? sealField(e.phone, config.dataKey, eventAad(e.id, 'phone')) : null,
+              new Date(started), e.durationS ?? null])
+          // Rejeu par ce même enfant : accepté ; identifiant pris par un autre enfant : refusé.
+          const mine = rowCount || (await conn.query('SELECT 1 FROM device_events WHERE id = $1 AND child_id = $2', [e.id, req.device.childId])).rowCount
+          await conn.query('RELEASE SAVEPOINT ev')
+          ;(mine ? accepted : rejected).push(e.id)
+        } catch (err) {
+          await conn.query('ROLLBACK TO SAVEPOINT ev')
+          req.log.error({ err, event: e.id }, 'événement d’appareil refusé')
+          rejected.push(e.id)
+        }
       }
     })
     return { accepted, rejected }

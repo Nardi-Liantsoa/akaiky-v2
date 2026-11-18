@@ -22,11 +22,11 @@ function setup(over: Partial<JournalDeps> = {}) {
 describe('createCallJournal', () => {
   it('appel → durée lue au retour → envoyé ; file et appels en cours vidés', async () => {
     const s = setup()
-    await s.journal.started('maman', '+261341234567')
+    await s.journal.started({ id: 'maman', name: 'Maman' }, '+261341234567')
     expect(s.pending()).toHaveLength(1)
     await s.journal.complete()
-    expect(s.deps.lastOutgoing).toHaveBeenCalledWith('+261341234567', 1_000_000 - 10_000)
-    expect(s.queue()).toEqual([{ id: 'id-1', kind: 'call_out', contactId: 'maman', startedAt: new Date(1_000_500).toISOString(), durationS: 42 }])
+    expect(s.deps.lastOutgoing).toHaveBeenCalledWith('+261341234567', 1_000_000 - 10_000, undefined)
+    expect(s.queue()).toEqual([{ id: 'id-1', kind: 'call_out', contactId: 'maman', name: 'Maman', phone: '+261341234567', startedAt: new Date(1_000_500).toISOString(), durationS: 42 }])
     await s.journal.flush()
     expect(s.deps.post).toHaveBeenCalledTimes(1)
     expect(s.queue()).toEqual([])
@@ -36,7 +36,7 @@ describe('createCallJournal', () => {
   it('hors ligne : la file reste, puis part au relevé suivant (même identifiant)', async () => {
     const post = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockImplementation(async (events) => ({ accepted: events.map((e: { id: string }) => e.id), rejected: [] }))
     const s = setup({ post })
-    await s.journal.started('maman', '+261341234567')
+    await s.journal.started({ id: 'maman', name: 'Maman' }, '+261341234567')
     await s.journal.complete()
     await s.journal.flush()
     expect(s.queue()).toHaveLength(1)
@@ -47,7 +47,7 @@ describe('createCallJournal', () => {
 
   it('appel absent du journal d’Android : attend, puis part sans durée après une heure', async () => {
     const s = setup({ lastOutgoing: vi.fn(async () => ({ found: false })) })
-    await s.journal.started('maman', '+261341234567')
+    await s.journal.started({ id: 'maman', name: 'Maman' }, '+261341234567')
     await s.journal.complete()
     expect(s.pending()).toHaveLength(1)
     s.advance(61 * 60_000)
@@ -58,12 +58,12 @@ describe('createCallJournal', () => {
 
   it('événement refusé par le serveur : retiré (ne bloque pas la file) ; 401 : file vidée', async () => {
     const s = setup({ post: vi.fn(async (events: CallEvent[]) => ({ accepted: [] as string[], rejected: events.map((e) => e.id) })) })
-    await s.journal.started('autre', '+261320000000')
+    await s.journal.started({ id: 'autre', name: 'Autre' }, '+261320000000')
     await s.journal.complete()
     await s.journal.flush()
     expect(s.queue()).toEqual([])
     const lost = setup({ post: vi.fn(async () => { throw new DeviceError(401, 'device_session_lost') }) })
-    await lost.journal.started('maman', '+261341234567')
+    await lost.journal.started({ id: 'maman', name: 'Maman' }, '+261341234567')
     await lost.journal.complete()
     await lost.journal.flush()
     expect(lost.queue()).toEqual([])
@@ -71,7 +71,27 @@ describe('createCallJournal', () => {
 
   it('opérations simultanées sérialisées : aucun appel perdu', async () => {
     const s = setup()
-    await Promise.all([s.journal.started('a', '+1'), s.journal.started('b', '+2'), s.journal.started('c', '+3')])
+    await Promise.all([s.journal.started({ id: 'a', name: 'A' }, '+1'), s.journal.started({ id: 'b', name: 'B' }, '+2'), s.journal.started({ id: 'c', name: 'C' }, '+3')])
     expect(s.pending().map((p: { contactId: string }) => p.contactId).sort()).toEqual(['a', 'b', 'c'])
+  })
+
+  it('deux appels au même numéro : chacun cherche sa durée avant le suivant', async () => {
+    const s = setup({ lastOutgoing: vi.fn(async (_n: string, since: number) => ({ found: true, startedAt: since + 10_000, durationS: since > 1_000_000 ? 7 : 3 })) })
+    await s.journal.started({ id: 'maman', name: 'Maman' }, '+261341234567')
+    s.advance(120_000)
+    await s.journal.started({ id: 'maman', name: 'Maman' }, '+261341234567')
+    await s.journal.complete()
+    expect(s.deps.lastOutgoing).toHaveBeenNthCalledWith(1, '+261341234567', 990_000, 1_110_000)
+    expect(s.deps.lastOutgoing).toHaveBeenNthCalledWith(2, '+261341234567', 1_110_000, undefined)
+    expect(s.queue().map((e: { durationS: number }) => e.durationS)).toEqual([3, 7])
+  })
+
+  it('appel annulé (non parti) : rien de journalisé ; complete() dit combien attendent', async () => {
+    const s = setup({ lastOutgoing: vi.fn(async () => ({ found: false })) })
+    const id = await s.journal.started({ id: 'maman', name: 'Maman' }, '+261341234567')
+    await s.journal.cancel(id)
+    expect(s.pending()).toEqual([])
+    await s.journal.started({ id: 'papa', name: 'Papa' }, '+261331234567')
+    expect(await s.journal.complete()).toBe(1)
   })
 })

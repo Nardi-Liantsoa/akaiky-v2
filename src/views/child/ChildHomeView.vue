@@ -104,27 +104,48 @@ const contacts = computed(() => [...(deviceConfig.config?.contacts ?? [])].sort(
 const emergency = computed(() => emergencyNumber(deviceConfig.config?.country))
 const calling = ref(false)
 const callError = ref(false)
-// Un appui, un appel : l'appli téléphone prend le relais. Pas de double appel en rafale.
-// Journal (NAR-166) : durées relevées au retour du composeur, puis envoi (ou file hors ligne).
+// Journal (NAR-166) : durées relevées au retour du composeur, puis envoi (ou file hors
+// ligne). Android écrit son journal d'appels après la fin de l'appel : tant qu'un appel
+// attend sa durée, nouvel essai toutes les 30 s au premier plan.
+let journalRetry: ReturnType<typeof setTimeout> | undefined
 function syncJournal() {
-  void callJournal.complete().then(() => callJournal.flush()).catch(() => {})
+  clearTimeout(journalRetry)
+  void callJournal.complete()
+    .then(async (waiting) => {
+      await callJournal.flush()
+      if (waiting && foreground && !unmounted) journalRetry = setTimeout(syncJournal, 30_000)
+    })
+    .catch(() => {})
 }
 
-async function call(phone: string, contactId: string) {
+// Un appui, un appel : l'appli téléphone prend le relais. Pas de double appel en rafale.
+// L'appel est noté au journal AVANT de partir (l'app peut être suspendue pendant l'appel),
+// puis retiré s'il ne part pas.
+async function call(phone: string, contact: { id: string, name: string }) {
   if (calling.value) return
   calling.value = true
   callError.value = false
   try {
     // Au mieux : la liste gardée par le natif sert si cet envoi échoue.
     await AkaikyCall.setAllowed({ numbers: allowedNumbers() }).catch(() => {})
-    await AkaikyCall.call({ number: phone })
-    void callJournal.started(contactId, phone).catch(() => {})
+    await placeCall(phone, contact)
   } catch {
     callError.value = true
   } finally {
     setTimeout(() => { calling.value = false }, 1500)
   }
 }
+// Appel d'un contact, noté au journal avant de partir ; retiré du journal s'il échoue.
+async function placeCall(phone: string, contact: { id: string, name: string }) {
+  const id = await callJournal.started(contact, phone).catch(() => null)
+  try {
+    await AkaikyCall.call({ number: phone })
+  } catch (e) {
+    if (id) void callJournal.cancel(id).catch(() => {})
+    throw e
+  }
+}
+
 // SOS maintenu 3 s : en attendant l'alerte complète (NAR-149), premier contact puis,
 // si l'appel ne part pas, le numéro d'urgence. Jamais bloqué par un appel en cours.
 async function sos() {
@@ -132,11 +153,9 @@ async function sos() {
   await AkaikyCall.setAllowed({ numbers: allowedNumbers() }).catch(() => {})
   for (const step of sosPlan(contacts.value, emergency.value)) {
     try {
-      if (step.kind === 'contact') {
-        await AkaikyCall.call({ number: step.number })
-        const contact = contacts.value.find((c) => c.phone === step.number)
-        if (contact) void callJournal.started(contact.id, step.number).catch(() => {})
-      } else await AkaikyCall.emergency({ number: step.number })
+      const contact = contacts.value.find((c) => c.phone === step.number)
+      if (step.kind === 'contact' && contact) await placeCall(step.number, contact)
+      else await AkaikyCall.emergency({ number: step.number })
       return
     } catch {
       // Étape suivante.
@@ -151,7 +170,7 @@ async function callEmergency() {
 
 // Téléphone retiré pendant l'usage : l'écran le dit.
 watch(() => deviceConfig.status, (s) => { if (s === 'lost') state.value = { kind: 'revoked' } })
-onBeforeUnmount(() => { unmounted = true; pause(); stopStatus(); void lifecycle?.remove() })
+onBeforeUnmount(() => { unmounted = true; pause(); stopStatus(); clearTimeout(journalRetry); void lifecycle?.remove() })
 
 const text = computed(() => {
   const c = t.value.child
@@ -173,7 +192,7 @@ const text = computed(() => {
     <ChildStatusBar :status="status" />
     <p v-if="callError" class="call-error" role="alert">{{ t.child.callFailed }}</p>
     <section v-if="contacts.length" class="grid" :class="{ single: contacts.length === 1 }">
-      <ContactTile v-for="c in contacts" :key="c.id" :name="c.name" :color="c.avatarColor" :busy="calling" @call="call(c.phone, c.id)" />
+      <ContactTile v-for="c in contacts" :key="c.id" :name="c.name" :color="c.avatarColor" :busy="calling" @call="call(c.phone, c)" />
     </section>
     <section v-else class="empty">
       <p class="waiting">{{ t.child.noContacts }}</p>

@@ -299,7 +299,7 @@ const events = (token, list) => native(ctx.app, 'POST', '/api/device/events', { 
 test('journal : appel sortant enregistré avec sa durée, chiffré ; rejoué, enregistré une fois', async () => {
   const { owner, fy, device } = await paired()
   const maman = (await call(ctx.app, 'POST', `/api/children/${fy.id}/contacts`, { cookie: owner.cookie, body: { name: 'Maman', phone: '034 12 345 67' } })).json()
-  const ev = { id: uuid(), kind: 'call_out', contactId: maman.id, startedAt: new Date(Date.now() - 60000).toISOString(), durationS: 42 }
+  const ev = { id: uuid(), kind: 'call_out', contactId: maman.id, name: 'Maman', phone: '+261341234567', startedAt: new Date(Date.now() - 60000).toISOString(), durationS: 42 }
   const first = await events(device.accessToken, [ev])
   assert.equal(first.statusCode, 200, first.body)
   assert.deepEqual(first.json(), { accepted: [ev.id], rejected: [] })
@@ -332,6 +332,17 @@ test('journal : contact d’un autre enfant ou d’une autre famille refusé ; d
   assert.deepEqual(res.json().accepted, [])
   assert.equal(res.json().rejected.length, 4)
   assert.equal((await ctx.db.query('SELECT 1 FROM device_events WHERE child_id = ANY($1)', [[a.fy.id, tiana.id, b.fy.id]])).rowCount, 0)
+})
+
+test('journal : contact retiré avant l’envoi (file hors ligne) → enregistré avec l’instantané, sans lien', async () => {
+  const { owner, fy, device } = await paired()
+  const papa = (await call(ctx.app, 'POST', `/api/children/${fy.id}/contacts`, { cookie: owner.cookie, body: { name: 'Papa', phone: '033 12 345 67' } })).json()
+  assert.equal((await call(ctx.app, 'DELETE', `/api/contacts/${papa.id}`, { cookie: owner.cookie })).statusCode, 200)
+  const ev = { id: uuid(), kind: 'call_out', contactId: papa.id, name: 'Papa', phone: '+261331234567', startedAt: new Date().toISOString(), durationS: 12 }
+  assert.deepEqual((await events(device.accessToken, [ev])).json(), { accepted: [ev.id], rejected: [] })
+  const { rows: [row] } = await ctx.db.query('SELECT contact_id, name_enc FROM device_events WHERE id = $1', [ev.id])
+  assert.equal(row.contact_id, null)
+  assert.ok(row.name_enc)
 })
 
 test('journal : identifiant déjà pris par l’événement d’un autre enfant → refusé, rien d’écrasé', async () => {
