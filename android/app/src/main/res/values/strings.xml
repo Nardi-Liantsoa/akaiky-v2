@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <!-- app_name et title_activity_main : propres à chaque variante (src/parent, src/enfant). -->
+    <string name="package_name">mg.nosytech.akaiky</string>
+    <string name="custom_url_scheme">mg.nosytech.akaiky</string>
+</resources>

@@ -186,6 +186,10 @@ const fr = {
     memberGone: 'Ce membre ne fait plus partie de la famille.',
     memberLinked: 'Ce membre est déjà lié à un autre contact de cet enfant.'
   },
+  child: {
+    waiting: 'Ce téléphone sera bientôt prêt.',
+    hint: 'Un parent va le configurer depuis son application.'
+  },
   parent: {
     tabsLabel: 'Navigation principale',
     home: { title: 'Accueil', empty: 'Les enfants de votre famille apparaîtront ici.' },
@@ -392,6 +396,10 @@ const mg: Messages = {
     memberGone: 'Tsy ao amin’ny fianakaviana intsony io mpikambana io.',
     memberLinked: 'Efa mifandray amin’ny mpifandray hafa an’ity zaza ity io mpikambana io.'
   },
+  child: {
+    waiting: 'Ho vonona tsy ho ela ity finday ity.',
+    hint: 'Ray aman-dreny iray no handrindra azy avy amin’ny rindranasany.'
+  },
   parent: {
     tabsLabel: 'Fitetezana lehibe',
     home: { title: 'Fandraisana', empty: 'Eto no hiseho ireo ankizy ao amin’ny fianakavianao.' },
@@ -595,6 +603,10 @@ const en: Messages = {
     notFound: 'This contact no longer exists.',
     memberGone: 'This member is no longer in the family.',
     memberLinked: 'This member is already linked to another contact of this child.'
+  },
+  child: {
+    waiting: 'This phone will be ready soon.',
+    hint: 'A parent will set it up from their app.'
   },
   parent: {
     tabsLabel: 'Main navigation',

@@ -9,6 +9,8 @@
   (NAR-135, migration `005`, clé `DATA_ENCRYPTION_KEY`).
   Contacts autorisés côté parent (NAR-140, migration `006`) ; la synchronisation vers le
   téléphone de l'enfant attend l'appairage (NAR-160, bloqué par NAR-138).
+  Coques Android (variantes `parent` et `enfant`) et iOS générées (NAR-137) ; construction
+  native non vérifiée sur ce poste (plateforme `android-36` absente, Xcode 15.3 trop ancien).
 - Identifiant `mg.nosytech.akaiky`, nom affiché « Akaiky ». Maquettes résumées dans
   `docs/DESIGN.md` ; jetons et police posés dans `src/style.css` (NAR-132).
 - Vérifié en local (NAR-140) : lint, build, tests front (34/34), tests API contre PostgreSQL

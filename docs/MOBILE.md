@@ -17,6 +17,35 @@ l'écraserait. `native/variables.gradle` est hors de `android/` exprès : si le
 dossier existait déjà, `npx cap add android` refuserait de créer la coque.
 Capacitor y remet `minSdkVersion = 24` par défaut ; le script le remplace.
 
+## Deux applications Android : variantes `parent` et `enfant`
+
+`android/app/build.gradle` déclare deux variantes de produit (dimension `app`) :
+
+| Variante | Identifiant | Nom affiché | Distribution |
+|---|---|---|---|
+| `parent` | `mg.nosytech.akaiky` | Akaiky | Play Store (iOS : App Store, même identifiant) |
+| `enfant` | `mg.nosytech.akaiky.enfant` | Akaiky Enfant | APK servi par le serveur, installé par le QR d'appairage (NAR-138) |
+
+```bash
+npm run android:parent   # build web, sync, assembleParentDebug
+npm run android:enfant   # build web, sync, assembleEnfantDebug
+```
+
+Les deux APK s'installent côte à côte. Le web sait dans quelle application il
+tourne par `src/lib/appKind.ts` (identifiant natif lu par `@capacitor/app`) :
+l'app enfant n'ouvre que ses écrans (`/enfant`), l'app parent jamais ceux-là.
+Noms : `android/app/src/<variante>/res/values/strings.xml`. Pas de variante
+enfant sur iOS (CdC §3 : hors périmètre v1).
+
+Durcissements posés dans `AndroidManifest.xml` : `allowBackup="false"` (données
+de mineurs), `res/xml/network_security_config.xml` (HTTPS seulement, explicite :
+Android 8 accepte le clair par défaut). Thème natif clair forcé et icônes sombres
+dans la barre de navigation (`values-v27/styles.xml`), comme l'interface.
+
+**Outils requis** : SDK Android avec la plateforme `android-36` (compileSdk),
+JDK 21 recommandé ; Xcode récent (le framework Capacitor 8 précompilé ne se lit
+pas avec Xcode 15).
+
 ## Trois réglages qui coûtent cher
 
 ### `minSdkVersion = 26`

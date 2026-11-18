@@ -22,7 +22,9 @@
     "lint": "eslint . --max-warnings 0",
     "test:e2e": "playwright test",
     "recette": "node scripts/recette.mjs",
-    "test:visual": "sh scripts/visual.sh"
+    "test:visual": "sh scripts/visual.sh",
+    "android:parent": "npm run sync && cd android && ./gradlew assembleParentDebug",
+    "android:enfant": "npm run sync && cd android && ./gradlew assembleEnfantDebug"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.1",

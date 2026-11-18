@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { auth, isAdmin, logout } from './store/auth'
 import { useT, locale, LOCALE_LIST } from './composables/useT'
 
 const t = useT()
 const router = useRouter()
+const route = useRoute()
 
 async function onLogout() {
   await logout()
@@ -13,7 +14,8 @@ async function onLogout() {
 </script>
 
 <template>
-  <header class="nav">
+  <!-- L'app enfant n'a ni compte ni navigation : pas d'en-tête. -->
+  <header v-if="!route.meta.childApp" class="nav">
     <RouterLink class="brand" :to="{ name: 'accueil' }">Akaiky</RouterLink>
     <nav>
       <template v-if="auth.user">

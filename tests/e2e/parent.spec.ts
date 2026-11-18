@@ -51,3 +51,9 @@ test('écran étroit en malgache : libellés des onglets contenus dans leur colo
   expect(overflow).toBe(false)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
+
+test('app parent (web) : l’écran de l’app enfant n’est pas atteignable', async ({ page }) => {
+  await mockApi(page, { 'GET /api/auth/me': () => ({ body: { user: null } }), 'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }) })
+  await page.goto('/enfant')
+  await expect(page).toHaveURL(/\/$/)
+})

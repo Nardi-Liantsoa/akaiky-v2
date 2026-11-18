@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { auth, init, isAdmin } from './store/auth'
 import { family, loadFamily } from './store/family'
+import { appKind } from './lib/appKind'
 
 // Les gardes servent le confort de navigation, pas la sécurité : chaque route
 // d'API vérifie elle-même la session et le rôle.
@@ -25,6 +26,9 @@ const routes: RouteRecordRaw[] = [
       { path: 'reglages/enfant/:childId/contact/:id', name: 'contact', component: () => import('./views/parent/ContactFormView.vue'), meta: { requiresFamily: true } }
     ]
   },
+  // App enfant (variante Android « enfant ») : ses seules routes. Le téléphone de
+  // l'enfant n'a pas de compte ; il s'authentifiera comme appareil (NAR-138).
+  { path: '/enfant', name: 'enfant-accueil', component: () => import('./views/child/ChildHomeView.vue'), meta: { childApp: true } },
   // Ouverte sans session : la page explique comment se connecter, puis accepter.
   { path: '/invitation', name: 'invitation', component: () => import('./views/InviteView.vue') },
   { path: '/securite', name: 'securite', component: () => import('./views/SecurityView.vue'), meta: { requiresAuth: true } },
@@ -39,6 +43,11 @@ export const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+  // Chaque application ne voit que ses écrans : l'app enfant n'atteint jamais
+  // l'espace parent (ni la connexion), l'app parent jamais l'écran enfant.
+  const kind = await appKind()
+  if (kind === 'enfant') return to.meta.childApp ? true : { name: 'enfant-accueil' }
+  if (to.meta.childApp) return { name: 'accueil' }
   await init()
   if (to.meta.requiresAuth && !auth.user) return { name: 'connexion', query: { next: to.fullPath } }
   if (to.meta.requiresAdmin && !isAdmin()) return { name: 'espace' }
