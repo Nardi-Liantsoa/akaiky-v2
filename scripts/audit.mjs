@@ -19,7 +19,10 @@ import { fileURLToPath } from 'node:url'
 const LEVELS = ['info', 'low', 'moderate', 'high', 'critical']
 const BLOCKING = new Set(['moderate', 'high', 'critical'])
 const MAX_DAYS = 30
-const DATE = /^\d{4}-\d{2}-\d{2}$/
+// Date réelle seulement : '2026-11-31' est refusée (Date.parse la décalerait au 1er décembre).
+const isDate = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)
+  && !Number.isNaN(Date.parse(`${s}T00:00:00Z`)) && new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s
+const filled = (s) => typeof s === 'string' && s.trim() !== ''
 const days = (from, to) => (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000
 const ghsaOf = (url) => /GHSA(-[0-9a-z]{4}){3}/i.exec(url ?? '')?.[0]?.toUpperCase() ?? null
 
@@ -36,8 +39,8 @@ export function advisoriesOf(report) {
 }
 
 const wellFormed = (e) => e && typeof e === 'object'
-  && typeof e.id === 'string' && typeof e.package === 'string' && typeof e.reason === 'string' && e.reason.trim()
-  && DATE.test(e.added ?? '') && DATE.test(e.expires ?? '') && LEVELS.includes(e.severity)
+  && filled(e.id) && filled(e.package) && filled(e.reason)
+  && isDate(e.added) && isDate(e.expires) && LEVELS.includes(e.severity)
 
 // today : 'AAAA-MM-JJ' (UTC).
 export function evaluate(report, exceptions, today) {
@@ -53,8 +56,12 @@ export function evaluate(report, exceptions, today) {
   for (const e of exceptions) {
     if (!wellFormed(e)) {
       problems.push(`Exception mal formée (id, package, reason, added, expires, severity) : ${JSON.stringify(e)}.`)
-    } else if (!(days(e.added, e.expires) >= 0 && days(e.added, e.expires) <= MAX_DAYS)) {
+    } else if (e.added > today) {
+      problems.push(`Exception ${e.id} : added (${e.added}) est dans le futur.`)
+    } else if (days(e.added, e.expires) < 0 || days(e.added, e.expires) > MAX_DAYS) {
       problems.push(`Exception ${e.id} : ${MAX_DAYS} jours au plus entre added (${e.added}) et expires (${e.expires}).`)
+    } else if (valid.has(`${e.id.toUpperCase()}|${e.package}`)) {
+      problems.push(`Exception en double : ${e.id} (${e.package}). En garder une seule.`)
     } else if (e.expires < today) {
       problems.push(`Exception expirée le ${e.expires} : ${e.id} (${e.package}). Réexaminer l'avis, puis retirer ou renouveler l'exception.`)
     } else {
@@ -67,12 +74,15 @@ export function evaluate(report, exceptions, today) {
     const e = valid.get(key)
     if (e) {
       seen.add(key)
-      if (LEVELS.indexOf(a.severity) > LEVELS.indexOf(e.severity)) {
+      if (!LEVELS.includes(a.severity)) {
+        problems.push(`Avis ${a.id} sur ${a.pkg} de gravité inconnue (${a.severity}) : réexaminer.`)
+      } else if (LEVELS.indexOf(a.severity) > LEVELS.indexOf(e.severity)) {
         problems.push(`Avis ${a.id} sur ${a.pkg} passé en ${a.severity} (exception acceptée pour ${e.severity}) : réexaminer.`)
       }
       continue
     }
-    if (BLOCKING.has(a.severity)) problems.push(`Avis ${a.severity} non couvert : ${a.id ?? a.url} sur ${a.pkg}.`)
+    // Gravité inconnue : bloquante (échec fermé).
+    if (BLOCKING.has(a.severity) || !LEVELS.includes(a.severity)) problems.push(`Avis ${a.severity} non couvert : ${a.id ?? a.url} sur ${a.pkg}.`)
   }
   for (const [key, e] of valid) {
     if (!seen.has(key)) problems.push(`Exception devenue inutile : ${e.id} ne touche plus ${e.package}. La retirer de audit-exceptions.json.`)
@@ -99,7 +109,12 @@ if (process.argv[1] && real(process.argv[1]) === real(fileURLToPath(import.meta.
   let report
   try { report = JSON.parse(runNpmAudit()) } catch { report = null }
   let exceptions
-  try { exceptions = JSON.parse(readFileSync(new URL('../audit-exceptions.json', import.meta.url), 'utf8')) } catch { exceptions = null }
+  try {
+    exceptions = JSON.parse(readFileSync(new URL('../audit-exceptions.json', import.meta.url), 'utf8'))
+  } catch (err) {
+    console.error(`✗ audit-exceptions.json illisible : ${err.message}`)
+    process.exit(1)
+  }
   const today = new Date().toISOString().slice(0, 10)
   const { ok, problems } = evaluate(report, exceptions, today)
   if (ok) {

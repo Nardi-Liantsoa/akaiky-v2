@@ -63,7 +63,26 @@ test('exception mal formée ou fichier qui n’est pas une liste : rouge, sans e
 
 test('exception de plus de 30 jours, ou expirant avant son ajout : rouge', () => {
   assert.match(evaluate(report(picomatch), [{ ...exception, expires: '2099-12-31' }], '2026-11-18').problems.join(), /30 jours au plus/)
-  assert.equal(evaluate(report(picomatch), [{ ...exception, expires: '2026-11-17' }], '2026-11-18').ok, false)
+  // today avant les deux dates : seule la règle des 30 jours peut faire échouer.
+  assert.match(evaluate(report(picomatch), [{ ...exception, added: '2026-11-18', expires: '2026-11-10' }], '2026-11-18').problems.join(), /30 jours au plus/)
+})
+
+test('added dans le futur : rouge (sinon 30 jours n’importe quand)', () => {
+  const r = evaluate(report(picomatch), [{ ...exception, added: '2027-10-01', expires: '2027-10-31' }], '2026-11-18')
+  assert.match(r.problems.join(), /dans le futur/)
+})
+
+test('date impossible, id vide, doublon : rouge', () => {
+  assert.equal(evaluate(report(picomatch), [{ ...exception, expires: '2026-11-31' }], '2026-11-18').ok, false)
+  assert.equal(evaluate(report(picomatch), [{ ...exception, id: ' ' }], '2026-11-18').ok, false)
+  const r = evaluate(report(picomatch), [exception, { ...exception, severity: 'critical' }], '2026-11-18')
+  assert.match(r.problems.join(), /en double/)
+})
+
+test('gravité inconnue : rouge, couverte ou non', () => {
+  assert.equal(evaluate(report({ ...picomatch, severity: 'severe' }), [exception], '2026-11-18').ok, false)
+  const other = { source: 4, name: 'x', severity: undefined, url: 'https://github.com/advisories/GHSA-gggg-hhhh-iiii' }
+  assert.equal(evaluate(report(picomatch, other), [exception], '2026-11-18').ok, false)
 })
 
 test('avis rétrogradé en low : toujours couvert, pas « devenue inutile »', () => {
