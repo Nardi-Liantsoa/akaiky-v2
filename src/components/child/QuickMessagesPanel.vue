@@ -4,7 +4,8 @@ import { useT } from '../../composables/useT'
 import QuickIcon from '../messages/QuickIcon.vue'
 import { deviceSession, messageOutbox } from '../../lib/deviceSessionInstance'
 import { formatClock } from '../../lib/format'
-import { QUICK_SLOTS, QUICK_TINT, type QuickSlot } from '../../lib/quickMessages'
+import { QUICK_SLOTS, QUICK_TINT, quickText, type QuickSlot } from '../../lib/quickMessages'
+import { deviceConfig } from '../../composables/useDeviceConfig'
 
 // « Dire à mes parents » (NAR-150, maquette écran 4) : 4 grandes tuiles (icône, couleur,
 // texte). Un appui, un message : noté dans la file puis envoyé ; hors ligne, il part au
@@ -12,7 +13,8 @@ import { QUICK_SLOTS, QUICK_TINT, type QuickSlot } from '../../lib/quickMessages
 const emit = defineEmits<{ close: [] }>()
 const t = useT()
 const busy = ref(false)
-const last = ref<{ id: string, slot: QuickSlot, state: 'queued' | 'sent' | 'refused' } | null>(null)
+// text : le texte affiché au moment de l'appui (une configuration reçue ensuite ne le change pas).
+const last = ref<{ id: string, slot: QuickSlot, text: string, state: 'queued' | 'sent' | 'refused' } | null>(null)
 const seen = ref<{ name: string, readAt: string } | null>(null)
 let unbusy: ReturnType<typeof setTimeout> | undefined
 // Génération : une relecture lancée pour le message précédent ne marque jamais le nouveau.
@@ -44,16 +46,19 @@ async function send(slot: QuickSlot) {
   last.value = null
   const message = await messageOutbox.add(slot).catch(() => null)
   if (!message) return
-  last.value = { id: message.id, slot, state: 'queued' }
+  last.value = { id: message.id, slot, text: label(slot), state: 'queued' }
   const result = await messageOutbox.flush().catch(() => null)
   if (last.value?.id !== message.id || !result) return
   if (result.sent.includes(message.id)) last.value.state = 'sent'
   else if (result.refused.includes(message.id)) last.value.state = 'refused'
 }
 
+// Texte du message : celui choisi par un parent (configuration du téléphone), sinon le défaut.
+const label = (slot: QuickSlot) => quickText(slot, t.value.child.quick.texts, deviceConfig.config?.messageTexts?.[slot])
+
 const toast = computed(() => {
   if (!last.value) return ''
-  const text = t.value.child.quick.texts[last.value.slot - 1]
+  const text = last.value.text
   if (seen.value) return `${t.value.child.quick.sent(text)} · ${t.value.child.quick.seen(seen.value.name, formatClock(new Date(seen.value.readAt)))}`
   if (last.value.state === 'refused') return t.value.child.quick.refused(text)
   return last.value.state === 'sent' ? t.value.child.quick.sent(text) : t.value.child.quick.queued(text)
@@ -70,7 +75,7 @@ const toast = computed(() => {
           :disabled="busy" @click="send(slot)"
         >
           <QuickIcon :kind="slot" :size="56" />
-          <span>{{ t.child.quick.texts[slot - 1] }}</span>
+          <span>{{ label(slot) }}</span>
         </button>
       </div>
       <p class="toast" role="status">{{ toast }}</p>

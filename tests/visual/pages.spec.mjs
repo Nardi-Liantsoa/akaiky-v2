@@ -35,6 +35,10 @@ const PARENT = {
       { id: '6f1c2b1e-0000-4000-8000-000000000203', childId: '6f1c2b1e-0000-4000-8000-000000000101', name: 'Mamie', phone: '+261321234567', position: 3, avatarColor: 'violet', memberUserId: null, memberRole: null }
     ]
   },
+  // Textes des messages rapides (NAR-173) : un modifié.
+  'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/message-templates': [
+    { slot: 1, text: null }, { slot: 2, text: 'Viens me chercher à l’école' }, { slot: 3, text: null }, { slot: 4, text: null }
+  ],
   // Journal figé (NAR-152) : dates fixes ; l'accueil n'en montre que la journée en cours.
   'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/journal': {
     items: [

@@ -223,6 +223,16 @@ const fr = {
     memberGone: 'Ce membre ne fait plus partie de la famille.',
     memberLinked: 'Ce membre est déjà lié à un autre contact de cet enfant.'
   },
+  templates: {
+    title: 'Messages rapides',
+    hint: 'Les 4 messages que l’enfant envoie d’un geste. Icônes et couleurs ne changent pas.',
+    label: (n: number) => `Message ${n}`,
+    save: 'Enregistrer les messages',
+    reset: 'Texte par défaut',
+    saved: 'Enregistré. Le téléphone l’affichera à sa prochaine connexion.',
+    invalid: 'Entre 1 et 40 caractères.',
+    loadError: 'Impossible de charger les messages rapides.'
+  },
   parentCode: {
     title: 'Code parent',
     hint: 'Six chiffres pour sortir du mode verrouillé sur le téléphone de l’enfant. Ne le donnez pas à l’enfant.',
@@ -569,6 +579,16 @@ const mg: Messages = {
     memberGone: 'Tsy ao amin’ny fianakaviana intsony io mpikambana io.',
     memberLinked: 'Efa mifandray amin’ny mpifandray hafa an’ity zaza ity io mpikambana io.'
   },
+  templates: {
+    title: 'Hafatra haingana',
+    hint: 'Ireo hafatra 4 alefan’ny zaza amin’ny fikitika iray. Tsy miova ny sary sy ny loko.',
+    label: (n: number) => `Hafatra ${n}`,
+    save: 'Hitahiry ny hafatra',
+    reset: 'Lahatsoratra voalohany',
+    saved: 'Voatahiry. Hiseho amin’ny finday rehefa mifandray indray.',
+    invalid: 'Litera 1 ka hatramin’ny 40.',
+    loadError: 'Tsy afaka nalaina ny hafatra haingana.'
+  },
   parentCode: {
     title: 'Kaody ray aman-dreny',
     hint: 'Isa enina hialana amin’ny fanidiana eo amin’ny findain’ny zaza. Aza omena ny zaza.',
@@ -912,6 +932,16 @@ const en: Messages = {
     notFound: 'This contact no longer exists.',
     memberGone: 'This member is no longer in the family.',
     memberLinked: 'This member is already linked to another contact of this child.'
+  },
+  templates: {
+    title: 'Quick messages',
+    hint: 'The 4 messages the child sends with one tap. Icons and colours stay the same.',
+    label: (n: number) => `Message ${n}`,
+    save: 'Save messages',
+    reset: 'Default text',
+    saved: 'Saved. The phone will show it the next time it connects.',
+    invalid: 'Between 1 and 40 characters.',
+    loadError: 'Could not load the quick messages.'
   },
   parentCode: {
     title: 'Parent code',

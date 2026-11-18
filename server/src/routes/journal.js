@@ -9,7 +9,7 @@ import { HttpError, isUuid } from '../lib.js'
 import { ROLES, requireOwnFamily } from '../families.js'
 import { openField } from '../crypto-fields.js'
 import { eventAad } from './devices.js'
-import { readersOf } from './messages.js'
+import { readersOf, sentText } from './messages.js'
 
 const KINDS = {
   all: { events: ['call_out', 'call_in', 'call_blocked', 'unlock'], messages: true },
@@ -44,12 +44,12 @@ export async function journalRoutes(app) {
     // où ils ont eu lieu. Une seule liste, triée sur (date, identifiant).
     const { rows } = await db.query(
       `SELECT * FROM (
-         SELECT 'event' AS source, id, kind, date_trunc('milliseconds', started_at) AS at, contact_id, name_enc, phone_enc, duration_s, unlock_source, NULL::smallint AS slot
+         SELECT 'event' AS source, id, kind, date_trunc('milliseconds', started_at) AS at, contact_id, name_enc, phone_enc, duration_s, unlock_source, NULL::smallint AS slot, NULL::bytea AS text_enc
            FROM device_events WHERE child_id = $1 AND family_id = $2 AND kind = ANY($3::text[])
          UNION ALL
          -- Millisecondes : le curseur (ISO) n'en garde pas plus ; sinon un message de la même
          -- milliseconde que le dernier de la page tomberait entre deux pages.
-         SELECT 'message', id, 'message', date_trunc('milliseconds', created_at), NULL, NULL, NULL, NULL, NULL, slot
+         SELECT 'message', id, 'message', date_trunc('milliseconds', created_at), NULL, NULL, NULL, NULL, NULL, slot, text_enc
            FROM quick_messages WHERE child_id = $1 AND family_id = $2 AND $4
        ) j
        WHERE ($5::timestamptz IS NULL OR (at, id) < ($5, $6::uuid))
@@ -61,7 +61,8 @@ export async function journalRoutes(app) {
     const items = page.map((r) => {
       if (r.source === 'message') {
         const readBy = readers.get(r.id) ?? []
-        return { id: r.id, kind: 'message', at: r.at, slot: r.slot, readBy: readBy.map((x) => ({ name: x.name, readAt: x.readAt })), readByMe: readBy.some((x) => x.userId === req.user.id) }
+        // text : texte modifié tel qu'envoyé (NAR-173) ; null = texte par défaut traduit.
+        return { id: r.id, kind: 'message', at: r.at, slot: r.slot, text: sentText(config, r), readBy: readBy.map((x) => ({ name: x.name, readAt: x.readAt })), readByMe: readBy.some((x) => x.userId === req.user.id) }
       }
       return {
         id: r.id,

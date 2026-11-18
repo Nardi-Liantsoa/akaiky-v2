@@ -6,6 +6,7 @@ import LoadError from '../../components/family/LoadError.vue'
 import ChildSwitcher from '../../components/parent/ChildSwitcher.vue'
 import ContactsCard from '../../components/settings/ContactsCard.vue'
 import ParentCodeCard from '../../components/settings/ParentCodeCard.vue'
+import MessageTemplatesCard from '../../components/settings/MessageTemplatesCard.vue'
 import { useT } from '../../composables/useT'
 import { contactErrorText } from '../../lib/contactErrors'
 import { children, loadChildren, selectedChild } from '../../store/children'
@@ -59,6 +60,7 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
           <ContactsCard :child-id="current.id" />
         </template>
         <ParentCodeCard :child="current" />
+        <MessageTemplatesCard :child-id="current.id" />
       </template>
     </template>
     <p v-else class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>

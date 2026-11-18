@@ -14,6 +14,7 @@
 // jamais ces routes : le cloisonnement est posé dans app.js.
 import { HttpError, audit, isUuid } from '../lib.js'
 import { REMOTE_UNLOCK_MINUTES, REMOTE_UNLOCK_SQL } from './children.js'
+import { templateAad } from './messages.js'
 import { withTransaction } from '../db.js'
 import { MANAGERS, ROLES, lockOwnFamily, requireOwnFamily } from '../families.js'
 import { createLimiter, newToken, rateLimitKey, tokenHash } from '../security.js'
@@ -298,6 +299,10 @@ export async function deviceSessionRoutes(app) {
            FROM children WHERE id = $1 AND family_id = $2`, [req.device.childId, req.device.familyId])
       if (!child) throw new HttpError(401, 'Session de l’appareil expirée.')
       reply.header('etag', tagOf(child.config_version))
+      // Textes modifiés des messages rapides (NAR-173) ; un emplacement absent = défaut.
+      const { rows: tpl } = await conn.query(
+        'SELECT slot, text_enc FROM quick_message_templates WHERE child_id = $1 AND family_id = $2', [req.device.childId, req.device.familyId])
+      const messageTexts = Object.fromEntries(tpl.map((r) => [r.slot, openField(r.text_enc, config.dataKey, templateAad(req.device.childId, r.slot))]))
       const { rows } = await conn.query(
         `SELECT id, name_enc, phone_enc, position, avatar_color FROM allowed_contacts
           WHERE child_id = $1 AND family_id = $2 ORDER BY position`, [req.device.childId, req.device.familyId])
@@ -312,6 +317,7 @@ export async function deviceSessionRoutes(app) {
         // Déverrouillage demandé à distance (NAR-168), tant que l'échéance n'est pas passée ;
         // le téléphone l'applique une fois (l'échéance sert d'identifiant de la demande).
         remoteUnlockUntil: child.remote_unlock_until ?? null,
+        messageTexts,
         contacts: rows.map((r) => ({
           id: r.id,
           name: openField(r.name_enc, config.dataKey, contactAad(r.id, 'name')),
