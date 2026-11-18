@@ -19,6 +19,7 @@ import QuickMessagesPanel from '../../components/child/QuickMessagesPanel.vue'
 import { armKiosk, disarmKiosk, isUnlocked, kiosk, lockNow, refreshKiosk, unlockKiosk, useKioskPlugin } from '../../composables/useKiosk'
 import { AkaikyKiosk, UNLOCK_MINUTES } from '../../native/kiosk'
 import { formatClock } from '../../lib/format'
+import { activeWindow, safeTimeZone, visibleContacts } from '../../lib/schedule'
 
 // Écran de l'app enfant : échange du jeton reçu au provisionnement (NAR-164), puis
 // accueil (NAR-142, maquette écran 1) : heure, contacts à appeler en un appui, SOS.
@@ -68,6 +69,7 @@ onMounted(async () => {
   if (!Capacitor.isNativePlatform()) return
   const handle = await App.addListener('appStateChange', ({ isActive }) => {
     foreground = isActive
+    if (isActive) startClock(); else stopClock()
     if (isActive) { void refreshKiosk().catch(() => {}).then(() => applyRemoteUnlock()); void readScreening() }
     if (isActive && state.value.kind === 'paired') { resume(); startStatus(); syncJournal() } else { pause(); stopStatus(); clearTimeout(journalRetry) }
   })
@@ -75,6 +77,7 @@ onMounted(async () => {
   lifecycle = handle
   // État réel au moment de l'écoute : lancée en arrière-plan, l'app ne relève rien.
   foreground = (await App.getState()).isActive
+  if (!foreground) stopClock()
   if (foreground && state.value.kind === 'paired') { resume(); startStatus() }
 })
 // Chaque nouvel état (même « appairé » → « appairé » pour un autre enfant) repart de zéro.
@@ -123,6 +126,28 @@ function startStatus() {
 watch(() => state.value.kind === 'paired', startStatus)
 
 const contacts = computed(() => [...(deviceConfig.config?.contacts ?? [])].sort((a, b) => a.position - b.position))
+
+// Plage « école » (NAR-148, maquette écran 5) : calculée ici, hors ligne, sur l'heure du
+// téléphone (réseau ; réglage manuel interdit par le verrou). Relue toutes les 15 s et à
+// chaque reprise : elle se pose et se lève seule, à la minute près.
+// Horloge relue au changement de minute (comme l'heure affichée), arrêtée en arrière-plan
+// (batterie) et relancée à la reprise.
+const now = ref(Date.now())
+let clockTimer: ReturnType<typeof setTimeout> | undefined
+function startClock() {
+  stopClock()
+  now.value = Date.now()
+  clockTimer = setTimeout(startClock, 60_000 - (now.value % 60_000) + 50)
+}
+function stopClock() { clearTimeout(clockTimer); clockTimer = undefined }
+startClock()
+const familyZone = computed(() => safeTimeZone(deviceConfig.config?.timezone))
+const school = computed(() => activeWindow(new Date(now.value), deviceConfig.config?.schedules ?? [], familyZone.value))
+// Fin de plage affichée dans le fuseau de la famille, comme le calcul.
+const schoolEnd = computed(() => (school.value?.until ? formatClock(school.value.until, familyZone.value) : null))
+// Pendant une plage : les seuls contacts parents (owner, manager), le SOS et les secours.
+const shown = computed(() => visibleContacts(contacts.value, school.value))
+watch(() => !!school.value, (on) => { if (on) messaging.value = false })
 const emergency = computed(() => emergencyNumber(deviceConfig.config?.country ?? lastCountry.value ?? undefined))
 const calling = ref(false)
 const callError = ref(false)
@@ -203,7 +228,10 @@ async function placeCall(phone: string, contact: { id: string, name: string }) {
 async function sos() {
   callError.value = false
   await pushAllowed()
-  for (const step of sosPlan(contacts.value, emergency.value)) {
+  // Pendant une plage « école » : les seuls parents (ceux que l'écran montre), sinon
+  // directement les secours.
+  const order = school.value ? shown.value : contacts.value
+  for (const step of sosPlan(order, emergency.value)) {
     try {
       const contact = contacts.value.find((c) => c.phone === step.number)
       if (step.kind === 'contact' && contact) await placeCall(step.number, contact)
@@ -315,7 +343,7 @@ async function openPhoneSettings() {
 
 // Téléphone retiré pendant l'usage : l'écran le dit.
 watch(() => deviceConfig.status, (s) => { if (s === 'lost') state.value = { kind: 'revoked' } })
-onBeforeUnmount(() => { unmounted = true; pause(); stopStatus(); clearTimeout(journalRetry); void lifecycle?.remove() })
+onBeforeUnmount(() => { unmounted = true; stopClock(); pause(); stopStatus(); clearTimeout(journalRetry); void lifecycle?.remove() })
 
 const text = computed(() => {
   const c = t.value.child
@@ -333,8 +361,12 @@ const text = computed(() => {
 </script>
 
 <template>
-  <main v-if="state.kind === 'paired'" class="home">
+  <main v-if="state.kind === 'paired'" class="home" :class="{ school }">
     <ChildStatusBar :status="status" />
+    <section v-if="school" class="school-banner" role="status">
+      <p class="school-title">{{ t.child.school.title(school.label) }}</p>
+      <p>{{ schoolEnd ? t.child.school.until(schoolEnd) : t.child.school.noEnd }}</p>
+    </section>
     <section v-if="unlockedUntil !== undefined" class="unlocked" role="status">
       <p>{{ t.child.lock.unlockedUntil(formatClock(new Date(unlockedUntil))) }}</p>
       <div class="unlocked-actions">
@@ -347,15 +379,21 @@ const text = computed(() => {
       <button class="btn" type="button" @click="enableScreening">{{ t.child.screening.enable }}</button>
     </section>
     <p v-if="callError" class="call-error" role="alert">{{ t.child.callFailed }}</p>
-    <section v-if="contacts.length" class="grid" :class="{ single: contacts.length === 1 }">
-      <ContactTile v-for="c in contacts" :key="c.id" :name="c.name" :color="c.avatarColor" :busy="calling" @call="call(c.phone, c)" />
+    <section v-if="shown.length" class="grid" :class="{ single: shown.length === 1 }">
+      <ContactTile v-for="c in shown" :key="c.id" :name="c.name" :color="c.avatarColor" :busy="calling" @call="call(c.phone, c)" />
+    </section>
+    <section v-else-if="school" class="empty">
+      <p class="waiting">{{ t.child.school.noParents }}</p>
     </section>
     <section v-else class="empty">
       <p class="waiting">{{ t.child.noContacts }}</p>
       <p class="hint">{{ t.child.noContactsHint }}</p>
     </section>
-    <button class="messages" type="button" @click="messaging = true">{{ t.child.quick.open }}</button>
-    <QuickMessagesPanel v-if="messaging" @close="messaging = false" />
+    <p v-if="schoolEnd" class="school-rest">{{ t.child.school.rest(schoolEnd) }}</p>
+    <template v-if="!school">
+      <button class="messages" type="button" @click="messaging = true">{{ t.child.quick.open }}</button>
+      <QuickMessagesPanel v-if="messaging" @close="messaging = false" />
+    </template>
     <footer class="actions">
       <SosButton @trigger="sos" />
       <button class="emergency" type="button" @click="callEmergency">{{ t.child.emergency(emergency) }}</button>
@@ -417,6 +455,31 @@ h1 {
   padding: calc(var(--safe-top) + 12px) calc(var(--gutter) + var(--safe-right)) calc(var(--safe-bottom) + 16px) calc(var(--gutter) + var(--safe-left));
   background: var(--bg-child);
   box-sizing: border-box;
+}
+/* Plage « école » (maquette écran 5) : fond bleuté, bandeau marine. */
+.home.school {
+  background: var(--bg-child-school);
+}
+.school-banner {
+  padding: 14px 18px;
+  border-radius: 20px;
+  background: var(--navy);
+  color: #fff;
+  text-align: center;
+  font-weight: 800;
+}
+.school-banner p {
+  margin: 0;
+}
+.school-title {
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+.school-rest {
+  margin: 0;
+  text-align: center;
+  color: var(--text-soft);
+  font-weight: 800;
 }
 /* 1 contact : une grande vignette ; 2 à 6 : deux colonnes (maquette : 2×2). */
 .grid {

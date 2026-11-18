@@ -96,4 +96,17 @@ describe('createConfigSync', () => {
     store.data.set(CONFIG_KEY, 'pas du json')
     expect(await createConfigSync({ session: {} as DeviceSession, store }).load('fy')).toBeNull()
   })
+
+  it('plages (NAR-148) : une plage abîmée est écartée seule, contacts et fuseau inconnu gardés', async () => {
+    const store = memoryStore()
+    const good = { label: 'École', days: 31, startMin: 480, endMin: 960 }
+    const getIfChanged = vi.fn(async () => ({ data: { version: 5, timezone: 'Inconnu/Zone', schedules: [good, { label: null, days: 31, startMin: 0, endMin: 60 }, { label: 'X', days: 0, startMin: 0, endMin: 60 }], contacts: [MAMAN] }, etag: '"fy.5"' }))
+    const sync = createConfigSync({ session: session(getIfChanged), store })
+    await sync.load('fy')
+    const config = await sync.refresh()
+    expect(config?.schedules).toEqual([good])
+    expect(config?.contacts).toEqual([MAMAN])
+    expect(config?.timezone).toBe('Inconnu/Zone')
+    expect(JSON.parse(store.data.get(CONFIG_KEY)!).config.schedules).toEqual([good])
+  })
 })

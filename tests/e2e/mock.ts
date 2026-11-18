@@ -16,9 +16,11 @@ export async function mockApi(page: Page, handlers: Record<string, Handler>) {
     calls.push(route.request())
     const key = `${route.request().method()} ${url.pathname}`
     // Textes des messages rapides (NAR-173), présents sur Réglages : par défaut, non modifiés.
-    const fallback = route.request().method() === 'GET' && url.pathname.endsWith('/message-templates')
+    // Plages horaires (NAR-148), présentes sur Réglages aussi : aucune par défaut.
+    const get = route.request().method() === 'GET'
+    const fallback = get && url.pathname.endsWith('/message-templates')
       ? { body: [1, 2, 3, 4].map((slot) => ({ slot, text: null })) }
-      : { status: 404, body: { error: 'Introuvable.' } }
+      : get && url.pathname.endsWith('/schedules') ? { body: [] } : { status: 404, body: { error: 'Introuvable.' } }
     const res = handlers[key]?.(route.request()) ?? fallback
     return route.fulfill({ status: res.status ?? 200, contentType: 'application/json', body: JSON.stringify(res.body ?? {}) })
   })

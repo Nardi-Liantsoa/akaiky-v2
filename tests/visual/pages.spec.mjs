@@ -35,6 +35,10 @@ const PARENT = {
       { id: '6f1c2b1e-0000-4000-8000-000000000203', childId: '6f1c2b1e-0000-4000-8000-000000000101', name: 'Mamie', phone: '+261321234567', position: 3, avatarColor: 'violet', memberUserId: null, memberRole: null }
     ]
   },
+  // Plages « école » (NAR-148).
+  'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/schedules': [
+    { id: '6f1c2b1e-0000-4000-8000-000000000301', label: 'École', days: 31, startMin: 480, endMin: 960, enabled: true }
+  ],
   // Textes des messages rapides (NAR-173) : un modifié.
   'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/message-templates': [
     { slot: 1, text: null }, { slot: 2, text: 'Viens me chercher à l’école' }, { slot: 3, text: null }, { slot: 4, text: null }
