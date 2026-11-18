@@ -74,6 +74,11 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   (sans eux, ni écran d'appel ni composeur d'urgence) ; sortie par le code parent, vérifié
   hors ligne, 15 minutes au plus, refermée par alarme et par redémarrage. Limites et
   sortie de secours : `HANDOFF.md`.
+- **Filtrage des appels entrants (NAR-145, 18/11/2026)** : `CallScreeningService` (Android 10+),
+  rôle `ROLE_CALL_SCREENING` confirmé une fois sur le téléphone (le Device Owner ne peut
+  pas se l'accorder ; proposé avant le verrou ou pendant une sortie). Numéro reçu converti
+  en E.164 et comparé exactement à la liste (jamais la comparaison souple d'Android, qui
+  confond deux numéros aux 7 derniers chiffres égaux). Android 8–9 : NAR-172.
 - **Hors connexion** : appels et SOS par SMS sans Internet (natif enfant). L'app
   parent démarre hors ligne et le dit, sans déconnecter.
 - **Notifications** : FCM (Android) et APNs (iOS), comptes au nom du client. Alertes
@@ -97,7 +102,7 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
 | `pairing_tokens` (jeton d'appairage haché, 15 min, usage unique ; porté par le QR) | `family_id` + `child_id` (clé étrangère composite vers l'enfant ; famille lue sur l'adhésion de la session) | — (jamais relu par l'API, sinon pour l'échange) | `owner`, `manager` (un seul valable par enfant : le nouveau remplace les précédents) | échange par le téléphone : `used_at` posé atomiquement, une seule fois (`UPDATE (used_at)` seul) | remplacement par un nouveau QR ; cascade depuis l'enfant |
 | `child_devices` (téléphone appairé : modèle, versions ; 3 actifs par enfant) | `family_id` + `child_id` (clé étrangère composite) | membres (`GET /api/children/:id/devices`) ; le téléphone lui-même (`/api/device/me`) | échange d'un jeton d'appairage valable (`POST /api/device/pair`, enfant verrouillé) | `owner`, `manager` : révocation (`revoked_at`, sessions effacées) ; le téléphone : `last_seen_at` | cascade depuis l'enfant ; aucun DELETE accordé au rôle applicatif |
 | `device_sessions` (sessions du téléphone : accès court, renouvellement tourné, rejeu détecté) | `device_id` | le hook de session des seules routes `/api/device/*` | appairage | renouvellement (`/api/device/refresh`), jamais l'appareil d'une session | révocation de l'appareil ; rejeu ; cascade |
-| `device_events` (journal du téléphone : appels sortants, nom et numéro du contact chiffrés, durée ; déverrouillages, origine `code` ou `remote` et durée, sans contact ; 90 jours, purge NAR-153) | `family_id` + `child_id` (lus sur la session d'appareil, jamais envoyés par le téléphone) | membres (journal parent, NAR-152) | le téléphone (`POST /api/device/events`, 60 lots/min) : contact d'un autre enfant refusé, contact retiré accepté avec l'instantané (nom, numéro composé), identifiant choisi par le téléphone (idempotence) | — (ajout seul : aucun UPDATE accordé) | purge à 90 jours (NAR-153) ; cascade depuis l'enfant ; contact retiré → `contact_id` effacé, instantané gardé |
+| `device_events` (journal du téléphone : appels sortants et reçus, nom et numéro du contact chiffrés, durée ; appels bloqués, numéro d'un tiers chiffré et index aveugle, absent si masqué ; déverrouillages, origine `code` ou `remote` et durée ; 90 jours, purge NAR-153) | `family_id` + `child_id` (lus sur la session d'appareil, jamais envoyés par le téléphone) | membres (`GET /api/children/:id/calls`, pages de 50 par curseur ; journal parent, NAR-152) ; jamais l'admin | le téléphone (`POST /api/device/events`, 60 lots/min) : contact d'un autre enfant refusé, contact retiré accepté avec l'instantané (nom, numéro composé), identifiant choisi par le téléphone (idempotence) | — (ajout seul : aucun UPDATE accordé) | purge à 90 jours (NAR-153) ; cascade depuis l'enfant ; contact retiré → `contact_id` effacé, instantané gardé |
 
 Code parent (NAR-139) : 6 chiffres, ni identiques, ni en suite, ni en motif répété (121212, 112233) (`server/src/parent-code.js`, même règle
 dans `src/lib/parentCode.ts`). Seul un hachage PBKDF2-HMAC-SHA256 (600 000 itérations, sel de 16 octets,

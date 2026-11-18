@@ -24,6 +24,17 @@
 
         <receiver android:name="mg.nosytech.akaiky.RelockReceiver" android:exported="false" />
 
+        <!-- Filtre des appels entrants (NAR-145), Android 10+ avec le rôle ROLE_CALL_SCREENING :
+             seuls les contacts autorisés sonnent. Lié par Telecom seulement (permission). -->
+        <service
+            android:name="mg.nosytech.akaiky.AkaikyCallScreeningService"
+            android:permission="android.permission.BIND_SCREENING_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name="mg.nosytech.akaiky.AkaikyDeviceAdminReceiver"
             android:description="@string/device_admin_description"

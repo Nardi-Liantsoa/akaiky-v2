@@ -259,6 +259,10 @@ const fr = {
     sosHint: 'Appuie 3 secondes',
     emergency: (n: string) => `Secours · ${n}`,
     callFailed: 'L’appel n’a pas pu partir.',
+    screening: {
+      off: 'Filtrage des appels inactif : n’importe quel numéro peut appeler ce téléphone.',
+      enable: 'Activer le filtrage des appels'
+    },
     lock: {
       open: 'Code parent',
       title: 'Code parent',
@@ -557,6 +561,10 @@ const mg: Messages = {
     sosHint: 'Tsindrio 3 segondra',
     emergency: (n: string) => `Vonjy maika · ${n}`,
     callFailed: 'Tsy lasa ny antso.',
+    screening: {
+      off: 'Tsy mandeha ny sivana antso : afaka miantso ity finday ity ny laharana rehetra.',
+      enable: 'Hampandeha ny sivana antso'
+    },
     lock: {
       open: 'Kaody ray aman-dreny',
       title: 'Kaody ray aman-dreny',
@@ -853,6 +861,10 @@ const en: Messages = {
     sosHint: 'Hold for 3 seconds',
     emergency: (n: string) => `Emergency · ${n}`,
     callFailed: 'The call couldn’t go through.',
+    screening: {
+      off: 'Call filtering is off: any number can call this phone.',
+      enable: 'Turn on call filtering'
+    },
     lock: {
       open: 'Parent code',
       title: 'Parent code',

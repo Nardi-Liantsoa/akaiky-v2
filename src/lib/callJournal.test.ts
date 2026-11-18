@@ -20,6 +20,29 @@ function setup(over: Partial<JournalDeps> = {}) {
 }
 
 describe('createCallJournal', () => {
+  it('appels filtrés (NAR-145) : bloqué → file ; reçu d’un contact → durée lue dans les appels entrants', async () => {
+    const lastOutgoing = vi.fn(async () => ({ found: true, startedAt: 1_000_100, durationS: 30 }))
+    const s = setup({ lastOutgoing })
+    const kept = await s.journal.importScreened([
+      { id: 'b1', kind: 'call_blocked', phone: '+261329876543', startedAt: 999_000 },
+      { id: 'b2', kind: 'call_blocked', startedAt: 999_500 },
+      { id: 'i1', kind: 'call_in', phone: '+261341234567', startedAt: 1_000_000 },
+      { id: 'x', kind: 'call_in', startedAt: 1 } as never
+    ], [{ id: 'maman', name: 'Maman', phone: '+261341234567' }])
+    // Illisible (« x ») : acquitté aussi, sinon relu sans fin.
+    expect(kept).toEqual(['b1', 'b2', 'i1', 'x'])
+    expect(s.queue()).toEqual([
+      { id: 'b1', kind: 'call_blocked', phone: '+261329876543', startedAt: new Date(999_000).toISOString() },
+      { id: 'b2', kind: 'call_blocked', startedAt: new Date(999_500).toISOString() }
+    ])
+    await s.journal.complete()
+    expect(lastOutgoing).toHaveBeenCalledWith('+261341234567', 1_000_000 - 2_000, undefined, true)
+    expect(s.queue()[2]).toEqual({ id: 'i1', kind: 'call_in', contactId: 'maman', name: 'Maman', phone: '+261341234567', startedAt: new Date(1_000_100).toISOString(), durationS: 30 })
+    // Rejoué (acquittement natif perdu) : aucun doublon.
+    await s.journal.importScreened([{ id: 'b1', kind: 'call_blocked', phone: '+261329876543', startedAt: 999_000 }], [])
+    expect(s.queue().filter((e: DeviceEvent) => e.id === 'b1')).toHaveLength(1)
+  })
+
   it('déverrouillage (NAR-168) : mis dans la file avec son origine et sa durée, envoyé avec les appels', async () => {
     const s = setup()
     await s.journal.unlocked('remote', 12)
