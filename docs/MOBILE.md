@@ -29,6 +29,7 @@ Capacitor y remet `minSdkVersion = 24` par défaut ; le script le remplace.
 ```bash
 npm run android:parent   # build web, sync, assembleParentDebug
 npm run android:enfant   # build web, sync, assembleEnfantDebug
+npm run android:both     # les deux, une seule synchronisation
 ```
 
 Les deux APK s'installent côte à côte. Le web sait dans quelle application il
@@ -43,8 +44,10 @@ Android 8 accepte le clair par défaut). Thème natif clair forcé ; icônes som
 dans les deux barres système par `plugins.SystemBars.style: 'LIGHT'`
 (`capacitor.config.ts`) : sans lui, Capacitor suit le thème du système et la barre
 de navigation à 3 boutons passe en icônes claires sur fond clair (vu sur Android 14
-en thème sombre). Le thème XML (`values-v27/styles.xml`) ne couvre que l'écran de
-démarrage.
+en thème sombre). Le thème de l'app (`AppTheme.NoActionBar`, `values/styles.xml`)
+pose la même chose avant le chargement du greffon : barre blanche à icônes sombres
+dès Android 8.1, noire sur Android 8.0 qui ne sait pas assombrir les icônes
+(couleur `navigation_bar`, `values/` et `values-v27/colors_nav.xml`).
 
 **WebView 58 sur Android 8 d'usine** : Capacitor 8 refuse de démarrer sous la
 version 60 (« This app requires a WebView to work »). C'est le cas de l'image

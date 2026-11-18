@@ -13,7 +13,9 @@ describe('appKind', () => {
     const { kindFromAppId } = await import('./appKind')
     expect(kindFromAppId('mg.nosytech.akaiky.enfant')).toBe('enfant')
     expect(kindFromAppId('mg.nosytech.akaiky')).toBe('parent')
-    expect(kindFromAppId('mg.nosytech.akaiky.enfant.debug')).toBe('parent')
+    expect(kindFromAppId('mg.nosytech.akaiky.enfant.debug')).toBe('enfant')
+    expect(kindFromAppId('mg.nosytech.akaiky.enfantin')).toBe('parent')
+    expect(kindFromAppId('mg.nosytech.akaiky.debug')).toBe('parent')
     expect(kindFromAppId(undefined)).toBe('parent')
   })
 

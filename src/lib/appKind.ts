@@ -7,7 +7,10 @@ import { App } from '@capacitor/app'
 export type AppKind = 'parent' | 'enfant'
 export const CHILD_APP_ID = 'mg.nosytech.akaiky.enfant'
 
-export const kindFromAppId = (id: string | null | undefined): AppKind => (id === CHILD_APP_ID ? 'enfant' : 'parent')
+// Préfixe, pas égalité : une variante dérivée de l'app enfant (suffixe .debug, .staging)
+// reste l'app enfant. L'identifiant parent n'en est pas un préfixe.
+export const kindFromAppId = (id: string | null | undefined): AppKind =>
+  id === CHILD_APP_ID || id?.startsWith(`${CHILD_APP_ID}.`) ? 'enfant' : 'parent'
 
 let pending: Promise<AppKind> | null = null
 export function appKind(): Promise<AppKind> {

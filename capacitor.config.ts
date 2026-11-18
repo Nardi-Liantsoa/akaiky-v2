@@ -7,7 +7,10 @@ const config: CapacitorConfig = {
   // par l'API pour le web et embarqué dans les coques.
   webDir: 'dist/web',
   android: {
-    allowMixedContent: false
+    allowMixedContent: false,
+    // Deux variantes (android/app/build.gradle) : `npx cap run android` lance la
+    // variante parent par défaut ; l'enfant avec `--flavor enfant`.
+    flavor: 'parent'
   },
   server: {
     // Origine https://localhost : contexte sécurisé (caméra, géolocalisation…)

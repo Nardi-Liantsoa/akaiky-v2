@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { auth, isAdmin, logout } from './store/auth'
+import { ref } from 'vue'
 import { useT, locale, LOCALE_LIST } from './composables/useT'
+import { appKind } from './lib/appKind'
 
 const t = useT()
 const router = useRouter()
 const route = useRoute()
+// En-tête montré dès que l'on sait être l'app parent (immédiat sur le web), sans
+// attendre la première navigation (/auth/me) ; jamais dans l'app enfant.
+const parentApp = ref(false)
+appKind().then((kind) => { parentApp.value = kind === 'parent' })
 
 async function onLogout() {
   await logout()
@@ -14,10 +20,9 @@ async function onLogout() {
 </script>
 
 <template>
-  <!-- L'app enfant n'a ni compte ni navigation : pas d'en-tête. Rien non plus avant
-       la première navigation (matched vide) : l'app enfant ne voit jamais, même un
-       instant, la navigation parent pendant que appKind() lit l'identifiant natif. -->
-  <header v-if="route.matched.length && !route.meta.childApp" class="nav">
+  <!-- L'app enfant n'a ni compte ni navigation : pas d'en-tête, pas même un instant
+       pendant que appKind() lit l'identifiant natif. -->
+  <header v-if="parentApp && !route.meta.childApp" class="nav">
     <RouterLink class="brand" :to="{ name: 'accueil' }">Akaiky</RouterLink>
     <nav>
       <template v-if="auth.user">

@@ -23,8 +23,9 @@
     "test:e2e": "playwright test",
     "recette": "node scripts/recette.mjs",
     "test:visual": "sh scripts/visual.sh",
-    "android:parent": "npm run sync && cd android && ./gradlew assembleParentDebug",
-    "android:enfant": "npm run sync && cd android && ./gradlew assembleEnfantDebug"
+    "android:parent": "npm run build && npx cap sync android && cd android && ./gradlew assembleParentDebug",
+    "android:enfant": "npm run build && npx cap sync android && cd android && ./gradlew assembleEnfantDebug",
+    "android:both": "npm run build && npx cap sync android && cd android && ./gradlew assembleParentDebug assembleEnfantDebug"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.1",

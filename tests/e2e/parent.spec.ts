@@ -31,8 +31,7 @@ test('police servie par l’application, aucun appel à un tiers', async ({ page
   page.on('response', (r) => { if (r.request().resourceType() === 'font') fonts.push({ url: r.url(), status: r.status() }) })
   await mockApi(page, connected)
   await page.goto('/espace')
-  // La police se charge quand du texte en a besoin : attendre le rendu (l'en-tête
-  // n'apparaît qu'après la première navigation), puis le chargement.
+  // La police se charge quand du texte en a besoin : attendre le rendu, puis le chargement.
   await expect(page.locator('header.nav')).toBeVisible()
   await page.evaluate(() => document.fonts.ready)
   // check() répond vrai même pour une police en échec : on lit son état réel.
