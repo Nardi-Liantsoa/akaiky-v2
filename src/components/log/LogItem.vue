@@ -51,14 +51,16 @@ const allowPhone = computed(() => (props.canAllow && props.item.kind === 'call_b
     </span>
     <span class="side">
       <time :datetime="item.at">{{ time }}</time>
-      <RouterLink v-if="allowPhone" class="allow" :to="{ name: 'contact-nouveau', params: { childId }, query: { phone: allowPhone } }">{{ t.parent.log.allow }}</RouterLink>
     </span>
+    <!-- Appel bloqué : la décision du parent, sur toute la largeur (NAR-175). -->
+    <RouterLink v-if="allowPhone" class="btn allow" :to="{ name: 'contact-nouveau', params: { childId }, query: { phone: allowPhone } }">{{ t.parent.log.allowNumber }}</RouterLink>
   </li>
 </template>
 
 <style scoped>
 .item {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   padding: 12px 0;
@@ -106,10 +108,16 @@ const allowPhone = computed(() => (props.canAllow && props.item.kind === 'call_b
   color: var(--text-soft);
   font-weight: 700;
 }
+.blocked {
+  padding-left: 10px;
+  padding-right: 10px;
+  border-left: 4px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 6%, transparent);
+}
 .allow {
-  color: var(--accent);
-  font-weight: 800;
-  text-decoration: none;
+  flex: 1 0 100%;
+  margin-top: 4px;
+  text-align: center;
 }
 .allow:focus-visible {
   outline: 3px solid var(--accent);

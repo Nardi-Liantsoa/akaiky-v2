@@ -45,7 +45,7 @@ const PARENT = {
       { id: '6f1c2b1e-0000-4000-8000-000000000404', kind: 'call_out', at: '2026-01-13T16:10:00Z', contactId: '6f1c2b1e-0000-4000-8000-000000000202', name: 'Papa', phone: '+261331234567', durationS: 0 }
     ],
     next: null,
-    counts: { blocked: 1 }
+    today: { calls: 1, blocked: 1, messages: 1, unlocks: 0 }
   },
   'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/devices': [
     { id: '6f1c2b1e-0000-4000-8000-0000000000d1', model: 'Samsung Galaxy A10', osVersion: '11', appVersion: '1.0', createdAt: '2026-01-12T10:00:00Z', lastSeenAt: '2026-01-14T10:00:00Z' }
