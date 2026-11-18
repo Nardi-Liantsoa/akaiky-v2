@@ -203,16 +203,18 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
     if (DEVICE_PATH.test(req.url)) {
       const token = bearerOf(req)
       if (token) {
+        // Une seule requête : session valable d'un appareil non révoqué, et « vu à »
+        // de l'appareil rafraîchi au plus une fois par minute.
         const { rows } = await db.query(
-          `UPDATE device_sessions s SET last_seen_at = now() FROM child_devices d
-            WHERE s.token_hash = $1 AND s.expires_at > now() AND d.id = s.device_id AND d.revoked_at IS NULL
-            RETURNING d.id, d.family_id, d.child_id, d.last_seen_at`, [tokenHash(token)])
-        if (rows[0]) {
-          req.device = { id: rows[0].id, familyId: rows[0].family_id, childId: rows[0].child_id }
-          if (Date.now() - new Date(rows[0].last_seen_at).getTime() > 60000) {
-            await db.query('UPDATE child_devices SET last_seen_at = now() WHERE id = $1', [rows[0].id])
-          }
-        }
+          `WITH s AS (
+             SELECT d.id, d.family_id, d.child_id FROM device_sessions s JOIN child_devices d ON d.id = s.device_id
+              WHERE s.token_hash = $1 AND s.expires_at > now() AND d.revoked_at IS NULL
+           ), seen AS (
+             UPDATE child_devices c SET last_seen_at = now() FROM s
+              WHERE c.id = s.id AND c.last_seen_at < now() - interval '1 minute'
+           )
+           SELECT id, family_id, child_id FROM s`, [tokenHash(token)])
+        if (rows[0]) req.device = { id: rows[0].id, familyId: rows[0].family_id, childId: rows[0].child_id }
       }
       const route = req.routeOptions
       if (route.url && !route.config?.public && !req.device) throw new HttpError(401, 'Session de l’appareil expirée.')

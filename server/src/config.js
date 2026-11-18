@@ -56,6 +56,13 @@ function deviceApk(env, production) {
   return { url, signatureChecksum: checksum }
 }
 
+// Le téléphone appelle /api/device/* depuis la WebView Android (https://localhost) :
+// sans cette origine autorisée, un QR serait émis pour un échange toujours refusé.
+function deviceApkWithOrigin(apk, origins) {
+  if (apk && !origins.includes('https://localhost')) throw new Error('DEVICE_APK_URL exige NATIVE_ORIGINS avec https://localhost (WebView Android)')
+  return apk
+}
+
 export function loadConfig(env = process.env) {
   const production = env.NODE_ENV === 'production'
   const origin = (env.APP_ORIGIN || (production ? '' : 'http://localhost:8080')).replace(/\/$/, '')
@@ -90,7 +97,7 @@ export function loadConfig(env = process.env) {
     // Seconde origine acceptée pour les requêtes (ex. domaine temporaire de la prod).
     extraOrigins: (env.APP_EXTRA_ORIGINS || '').split(',').map((s) => s.trim().replace(/\/$/, '')).filter(Boolean),
     nativeOrigins: nativeOrigins(env.NATIVE_ORIGINS),
-    deviceApk: deviceApk(env, production),
+    deviceApk: deviceApkWithOrigin(deviceApk(env, production), nativeOrigins(env.NATIVE_ORIGINS)),
     staticDir: env.STATIC_DIR || new URL('../../dist/web', import.meta.url).pathname,
     // Traefik est le seul mandataire devant l'application.
     trustProxy: trustedProxies(env.TRUST_PROXY),

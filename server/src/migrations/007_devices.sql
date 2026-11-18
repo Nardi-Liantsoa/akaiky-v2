@@ -61,7 +61,7 @@ DO $$ BEGIN
     GRANT INSERT, DELETE ON pairing_tokens TO app_runtime;
     GRANT UPDATE (used_at) ON pairing_tokens TO app_runtime;
     GRANT INSERT ON child_devices TO app_runtime;
-    GRANT UPDATE (last_seen_at, revoked_at, app_version, os_version) ON child_devices TO app_runtime;
+    GRANT UPDATE (last_seen_at, revoked_at) ON child_devices TO app_runtime;
     GRANT INSERT, DELETE ON device_sessions TO app_runtime;
     GRANT UPDATE (token_hash, expires_at, last_seen_at, refresh_hash, previous_refresh_hash, discarded_refresh_hash, rotated_at, refresh_expires_at) ON device_sessions TO app_runtime;
   END IF;

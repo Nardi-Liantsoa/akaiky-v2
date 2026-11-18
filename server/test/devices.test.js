@@ -166,12 +166,33 @@ test('renouvellement tourné ; l’ancien jeton une fois ; le successeur écart�
   assert.equal(rows.length, 1)
 })
 
-test('plafond de téléphones actifs par enfant ; un enfant retiré emporte ses téléphones', async () => {
+test('session d’appareil : renouvelable 180 jours après le dernier usage, sans plafond absolu', async () => {
+  const { device } = await paired()
+  // Session créée il y a deux ans : toujours renouvelable (le téléphone ne se réappaire qu'en le réinitialisant).
+  await ctx.db.query("UPDATE device_sessions SET created_at = now() - interval '730 days' WHERE device_id = $1", [device.device.id])
+  const r = await native(ctx.app, 'POST', '/api/device/refresh', { body: { refreshToken: device.refreshToken } })
+  assert.equal(r.statusCode, 200, r.body)
+  const { rows: [s] } = await ctx.db.query('SELECT extract(epoch FROM refresh_expires_at - now()) / 86400 AS days FROM device_sessions WHERE device_id = $1', [device.device.id])
+  assert.ok(Math.abs(Number(s.days) - 180) < 0.01, `${s.days} jours`)
+})
+
+test('plafond de téléphones actifs : refusé dès le QR, et à l’échange s’il est atteint entre-temps', async () => {
   const { owner, fy } = await paired()
-  for (let i = 1; i < MAX_DEVICES; i++) assert.equal((await pair(tokenOf(await pairing(owner, fy.id)))).statusCode, 201)
-  const over = await pair(tokenOf(await pairing(owner, fy.id)))
-  assert.equal(over.statusCode, 409)
-  assert.equal(over.json().code, 'too_many_devices')
+  for (let i = 2; i < MAX_DEVICES; i++) assert.equal((await pair(tokenOf(await pairing(owner, fy.id)))).statusCode, 201)
+  // QR émis sous le plafond ; un téléphone s'ajoute avant l'échange : refusé à l'échange.
+  const last = tokenOf(await pairing(owner, fy.id))
+  await ctx.db.query('INSERT INTO child_devices(family_id, child_id) SELECT family_id, id FROM children WHERE id = $1', [fy.id])
+  const late = await pair(last)
+  assert.equal(late.statusCode, 409)
+  assert.equal(late.json().code, 'too_many_devices')
+  // Plafond atteint : le QR lui-même est refusé, avant toute réinitialisation du téléphone.
+  const atQr = await pairing(owner, fy.id)
+  assert.equal(atQr.statusCode, 409)
+  assert.equal(atQr.json().code, 'too_many_devices')
+})
+
+test('un enfant retiré emporte ses téléphones', async () => {
+  const { owner } = await paired()
   const kid = await child(owner, 'Tiana')
   const d = (await pair(tokenOf(await pairing(owner, kid.id)))).json()
   assert.equal((await call(ctx.app, 'DELETE', `/api/children/${kid.id}`, { cookie: owner.cookie })).statusCode, 200)
@@ -202,4 +223,7 @@ test('sans APK configuré : pas de QR (503) ; configuration incomplète refusée
   assert.throws(() => loadConfig({ ...base, DEVICE_APK_URL: APK.DEVICE_APK_URL }), /vont ensemble/)
   assert.throws(() => loadConfig({ ...base, ...APK, DEVICE_APK_URL: 'http://akaiky.test/a.apk' }), /DEVICE_APK_URL/)
   assert.throws(() => loadConfig({ ...base, ...APK, DEVICE_APK_SIGNATURE_SHA256: 'abc' }), /DEVICE_APK_SIGNATURE_SHA256/)
+  // Sans l'origine de la WebView Android, chaque échange serait refusé : pas de QR possible.
+  assert.throws(() => loadConfig({ ...base, ...APK, NATIVE_ORIGINS: 'capacitor://localhost' }), /NATIVE_ORIGINS/)
+  assert.ok(loadConfig({ ...base, ...APK, NATIVE_ORIGINS: 'https://localhost' }).deviceApk)
 })

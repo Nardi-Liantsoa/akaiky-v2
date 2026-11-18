@@ -23,8 +23,10 @@ export const PAIRING_MINUTES = 15
 export const MAX_DEVICES = 3
 // Receveur Device Admin de l'app enfant (NAR-164) : Android le désigne Device Owner.
 export const DEVICE_ADMIN_COMPONENT = 'mg.nosytech.akaiky.enfant/mg.nosytech.akaiky.AkaikyDeviceAdminReceiver'
-// Durée de vie maximale d'une session d'appareil, renouvellements compris.
-const ABSOLUTE_DAYS = 365
+// Session d'appareil : renouvelable 180 jours après le dernier usage, sans plafond
+// absolu. Un téléphone d'enfant ne se réappaire qu'en le réinitialisant : on ne le
+// déconnecte pas au bout d'un an. Il reste révocable à tout moment par un gestionnaire.
+export const DEVICE_REFRESH_DAYS = 180
 const PREVIOUS_DAYS = 7
 
 const PUBLIC = { config: { public: true } }
@@ -58,6 +60,10 @@ export async function devicesRoutes(app) {
       const own = await lockOwnFamily(conn, req, MANAGERS)
       const { rows: [child] } = await conn.query('SELECT id FROM children WHERE id = $1 AND family_id = $2 FOR UPDATE', [id, own.familyId])
       if (!child) throw childNotFound()
+      // Plafond vérifié dès le QR : sinon le refus n'arriverait qu'après la
+      // réinitialisation du téléphone, laissé configuré mais sans session.
+      const { rows: [{ n }] } = await conn.query('SELECT count(*)::int AS n FROM child_devices WHERE child_id = $1 AND revoked_at IS NULL', [id])
+      if (n >= MAX_DEVICES) throw new HttpError(409, 'Trop de téléphones déjà appairés pour cet enfant.', 'too_many_devices')
       // Un seul QR valable par enfant : le nouveau remplace les précédents encore inutilisés.
       await conn.query('DELETE FROM pairing_tokens WHERE child_id = $1 AND family_id = $2 AND (used_at IS NULL OR created_at < now() - interval \'1 day\')', [id, own.familyId])
       const { rows: [row] } = await conn.query(
@@ -111,9 +117,9 @@ export async function devicesRoutes(app) {
 // Routes du téléphone (préfixe /api/device).
 export async function deviceSessionRoutes(app) {
   const { db, config } = app
-  // Jeton de 256 bits : la limite par IP (celle des connexions, RATE_LIMIT_IP par
-  // 15 min) freine seulement un sondage aveugle.
-  const pairLimit = createLimiter({ max: config.limits.perIp, windowMs: 15 * 60000 })
+  // Jeton de 256 bits : la limite par IP freine seulement un sondage aveugle. Large
+  // (100 par 15 min au moins) : plusieurs téléphones s'appairent derrière un même NAT.
+  const pairLimit = createLimiter({ max: Math.max(100, config.limits.perIp), windowMs: 15 * 60000 })
   const tokens = (access, refresh) => ({
     accessToken: access, refreshToken: refresh, expiresIn: config.native.accessMinutes * 60
   })
@@ -140,7 +146,7 @@ export async function deviceSessionRoutes(app) {
       await conn.query(
         `INSERT INTO device_sessions(token_hash, device_id, expires_at, refresh_hash, refresh_expires_at)
          VALUES ($1, $2, now() + make_interval(mins => $3), $4, now() + make_interval(days => $5))`,
-        [access.hash, device.id, config.native.accessMinutes, refresh.hash, config.native.refreshDays])
+        [access.hash, device.id, config.native.accessMinutes, refresh.hash, DEVICE_REFRESH_DAYS])
       await audit(conn, req, 'device_paired', device.id, { childId: child.id })
       return { device: { id: device.id }, child: { id: child.id } }
     })
@@ -148,7 +154,7 @@ export async function deviceSessionRoutes(app) {
   })
 
   // Même rotation que /api/auth/native/refresh (voir native.js), sur les sessions
-  // d'appareil, et seulement pour un appareil non révoqué.
+  // d'appareil, seulement pour un appareil non révoqué, et sans plafond absolu.
   app.post('/refresh', { ...PUBLIC, schema: { body: REFRESH } }, async (req) => {
     const hash = tokenHash(req.body.refreshToken)
     const access = newToken(), refresh = newToken()
@@ -158,13 +164,13 @@ export async function deviceSessionRoutes(app) {
               previous_refresh_hash = CASE WHEN s.refresh_hash = $1 THEN s.refresh_hash END,
               discarded_refresh_hash = CASE WHEN s.refresh_hash = $1 THEN s.discarded_refresh_hash ELSE s.refresh_hash END,
               rotated_at = CASE WHEN s.refresh_hash = $1 THEN now() ELSE s.rotated_at END,
-              refresh_expires_at = LEAST(now() + make_interval(days => $5), s.created_at + make_interval(days => $6))
+              refresh_expires_at = now() + make_interval(days => $5)
          FROM child_devices d
         WHERE s.refresh_expires_at > now()
-          AND (s.refresh_hash = $1 OR (s.previous_refresh_hash = $1 AND s.rotated_at > now() - make_interval(days => $7)))
+          AND (s.refresh_hash = $1 OR (s.previous_refresh_hash = $1 AND s.rotated_at > now() - make_interval(days => $6)))
           AND d.id = s.device_id AND d.revoked_at IS NULL
         RETURNING d.id`,
-      [hash, access.hash, refresh.hash, config.native.accessMinutes, config.native.refreshDays, ABSOLUTE_DAYS, PREVIOUS_DAYS])
+      [hash, access.hash, refresh.hash, config.native.accessMinutes, DEVICE_REFRESH_DAYS, PREVIOUS_DAYS])
     if (rows[0]) return tokens(access.token, refresh.token)
     // Successeur écarté présenté : deux détenteurs pour une session. Fermée, signalée.
     const replayed = (await db.query('DELETE FROM device_sessions WHERE discarded_refresh_hash = $1 RETURNING device_id', [hash])).rows[0]

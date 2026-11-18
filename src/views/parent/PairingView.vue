@@ -50,7 +50,9 @@ async function refreshDevices(quiet = false) {
   try {
     const list = await listDevices(target)
     if (target !== childId.value) return
-    if (quiet && list.some((d) => !devices.value.some((o) => o.id === d.id))) {
+    // Nouveau téléphone seulement par rapport à une liste déjà chargée : après un
+    // premier chargement en échec, la liste vide ne dit rien.
+    if (quiet && devicesStatus.value === 'ready' && list.some((d) => !devices.value.some((o) => o.id === d.id))) {
       // Le QR vient de servir : il n'est plus valable, on le retire.
       justPaired.value = true
       qr.value = ''
@@ -70,10 +72,14 @@ async function show() {
   busy.value = true
   error.value = ''
   justPaired.value = false
+  const target = childId.value
   try {
-    const pairing = await createPairing(childId.value)
+    const pairing = await createPairing(target)
     // QR généré dans l'app : le jeton ne passe par aucun service d'image externe.
-    qr.value = await QRCode.toDataURL(JSON.stringify(pairing.provisioning), { margin: 1, width: 280, errorCorrectionLevel: 'M' })
+    const image = await QRCode.toDataURL(JSON.stringify(pairing.provisioning), { margin: 1, width: 280, errorCorrectionLevel: 'M' })
+    // Écran passé à un autre enfant pendant la requête : ce QR n'est pas le sien.
+    if (target !== childId.value) return
+    qr.value = image
     expiresAt.value = pairing.expiresAt
     now.value = Date.now()
     stopTimers()
@@ -83,7 +89,10 @@ async function show() {
     }, 1000)
     poll = setInterval(() => { void refreshDevices(true) }, 5000)
   } catch (e) {
-    error.value = e instanceof ApiError && e.code === 'pairing_unavailable' ? t.value.pairing.unavailable : errorText(e, t.value)
+    if (target !== childId.value) return
+    error.value = e instanceof ApiError && e.code === 'pairing_unavailable' ? t.value.pairing.unavailable
+      : e instanceof ApiError && e.code === 'too_many_devices' ? t.value.pairing.tooMany
+      : errorText(e, t.value)
     forgetIfGone(e)
   } finally {
     busy.value = false
