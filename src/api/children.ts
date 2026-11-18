@@ -10,6 +10,8 @@ export interface Child {
   parentCodeSetAt: string | null
   // Fin d'un déverrouillage demandé à distance (NAR-168), absente une fois passée.
   remoteUnlockUntil: string | null
+  // Dernier passage du téléphone de l'enfant (NAR-174) ; null sans téléphone relié.
+  phoneLastSeenAt: string | null
 }
 
 export const listChildren = () => api.get<Child[]>('/children')

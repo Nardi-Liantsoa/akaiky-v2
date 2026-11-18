@@ -4,8 +4,11 @@ import { StatusBar, Style } from '@capacitor/status-bar'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { App as NativeApp } from '@capacitor/app'
 import { appKind } from './lib/appKind'
+import { closeTopSheet } from './composables/useSheetStack'
 import App from './App.vue'
 import { router } from './router'
+
+const ROOT_TABS = new Set(['espace', 'journal', 'reglages', 'famille', 'accueil'])
 import './style.css'
 import './mobile.css'
 
@@ -24,8 +27,20 @@ createApp(App).use(router).mount('#app')
 // App enfant : un seul écran, sans historique. Le bouton retour d'Android fermerait
 // l'activité et sortirait l'enfant d'Akaiky ; poser un écouteur annule ce comportement.
 // Écouteur unique, au niveau de l'app (aucune pile de feuilles côté enfant).
+// App parent : le retour ferme d'abord la feuille du dessus (pile des feuilles), sinon
+// revient en arrière dans l'app, sinon la quitte (comportement par défaut de Capacitor).
 if (Capacitor.getPlatform() === 'android') {
-  appKind().then((kind) => { if (kind === 'enfant') NativeApp.addListener('backButton', () => {}).catch(() => {}) })
+  appKind().then((kind) => {
+    if (kind === 'enfant') { NativeApp.addListener('backButton', () => {}).catch(() => {}); return }
+    // Sur un onglet (racine), l'app passe en arrière-plan comme avec le retour natif
+    // d'Android 12+ : jamais de retour vers la connexion, que les gardes renverraient ici.
+    NativeApp.addListener('backButton', ({ canGoBack }) => {
+      if (closeTopSheet()) return
+      const name = router.currentRoute.value.name
+      if (!canGoBack || ROOT_TABS.has(String(name))) void NativeApp.minimizeApp()
+      else window.history.back()
+    }).catch(() => {})
+  })
 }
 
 // Confirme au plugin OTA que ce bundle démarre. Jamais derrière un await

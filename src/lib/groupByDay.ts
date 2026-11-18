@@ -1,7 +1,10 @@
 // Regroupement du journal par jour (NAR-152), à l'heure de Madagascar (fuseau de la
 // famille) : « Aujourd'hui », « Hier », puis la date. L'ordre reçu est gardé.
 const TZ = 'Indian/Antananarivo'
-const dayKey = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
+// Jour (AAAA-MM-JJ) à l'heure de Madagascar (formateur créé une fois : coûteux sur
+// les WebView anciennes).
+const DAY = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
+export const dayKey = (date: Date) => DAY.format(date)
 
 export interface DayGroup<T> { key: string, when: 'today' | 'yesterday' | 'earlier', date: Date, items: T[] }
 

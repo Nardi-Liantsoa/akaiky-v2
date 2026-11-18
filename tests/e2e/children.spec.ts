@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
 import { FAMILY, mockApi, USER } from './mock'
 
-type Kid = { id: string, firstName: string, avatarColor: string, createdAt: string, parentCodeSetAt: string | null, remoteUnlockUntil: string | null }
+type Kid = { id: string, firstName: string, avatarColor: string, createdAt: string, parentCodeSetAt: string | null, remoteUnlockUntil: string | null, phoneLastSeenAt: string | null }
 const me = { 'GET /api/auth/me': () => ({ body: { user: USER } }), 'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }) }
-const kid = (n: number, firstName: string, avatarColor = 'orange'): Kid => ({ id: `6f1c2b1e-0000-4000-8000-0000000001${String(n).padStart(2, '0')}`, firstName, avatarColor, createdAt: `2026-11-1${n}T10:00:00Z`, parentCodeSetAt: null, remoteUnlockUntil: null })
+const kid = (n: number, firstName: string, avatarColor = 'orange'): Kid => ({ id: `6f1c2b1e-0000-4000-8000-0000000001${String(n).padStart(2, '0')}`, firstName, avatarColor, createdAt: `2026-11-1${n}T10:00:00Z`, parentCodeSetAt: null, remoteUnlockUntil: null, phoneLastSeenAt: null })
 
 // API des enfants simulée avec un état (ajouts, modifications, retraits).
 function childrenApi(initial: Kid[] = []) {
@@ -20,7 +20,11 @@ function childrenApi(initial: Kid[] = []) {
   return { handlers, items: () => items, set: (v: Kid[]) => { items = v } }
 }
 
-test('owner sans enfant : ajouter deux enfants, puces affichées, sélection gardée après rechargement', async ({ page }) => {
+// Carte d'un enfant sur l'accueil (NAR-174) : bouton dont le nom commence par le prénom.
+const cardButton = (page: import('@playwright/test').Page, name: string) => page.getByRole('button', { name: new RegExp(`^${name} `) })
+const cardNames = (page: import('@playwright/test').Page) => page.locator('ul.cards li.child .name')
+
+test('owner sans enfant : ajouter deux enfants, cartes empilées, sélection gardée après rechargement', async ({ page }) => {
   const api = childrenApi()
   const calls = await mockApi(page, { ...me, 'GET /api/families/me': () => ({ body: FAMILY }), ...api.handlers })
   await page.goto('/espace')
@@ -29,29 +33,30 @@ test('owner sans enfant : ajouter deux enfants, puces affichées, sélection gar
   await page.getByLabel('Prénom').fill('Fy')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page).toHaveURL(/\/espace$/)
-  await expect(page.getByRole('heading', { name: 'Fy', exact: true })).toBeVisible()
+  await expect(cardButton(page, 'Fy')).toBeVisible()
+  await expect(cardButton(page, 'Fy')).toContainText('Aucun téléphone relié')
   // Sans couleur choisie, rien n'est envoyé : la rotation est celle du serveur.
   expect(calls.find((r) => r.method() === 'POST' && r.url().endsWith('/api/children'))!.postDataJSON()).toEqual({ firstName: 'Fy' })
 
-  await page.getByRole('link', { name: 'Ajouter un enfant' }).click()
+  await page.getByRole('link', { name: '+ Ajouter un enfant' }).click()
   await page.getByLabel('Prénom').fill('Tiana')
   await page.getByLabel('Violet').check()
   await page.getByRole('button', { name: 'Enregistrer' }).click()
-  const picker = page.getByRole('group', { name: 'Enfants de la famille' })
-  await expect(picker.getByRole('button')).toHaveText(['FFy', 'TTiana'])
-  // L'enfant tout juste ajouté est sélectionné.
-  await expect(picker.getByRole('button', { name: 'Tiana' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(cardNames(page)).toHaveText(['Fy', 'Tiana'])
+  // L'enfant tout juste ajouté est sélectionné : sa carte est dépliée.
+  await expect(cardButton(page, 'Tiana')).toHaveAttribute('aria-current', 'true')
+  await expect(cardButton(page, 'Fy')).not.toHaveAttribute('aria-current', 'true')
   expect(api.items().map((c) => [c.firstName, c.avatarColor])).toEqual([['Fy', 'orange'], ['Tiana', 'violet']])
 
-  await picker.getByRole('button', { name: 'Fy' }).click()
+  await cardButton(page, 'Fy').click()
   await page.reload()
-  await expect(page.getByRole('group', { name: 'Enfants de la famille' }).getByRole('button', { name: 'Fy' })).toHaveAttribute('aria-pressed', 'true')
-  await page.getByRole('group', { name: 'Enfants de la famille' }).getByRole('button', { name: 'Tiana' }).click()
+  await expect(cardButton(page, 'Fy')).toHaveAttribute('aria-current', 'true')
+  await cardButton(page, 'Tiana').click()
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Tiana', exact: true })).toBeVisible()
+  await expect(cardButton(page, 'Tiana')).toHaveAttribute('aria-current', 'true')
 })
 
-test('renommer puis retirer un enfant (retrait en deux temps)', async ({ page }) => {
+test('renommer puis retirer un enfant par le menu « ⋯ » (retrait en deux temps)', async ({ page }) => {
   const api = childrenApi([kid(1, 'Fy'), kid(2, 'Tiana', 'blue')])
   const fy = api.items()[0]
   await mockApi(page, {
@@ -62,27 +67,35 @@ test('renommer puis retirer un enfant (retrait en deux temps)', async ({ page })
     [`DELETE /api/children/${fy.id}`]: () => { api.set(api.items().slice(1)); return { body: { ok: true } } }
   })
   await page.goto('/espace')
+  await page.getByRole('button', { name: 'Actions pour Fy' }).click()
+  await expect(page.getByRole('dialog', { name: 'Actions pour Fy' })).toBeVisible()
+  // Échap ferme la feuille, le focus revient sur « ⋯ ».
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Actions pour Fy' })).toBeFocused()
+  await page.getByRole('button', { name: 'Actions pour Fy' }).click()
   await page.getByRole('link', { name: 'Modifier' }).click()
   await expect(page.getByRole('heading', { name: 'Modifier Fy' })).toBeVisible()
   await expect(page.getByLabel('Prénom')).toHaveValue('Fy')
   await page.getByLabel('Prénom').fill('Fyfy')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
-  await expect(page.getByRole('heading', { name: 'Fyfy', exact: true })).toBeVisible()
+  await expect(cardButton(page, 'Fyfy')).toBeVisible()
 
+  await page.getByRole('button', { name: 'Actions pour Fyfy' }).click()
   await page.getByRole('link', { name: 'Modifier' }).click()
   await page.getByRole('button', { name: 'Retirer cet enfant' }).click()
   await page.getByRole('button', { name: 'Confirmer : retirer cet enfant' }).click()
   await expect(page).toHaveURL(/\/espace$/)
-  await expect(page.getByRole('group', { name: 'Enfants de la famille' }).getByRole('button')).toHaveText(['TTiana'])
+  await expect(cardNames(page)).toHaveText(['Tiana'])
 })
 
-test('contact : voit les enfants, ni ajout ni modification', async ({ page }) => {
+test('contact : voit les enfants, ni ajout ni menu', async ({ page }) => {
   const api = childrenApi([kid(1, 'Fy')])
   await mockApi(page, { ...me, 'GET /api/families/me': () => ({ body: { ...FAMILY, role: 'member' } }), ...api.handlers })
   await page.goto('/espace')
-  await expect(page.getByRole('heading', { name: 'Fy', exact: true })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Ajouter un enfant' })).toHaveCount(0)
-  await expect(page.getByRole('link', { name: 'Modifier' })).toHaveCount(0)
+  await expect(cardButton(page, 'Fy')).toBeVisible()
+  await expect(page.getByRole('link', { name: '+ Ajouter un enfant' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Actions pour Fy' })).toHaveCount(0)
   // Adresse du formulaire tapée à la main : retour à l'accueil.
   await page.goto('/espace/enfant/nouveau')
   await expect(page).toHaveURL(/\/espace$/)

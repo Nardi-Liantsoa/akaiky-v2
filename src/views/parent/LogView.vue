@@ -5,7 +5,7 @@ import { markShownAsRead } from '../../api/messages'
 import LoadError from '../../components/family/LoadError.vue'
 import LogFilters from '../../components/log/LogFilters.vue'
 import LogItem from '../../components/log/LogItem.vue'
-import ChildPicker from '../../components/parent/ChildPicker.vue'
+import ChildSwitcher from '../../components/parent/ChildSwitcher.vue'
 import EmptyState from '../../components/parent/EmptyState.vue'
 import { locale, useT } from '../../composables/useT'
 import { formatLongDate } from '../../lib/format'
@@ -97,7 +97,7 @@ const dayLabel = (g: { when: string, date: Date }) =>
   <section v-else-if="family.status === 'ready'">
     <h1>{{ t.parent.log.title }}</h1>
     <template v-if="children.status === 'ready' && current">
-      <ChildPicker v-if="children.items.length > 1" />
+      <ChildSwitcher v-if="children.items.length > 1" />
       <LogFilters v-model="filter" :blocked="blocked" />
       <p v-if="status === 'error'" class="error" role="alert">{{ t.parent.log.loadError }}</p>
       <div v-else-if="status === 'ready' && !items.length" class="card"><p class="empty">{{ t.parent.log.empty }}</p></div>

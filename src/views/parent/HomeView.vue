@@ -1,18 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import CreateFamily from '../../components/family/CreateFamily.vue'
 import LoadError from '../../components/family/LoadError.vue'
-import ChildAvatar from '../../components/parent/ChildAvatar.vue'
-import ChildPicker from '../../components/parent/ChildPicker.vue'
-import TodayLog from '../../components/parent/TodayLog.vue'
+import ChildCards from '../../components/parent/ChildCards.vue'
 import { useT } from '../../composables/useT'
 import { errorText } from '../../lib/errors'
-import { children, loadChildren, selectedChild } from '../../store/children'
+import { children, loadChildren } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
 
 const t = useT()
-const current = computed(selectedChild)
 onMounted(() => { void loadFamily() })
 // Liste relue à chaque arrivée sur l'accueil (un autre parent a pu ajouter ou
 // retirer un enfant) ; la liste connue reste affichée pendant l'appel.
@@ -30,15 +27,7 @@ watch(() => family.status, (s) => { if (s === 'ready') void loadChildren(true) }
       <button class="btn btn-ghost" type="button" @click="loadChildren(true)">{{ t.errors.retry }}</button>
     </div>
     <template v-else-if="children.status === 'ready'">
-      <template v-if="children.items.length">
-        <ChildPicker />
-        <article v-if="current" class="card child">
-          <ChildAvatar :name="current.firstName" :color="current.avatarColor" :size="64" />
-          <h2>{{ current.firstName }}</h2>
-          <RouterLink v-if="canManage()" class="btn btn-ghost" :to="{ name: 'enfant', params: { id: current.id } }">{{ t.children.edit }}</RouterLink>
-        </article>
-        <TodayLog v-if="current" :child-id="current.id" />
-      </template>
+      <ChildCards v-if="children.items.length" />
       <div v-else class="card empty">
         <p>{{ canManage() ? t.children.emptyManager : t.children.emptyMember }}</p>
         <RouterLink v-if="canManage()" class="btn" :to="{ name: 'enfant-nouveau' }">{{ t.children.add }}</RouterLink>
@@ -53,19 +42,6 @@ watch(() => family.status, (s) => { if (s === 'ready') void loadChildren(true) }
 h1 {
   font-size: 2rem;
   margin: 8px 0 16px;
-}
-.child {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
-  margin-top: 12px;
-}
-.child h2 {
-  flex: 1;
-  margin: 0;
-  font-size: 1.6rem;
-  font-weight: 900;
 }
 .empty p {
   margin: 0 0 16px;
