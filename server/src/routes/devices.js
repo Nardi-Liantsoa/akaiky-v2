@@ -17,6 +17,7 @@ import { MANAGERS, ROLES, lockOwnFamily, requireOwnFamily } from '../families.js
 import { createLimiter, newToken, rateLimitKey, tokenHash } from '../security.js'
 import { securityAlert } from '../login-guard.js'
 import { openField } from '../crypto-fields.js'
+import { contactAad } from './contacts.js'
 
 export const PAIRING_MINUTES = 15
 // Téléphones actifs par enfant : le sien, plus un de rechange pendant un changement.
@@ -190,6 +191,36 @@ export async function deviceSessionRoutes(app) {
       await securityAlert(db, 'device_refresh_replay')
     }
     throw new HttpError(401, 'Session de l’appareil expirée.')
+  })
+
+  // Configuration du téléphone (NAR-160) : contacts autorisés de SON enfant, lu sur la
+  // session (jamais un identifiant envoyé par le téléphone). Version et liste dans une
+  // même photo de la base ; ETag = config_version : 304 si rien n'a changé, ce qui
+  // rend le relevé toutes les 30 s presque gratuit.
+  app.get('/config', { config: { device: true } }, async (req, reply) => {
+    return withTransaction(db, async (conn) => {
+      await conn.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
+      const { rows: [child] } = await conn.query(
+        'SELECT config_version FROM children WHERE id = $1 AND family_id = $2', [req.device.childId, req.device.familyId])
+      if (!child) throw new HttpError(401, 'Session de l’appareil expirée.')
+      const etag = `"v${child.config_version}"`
+      reply.header('etag', etag)
+      if (req.headers['if-none-match'] === etag) return reply.code(304).send()
+      const { rows } = await conn.query(
+        `SELECT id, name_enc, phone_enc, position, avatar_color FROM allowed_contacts
+          WHERE child_id = $1 AND family_id = $2 ORDER BY position`, [req.device.childId, req.device.familyId])
+      // Champ par champ : ni membre lié ni rôle, seulement ce que le téléphone affiche et appelle.
+      return {
+        version: Number(child.config_version),
+        contacts: rows.map((r) => ({
+          id: r.id,
+          name: openField(r.name_enc, config.dataKey, contactAad(r.id, 'name')),
+          phone: openField(r.phone_enc, config.dataKey, contactAad(r.id, 'phone')),
+          position: r.position,
+          avatarColor: r.avatar_color
+        }))
+      }
+    })
   })
 
   app.get('/me', { config: { device: true } }, async (req) => {

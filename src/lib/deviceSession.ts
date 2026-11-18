@@ -68,6 +68,17 @@ export function createDeviceSession({ base, store, fetch: doFetch }: { base: str
     return refreshing
   }
 
+  async function authorized(path: string, extra: Record<string, string>): Promise<Response> {
+    const call = () => doFetch(`${base}${path}`, { headers: { ...extra, ...(access ? { Authorization: `Bearer ${access}` } : {}) }, credentials: 'omit' })
+    let res = access ? await call() : null
+    if (!res || res.status === 401) {
+      if (!(await refresh())) throw new DeviceError(401, 'device_session_lost')
+      res = await call()
+    }
+    if (res.status === 401) { await forget(); throw new DeviceError(401, 'device_session_lost') }
+    return res
+  }
+
   return {
     async hasSession(): Promise<boolean> {
       const saved = await store.get(REFRESH_KEY)
@@ -88,15 +99,17 @@ export function createDeviceSession({ base, store, fetch: doFetch }: { base: str
     // GET authentifié ; un 401 déclenche un renouvellement puis un nouvel essai.
     // Session refusée par le serveur → DeviceError 401 (session effacée).
     async get<T>(path: string): Promise<T> {
-      const call = () => doFetch(`${base}${path}`, { headers: access ? { Authorization: `Bearer ${access}` } : {}, credentials: 'omit' })
-      let res = access ? await call() : null
-      if (!res || res.status === 401) {
-        if (!(await refresh())) throw new DeviceError(401, 'device_session_lost')
-        res = await call()
-      }
-      if (res.status === 401) { await forget(); throw new DeviceError(401, 'device_session_lost') }
+      const res = await authorized(path, {})
       if (!res.ok) throw await failure(res)
       return res.json() as Promise<T>
+    },
+
+    // GET conditionnel (ETag) : `null` si rien n'a changé depuis `etag` (304).
+    async getIfChanged<T>(path: string, etag: string | null): Promise<{ data: T, etag: string | null } | null> {
+      const res = await authorized(path, etag ? { 'If-None-Match': etag } : {})
+      if (res.status === 304) return null
+      if (!res.ok) throw await failure(res)
+      return { data: await res.json() as T, etag: res.headers.get('ETag') }
     }
   }
 }

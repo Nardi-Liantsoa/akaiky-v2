@@ -31,7 +31,9 @@ const contactName = (v) => text(v, { min: 1, max: 40, field: 'Nom du contact' })
 const childNotFound = () => new HttpError(404, 'Enfant introuvable.', 'child_not_found')
 const contactNotFound = () => new HttpError(404, 'Contact introuvable.', 'contact_not_found')
 const duplicate = () => new HttpError(409, 'Ce numéro est déjà dans les contacts de cet enfant.', 'duplicate_phone')
-const aad = (id, column) => `allowed_contacts:${column}:${id}`
+// Données associées du chiffrement : aussi lues par la configuration d'appareil (devices.js).
+export const contactAad = (id, column) => `allowed_contacts:${column}:${id}`
+const aad = contactAad
 
 export default async function contactsRoutes(app) {
   const { db, config } = app

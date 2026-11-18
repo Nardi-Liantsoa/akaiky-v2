@@ -146,7 +146,7 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
       // CORS de l'application native : origines exactes, jamais de cookie.
       // La valeur écrite vient de la liste de configuration, jamais de la requête.
       const allowed = config.nativeOrigins.find((o) => o === req.headers.origin)
-      if (allowed) reply.header('access-control-allow-origin', allowed).header('vary', 'Origin')
+      if (allowed) reply.header('access-control-allow-origin', allowed).header('vary', 'Origin').header('access-control-expose-headers', 'etag')
     }
     return payload
   })
@@ -161,7 +161,8 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
       return reply.code(204).headers({
         'access-control-allow-origin': allowed,
         'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE',
-        'access-control-allow-headers': 'authorization, content-type',
+        // if-none-match : relevé conditionnel de la configuration d'appareil (304).
+        'access-control-allow-headers': 'authorization, content-type, if-none-match',
         'access-control-max-age': '600',
         vary: 'Origin'
       }).send()
