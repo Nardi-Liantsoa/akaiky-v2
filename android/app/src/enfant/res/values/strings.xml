@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">Akaiky Enfant</string>
     <string name="title_activity_main">Akaiky Enfant</string>
+    <string name="device_admin_description">Akaiky gère ce téléphone pour la famille : appels, contacts autorisés et SOS.</string>
 </resources>

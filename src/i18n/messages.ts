@@ -149,6 +149,7 @@ const fr = {
     expired: 'Ce QR code a expiré.',
     qrLabel: 'QR code de configuration du téléphone',
     warning: 'Une fois configuré, le téléphone est verrouillé : on n’en sort qu’avec le code parent à 6 chiffres.',
+    openApp: 'Si l’application Akaiky Enfant ne s’ouvre pas seule à la fin de la configuration, ouvrez-la sur le téléphone dans les 15 minutes.',
     unavailable: 'La configuration des téléphones n’est pas encore disponible sur ce serveur.',
     devices: 'Téléphones appairés',
     none: 'Aucun téléphone appairé pour l’instant.',
@@ -216,7 +217,21 @@ const fr = {
   },
   child: {
     waiting: 'Ce téléphone sera bientôt prêt.',
-    hint: 'Un parent va le configurer depuis son application.'
+    hint: 'Un parent va le configurer depuis son application.',
+    hello: (name: string) => `Bonjour ${name} !`,
+    pairedHint: 'Ce téléphone est relié à ta famille.',
+    connecting: 'Connexion du téléphone…',
+    expired: 'Le QR code a expiré ou a déjà servi.',
+    expiredHint: 'Un parent doit afficher un nouveau QR code, puis réinitialiser ce téléphone et le scanner à nouveau.',
+    tooMany: 'Cet enfant a déjà le nombre maximal de téléphones.',
+    tooManyHint: 'Un parent doit d’abord en retirer un dans son application, puis touchez « Réessayer » dans les 15 minutes qui suivent le scan.',
+    failed: 'Ce téléphone n’a pas pu être relié.',
+    failedHint: 'Réessayez. Si le problème persiste, contactez l’assistance Akaiky.',
+    revoked: 'Ce téléphone n’est plus relié à la famille.',
+    revokedHint: 'Un parent peut le configurer à nouveau depuis son application.',
+    offline: 'Pas de connexion pour l’instant.',
+    offlineHint: 'Vérifiez le Wi-Fi ou le réseau, puis réessayez.',
+    retry: 'Réessayer'
   },
   parent: {
     tabsLabel: 'Navigation principale',
@@ -387,6 +402,7 @@ const mg: Messages = {
     expired: 'Lany daty ity QR code ity.',
     qrLabel: 'QR code handrindrana ny finday',
     warning: 'Rehefa voarindra, hihidy ny finday : tsy azo ivoahana raha tsy amin’ny kaody 6 isa an’ny ray aman-dreny.',
+    openApp: 'Raha tsy misokatra ho azy ny rindranasa Akaiky Enfant rehefa vita ny fandrindrana, sokafy eo amin’ny finday ao anatin’ny 15 minitra.',
     unavailable: 'Mbola tsy misy eto amin’ity mpizara ity ny fandrindrana finday.',
     devices: 'Finday mifandray',
     none: 'Mbola tsy misy finday mifandray.',
@@ -454,7 +470,21 @@ const mg: Messages = {
   },
   child: {
     waiting: 'Ho vonona tsy ho ela ity finday ity.',
-    hint: 'Ray aman-dreny iray no handrindra azy avy amin’ny rindranasany.'
+    hint: 'Ray aman-dreny iray no handrindra azy avy amin’ny rindranasany.',
+    hello: (name: string) => `Salama ${name} !`,
+    pairedHint: 'Mifandray amin’ny fianakavianao ity finday ity.',
+    connecting: 'Mampifandray ny finday…',
+    expired: 'Lany daty na efa nampiasaina ny QR code.',
+    expiredHint: 'Tokony hampiseho QR code vaovao ny ray aman-dreny iray, dia haverina amin’ny toerana niaviany ity finday ity ary hoscannena indray.',
+    tooMany: 'Efa tratra ny isa ambony indrindra amin’ny finday ho an’ity zaza ity.',
+    tooManyHint: 'Tokony hanala ny iray aloha ny ray aman-dreny iray ao amin’ny rindranasany, dia kitiho « Andramo indray » ao anatin’ny 15 minitra aorian’ny scan.',
+    failed: 'Tsy afaka nampifandraisina ity finday ity.',
+    failedHint: 'Andramo indray. Raha mbola misy olana, mifandraisa amin’ny mpanampy Akaiky.',
+    revoked: 'Tsy mifandray amin’ny fianakaviana intsony ity finday ity.',
+    revokedHint: 'Afaka mandrindra azy indray avy amin’ny rindranasany ny ray aman-dreny iray.',
+    offline: 'Tsy misy fifandraisana amin’izao.',
+    offlineHint: 'Jereo ny Wi-Fi na ny tambajotra, dia andramo indray.',
+    retry: 'Andramo indray'
   },
   parent: {
     tabsLabel: 'Fitetezana lehibe',
@@ -623,6 +653,7 @@ const en: Messages = {
     expired: 'This QR code has expired.',
     qrLabel: 'Phone setup QR code',
     warning: 'Once set up, the phone is locked: it can only be left with the 6-digit parent code.',
+    openApp: 'If the Akaiky Enfant app doesn’t open by itself when setup ends, open it on the phone within 15 minutes.',
     unavailable: 'Phone setup is not available on this server yet.',
     devices: 'Paired phones',
     none: 'No paired phone yet.',
@@ -690,7 +721,21 @@ const en: Messages = {
   },
   child: {
     waiting: 'This phone will be ready soon.',
-    hint: 'A parent will set it up from their app.'
+    hint: 'A parent will set it up from their app.',
+    hello: (name: string) => `Hello ${name}!`,
+    pairedHint: 'This phone is linked to your family.',
+    connecting: 'Connecting the phone…',
+    expired: 'The QR code has expired or was already used.',
+    expiredHint: 'A parent needs to show a new QR code, then reset this phone and scan it again.',
+    tooMany: 'This child already has the maximum number of phones.',
+    tooManyHint: 'A parent first needs to remove one in their app, then tap “Try again” within 15 minutes of the scan.',
+    failed: 'This phone couldn’t be linked.',
+    failedHint: 'Try again. If the problem continues, contact Akaiky support.',
+    revoked: 'This phone is no longer linked to the family.',
+    revokedHint: 'A parent can set it up again from their app.',
+    offline: 'No connection right now.',
+    offlineHint: 'Check the Wi-Fi or network, then try again.',
+    retry: 'Try again'
   },
   parent: {
     tabsLabel: 'Main navigation',

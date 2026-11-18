@@ -73,6 +73,20 @@ l'enfant ni le parent n'atteignent le Play Store : l'écran de repli resterait a
 L'appairage doit donc vérifier la version du WebView **avant** le verrouillage, et
 faire mettre à jour le WebView (ou refuser l'appareil) tant qu'elle est sous 64.
 
+**Provisionnement par QR (NAR-164, variante enfant)** : `AkaikyDeviceAdminReceiver`
+(Device Owner), `ProvisioningModeActivity` et `PolicyComplianceActivity` (exigées dès
+Android 12 pour le QR), dans `android/app/src/enfant/`. Le jeton d'appairage des extras
+(`akaiky.pairing`) est gardé dans les préférences privées le temps de l'échange
+(`ProvisioningStore`), puis effacé ; la session d'appareil va dans le Keystore
+(`src/lib/deviceSession.ts`). L'adresse de l'API est celle compilée (`src/api/base.ts`),
+jamais celle du QR. `WebViewVersion.sufficient()` est à appeler avant tout verrouillage
+(NAR-139).
+
+Vérification locale (émulateur, sans QR) :
+`adb shell dpm set-device-owner mg.nosytech.akaiky.enfant/mg.nosytech.akaiky.AkaikyDeviceAdminReceiver`
+sur un émulateur neuf (`-wipe-data`, sans compte). Le scan réel (6 touches sur l'écran de
+bienvenue, QR) se vérifie sur un vrai téléphone réinitialisé : critère C04.
+
 **Huawei** : Capacitor compare `com.huawei.webview` à `minHuaweiWebViewVersion`
 (numérotation propre à Huawei, défaut 10), pas à `minWebViewVersion`. Un WebView Huawei
 basé sur Chromium < 64 donnerait un écran blanc. Non réglé faute de correspondance

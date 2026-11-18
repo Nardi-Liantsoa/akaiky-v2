@@ -11,10 +11,7 @@ import type { LoginResult } from './types'
 
 export const native = true
 
-// Adresse publique de l'API, compilée dans le bundle. Par défaut le domaine de
-// production du projet ; vite.config.ts refuse de construire avec une valeur
-// qui ne serait pas en https.
-const BASE = `${import.meta.env.VITE_API_ORIGIN || 'https://akaiky.a-definir.invalid'}/api`
+import { API_BASE as BASE } from './base'
 const KEY = 'refresh-token'
 // Jetons de déconnexions que le serveur n'a pas pu enregistrer (hors ligne) :
 // une liste (plusieurs déconnexions hors ligne possibles), relue une fois au
