@@ -1,0 +1,69 @@
+import { describe, expect, it, vi } from 'vitest'
+import { createDeviceSession, DeviceError, REFRESH_KEY } from './deviceSession'
+
+// Frontières simulées : stockage sécurisé (Keystore) et réseau.
+function memoryStore() {
+  const data = new Map<string, string>()
+  return { data, get: async (k: string) => data.get(k) ?? null, set: async (k: string, v: string) => { data.set(k, v) }, remove: async (k: string) => { data.delete(k) } }
+}
+const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+const TOKENS = { accessToken: 'a1', refreshToken: 'r1', expiresIn: 900 }
+
+describe('createDeviceSession', () => {
+  it('appairage : jeton de renouvellement dans le stockage sécurisé, jamais dans localStorage', async () => {
+    const store = memoryStore()
+    const fetch = vi.fn(async () => json(201, { ...TOKENS, device: { id: 'd' }, child: { id: 'c' } }))
+    const s = createDeviceSession({ base: 'https://api.test/api', store, fetch })
+    const setItem = vi.fn()
+    vi.stubGlobal('localStorage', { setItem, getItem: vi.fn(), removeItem: vi.fn() })
+    expect(await s.pair('t'.repeat(43), { model: 'Pixel', osVersion: '14' })).toEqual({ device: { id: 'd' }, child: { id: 'c' } })
+    expect(store.data.get(REFRESH_KEY)).toBe('r1')
+    expect(setItem).not.toHaveBeenCalled()
+    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('https://api.test/api/device/pair')
+    expect(JSON.parse(init.body as string)).toEqual({ token: 't'.repeat(43), model: 'Pixel', osVersion: '14' })
+    expect(init.credentials).toBe('omit')
+    vi.unstubAllGlobals()
+  })
+
+  it('appairage refusé : erreur avec le code du serveur, rien de stocké', async () => {
+    const store = memoryStore()
+    const s = createDeviceSession({ base: '', store, fetch: async () => json(401, { code: 'pairing_invalid' }) })
+    await expect(s.pair('x', {})).rejects.toMatchObject({ status: 401, code: 'pairing_invalid' })
+    expect(store.data.size).toBe(0)
+  })
+
+  it('GET : jeton d’accès expiré → un seul renouvellement, puis nouvel essai', async () => {
+    const store = memoryStore()
+    store.data.set(REFRESH_KEY, 'r0')
+    const calls: string[] = []
+    const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push(`${init?.method ?? 'GET'} ${url}`)
+      if (url.endsWith('/device/refresh')) return json(200, TOKENS)
+      const auth = new Headers(init?.headers).get('Authorization')
+      return auth === 'Bearer a1' ? json(200, { ok: 1 }) : json(401, {})
+    })
+    const s = createDeviceSession({ base: '', store, fetch: fetch as unknown as typeof globalThis.fetch })
+    expect(await Promise.all([s.get('/device/me'), s.get('/device/me')])).toEqual([{ ok: 1 }, { ok: 1 }])
+    expect(calls.filter((c) => c.includes('refresh'))).toHaveLength(1)
+    expect(store.data.get(REFRESH_KEY)).toBe('r1')
+  })
+
+  it('session refusée (401 au renouvellement) : effacée, DeviceError 401', async () => {
+    const store = memoryStore()
+    store.data.set(REFRESH_KEY, 'r0')
+    const s = createDeviceSession({ base: '', store, fetch: async () => json(401, {}) })
+    await expect(s.get('/device/me')).rejects.toMatchObject({ status: 401, code: 'device_session_lost' })
+    expect(store.data.has(REFRESH_KEY)).toBe(false)
+  })
+
+  it('réseau ou serveur indisponible : la session est gardée', async () => {
+    const store = memoryStore()
+    store.data.set(REFRESH_KEY, 'r0')
+    const down = createDeviceSession({ base: '', store, fetch: async () => { throw new TypeError('Failed to fetch') } })
+    await expect(down.get('/device/me')).rejects.toBeInstanceOf(TypeError)
+    const busy = createDeviceSession({ base: '', store, fetch: async () => json(503, {}) })
+    await expect(busy.get('/device/me')).rejects.toBeInstanceOf(DeviceError)
+    expect(store.data.get(REFRESH_KEY)).toBe('r0')
+  })
+})
