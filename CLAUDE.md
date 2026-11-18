@@ -79,6 +79,11 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   pas se l'accorder ; proposé avant le verrou ou pendant une sortie). Numéro reçu converti
   en E.164 et comparé exactement à la liste (jamais la comparaison souple d'Android, qui
   confond deux numéros aux 7 derniers chiffres égaux). Android 8–9 : NAR-172.
+- **Plages « école » (NAR-148, 18/11/2026)** : calculées sur le téléphone, hors ligne, dans le
+  fuseau de la famille (`families.timezone`, Madagascar par défaut, pas encore modifiable par
+  l'API) ; pendant une plage, l'écran ne montre que les contacts liés à un `owner`/`manager`,
+  le SOS (qui n'appelle alors que ces parents, sinon les secours) et les secours. Filtre natif
+  des appels pendant une plage : NAR-176 (nouvelle coque).
 - **Hors connexion** : appels et SOS par SMS sans Internet (natif enfant). L'app
   parent démarre hors ligne et le dit, sans déconnecter.
 - **Notifications** : FCM (Android) et APNs (iOS), comptes au nom du client. Alertes
@@ -106,6 +111,7 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
 | `quick_messages` (message rapide de l'enfant : emplacement 1 à 4, date ; texte chiffré du modèle en vigueur à la réception, null = défaut ; aucun texte libre venu du téléphone) | `family_id` + `child_id` (lus sur la session d'appareil, jamais envoyés par le téléphone) | membres (`GET /api/children/:id/messages`) ; le téléphone, ses messages des dernières 24 h (`GET /api/device/messages`) | le téléphone (`POST /api/device/messages`, 30/min, identifiant choisi par le téléphone : idempotence ; identifiant d'un autre enfant → 409) | — (ajout seul) | purge NAR-153 ; cascade depuis l'enfant |
 | `quick_message_reads` (« vu par ») | `user_id` + message de sa famille | membres (noms affichés : contact lié s'il existe, sinon nom du compte ; jamais d'identifiant ni d'adresse vers le téléphone) | membre de la famille du message (`POST /api/messages/:id/read`, idempotent ; autre famille → 404) | — | cascade depuis le message et le compte |
 | `quick_message_templates` (texte des 4 messages rapides d'un enfant, chiffré, données associées `quick_message_templates:text:<enfant>:<emplacement>` ; ligne absente = texte par défaut traduit ; NAR-173) | `family_id` + `child_id` (clé étrangère composite) | membres (`GET /api/children/:id/message-templates`) ; le téléphone de cet enfant (`messageTexts` de `/api/device/config`) | `owner`, `manager` (`PUT …/message-templates/:slot`, 1 à 40 caractères ; droits vérifiés avant le contenu ; enfant verrouillé) | idem (texte inchangé : ni écriture ni audit) ; toute écriture fait avancer `config_version` | `owner`, `manager` (texte `null` = défaut) ; cascade depuis l'enfant |
+| `schedules` (plages « école » : nom chiffré, données associées `schedules:label:<id>` ; jours en masque lundi = bit 0, début et fin en minutes, fin ≤ début = traverse minuit ; 10 par enfant ; NAR-148) | `family_id` + `child_id` (clé étrangère composite ; chaque requête filtre aussi l'enfant) | membres (`GET /api/children/:id/schedules`) ; le téléphone de cet enfant, plages actives seulement, avec le fuseau `families.timezone` et l'indicateur `parent` des contacts (`/api/device/config`) | `owner`, `manager` (droits avant le contenu ; enfant verrouillé) | `owner`, `manager` (remplacement complet, `enabled` exigé) ; toute écriture, un changement de rôle d'un membre lié à un contact et un changement de fuseau font avancer `config_version` | `owner`, `manager` ; cascade depuis l'enfant |
 
 Code parent (NAR-139) : 6 chiffres, ni identiques, ni en suite, ni en motif répété (121212, 112233) (`server/src/parent-code.js`, même règle
 dans `src/lib/parentCode.ts`). Seul un hachage PBKDF2-HMAC-SHA256 (600 000 itérations, sel de 16 octets,
