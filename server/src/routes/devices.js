@@ -12,6 +12,7 @@
 // Une session d'appareil n'atteint que /api/device/* et une session de compte
 // jamais ces routes : le cloisonnement est posé dans app.js.
 import { HttpError, audit, isUuid } from '../lib.js'
+import { REMOTE_UNLOCK_MINUTES, REMOTE_UNLOCK_SQL } from './children.js'
 import { withTransaction } from '../db.js'
 import { MANAGERS, ROLES, lockOwnFamily, requireOwnFamily } from '../families.js'
 import { createLimiter, newToken, rateLimitKey, tokenHash } from '../security.js'
@@ -80,10 +81,13 @@ const EVENTS = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['id', 'kind', 'contactId', 'startedAt'],
+        required: ['id', 'kind', 'startedAt'],
         properties: {
           id: { type: 'string', maxLength: 36 },
-          kind: { type: 'string', enum: ['call_out'] },
+          // call_out : appel sortant (contactId requis) ; unlock : sortie du verrou (NAR-168,
+          // source requise, durée de la sortie en secondes).
+          kind: { type: 'string', enum: ['call_out', 'unlock'] },
+          source: { type: 'string', enum: ['code', 'remote'] },
           contactId: { type: 'string', maxLength: 36 },
           // Instantané au moment de l'appel : le contact peut être retiré avant l'envoi.
           name: { type: 'string', maxLength: 200 },
@@ -250,7 +254,9 @@ export async function deviceSessionRoutes(app) {
     return withTransaction(db, async (conn) => {
       await conn.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
       const { rows: [child] } = await conn.query(
-        'SELECT config_version, parent_code_hash FROM children WHERE id = $1 AND family_id = $2', [req.device.childId, req.device.familyId])
+        `SELECT config_version, parent_code_hash,
+                ${REMOTE_UNLOCK_SQL}
+           FROM children WHERE id = $1 AND family_id = $2`, [req.device.childId, req.device.familyId])
       if (!child) throw new HttpError(401, 'Session de l’appareil expirée.')
       reply.header('etag', tagOf(child.config_version))
       const { rows } = await conn.query(
@@ -264,6 +270,9 @@ export async function deviceSessionRoutes(app) {
         // Hachage du code parent (NAR-139), vérifié hors ligne par le téléphone (NAR-167) ;
         // null tant qu'aucun gestionnaire ne l'a défini. Jamais envoyé à un compte.
         parentCode: child.parent_code_hash ?? null,
+        // Déverrouillage demandé à distance (NAR-168), tant que l'échéance n'est pas passée ;
+        // le téléphone l'applique une fois (l'échéance sert d'identifiant de la demande).
+        remoteUnlockUntil: child.remote_unlock_until ?? null,
         contacts: rows.map((r) => ({
           id: r.id,
           name: openField(r.name_enc, config.dataKey, contactAad(r.id, 'name')),
@@ -292,19 +301,26 @@ export async function deviceSessionRoutes(app) {
       const known = new Map(rows.map((r) => [r.id, r]))
       for (const e of req.body.events) {
         const started = Date.parse(e.startedAt)
-        const plausible = isUuid(e.id) && isUuid(e.contactId) && !Number.isNaN(started)
+        const unlock = e.kind === 'unlock'
+        // Forme propre à chaque type : un appel a un contact, un déverrouillage une origine
+        // et aucune donnée de contact (au plus 15 minutes).
+        const shaped = unlock
+          ? e.source !== undefined && e.contactId === undefined && e.name === undefined && e.phone === undefined
+            && typeof e.durationS === 'number' && e.durationS > 0 && e.durationS <= REMOTE_UNLOCK_MINUTES * 60
+          : e.source === undefined && isUuid(e.contactId)
+        const plausible = shaped && isUuid(e.id) && !Number.isNaN(started)
           && started <= now + 5 * 60000 && started >= now - 90 * 86400000
         const contact = known.get(e.contactId)
         const foreign = contact && (contact.child_id !== req.device.childId || contact.family_id !== req.device.familyId)
         if (!plausible || foreign) { rejected.push(e.id); continue }
         const name = typeof e.name === 'string' ? e.name.trim().slice(0, 80) : ''
         const insert = (contactId) => conn.query(
-          `INSERT INTO device_events(id, family_id, child_id, device_id, kind, contact_id, name_enc, phone_enc, started_at, duration_s)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (id) DO NOTHING`,
+          `INSERT INTO device_events(id, family_id, child_id, device_id, kind, contact_id, name_enc, phone_enc, started_at, duration_s, unlock_source)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (id) DO NOTHING`,
           [e.id, req.device.familyId, req.device.childId, req.device.id, e.kind, contactId,
             name ? sealField(name, config.dataKey, eventAad(e.id, 'name')) : null,
             e.phone ? sealField(e.phone, config.dataKey, eventAad(e.id, 'phone')) : null,
-            new Date(started), e.durationS ?? null])
+            new Date(started), e.durationS ?? null, unlock ? e.source : null])
         await conn.query('SAVEPOINT ev')
         let rowCount
         try {

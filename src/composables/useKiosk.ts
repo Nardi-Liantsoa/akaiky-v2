@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import type { AkaikyKioskPlugin, KioskStatus } from '../native/kiosk'
+import { UNLOCK_MINUTES, type AkaikyKioskPlugin, type KioskStatus } from '../native/kiosk'
 
 // État du mode appareil dédié sur le téléphone de l'enfant (NAR-167), partagé par
 // l'écran d'accueil et le clavier de déverrouillage (singleton). Le natif fait foi :
@@ -31,6 +31,6 @@ const run = async (action: (p: AkaikyKioskPlugin) => Promise<KioskStatus>) => (p
 export const refreshKiosk = () => run((p) => p.status())
 export const armKiosk = () => run((p) => p.arm())
 export const disarmKiosk = () => run((p) => p.disarm())
-export const unlockKiosk = (minutes = 15) => run((p) => p.unlockFor({ minutes }))
+export const unlockKiosk = (minutes = UNLOCK_MINUTES) => run((p) => p.unlockFor({ minutes }))
 export const lockNow = () => run((p) => p.lockNow())
 export const isUnlocked = () => kiosk.status?.unlockedUntil !== undefined

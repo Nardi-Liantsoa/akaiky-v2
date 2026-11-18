@@ -4,6 +4,7 @@ import { useT } from '../../composables/useT'
 import { unlockKiosk } from '../../composables/useKiosk'
 import { unlockGuard } from '../../lib/deviceSessionInstance'
 import { verifyParentCode } from '../../lib/parentCodeVerify'
+import { UNLOCK_MINUTES } from '../../native/kiosk'
 
 // Clavier du code parent sur le téléphone de l'enfant (NAR-167). Vérifié hors ligne
 // contre le hachage de la configuration ; le bon code ouvre une sortie de 15 minutes.
@@ -60,7 +61,7 @@ async function submit() {
     if (await verifyParentCode(hash, code)) {
       await unlockGuard.succeed().catch(() => {})
       try {
-        await unlockKiosk(15)
+        await unlockKiosk(UNLOCK_MINUTES)
         emit('unlocked')
       } catch {
         failed.value = true

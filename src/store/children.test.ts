@@ -11,8 +11,8 @@ const { family } = await import('./family')
 const { children, loadChildren, selectChild, selectedChild, dropChild, upsertChild } = await import('./children')
 const inFamily = (id: string) => { family.data = { id, name: id, role: 'owner', members: [] }; family.status = 'ready' }
 
-const A = { id: 'a', firstName: 'Fy', avatarColor: 'orange' as const, createdAt: '', parentCodeSetAt: null }
-const B = { id: 'b', firstName: 'Tiana', avatarColor: 'blue' as const, createdAt: '', parentCodeSetAt: null }
+const A = { id: 'a', firstName: 'Fy', avatarColor: 'orange' as const, createdAt: '', parentCodeSetAt: null, remoteUnlockUntil: null }
+const B = { id: 'b', firstName: 'Tiana', avatarColor: 'blue' as const, createdAt: '', parentCodeSetAt: null, remoteUnlockUntil: null }
 const login = (id: string, fam = 'f1') => { auth.user = { id, email: `${id}@x.fr`, name: id, is_admin: false }; inFamily(fam) }
 
 describe('enfants de la session', () => {

@@ -5,7 +5,7 @@ import { App } from '@capacitor/app'
 import { useT } from '../../composables/useT'
 import { appKind } from '../../lib/appKind'
 import { startChild, type ChildState } from '../../lib/childStartup'
-import { callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore } from '../../lib/deviceSessionInstance'
+import { callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore, remoteUnlockSeen } from '../../lib/deviceSessionInstance'
 import { deviceConfig, pause, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
 import { emergencyNumber } from '../../lib/emergency'
 import { sosPlan } from '../../lib/sos'
@@ -15,8 +15,8 @@ import ChildStatusBar from '../../components/child/ChildStatusBar.vue'
 import ContactTile from '../../components/child/ContactTile.vue'
 import SosButton from '../../components/child/SosButton.vue'
 import UnlockPanel from '../../components/child/UnlockPanel.vue'
-import { armKiosk, disarmKiosk, isUnlocked, kiosk, lockNow, refreshKiosk, useKioskPlugin } from '../../composables/useKiosk'
-import { AkaikyKiosk } from '../../native/kiosk'
+import { armKiosk, disarmKiosk, isUnlocked, kiosk, lockNow, refreshKiosk, unlockKiosk, useKioskPlugin } from '../../composables/useKiosk'
+import { AkaikyKiosk, UNLOCK_MINUTES } from '../../native/kiosk'
 import { formatClock } from '../../lib/format'
 
 // Écran de l'app enfant : échange du jeton reçu au provisionnement (NAR-164), puis
@@ -66,7 +66,7 @@ onMounted(async () => {
   if (!Capacitor.isNativePlatform()) return
   const handle = await App.addListener('appStateChange', ({ isActive }) => {
     foreground = isActive
-    if (isActive) void refreshKiosk().catch(() => {})
+    if (isActive) void refreshKiosk().catch(() => {}).then(() => applyRemoteUnlock())
     if (isActive && state.value.kind === 'paired') { resume(); startStatus(); syncJournal() } else { pause(); stopStatus(); clearTimeout(journalRetry) }
   })
   if (unmounted) { void handle.remove(); return }
@@ -201,6 +201,57 @@ watch(() => deviceConfig.config, async (config) => {
   parentHash.value = hash
   await armKiosk().catch(() => refreshKiosk().catch(() => {}))
 })
+// Déverrouillage demandé à distance (NAR-168) : appliqué une seule fois par demande
+// (l'échéance l'identifie), tant qu'elle n'est pas passée. Minutes arrondies à l'inférieur :
+// jamais ouvert au-delà de l'échéance du parent. Une sortie déjà plus longue n'est pas
+// raccourcie. Marquée « vue » seulement une fois appliquée (un échec sera retenté au
+// relevé ou à la reprise suivante), puis notée au journal du parent.
+// L'heure du téléphone vient du réseau (réglage manuel interdit par le verrou).
+let applyingRemote = false
+let rerun = false
+// Gardé aussi en mémoire : si l'écriture du « vu » échoue, la demande n'est pas
+// réappliquée pendant cette session.
+let appliedRemote: string | null = null
+async function applyRemoteUnlock() {
+  if (applyingRemote) { rerun = true; return }
+  applyingRemote = true
+  try {
+    do {
+      rerun = false
+      const until = deviceConfig.config?.remoteUnlockUntil
+      if (!until || state.value.kind !== 'paired' || !kiosk.status?.armed) continue
+      if (appliedRemote === until || (await remoteUnlockSeen.get()) === until) continue
+      // État réel du natif : l'alarme a pu refermer une sortie que l'écran croit ouverte.
+      await refreshKiosk().catch(() => {})
+      const end = Date.parse(until)
+      const minutes = Math.min(UNLOCK_MINUTES, Math.floor((end - Date.now()) / 60_000))
+      const current = kiosk.status?.unlockedUntil
+      if (Number.isNaN(end) || minutes < 1 || (current !== undefined && current >= end)) {
+        appliedRemote = until
+        await remoteUnlockSeen.set(until).catch(() => {})
+        continue
+      }
+      const status = await unlockKiosk(minutes).catch(() => null)
+      // Échec : rien de marqué, nouvel essai à la reprise suivante de l'app.
+      if (status?.unlockedUntil === undefined) continue
+      appliedRemote = until
+      await remoteUnlockSeen.set(until).catch(() => {})
+      await callJournal.unlocked('remote', minutes).catch(() => {})
+      syncJournal()
+    } while (rerun)
+  } finally {
+    applyingRemote = false
+  }
+}
+// Relu quand la demande change, quand le verrou s'arme, et à chaque reprise de l'app.
+watch(() => [deviceConfig.config?.remoteUnlockUntil, kiosk.status?.armed] as const, () => { void applyRemoteUnlock() })
+// Sortie par le code saisi sur le téléphone : notée au journal (15 minutes).
+async function onUnlocked() {
+  unlocking.value = false
+  await callJournal.unlocked('code', UNLOCK_MINUTES).catch(() => {})
+  syncJournal()
+}
+
 const unlocking = ref(false)
 const canUnlock = computed(() => !!kiosk.status?.deviceOwner && !!kiosk.status.armed && !isUnlocked())
 // Téléphone retiré, ou jamais relié : pendant une sortie, le parent peut le libérer
@@ -263,7 +314,7 @@ const text = computed(() => {
       <button class="emergency" type="button" @click="callEmergency">{{ t.child.emergency(emergency) }}</button>
       <button v-if="canUnlock" class="parent-code" type="button" @click="unlocking = true">{{ t.child.lock.open }}</button>
     </footer>
-    <UnlockPanel v-if="unlocking" :hash="parentHash" @close="unlocking = false" @unlocked="unlocking = false" />
+    <UnlockPanel v-if="unlocking" :hash="parentHash" @close="unlocking = false" @unlocked="onUnlocked" />
   </main>
   <main v-else class="child">
     <h1>Akaiky</h1>
@@ -279,7 +330,7 @@ const text = computed(() => {
         <button v-if="canRelease" class="btn" type="button" @click="release">{{ t.child.lock.release }}</button>
         <button class="btn btn-ghost" type="button" @click="lockNow().catch(() => {})">{{ t.child.lock.relock }}</button>
       </template>
-      <UnlockPanel v-if="unlocking" :hash="parentHash" @close="unlocking = false" @unlocked="unlocking = false" />
+      <UnlockPanel v-if="unlocking" :hash="parentHash" @close="unlocking = false" @unlocked="onUnlocked" />
     </template>
   </main>
 </template>

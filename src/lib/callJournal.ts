@@ -16,11 +16,15 @@ const GIVE_UP_MS = 60 * 60_000
 export interface PendingCall { id: string, contactId: string, name: string, number: string, startedAt: number }
 // name et phone : instantané au moment de l'appel (contact retiré ou modifié avant l'envoi).
 export interface CallEvent { id: string, kind: 'call_out', contactId: string, name: string, phone: string, startedAt: string, durationS: number | null }
+// Sortie du verrou (NAR-168) : par le code saisi sur le téléphone ou à la demande d'un
+// parent ; durée accordée en secondes (une sortie refermée plus tôt n'est pas recomptée). Envoyée par la même file que les appels.
+export interface UnlockEvent { id: string, kind: 'unlock', source: 'code' | 'remote', startedAt: string, durationS: number }
+export type DeviceEvent = CallEvent | UnlockEvent
 export interface CallLogEntry { found: boolean, permission?: boolean, startedAt?: number, durationS?: number }
 
 export interface JournalDeps {
   store: SecretStore
-  post(events: CallEvent[]): Promise<{ accepted: string[], rejected: string[] }>
+  post(events: DeviceEvent[]): Promise<{ accepted: string[], rejected: string[] }>
   lastOutgoing(number: string, since: number, until?: number): Promise<CallLogEntry>
   now(): number
   uuid(): string
@@ -37,7 +41,12 @@ async function readList<T>(store: SecretStore, key: string, valid: (v: unknown) 
 }
 const isPending = (v: unknown): v is PendingCall => typeof (v as PendingCall)?.id === 'string' && typeof (v as PendingCall).number === 'string'
   && typeof (v as PendingCall).name === 'string' && typeof (v as PendingCall).startedAt === 'number'
-const isEvent = (v: unknown): v is CallEvent => typeof (v as CallEvent)?.id === 'string' && (v as CallEvent).kind === 'call_out' && typeof (v as CallEvent).phone === 'string'
+const isEvent = (v: unknown): v is DeviceEvent => {
+  const e = v as DeviceEvent | null
+  if (typeof e?.id !== 'string') return false
+  if (e.kind === 'call_out') return typeof e.phone === 'string'
+  return e.kind === 'unlock' && (e.source === 'code' || e.source === 'remote') && typeof e.durationS === 'number'
+}
 
 // Verrou simple : les opérations d'une même liste s'enchaînent sans course.
 function lock() {
@@ -55,7 +64,7 @@ export function createCallJournal(deps: JournalDeps) {
   const pendingLock = lock()
   const queueLock = lock()
   const save = (key: string, list: unknown[]) => deps.store.set(key, JSON.stringify(list))
-  const append = (events: CallEvent[]) => queueLock(async () => {
+  const append = (events: DeviceEvent[]) => queueLock(async () => {
     if (!events.length) return
     const queue = await readList(deps.store, QUEUE_KEY, isEvent)
     const known = new Set(queue.map((q) => q.id))
@@ -73,6 +82,11 @@ export function createCallJournal(deps: JournalDeps) {
         await save(PENDING_KEY, pending.slice(-MAX_QUEUE))
         return id
       })
+    },
+
+    // Sortie du verrou : mise directement dans la file (rien à compléter).
+    unlocked(source: 'code' | 'remote', minutes: number): Promise<void> {
+      return append([{ id: deps.uuid(), kind: 'unlock', source, startedAt: new Date(deps.now()).toISOString(), durationS: Math.round(minutes * 60) }])
     },
 
     // Appel qui n'est pas parti (refus natif, composeur absent) : rien à journaliser.

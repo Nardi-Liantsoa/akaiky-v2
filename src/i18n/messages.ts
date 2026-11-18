@@ -229,7 +229,11 @@ const fr = {
     saved: 'Code enregistré. Le téléphone le recevra à sa prochaine connexion.',
     invalid: 'Le code doit compter exactement 6 chiffres.',
     weak: 'Code trop facile à deviner : évitez les chiffres identiques, les suites et les motifs répétés.',
-    mismatch: 'Les deux codes ne sont pas identiques.'
+    mismatch: 'Les deux codes ne sont pas identiques.',
+    unlock: 'Déverrouiller 15 min',
+    unlockHint: 'Le téléphone s’ouvre à sa prochaine connexion (moins d’une minute s’il est allumé et connecté), puis se reverrouille seul.',
+    unlockedUntil: (time: string) => `Déverrouillage demandé jusqu’à ${time}.`,
+    unlockNoCode: 'Choisissez d’abord un code parent : sans code, le téléphone n’est pas verrouillé.'
   },
   child: {
     waiting: 'Ce téléphone sera bientôt prêt.',
@@ -523,7 +527,11 @@ const mg: Messages = {
     saved: 'Voatahiry ny kaody. Hahazo azy ny finday rehefa mifandray indray.',
     invalid: 'Tsy maintsy isa 6 marina ny kaody.',
     weak: 'Mora loha-vinaina loatra ny kaody : aza mampiasa isa mitovy, mifanarakaraka na miverimberina.',
-    mismatch: 'Tsy mitovy ireo kaody roa.'
+    mismatch: 'Tsy mitovy ireo kaody roa.',
+    unlock: 'Hanokatra 15 min',
+    unlockHint: 'Misokatra ny finday rehefa mifandray indray (latsaky ny iray minitra raha mirehitra sy mifandray), dia mihidy ho azy indray.',
+    unlockedUntil: (time: string) => `Nangatahina ny fanokafana hatramin’ny ${time}.`,
+    unlockNoCode: 'Misafidiana kaody ray aman-dreny aloha : raha tsy misy kaody dia tsy hidy ny finday.'
   },
   child: {
     waiting: 'Ho vonona tsy ho ela ity finday ity.',
@@ -815,7 +823,11 @@ const en: Messages = {
     saved: 'Code saved. The phone will receive it the next time it connects.',
     invalid: 'The code must be exactly 6 digits.',
     weak: 'This code is too easy to guess: avoid repeated digits, sequences and patterns.',
-    mismatch: 'The two codes do not match.'
+    mismatch: 'The two codes do not match.',
+    unlock: 'Unlock for 15 min',
+    unlockHint: 'The phone opens the next time it connects (under a minute if it is on and online), then locks again by itself.',
+    unlockedUntil: (time: string) => `Unlock requested until ${time}.`,
+    unlockNoCode: 'Choose a parent code first: without a code, the phone is not locked.'
   },
   child: {
     waiting: 'This phone will be ready soon.',

@@ -2,7 +2,7 @@ import { SecureStorage } from '@aparajita/capacitor-secure-storage'
 import { API_BASE } from '../api/base'
 import { createConfigSync } from './deviceConfig'
 import { createUnlockGuard } from './unlockGuard'
-import { createCallJournal, type CallEvent } from './callJournal'
+import { createCallJournal, type DeviceEvent } from './callJournal'
 import { uuidV4 } from './uuid'
 import { AkaikyCall } from '../native/akaikyCall'
 import { createDeviceSession, type SecretStore } from './deviceSession'
@@ -27,7 +27,7 @@ export const configSync = createConfigSync({ session: deviceSession, store: secu
 // Journal des appels sortants (NAR-166) : file dans le Keystore, envoyée par lots.
 export const callJournal = createCallJournal({
   store: secureStore,
-  post: (events: CallEvent[]) => deviceSession.post('/device/events', { events }),
+  post: (events: DeviceEvent[]) => deviceSession.post('/device/events', { events }),
   lastOutgoing: (number, since, until) => AkaikyCall.lastOutgoing({ number, since, ...(until === undefined ? {} : { until }) }),
   now: () => Date.now(),
   uuid: uuidV4
@@ -75,4 +75,23 @@ export const countryStore = {
     return typeof v === 'string' && /^[A-Z]{2}$/.test(v) ? v : null
   },
   set: (country: string) => secureStore.set(COUNTRY_KEY, country).catch(() => {})
+}
+
+// Dernière demande de déverrouillage à distance appliquée (NAR-168), identifiée par son
+// échéance : une même demande n'est jamais appliquée deux fois (relecture du cache au
+// démarrage, « Reverrouiller » avant l'échéance).
+const REMOTE_SEEN_KEY = 'remote-unlock-seen'
+// Gardée enveloppée (JSON) : le greffon de stockage relit une date ISO nue en objet Date,
+// et la comparaison échouait (demande réappliquée, vu sur émulateur).
+export const remoteUnlockSeen = {
+  async get(): Promise<string | null> {
+    const v = await secureStore.get(REMOTE_SEEN_KEY).catch(() => null)
+    try {
+      const until = typeof v === 'string' ? JSON.parse(v)?.until : null
+      return typeof until === 'string' ? until : null
+    } catch {
+      return null
+    }
+  },
+  set: (until: string) => secureStore.set(REMOTE_SEEN_KEY, JSON.stringify({ until }))
 }
