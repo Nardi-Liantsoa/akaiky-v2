@@ -250,7 +250,7 @@ export async function deviceSessionRoutes(app) {
     return withTransaction(db, async (conn) => {
       await conn.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
       const { rows: [child] } = await conn.query(
-        'SELECT config_version FROM children WHERE id = $1 AND family_id = $2', [req.device.childId, req.device.familyId])
+        'SELECT config_version, parent_code_hash FROM children WHERE id = $1 AND family_id = $2', [req.device.childId, req.device.familyId])
       if (!child) throw new HttpError(401, 'Session de l’appareil expirée.')
       reply.header('etag', tagOf(child.config_version))
       const { rows } = await conn.query(
@@ -261,6 +261,9 @@ export async function deviceSessionRoutes(app) {
         version: Number(child.config_version),
         // Pays des numéros (MG, FR) : numéro d'urgence affiché par le téléphone (NAR-142).
         country: config.phoneCountry,
+        // Hachage du code parent (NAR-139), vérifié hors ligne par le téléphone (NAR-167) ;
+        // null tant qu'aucun gestionnaire ne l'a défini. Jamais envoyé à un compte.
+        parentCode: child.parent_code_hash ?? null,
         contacts: rows.map((r) => ({
           id: r.id,
           name: openField(r.name_enc, config.dataKey, contactAad(r.id, 'name')),
