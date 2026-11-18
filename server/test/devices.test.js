@@ -35,6 +35,18 @@ async function paired() {
   return { owner, fy, device: res.json() }
 }
 
+test('la liste des enfants dit quand son téléphone a été vu ; plus rien une fois retiré', async () => {
+  const { owner, fy } = await paired()
+  const seen = (await call(ctx.app, 'GET', '/api/children', { cookie: owner.cookie })).json().find((c) => c.id === fy.id)
+  assert.ok(seen.phoneLastSeenAt, 'vu à l’appairage')
+  // Renommer renvoie aussi l'état du téléphone (RETURNING), jamais « aucun téléphone ».
+  const renamed = await call(ctx.app, 'PATCH', `/api/children/${fy.id}`, { cookie: owner.cookie, body: { firstName: 'Fyfy' } })
+  assert.equal(renamed.json().phoneLastSeenAt, seen.phoneLastSeenAt)
+  const [phone] = (await devices(owner, fy.id)).json()
+  assert.equal((await call(ctx.app, 'POST', `/api/devices/${phone.id}/revoke`, { cookie: owner.cookie })).statusCode, 200)
+  assert.equal((await call(ctx.app, 'GET', '/api/children', { cookie: owner.cookie })).json().find((c) => c.id === fy.id).phoneLastSeenAt, null)
+})
+
 test('le QR porte le receveur, l’APK, la somme du certificat et un jeton de 15 minutes', async () => {
   const owner = await newUser(ctx)
   await family(owner)
