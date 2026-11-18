@@ -6,7 +6,11 @@ import { DeviceError, type DeviceSession, type SecretStore } from './deviceSessi
 // ce sont des données de mineurs (noms et numéros), jamais en localStorage.
 // Le cache est lié à l'enfant : celui d'un autre enfant (téléphone réappairé) est ignoré.
 export interface DeviceContact { id: string, name: string, phone: string, position: number, avatarColor: string }
-export interface DeviceConfig { version: number, country?: string, contacts: DeviceContact[] }
+// parentCode : hachage « pbkdf2-sha256$<itérations>$<sel>$<clé> » du code parent (NAR-139),
+// vérifié hors ligne (NAR-167) ; null tant qu'aucun gestionnaire ne l'a défini. Absent d'une
+// config mise en cache avant ce champ : équivaut à null (aucun code n'existait encore, et le
+// premier code défini fait avancer la version, donc un relevé complet).
+export interface DeviceConfig { version: number, country?: string, parentCode?: string | null, contacts: DeviceContact[] }
 export const CONFIG_KEY = 'device-config'
 
 interface Cached { childId: string, etag: string | null, config: DeviceConfig }
@@ -14,6 +18,7 @@ interface Cached { childId: string, etag: string | null, config: DeviceConfig }
 const valid = (v: unknown): v is Cached => {
   const c = (v as Cached | null)?.config
   return typeof (v as Cached | null)?.childId === 'string' && !!c && typeof c.version === 'number' && Array.isArray(c.contacts)
+    && (c.parentCode === undefined || c.parentCode === null || typeof c.parentCode === 'string')
     && c.contacts.every((x) => typeof x?.id === 'string' && typeof x.name === 'string' && typeof x.phone === 'string')
 }
 
@@ -58,6 +63,9 @@ export function createConfigSync({ session, store }: { session: DeviceSession, s
       // L'ETag n'avance que si la liste est bien enregistrée : sinon le relevé suivant
       // la redemande (200) et retente l'écriture, au lieu d'un 304 sur une liste perdue.
       const next = { childId: forChild, etag: res.etag, config: res.data }
+      // Même contrôle qu'à la lecture : une réponse mal formée n'écrase pas un cache valable
+      // (qui serait ensuite rejeté en entier au démarrage, contacts compris).
+      if (!valid(next)) throw new Error('Configuration du téléphone mal formée.')
       const saved = await store.set(CONFIG_KEY, JSON.stringify(next)).then(() => true, () => false)
       if (gen !== generation) { await store.remove(CONFIG_KEY).catch(() => {}); return null }
       cached = saved ? next : { ...next, etag: null }
