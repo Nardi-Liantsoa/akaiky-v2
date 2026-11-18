@@ -13,19 +13,26 @@ const BATCH = 50
 // Après ce délai sans trace dans le journal d'Android, l'appel part sans durée.
 const GIVE_UP_MS = 60 * 60_000
 
-export interface PendingCall { id: string, contactId: string, name: string, number: string, startedAt: number }
+// incoming : appel reçu d'un contact (NAR-145), durée lue dans les appels entrants d'Android.
+export interface PendingCall { id: string, contactId: string, name: string, number: string, startedAt: number, incoming?: boolean }
 // name et phone : instantané au moment de l'appel (contact retiré ou modifié avant l'envoi).
 export interface CallEvent { id: string, kind: 'call_out', contactId: string, name: string, phone: string, startedAt: string, durationS: number | null }
 // Sortie du verrou (NAR-168) : par le code saisi sur le téléphone ou à la demande d'un
 // parent ; durée accordée en secondes (une sortie refermée plus tôt n'est pas recomptée). Envoyée par la même file que les appels.
 export interface UnlockEvent { id: string, kind: 'unlock', source: 'code' | 'remote', startedAt: string, durationS: number }
-export type DeviceEvent = CallEvent | UnlockEvent
+// Appel reçu d'un contact (NAR-145) ; contactId absent si le contact a été retiré entre-temps.
+export interface CallInEvent { id: string, kind: 'call_in', contactId?: string, name?: string, phone: string, startedAt: string, durationS: number | null }
+// Appel rejeté sans sonnerie : numéro tel que reçu, absent s'il était masqué.
+export interface BlockedEvent { id: string, kind: 'call_blocked', phone?: string, startedAt: string }
+export type DeviceEvent = CallEvent | UnlockEvent | CallInEvent | BlockedEvent
+// Événement noté par le filtre natif (CallPlugin.peekIncoming).
+export interface ScreenedCall { id: string, kind: 'call_in' | 'call_blocked', phone?: string, startedAt: number }
 export interface CallLogEntry { found: boolean, permission?: boolean, startedAt?: number, durationS?: number }
 
 export interface JournalDeps {
   store: SecretStore
   post(events: DeviceEvent[]): Promise<{ accepted: string[], rejected: string[] }>
-  lastOutgoing(number: string, since: number, until?: number): Promise<CallLogEntry>
+  lastOutgoing(number: string, since: number, until?: number, incoming?: boolean): Promise<CallLogEntry>
   now(): number
   uuid(): string
 }
@@ -44,7 +51,8 @@ const isPending = (v: unknown): v is PendingCall => typeof (v as PendingCall)?.i
 const isEvent = (v: unknown): v is DeviceEvent => {
   const e = v as DeviceEvent | null
   if (typeof e?.id !== 'string') return false
-  if (e.kind === 'call_out') return typeof e.phone === 'string'
+  if (e.kind === 'call_out' || e.kind === 'call_in') return typeof e.phone === 'string'
+  if (e.kind === 'call_blocked') return e.phone === undefined || typeof e.phone === 'string'
   return e.kind === 'unlock' && (e.source === 'code' || e.source === 'remote') && typeof e.durationS === 'number'
 }
 
@@ -84,6 +92,35 @@ export function createCallJournal(deps: JournalDeps) {
       })
     },
 
+    // Appels vus par le filtre natif (NAR-145) : bloqués → file d'envoi ; reçus d'un
+    // contact → « en cours », leur durée sera lue après l'appel. Le contact est retrouvé
+    // par son numéro dans la liste du parent (instantané du nom). Renvoie les identifiants
+    // gardés, que l'appelant acquitte auprès du natif.
+    importScreened(calls: ScreenedCall[], contacts: { id: string, name: string, phone: string }[]): Promise<string[]> {
+      return pendingLock(async () => {
+        const isValid = (c: ScreenedCall) => typeof c?.id === 'string' && typeof c.startedAt === 'number'
+          && (c.kind === 'call_in' ? typeof c.phone === 'string' : c.kind === 'call_blocked')
+        const valid = calls.filter(isValid)
+        const blocked: DeviceEvent[] = valid.filter((c) => c.kind === 'call_blocked').map((c) => ({
+          id: c.id, kind: 'call_blocked', ...(c.phone ? { phone: c.phone } : {}), startedAt: new Date(c.startedAt).toISOString()
+        }))
+        const pending = await readList(deps.store, PENDING_KEY, isPending)
+        const known = new Set(pending.map((p) => p.id))
+        for (const c of valid) {
+          if (c.kind !== 'call_in' || known.has(c.id)) continue
+          const contact = contacts.find((k) => k.phone === c.phone)
+          pending.push({ id: c.id, contactId: contact?.id ?? '', name: contact?.name ?? '', number: c.phone!, startedAt: c.startedAt, incoming: true })
+        }
+        const keptPending = pending.slice(-MAX_QUEUE)
+        const keptIds = new Set(keptPending.map((p) => p.id))
+        // File et « en cours » enregistrées AVANT l'acquittement natif : rien ne se perd.
+        await append(blocked)
+        await save(PENDING_KEY, keptPending)
+        // Acquittés : ce qui est gardé, et ce qui est illisible (sinon relu sans fin).
+        return calls.filter((c) => typeof c?.id === 'string' && (!isValid(c) || c.kind === 'call_blocked' || keptIds.has(c.id))).map((c) => c.id)
+      })
+    },
+
     // Sortie du verrou : mise directement dans la file (rien à compléter).
     unlocked(source: 'code' | 'remote', minutes: number): Promise<void> {
       return append([{ id: deps.uuid(), kind: 'unlock', source, startedAt: new Date(deps.now()).toISOString(), durationS: Math.round(minutes * 60) }])
@@ -103,19 +140,21 @@ export function createCallJournal(deps: JournalDeps) {
     async complete(): Promise<number> {
       const { resolved, waiting } = await pendingLock(async () => {
         const pending = await readList(deps.store, PENDING_KEY, isPending)
-        const resolved: CallEvent[] = [], left: PendingCall[] = []
+        const resolved: DeviceEvent[] = [], left: PendingCall[] = []
         const ordered = [...pending].sort((a, b) => a.startedAt - b.startedAt)
         for (const [i, p] of ordered.entries()) {
-          const next = ordered.slice(i + 1).find((q) => q.number === p.number)
-          const log = await deps.lastOutgoing(p.number, p.startedAt - 2_000, next ? next.startedAt : undefined).catch(() => ({ found: false }) as CallLogEntry)
+          const next = ordered.slice(i + 1).find((q) => q.number === p.number && !!q.incoming === !!p.incoming)
+          const until = next ? next.startedAt : undefined
+          const lookup = p.incoming ? deps.lastOutgoing(p.number, p.startedAt - 2_000, until, true) : deps.lastOutgoing(p.number, p.startedAt - 2_000, until)
+          const log = await lookup.catch(() => ({ found: false }) as CallLogEntry)
           // Pas encore écrit par Android : on attend (une heure au plus). Permission
           // refusée : inutile d'attendre, l'appel part sans durée.
           if (!log.found && log.permission !== false && deps.now() - p.startedAt < GIVE_UP_MS) { left.push(p); continue }
-          resolved.push({
-            id: p.id, kind: 'call_out', contactId: p.contactId, name: p.name, phone: p.number,
-            startedAt: new Date(log.found && log.startedAt ? log.startedAt : p.startedAt).toISOString(),
-            durationS: log.found && typeof log.durationS === 'number' ? log.durationS : null
-          })
+          const startedAt = new Date(log.found && log.startedAt ? log.startedAt : p.startedAt).toISOString()
+          const durationS = log.found && typeof log.durationS === 'number' ? log.durationS : null
+          resolved.push(p.incoming
+            ? { id: p.id, kind: 'call_in', ...(p.contactId ? { contactId: p.contactId, name: p.name } : {}), phone: p.number, startedAt, durationS }
+            : { id: p.id, kind: 'call_out', contactId: p.contactId, name: p.name, phone: p.number, startedAt, durationS })
         }
         // File d'abord, liste « en cours » ensuite : un arrêt entre les deux ne perd rien
         // (au pire un doublon, écarté par l'identifiant).

@@ -92,6 +92,13 @@ vérifié hors ligne (`src/lib/parentCodeVerify.ts`), essais limités
 (`src/lib/unlockGuard.ts`) ; sortie de 15 minutes, fermée par alarme, par l'écran et par
 tout redémarrage. Sortie de secours : `HANDOFF.md`.
 
+**Filtrage des appels entrants (NAR-145)** : `AkaikyCallScreeningService.kt` (rôle
+`ROLE_CALL_SCREENING`, Android 10+), décision dans `CallPolicy.screenIncoming`, file native
+`IncomingCalls.kt` reprise par l'écran (`peekIncoming` / `ackIncoming`) dans le journal
+(`src/lib/callJournal.ts`, types `call_in` et `call_blocked`). Vérifié sur émulateur Android 14 :
+un inconnu est rejeté sans sonnerie, un contact sonne. Test local du rôle sans écran :
+`adb shell cmd role add-role-holder android.app.role.CALL_SCREENING mg.nosytech.akaiky.enfant`.
+
 Vérification locale (émulateur, sans QR) :
 `adb shell dpm set-device-owner mg.nosytech.akaiky.enfant/mg.nosytech.akaiky.AkaikyDeviceAdminReceiver`
 sur un émulateur neuf (`-wipe-data`, sans compte). Le scan réel (6 touches sur l'écran de

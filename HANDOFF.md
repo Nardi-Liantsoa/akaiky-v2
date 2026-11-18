@@ -120,6 +120,10 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
 - **Android 8.x** : `setLockTaskFeatures` n'existe qu'à partir d'Android 9 ; l'affichage
   d'un appel entrant pendant le verrou reste à vérifier sur un vrai Android 8 (l'émulateur
   ARM API 26 n'a pas de WebView).
+- **Filtrage des appels entrants (NAR-145)** : actif seulement si le parent a confirmé
+  « Activer le filtrage des appels » sur le téléphone (rôle système, Android 10+). Sans
+  cette confirmation, ou sur Android 8–9 (NAR-172), tout numéro peut appeler l'enfant ;
+  l'écran de l'enfant l'indique pendant une sortie.
 - **Volet des notifications** : affiché pendant le verrou (sans réglages rapides), car il
   porte l'appel entrant. Toucher une notification ou « Gérer » n'ouvre rien.
 

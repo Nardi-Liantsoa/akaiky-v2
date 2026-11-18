@@ -37,6 +37,7 @@ async function start() {
     useKioskPlugin(AkaikyKiosk)
     void refreshKiosk().catch(() => {})
     parentHash.value = await parentCodeStore.get()
+    void readScreening()
     lastCountry.value = await countryStore.get()
     state.value = await startChild({
       session,
@@ -66,7 +67,7 @@ onMounted(async () => {
   if (!Capacitor.isNativePlatform()) return
   const handle = await App.addListener('appStateChange', ({ isActive }) => {
     foreground = isActive
-    if (isActive) void refreshKiosk().catch(() => {}).then(() => applyRemoteUnlock())
+    if (isActive) { void refreshKiosk().catch(() => {}).then(() => applyRemoteUnlock()); void readScreening() }
     if (isActive && state.value.kind === 'paired') { resume(); startStatus(); syncJournal() } else { pause(); stopStatus(); clearTimeout(journalRetry) }
   })
   if (unmounted) { void handle.remove(); return }
@@ -92,12 +93,16 @@ watch(state, async (s) => {
 })
 // Liste blanche du natif : il refuse tout numéro qui n'y est pas, quoi que demande l'écran.
 // Transmise à chaque changement, et de nouveau juste avant chaque appel.
-const allowedNumbers = () => (deviceConfig.config?.contacts ?? []).map((c) => c.phone)
-watch(() => deviceConfig.config?.contacts, (contacts) => {
-  // Configuration pas encore chargée : on ne remplace pas la liste gardée par le natif.
-  if (!Capacitor.isNativePlatform() || !contacts) return
-  void AkaikyCall.setAllowed({ numbers: allowedNumbers() }).catch(() => {})
-}, { immediate: true })
+// Liste et pays envoyés au natif (il refuse tout autre numéro, et filtre les appels
+// entrants). Jamais avant le chargement de la configuration : une liste vide envoyée par
+// erreur activerait un filtre qui bloque tous les appels entrants.
+async function pushAllowed() {
+  const config = deviceConfig.config
+  if (!Capacitor.isNativePlatform() || !config || state.value.kind !== 'paired') return
+  await AkaikyCall.setAllowed({ numbers: config.contacts.map((c) => c.phone), ...(config.country ? { country: config.country.toUpperCase() } : {}) }).catch(() => {})
+}
+// Contacts ou pays changés : renvoyés au natif (filtre des appels entrants compris).
+watch(() => [deviceConfig.config?.contacts, deviceConfig.config?.country] as const, () => { void pushAllowed() }, { immediate: true })
 
 // Batterie et réseau, relus toutes les minutes tant que l'accueil est affiché.
 const status = ref<DeviceStatus | null>(null)
@@ -110,7 +115,9 @@ function startStatus() {
   stopStatus()
   if (state.value.kind !== 'paired' || !foreground || !Capacitor.isNativePlatform()) return
   void readStatus()
-  statusTimer = setInterval(() => { void readStatus() }, 60_000)
+  // Le téléphone reste sur l'app (verrou) : les appels bloqués sont repris chaque minute.
+  // Liste renvoyée aussi : un premier envoi manqué laisserait le filtre inactif.
+  statusTimer = setInterval(() => { void readStatus(); syncJournal(); void pushAllowed() }, 60_000)
 }
 watch(() => state.value.kind === 'paired', startStatus)
 
@@ -124,12 +131,40 @@ const callError = ref(false)
 let journalRetry: ReturnType<typeof setTimeout> | undefined
 function syncJournal() {
   clearTimeout(journalRetry)
-  void callJournal.complete()
+  // Une erreur d'import n'empêche jamais l'envoi du reste du journal.
+  void importScreened().catch(() => {})
+    .then(() => callJournal.complete())
     .then(async (waiting) => {
       await callJournal.flush()
       if (waiting && foreground && !unmounted) journalRetry = setTimeout(syncJournal, 30_000)
     })
     .catch(() => {})
+}
+
+// Rôle de filtrage d'Android 10+ (NAR-145) : le Device Owner ne peut pas se l'accorder,
+// une confirmation système est demandée une fois. Proposée seulement quand cet écran
+// système peut s'afficher : téléphone pas encore verrouillé, ou sortie par le code.
+const screening = ref<{ available: boolean, held: boolean } | null>(null)
+async function readScreening() {
+  if (!Capacitor.isNativePlatform()) return
+  screening.value = await AkaikyCall.screeningRole().catch(() => null)
+}
+const askScreening = computed(() => state.value.kind === 'paired' && !!screening.value?.available && !screening.value.held
+  && (!kiosk.status?.armed || isUnlocked()))
+async function enableScreening() {
+  const r = await AkaikyCall.requestScreeningRole().catch(() => null)
+  if (r && screening.value) screening.value = { ...screening.value, held: r.held }
+}
+
+// Appels entrants vus par le filtre natif (NAR-145) : repris dans la file du journal,
+// puis acquittés auprès du natif (rien n'est perdu si l'app s'arrête entre les deux).
+async function importScreened() {
+  // Contacts pas encore chargés : on attend (le nom du contact d'un appel reçu en dépend).
+  if (!Capacitor.isNativePlatform() || !deviceConfig.config) return
+  const { events } = await AkaikyCall.peekIncoming().catch(() => ({ events: [] }))
+  if (!events.length) return
+  const kept = await callJournal.importScreened(events, deviceConfig.config?.contacts ?? [])
+  await AkaikyCall.ackIncoming({ ids: kept }).catch(() => {})
 }
 
 // Un appui, un appel : l'appli téléphone prend le relais. Pas de double appel en rafale.
@@ -141,7 +176,7 @@ async function call(phone: string, contact: { id: string, name: string }) {
   callError.value = false
   try {
     // Au mieux : la liste gardée par le natif sert si cet envoi échoue.
-    await AkaikyCall.setAllowed({ numbers: allowedNumbers() }).catch(() => {})
+    await pushAllowed()
     await placeCall(phone, contact)
   } catch {
     callError.value = true
@@ -164,7 +199,7 @@ async function placeCall(phone: string, contact: { id: string, name: string }) {
 // si l'appel ne part pas, le numéro d'urgence. Jamais bloqué par un appel en cours.
 async function sos() {
   callError.value = false
-  await AkaikyCall.setAllowed({ numbers: allowedNumbers() }).catch(() => {})
+  await pushAllowed()
   for (const step of sosPlan(contacts.value, emergency.value)) {
     try {
       const contact = contacts.value.find((c) => c.phone === step.number)
@@ -259,8 +294,9 @@ const canUnlock = computed(() => !!kiosk.status?.deviceOwner && !!kiosk.status.a
 const canRelease = computed(() => isUnlocked() && state.value.kind !== 'paired')
 async function release() {
   const status = await disarmKiosk().catch(() => null)
-  // Le code n'est oublié que si le verrou est bien levé : jamais armé sans code.
+  // Le code n'est oublié, et le filtre coupé, que si le verrou est bien levé.
   if (status && !status.armed) {
+    await AkaikyCall.stopFiltering().catch(() => {})
     await parentCodeStore.clear()
     parentHash.value = null
   } else {
@@ -300,6 +336,10 @@ const text = computed(() => {
         <button class="btn btn-ghost" type="button" @click="openPhoneSettings">{{ t.child.lock.settings }}</button>
         <button class="btn" type="button" @click="lockNow().catch(() => {})">{{ t.child.lock.relock }}</button>
       </div>
+    </section>
+    <section v-if="askScreening" class="unlocked" role="status">
+      <p>{{ t.child.screening.off }}</p>
+      <button class="btn" type="button" @click="enableScreening">{{ t.child.screening.enable }}</button>
     </section>
     <p v-if="callError" class="call-error" role="alert">{{ t.child.callFailed }}</p>
     <section v-if="contacts.length" class="grid" :class="{ single: contacts.length === 1 }">
