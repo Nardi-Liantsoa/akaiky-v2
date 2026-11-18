@@ -5,7 +5,7 @@ import { App } from '@capacitor/app'
 import { useT } from '../../composables/useT'
 import { appKind } from '../../lib/appKind'
 import { startChild, type ChildState } from '../../lib/childStartup'
-import { childIdentity, configSync, deviceSession as session } from '../../lib/deviceSessionInstance'
+import { callJournal, childIdentity, configSync, deviceSession as session } from '../../lib/deviceSessionInstance'
 import { deviceConfig, pause, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
 import { emergencyNumber } from '../../lib/emergency'
 import { sosPlan } from '../../lib/sos'
@@ -56,7 +56,7 @@ onMounted(async () => {
   if (!Capacitor.isNativePlatform()) return
   const handle = await App.addListener('appStateChange', ({ isActive }) => {
     foreground = isActive
-    if (isActive && state.value.kind === 'paired') { resume(); startStatus() } else { pause(); stopStatus() }
+    if (isActive && state.value.kind === 'paired') { resume(); startStatus(); syncJournal() } else { pause(); stopStatus() }
   })
   if (unmounted) { void handle.remove(); return }
   lifecycle = handle
@@ -73,6 +73,7 @@ watch(state, async (s) => {
     return
   }
   await startDeviceConfig(configSync, s.childId)
+  syncJournal()
   if (!unmounted && foreground && state.value === s) resume()
 })
 // Liste blanche du natif : il refuse tout numéro qui n'y est pas, quoi que demande l'écran.
@@ -104,7 +105,12 @@ const emergency = computed(() => emergencyNumber(deviceConfig.config?.country))
 const calling = ref(false)
 const callError = ref(false)
 // Un appui, un appel : l'appli téléphone prend le relais. Pas de double appel en rafale.
-async function call(phone: string) {
+// Journal (NAR-166) : durées relevées au retour du composeur, puis envoi (ou file hors ligne).
+function syncJournal() {
+  void callJournal.complete().then(() => callJournal.flush()).catch(() => {})
+}
+
+async function call(phone: string, contactId: string) {
   if (calling.value) return
   calling.value = true
   callError.value = false
@@ -112,6 +118,7 @@ async function call(phone: string) {
     // Au mieux : la liste gardée par le natif sert si cet envoi échoue.
     await AkaikyCall.setAllowed({ numbers: allowedNumbers() }).catch(() => {})
     await AkaikyCall.call({ number: phone })
+    void callJournal.started(contactId, phone).catch(() => {})
   } catch {
     callError.value = true
   } finally {
@@ -125,8 +132,11 @@ async function sos() {
   await AkaikyCall.setAllowed({ numbers: allowedNumbers() }).catch(() => {})
   for (const step of sosPlan(contacts.value, emergency.value)) {
     try {
-      if (step.kind === 'contact') await AkaikyCall.call({ number: step.number })
-      else await AkaikyCall.emergency({ number: step.number })
+      if (step.kind === 'contact') {
+        await AkaikyCall.call({ number: step.number })
+        const contact = contacts.value.find((c) => c.phone === step.number)
+        if (contact) void callJournal.started(contact.id, step.number).catch(() => {})
+      } else await AkaikyCall.emergency({ number: step.number })
       return
     } catch {
       // Étape suivante.
@@ -163,7 +173,7 @@ const text = computed(() => {
     <ChildStatusBar :status="status" />
     <p v-if="callError" class="call-error" role="alert">{{ t.child.callFailed }}</p>
     <section v-if="contacts.length" class="grid" :class="{ single: contacts.length === 1 }">
-      <ContactTile v-for="c in contacts" :key="c.id" :name="c.name" :color="c.avatarColor" :busy="calling" @call="call(c.phone)" />
+      <ContactTile v-for="c in contacts" :key="c.id" :name="c.name" :color="c.avatarColor" :busy="calling" @call="call(c.phone, c.id)" />
     </section>
     <section v-else class="empty">
       <p class="waiting">{{ t.child.noContacts }}</p>

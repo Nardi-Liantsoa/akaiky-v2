@@ -1,6 +1,9 @@
 import { SecureStorage } from '@aparajita/capacitor-secure-storage'
 import { API_BASE } from '../api/base'
 import { createConfigSync } from './deviceConfig'
+import { createCallJournal, type CallEvent } from './callJournal'
+import { uuidV4 } from './uuid'
+import { AkaikyCall } from '../native/akaikyCall'
 import { createDeviceSession, type SecretStore } from './deviceSession'
 import type { ChildIdentity } from './childStartup'
 
@@ -16,9 +19,18 @@ export const secureStore: SecretStore = {
 // Session perdue ou remplacée : la configuration gardée (contacts) est effacée.
 export const deviceSession = createDeviceSession({
   base: API_BASE, store: secureStore, fetch: (...args) => fetch(...args),
-  onReset: async () => { await configSync.clear(); await childIdentity.clear() }
+  onReset: async () => { await configSync.clear(); await childIdentity.clear(); await callJournal.clear() }
 })
 export const configSync = createConfigSync({ session: deviceSession, store: secureStore })
+
+// Journal des appels sortants (NAR-166) : file dans le Keystore, envoyée par lots.
+export const callJournal = createCallJournal({
+  store: secureStore,
+  post: (events: CallEvent[]) => deviceSession.post('/device/events', { events }),
+  lastOutgoing: (number, since) => AkaikyCall.lastOutgoing({ number, since }),
+  now: () => Date.now(),
+  uuid: uuidV4
+})
 
 // Enfant du téléphone (prénom, identifiant) : accueil ouvert sans Internet.
 const IDENTITY_KEY = 'device-child'
