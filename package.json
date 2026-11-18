@@ -10,7 +10,7 @@
     "dev:api": "cd server && node --env-file=.env.dev --watch src/server.js",
     "dev:seed": "cd server && node --env-file=.env.dev bin/dev-seed.js",
     "build": "vue-tsc -b && vite build",
-    "test": "vitest run",
+    "test": "vitest run && node --test scripts/*.test.mjs",
     "test:api": "npm test --prefix server",
     "test:all": "npm run lint && npm run build && npm test && npm run test:api && npm run test:e2e",
     "sync": "npm run build && npx cap sync",
@@ -23,7 +23,8 @@
     "test:visual": "sh scripts/visual.sh",
     "android:parent": "npm run build && npx cap sync android && cd android && ./gradlew assembleParentDebug",
     "android:enfant": "npm run build && npx cap sync android && cd android && ./gradlew assembleEnfantDebug",
-    "android:both": "npm run build && npx cap sync android && cd android && ./gradlew assembleParentDebug assembleEnfantDebug"
+    "android:both": "npm run build && npx cap sync android && cd android && ./gradlew assembleParentDebug assembleEnfantDebug",
+    "audit:deps": "node scripts/audit.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "^8.0.1",

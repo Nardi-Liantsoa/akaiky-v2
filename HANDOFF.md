@@ -17,7 +17,7 @@
   `docs/DESIGN.md` ; jetons et police posés dans `src/style.css` (NAR-132).
 - Vérifié en local (NAR-140) : lint, build, tests front (34/34), tests API contre PostgreSQL
   jetable (109/109), e2e Chromium (37/37), e2e WebKit (dans l'image Docker Playwright),
-  `npm audit` 0 vulnérabilité (racine et serveur), gitleaks et Semgrep (`p/javascript`,
+  `npm audit` : serveur 0 vulnérabilité ; racine, seul l'avis picomatch sous exception datée (NAR-159), gitleaks et Semgrep (`p/javascript`,
   `p/typescript`) sans résultat, image Docker construite (utilisateur `node`),
   `/health` 200 et `/ready` 503 sans base, refus de démarrer en production sans clé MFA.
 - Recette installée : 22 critères métier du CdC, tous « (prévu) ». `npm run recette
@@ -75,6 +75,13 @@
 ## Limites résiduelles assumées
 
 Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une limite tue est une faille.
+
+- **Avis picomatch GHSA-fc5q-39xc-vjpf (ReDoS), sans correction publiée** : exception
+  datée dans `audit-exceptions.json`, **échéance 18/12/2026**. `picomatch` ne sert qu'à
+  l'outillage de construction (vite, vitest, vue-router, vue-tsc) : absent du bundle et du
+  serveur, motifs issus de notre configuration. `npm run audit:deps` (`scripts/audit.mjs`)
+  échoue sur tout autre avis moderate ou plus, à l'échéance, et dès que l'exception ne sert
+  plus : fusionner alors la mise à jour de Dependabot et retirer l'exception.
 
 - **NAT des opérateurs mobiles** : beaucoup d'utilisateurs partagent une adresse IPv4.
   Le renouvellement natif n'a pas de limite par IP ; la limite globale de l'API
