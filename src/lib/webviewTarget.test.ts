@@ -7,11 +7,14 @@ import { describe, expect, it } from 'vitest'
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
 
 describe('WebView minimal', () => {
-  it('android.minWebViewVersion = cible Chrome du bundle', () => {
+  it('android.minWebViewVersion = cible Chrome du bundle, et au moins 64', () => {
     const chrome = /modernTargets:\s*'[^']*chrome\s*>=\s*(\d+)/.exec(read('../../vite.config.ts'))?.[1]
     const min = /minWebViewVersion:\s*(\d+)/.exec(read('../../capacitor.config.ts'))?.[1]
     expect(chrome).toBeDefined()
     expect(min).toBe(chrome)
+    // Plancher de la syntaxe que le bundle garde telle quelle : import() (Chrome 63) et
+    // import.meta (Chrome 64), qu'esbuild n'abaisse pas, quelle que soit la cible.
+    expect(Number(min)).toBeGreaterThanOrEqual(64)
   })
 
   it('écran de repli déclaré et présent, sans script', () => {
@@ -19,6 +22,6 @@ describe('WebView minimal', () => {
     expect(path).toBe('webview.html')
     const html = read(`../../public/${path}`)
     expect(html).not.toMatch(/<script/i)
-    for (const lang of ['mg', 'fr', 'en']) expect(html).toContain(`lang="${lang}"`)
+    for (const lang of ['mg', 'fr', 'en']) expect(html).toContain(`<section lang="${lang}">`)
   })
 })

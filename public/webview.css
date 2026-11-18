@@ -1,9 +1,13 @@
 /* Écran de repli (webview.html) : CSS simple, lisible par un WebView ancien. Couleurs
-   reprises des jetons (docs/DESIGN.md), écrites en dur : pas de variables CSS ici. */
+   reprises des jetons de src/style.css, écrites en dur (page autonome, hors bundle) :
+   à reporter ici si ces jetons changent. */
+/* --bg-child, --ink */
 html, body { margin: 0; background: #fff8ee; color: #1c2431; }
 body { font-family: sans-serif; line-height: 1.45; }
 main { max-width: 32em; margin: 0 auto; padding: 32px 20px; }
 h1 { margin: 0 0 24px; font-size: 2.2em; font-weight: 900; }
+/* --surface-card */
 section { margin: 0 0 20px; padding: 16px; background: #ffffff; border-radius: 16px; }
 h2 { margin: 0 0 8px; font-size: 1.15em; }
+/* --ink-soft */
 p { margin: 0; color: #4a5260; }

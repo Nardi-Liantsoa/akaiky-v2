@@ -1,8 +1,9 @@
 <!doctype html>
 <!-- Écran de repli natif (capacitor.config.ts, server.errorPath) : affiché par Capacitor
-     quand le WebView du téléphone est plus ancien qu'android.minWebViewVersion, ou quand
-     la page principale ne se charge pas. HTML et CSS seuls, sans JavaScript : il doit
-     s'afficher sur le WebView le plus ancien. Les trois langues, malgache d'abord. -->
+     quand le WebView Android est plus ancien qu'android.minWebViewVersion, ou quand la
+     page principale ne se charge pas (Android et iOS). Texte valable dans tous ces cas.
+     HTML et CSS seuls, sans JavaScript : il doit s'afficher sur le WebView le plus
+     ancien. Les trois langues, malgache d'abord. -->
 <html lang="mg">
   <head>
     <meta charset="UTF-8" />
@@ -14,16 +15,16 @@
     <main>
       <h1>Akaiky</h1>
       <section lang="mg">
-        <h2>Tsy afaka misokatra amin'ity finday ity i Akaiky.</h2>
-        <p>Havaozy ao amin'ny Play Store ny « Android System WebView » (na Google Chrome), dia avereno sokafana i Akaiky.</p>
+        <h2>Tsy nisokatra i Akaiky.</h2>
+        <p>Akatony dia sokafy indray i Akaiky. Raha mbola miseho ity hafatra ity amin'ny Android : havaozy ao amin'ny Play Store ny « Android System WebView » (na Google Chrome). Raha tsy mbola mety : esory dia apetraho indray i Akaiky.</p>
       </section>
       <section lang="fr">
-        <h2>Akaiky ne peut pas s'ouvrir sur ce téléphone.</h2>
-        <p>Mettez à jour « Android System WebView » (ou Google Chrome) depuis le Play Store, puis relancez Akaiky.</p>
+        <h2>Akaiky n'a pas pu s'ouvrir.</h2>
+        <p>Fermez puis rouvrez Akaiky. Si ce message revient sur Android : mettez à jour « Android System WebView » (ou Google Chrome) depuis le Play Store. Sinon, désinstallez puis réinstallez Akaiky.</p>
       </section>
       <section lang="en">
-        <h2>Akaiky can't open on this phone.</h2>
-        <p>Update “Android System WebView” (or Google Chrome) from the Play Store, then open Akaiky again.</p>
+        <h2>Akaiky couldn't open.</h2>
+        <p>Close Akaiky and open it again. If this message comes back on Android, update “Android System WebView” (or Google Chrome) from the Play Store. Otherwise, uninstall and reinstall Akaiky.</p>
       </section>
     </main>
   </body>

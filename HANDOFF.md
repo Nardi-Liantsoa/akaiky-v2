@@ -10,7 +10,7 @@
   Contacts autorisés côté parent (NAR-140, migration `006`) ; la synchronisation vers le
   téléphone de l'enfant attend l'appairage (NAR-160, bloqué par NAR-138).
   Coques Android (variantes `parent` et `enfant`) et iOS générées (NAR-137). Les deux APK
-  s'installent côte à côte (Android 8 et 14). WebView 61 minimum, écran de repli en trois
+  s'installent côte à côte (Android 8 et 14). WebView 64 minimum, écran de repli en trois
   langues en dessous (NAR-161, `docs/MOBILE.md`) ; Android 8 non vérifiable sur ce poste
   (image ARM sans WebView utilisable). iOS non construit : Xcode 15.3 trop ancien ici.
 - Identifiant `mg.nosytech.akaiky`, nom affiché « Akaiky ». Maquettes résumées dans

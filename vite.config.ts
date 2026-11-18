@@ -25,8 +25,10 @@ export default defineConfig(({ command, mode }) => {
       // défaut y émet une syntaxe illisible et l'app reste figée sur l'écran de
       // démarrage. Un seul bundle moderne transpilé, sans chunks SystemJS (leurs
       // scripts en ligne seraient bloqués par la CSP).
+      // Chrome 64 et plus : le bundle garde import() (Chrome 63) et import.meta (Chrome 64),
+      // qu'esbuild ne sait pas abaisser. android.minWebViewVersion (capacitor.config.ts) suit.
       legacy({
-        modernTargets: 'chrome >= 61, safari >= 13',
+        modernTargets: 'chrome >= 64, safari >= 13',
         modernPolyfills: true,
         renderLegacyChunks: false
       })
