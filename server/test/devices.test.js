@@ -248,7 +248,7 @@ test('configuration : contacts de SON enfant seulement, ETag et 304, changement 
   assert.equal(first.json().country, 'MG')
   assert.deepEqual(Object.keys(first.json().contacts[0]).sort(), ['avatarColor', 'id', 'name', 'phone', 'position'])
   const etag = first.headers.etag
-  assert.match(etag, /^"[0-9a-f-]+\.\d+"$/)
+  assert.match(etag, /^"[0-9a-f-]+\.\d+\.MG"$/)
   assert.equal(first.headers['access-control-expose-headers'], 'etag')
 
   // Rien n'a changé : 304 sans corps.

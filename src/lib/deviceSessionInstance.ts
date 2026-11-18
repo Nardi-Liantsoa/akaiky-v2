@@ -16,7 +16,7 @@ export const secureStore: SecretStore = {
 // Session perdue ou remplacée : la configuration gardée (contacts) est effacée.
 export const deviceSession = createDeviceSession({
   base: API_BASE, store: secureStore, fetch: (...args) => fetch(...args),
-  onReset: async () => { await configSync.clear(); await secureStore.remove(IDENTITY_KEY).catch(() => {}) }
+  onReset: async () => { await configSync.clear(); await childIdentity.clear() }
 })
 export const configSync = createConfigSync({ session: deviceSession, store: secureStore })
 

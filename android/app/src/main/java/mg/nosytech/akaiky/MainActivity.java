@@ -9,7 +9,8 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // Greffon local (pas un paquet npm) : enregistré avant le pont.
         registerPlugin(AkaikyDevicePlugin.class);
-        registerPlugin(CallPlugin.class);
+        // Appels : app enfant seulement (CALL_PHONE n'est déclarée que dans sa variante).
+        if (getPackageName().endsWith(".enfant")) registerPlugin(CallPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

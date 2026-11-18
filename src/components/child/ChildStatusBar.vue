@@ -9,13 +9,22 @@ import type { DeviceStatus } from '../../native/akaikyDevice'
 const props = defineProps<{ status: DeviceStatus | null }>()
 const t = useT()
 const now = ref(new Date())
-let tick: ReturnType<typeof setInterval> | undefined
-onMounted(() => { tick = setInterval(() => { now.value = new Date() }, 15_000) })
-onBeforeUnmount(() => clearInterval(tick))
+// Mise à jour au changement de minute, et dès que l'écran revient au premier plan.
+let tick: ReturnType<typeof setTimeout> | undefined
+function schedule() {
+  now.value = new Date()
+  clearTimeout(tick)
+  tick = setTimeout(schedule, 60_000 - (now.value.getTime() % 60_000) + 50)
+}
+const onVisible = () => { if (document.visibilityState === 'visible') schedule() }
+onMounted(() => { schedule(); document.addEventListener('visibilitychange', onVisible) })
+onBeforeUnmount(() => { clearTimeout(tick); document.removeEventListener('visibilitychange', onVisible) })
 
 const network = computed(() => {
   const n = props.status?.network
-  return n === 'wifi' ? t.value.child.status.wifi : n === 'cellular' ? t.value.child.status.cellular : n === 'none' ? t.value.child.status.noNetwork : ''
+  // Sans réseau de données, rien d'affiché : les appels passent quand même par la SIM,
+  // un « Pas de réseau » ferait croire le contraire.
+  return n === 'wifi' ? t.value.child.status.wifi : n === 'cellular' ? t.value.child.status.cellular : ''
 })
 </script>
 

@@ -22,15 +22,7 @@ const fr = {
     forbidden: 'Action non autorisée.',
     notFound: 'Élément introuvable.',
     generic: 'Une erreur est survenue. Réessayez.',
-    retry: 'Réessayer',
-    callContact: (name: string) => `Appeler ${name}`,
-    noContacts: 'Aucun contact pour l’instant.',
-    noContactsHint: 'Un parent va les ajouter depuis son application.',
-    sosLabel: 'SOS : appuie fort 3 secondes',
-    sosHint: 'Appuie fort 3 secondes',
-    emergency: (n: string) => `Secours · ${n}`,
-    callFailed: 'L’appel n’a pas pu partir.',
-    status: { wifi: 'Wi-Fi', cellular: 'Réseau', noNetwork: 'Pas de réseau', battery: (n: number) => `${n} %` }
+    retry: 'Réessayer'
   },
   auth: {
     loginTitle: 'Connexion',
@@ -243,11 +235,11 @@ const fr = {
     callContact: (name: string) => `Appeler ${name}`,
     noContacts: 'Aucun contact pour l’instant.',
     noContactsHint: 'Un parent va les ajouter depuis son application.',
-    sosLabel: 'SOS : appuie fort 3 secondes',
+    sosLabel: 'SOS : appuie 3 secondes pour appeler',
     sosHint: 'Appuie fort 3 secondes',
     emergency: (n: string) => `Secours · ${n}`,
     callFailed: 'L’appel n’a pas pu partir.',
-    status: { wifi: 'Wi-Fi', cellular: 'Réseau', noNetwork: 'Pas de réseau', battery: (n: number) => `${n} %` }
+    status: { wifi: 'Wi-Fi', cellular: 'Réseau', battery: (n: number) => `${n} %` }
   },
   parent: {
     tabsLabel: 'Navigation principale',
@@ -291,15 +283,7 @@ const mg: Messages = {
     forbidden: 'Tsy azo atao izany.',
     notFound: 'Tsy hita.',
     generic: 'Nisy olana. Andramo indray.',
-    retry: 'Andramo indray',
-    callContact: (name: string) => `Antsoy i ${name}`,
-    noContacts: 'Mbola tsy misy olona azo antsoina.',
-    noContactsHint: 'Ray aman-dreny iray no hanampy azy avy amin’ny rindranasany.',
-    sosLabel: 'SOS : tsindrio mafy 3 segondra',
-    sosHint: 'Tsindrio mafy 3 segondra',
-    emergency: (n: string) => `Vonjy maika · ${n}`,
-    callFailed: 'Tsy lasa ny antso.',
-    status: { wifi: 'Wi-Fi', cellular: 'Tambajotra', noNetwork: 'Tsy misy tambajotra', battery: (n: number) => `${n} %` }
+    retry: 'Andramo indray'
   },
   auth: {
     loginTitle: 'Hiditra',
@@ -512,11 +496,11 @@ const mg: Messages = {
     callContact: (name: string) => `Antsoy i ${name}`,
     noContacts: 'Mbola tsy misy olona azo antsoina.',
     noContactsHint: 'Ray aman-dreny iray no hanampy azy avy amin’ny rindranasany.',
-    sosLabel: 'SOS : tsindrio mafy 3 segondra',
+    sosLabel: 'SOS : tsindrio 3 segondra hiantsoana',
     sosHint: 'Tsindrio mafy 3 segondra',
     emergency: (n: string) => `Vonjy maika · ${n}`,
     callFailed: 'Tsy lasa ny antso.',
-    status: { wifi: 'Wi-Fi', cellular: 'Tambajotra', noNetwork: 'Tsy misy tambajotra', battery: (n: number) => `${n} %` }
+    status: { wifi: 'Wi-Fi', cellular: 'Tambajotra', battery: (n: number) => `${n} %` }
   },
   parent: {
     tabsLabel: 'Fitetezana lehibe',
@@ -558,15 +542,7 @@ const en: Messages = {
     forbidden: 'Action not allowed.',
     notFound: 'Not found.',
     generic: 'Something went wrong. Please try again.',
-    retry: 'Try again',
-    callContact: (name: string) => `Call ${name}`,
-    noContacts: 'No contacts yet.',
-    noContactsHint: 'A parent will add them from their app.',
-    sosLabel: 'SOS: press hard for 3 seconds',
-    sosHint: 'Press hard for 3 seconds',
-    emergency: (n: string) => `Emergency · ${n}`,
-    callFailed: 'The call couldn’t go through.',
-    status: { wifi: 'Wi-Fi', cellular: 'Network', noNetwork: 'No network', battery: (n: number) => `${n}%` }
+    retry: 'Try again'
   },
   auth: {
     loginTitle: 'Sign in',
@@ -779,11 +755,11 @@ const en: Messages = {
     callContact: (name: string) => `Call ${name}`,
     noContacts: 'No contacts yet.',
     noContactsHint: 'A parent will add them from their app.',
-    sosLabel: 'SOS: press hard for 3 seconds',
+    sosLabel: 'SOS: hold 3 seconds to call',
     sosHint: 'Press hard for 3 seconds',
     emergency: (n: string) => `Emergency · ${n}`,
     callFailed: 'The call couldn’t go through.',
-    status: { wifi: 'Wi-Fi', cellular: 'Network', noNetwork: 'No network', battery: (n: number) => `${n}%` }
+    status: { wifi: 'Wi-Fi', cellular: 'Network', battery: (n: number) => `${n}%` }
   },
   parent: {
     tabsLabel: 'Main navigation',

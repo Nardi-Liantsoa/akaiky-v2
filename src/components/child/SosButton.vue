@@ -1,20 +1,45 @@
 <script setup lang="ts">
+import { onBeforeUnmount, ref } from 'vue'
 import { useT } from '../../composables/useT'
 
-// Bouton SOS toujours visible (maquette écran 1). Inerte pour l'instant : l'appui
-// maintenu 3 secondes et l'alerte arrivent avec le ticket SOS (NAR-149).
+// Bouton SOS toujours visible (maquette écran 1). Maintenu 3 secondes, il émet
+// `trigger`. En attendant l'alerte complète (NAR-149 : SMS, cascade, position),
+// l'accueil appelle le premier contact (premier de l'ordre SOS) : jamais un bouton
+// qui promet de l'aide et ne fait rien.
+const HOLD_MS = 3000
+const emit = defineEmits<{ trigger: [] }>()
 const t = useT()
+const holding = ref(false)
+let timer: ReturnType<typeof setTimeout> | undefined
+
+function start() {
+  if (holding.value) return
+  holding.value = true
+  timer = setTimeout(() => { holding.value = false; emit('trigger') }, HOLD_MS)
+}
+function cancel() {
+  clearTimeout(timer)
+  holding.value = false
+}
+onBeforeUnmount(cancel)
 </script>
 
 <template>
-  <button class="sos" type="button" :aria-label="t.child.sosLabel">
+  <button
+    class="sos" :class="{ holding }" type="button" :aria-label="t.child.sosLabel"
+    @pointerdown.prevent="start" @pointerup="cancel" @pointerleave="cancel" @pointercancel="cancel"
+    @keydown.enter.prevent="start" @keyup.enter="cancel" @contextmenu.prevent
+  >
     <span class="word">SOS</span>
     <span class="hint">{{ t.child.sosHint }}</span>
+    <span class="fill" aria-hidden="true" />
   </button>
 </template>
 
 <style scoped>
 .sos {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -26,6 +51,13 @@ const t = useT()
   background: var(--sos);
   color: var(--on-color);
   font: inherit;
+  touch-action: none;
+  user-select: none;
+}
+.word,
+.hint {
+  position: relative;
+  z-index: 1;
 }
 .word {
   font-size: 2.2rem;
@@ -38,5 +70,17 @@ const t = useT()
   font-size: 0.95rem;
   font-weight: 800;
   opacity: 0.9;
+}
+/* Remplissage pendant l'appui maintenu : l'enfant voit que quelque chose se passe. */
+.fill {
+  position: absolute;
+  inset: 0;
+  transform: scaleX(0);
+  transform-origin: left;
+  background: var(--sos-deep);
+}
+.holding .fill {
+  transform: scaleX(1);
+  transition: transform 3s linear;
 }
 </style>

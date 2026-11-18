@@ -65,8 +65,13 @@ class CallPlugin : Plugin() {
             return
         }
         val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(intent)
-        call.resolve()
+        try {
+            context.startActivity(intent)
+            call.resolve()
+        } catch (e: Exception) {
+            // Pas de composeur (désactivé, absent) : refus propre, jamais un plantage.
+            call.reject("Composeur indisponible.", "no_dialer")
+        }
     }
 
     private fun startCall(call: PluginCall, number: String) {
@@ -76,6 +81,8 @@ class CallPlugin : Plugin() {
             call.resolve()
         } catch (e: SecurityException) {
             call.reject("Permission d'appel refusée.", "permission_denied")
+        } catch (e: Exception) {
+            call.reject("Appel impossible.", "call_failed")
         }
     }
 

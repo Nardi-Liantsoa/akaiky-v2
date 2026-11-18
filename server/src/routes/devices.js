@@ -206,7 +206,9 @@ export async function deviceSessionRoutes(app) {
   // Le 304 ne coûte qu'une lecture ; version et liste ne sont lues ensemble, dans une
   // même photo de la base, que lorsqu'elles ont changé.
   app.get('/config', { config: { device: true } }, async (req, reply) => {
-    const tagOf = (version) => `"${req.device.childId}.${version}"`
+    // Le pays fait partie de la réponse : il entre dans l'ETag, sinon un changement de
+    // pays (ou un téléphone mis en cache avant ce champ) resterait sur un 304.
+    const tagOf = (version) => `"${req.device.childId}.${version}.${config.phoneCountry}"`
     if (req.headers['if-none-match']) {
       const { rows: [current] } = await db.query(
         'SELECT config_version FROM children WHERE id = $1 AND family_id = $2', [req.device.childId, req.device.familyId])

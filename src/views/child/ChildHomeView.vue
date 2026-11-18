@@ -55,7 +55,7 @@ onMounted(async () => {
   if (!Capacitor.isNativePlatform()) return
   const handle = await App.addListener('appStateChange', ({ isActive }) => {
     foreground = isActive
-    if (isActive && state.value.kind === 'paired') resume(); else pause()
+    if (isActive && state.value.kind === 'paired') { resume(); startStatus() } else { pause(); stopStatus() }
   })
   if (unmounted) { void handle.remove(); return }
   lifecycle = handle
@@ -75,10 +75,12 @@ watch(state, async (s) => {
   if (!unmounted && foreground && state.value === s) resume()
 })
 // Liste blanche du natif : il refuse tout numéro qui n'y est pas, quoi que demande l'écran.
-watch(() => deviceConfig.config?.contacts, (contacts) => {
+// Transmise à chaque changement, et de nouveau juste avant chaque appel.
+const allowedNumbers = () => (deviceConfig.config?.contacts ?? []).map((c) => c.phone)
+watch(() => deviceConfig.config?.contacts, () => {
   if (!Capacitor.isNativePlatform()) return
-  void AkaikyCall.setAllowed({ numbers: (contacts ?? []).map((c) => c.phone) }).catch(() => {})
-})
+  void AkaikyCall.setAllowed({ numbers: allowedNumbers() }).catch(() => {})
+}, { immediate: true })
 
 // Batterie et réseau, relus toutes les minutes tant que l'accueil est affiché.
 const status = ref<DeviceStatus | null>(null)
@@ -86,12 +88,14 @@ let statusTimer: ReturnType<typeof setInterval> | undefined
 async function readStatus() {
   status.value = await AkaikyDevice.getStatus().catch(() => null)
 }
-watch(() => state.value.kind === 'paired', (paired) => {
-  clearInterval(statusTimer)
-  if (!paired || !Capacitor.isNativePlatform()) return
+function stopStatus() { clearInterval(statusTimer); statusTimer = undefined }
+function startStatus() {
+  stopStatus()
+  if (state.value.kind !== 'paired' || !Capacitor.isNativePlatform()) return
   void readStatus()
   statusTimer = setInterval(() => { void readStatus() }, 60_000)
-})
+}
+watch(() => state.value.kind === 'paired', startStatus)
 
 const contacts = computed(() => [...(deviceConfig.config?.contacts ?? [])].sort((a, b) => a.position - b.position))
 const emergency = computed(() => emergencyNumber(deviceConfig.config?.country))
@@ -103,12 +107,20 @@ async function call(phone: string) {
   calling.value = true
   callError.value = false
   try {
+    await AkaikyCall.setAllowed({ numbers: allowedNumbers() })
     await AkaikyCall.call({ number: phone })
   } catch {
     callError.value = true
   } finally {
     setTimeout(() => { calling.value = false }, 1500)
   }
+}
+// SOS maintenu 3 s : en attendant l'alerte complète (NAR-149), appel du premier contact
+// (premier de l'ordre SOS) ; sans contact, le numéro d'urgence.
+function sos() {
+  const first = contacts.value[0]
+  if (first) void call(first.phone)
+  else void callEmergency()
 }
 async function callEmergency() {
   callError.value = false
@@ -117,7 +129,7 @@ async function callEmergency() {
 
 // Téléphone retiré pendant l'usage : l'écran le dit.
 watch(() => deviceConfig.status, (s) => { if (s === 'lost') state.value = { kind: 'revoked' } })
-onBeforeUnmount(() => { unmounted = true; pause(); clearInterval(statusTimer); void lifecycle?.remove() })
+onBeforeUnmount(() => { unmounted = true; pause(); stopStatus(); void lifecycle?.remove() })
 
 const text = computed(() => {
   const c = t.value.child
@@ -146,7 +158,7 @@ const text = computed(() => {
       <p class="hint">{{ t.child.noContactsHint }}</p>
     </section>
     <footer class="actions">
-      <SosButton />
+      <SosButton @trigger="sos" />
       <button class="emergency" type="button" @click="callEmergency">{{ t.child.emergency(emergency) }}</button>
     </footer>
   </main>
