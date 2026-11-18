@@ -136,7 +136,8 @@ les téléphones déjà configurés. Autre poste : `AKAIKY_KEYSTORE_PROPERTIES=<
 Publier une version de l'APK (avant `make release`) :
 
 ```bash
-# 1. Monter versionCode et versionName de la variante enfant (android/app/build.gradle)
+# 1. Monter versionCode et versionName du bloc `enfant { }` (android/app/build.gradle),
+#    propres à l'app enfant ; sans cela, les téléphones refusent la mise à jour.
 # 2. Construire, signer, vérifier, copier dans downloads/ :
 JAVA_HOME=$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home npm run android:enfant:release
 #    → affiche DEVICE_APK_SIGNATURE_SHA256 (identique tant que le keystore ne change pas)
@@ -152,7 +153,10 @@ DEVICE_APK_SIGNATURE_SHA256=Gg-Buz0ZeueZt6lby12Z4DwwXw43F_xwO0XBWYshbyU
 
 La somme est publique (empreinte du certificat, pas un secret) ; elle ne change que si
 le keystore change, ce qui rendrait les téléphones existants impossibles à mettre à jour.
-Le contexte de build Docker exclut `android/`, `ios/` et tout fichier de keystore.
+Le contexte de build Docker exclut `android/`, `ios/` et tout fichier de keystore ; seul
+`downloads/akaiky-enfant.apk` est copié dans l'image. Si `DEVICE_APK_URL` pointe vers ce
+serveur et que l'APK manque à l'image, l'API le journalise au démarrage et refuse les QR
+(503) plutôt que d'en émettre qui mèneraient à une page introuvable.
 
 ## Ce qu'il ne faut pas casser
 

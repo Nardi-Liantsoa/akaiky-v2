@@ -8,6 +8,18 @@ apply plugin: 'org.jetbrains.kotlin.android'
 def keystoreProperties = new Properties()
 def keystoreFile = file(System.getenv('AKAIKY_KEYSTORE_PROPERTIES') ?: "${System.getProperty('user.home')}/.config/akaiky-v2/keystore.properties")
 if (keystoreFile.exists()) keystoreFile.withInputStream { keystoreProperties.load(it) }
+// storeFile : « ~ » développé ; un chemin relatif se lit depuis le dossier du fichier de propriétés.
+def keystorePath = { String p ->
+  def expanded = p.startsWith('~/') ? System.getProperty('user.home') + p.substring(1) : p
+  def f = new File(expanded)
+  f.absolute ? f : new File(keystoreFile.parentFile, expanded)
+}
+// Jamais d'APK enfant de release non signé : sans keystore, la tâche échoue.
+gradle.taskGraph.whenReady { graph ->
+  if (!keystoreProperties['storeFile'] && graph.allTasks.any { it.name.toLowerCase().contains('enfantrelease') }) {
+    throw new GradleException("Release enfant sans keystore : AKAIKY_KEYSTORE_PROPERTIES ou ${keystoreFile} (NOSYHOST.md § 6)")
+  }
+}
 
 android {
     namespace = "mg.nosytech.akaiky"
@@ -32,7 +44,7 @@ android {
     signingConfigs {
         if (keystoreProperties['storeFile']) {
             enfantRelease {
-                storeFile file(keystoreProperties['storeFile'])
+                storeFile keystorePath(keystoreProperties['storeFile'])
                 storePassword keystoreProperties['storePassword']
                 keyAlias keystoreProperties['keyAlias']
                 keyPassword keystoreProperties['keyPassword']
@@ -48,6 +60,10 @@ android {
             dimension 'app'
             // mg.nosytech.akaiky.enfant : CHILD_APP_ID de src/lib/appKind.ts.
             applicationIdSuffix '.enfant'
+            // Versions propres à l'app enfant (mises à jour par APK, hors Play Store) :
+            // à monter à chaque publication, sinon Android refuse la mise à jour.
+            versionCode 1
+            versionName '1.0'
             // Release seulement : le type debug garde sa propre signature de debug.
             if (keystoreProperties['storeFile']) signingConfig signingConfigs.enfantRelease
         }

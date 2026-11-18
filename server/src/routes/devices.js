@@ -75,7 +75,7 @@ export async function devicesRoutes(app) {
 
   app.post('/children/:id/pairing', async (req, reply) => {
     const id = childId(req)
-    if (!config.deviceApk) throw new HttpError(503, 'L’appairage n’est pas encore disponible sur ce serveur.', 'pairing_unavailable')
+    if (!config.deviceApk || app.childApkMissing) throw new HttpError(503, 'L’appairage n’est pas encore disponible sur ce serveur.', 'pairing_unavailable')
     const { token, hash } = newToken()
     const expiresAt = await withTransaction(db, async (conn) => {
       const own = await lockOwnFamily(conn, req, MANAGERS)

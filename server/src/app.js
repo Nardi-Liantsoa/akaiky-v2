@@ -1,4 +1,5 @@
 import Fastify from 'fastify'
+import { createHash } from 'node:crypto'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join, extname, relative } from 'node:path'
 import { HttpError, SESSION_RULE } from './lib.js'
@@ -295,16 +296,25 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   // APK de l'app enfant (NAR-165) : lu une fois au démarrage, servi tel quel, sans
   // session (Android le télécharge pendant le provisionnement par QR). L'intégrité
   // est garantie par la somme du certificat de signature portée par le QR.
+  // En mémoire (quelques Mo) : servi sans accès disque ni chemin fourni par le visiteur.
   const childApk = await readFile(join(config.downloadsDir, 'akaiky-enfant.apk')).catch(() => null)
-  const sendApk = async (req, reply) => {
+  const apkTag = childApk && `"${createHash('sha256').update(childApk).digest('base64url')}"`
+  // QR qui pointerait vers ce serveur sans APK embarqué : refusé (routes/devices.js).
+  const ownApkUrl = `${config.origin}/downloads/akaiky-enfant.apk`
+  app.decorate('childApkMissing', Boolean(config.deviceApk?.url === ownApkUrl && !childApk))
+  if (app.childApkMissing) app.log.error('DEVICE_APK_URL désigne ce serveur, mais downloads/akaiky-enfant.apk manque à l’image : aucun QR ne sera émis (NOSYHOST.md § 6).')
+  // Hors /api, donc hors du limiteur global : le sien, large (un appairage = un téléchargement).
+  const apkLimit = createLimiter({ max: 30, windowMs: 15 * 60000 })
+  app.get('/downloads/akaiky-enfant.apk', async (req, reply) => {
     if (!childApk) return reply.code(404).type('text/plain; charset=utf-8').send('Introuvable')
+    if (!apkLimit(rateLimitKey(req.ip))) return reply.code(429).header('retry-after', '900').type('text/plain; charset=utf-8').send('Trop de téléchargements.')
+    reply.header('etag', apkTag).header('cache-control', 'no-cache')
+    if (req.headers['if-none-match'] === apkTag) return reply.code(304).send()
     return reply
       .type('application/vnd.android.package-archive')
       .header('content-disposition', 'attachment; filename="akaiky-enfant.apk"')
-      .header('cache-control', 'no-cache')
       .send(childApk)
-  }
-  app.get('/downloads/akaiky-enfant.apk', sendApk)
+  })
 
   const files = await loadStatic(config.staticDir)
   app.setNotFoundHandler(async (req, reply) => {

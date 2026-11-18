@@ -33,3 +33,30 @@ test('sans APK dans l’image : 404 ; aucun autre fichier du dossier servi', asy
   assert.equal((await withApk.app.inject({ method: 'GET', url: '/downloads/README.md' })).statusCode, 404)
   assert.equal((await withApk.app.inject({ method: 'GET', url: '/downloads/../package.json' })).statusCode, 404)
 })
+
+test('ETag : 304 si l’APK n’a pas changé ; limite de téléchargements par IP', async () => {
+  const first = await withApk.app.inject({ method: 'GET', url: '/downloads/akaiky-enfant.apk' })
+  const etag = first.headers.etag
+  assert.match(etag, /^"[A-Za-z0-9_-]{43}"$/)
+  const again = await withApk.app.inject({ method: 'GET', url: '/downloads/akaiky-enfant.apk', headers: { 'if-none-match': etag } })
+  assert.equal(again.statusCode, 304)
+  let last
+  for (let i = 0; i < 40; i++) last = await withApk.app.inject({ method: 'GET', url: '/downloads/akaiky-enfant.apk', remoteAddress: '203.0.113.9' })
+  assert.equal(last.statusCode, 429)
+})
+
+test('QR vers ce serveur sans APK dans l’image : refusé (503), jamais un lien mort', async () => {
+  const own = await startApp(dbh.url, {
+    DOWNLOADS_DIR: join(dir, 'absent'), NATIVE_ORIGINS: 'https://localhost',
+    DEVICE_APK_URL: 'https://app.test/downloads/akaiky-enfant.apk', DEVICE_APK_SIGNATURE_SHA256: 'A'.repeat(43)
+  })
+  try {
+    assert.equal(own.app.childApkMissing, true)
+    const embedded = await startApp(dbh.url, {
+      DOWNLOADS_DIR: dir, NATIVE_ORIGINS: 'https://localhost',
+      DEVICE_APK_URL: 'https://app.test/downloads/akaiky-enfant.apk', DEVICE_APK_SIGNATURE_SHA256: 'A'.repeat(43)
+    })
+    assert.equal(embedded.app.childApkMissing, false)
+    await embedded.close()
+  } finally { await own.close() }
+})
