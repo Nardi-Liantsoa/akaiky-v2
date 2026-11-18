@@ -236,7 +236,7 @@ const fr = {
     noContacts: 'Aucun contact pour l’instant.',
     noContactsHint: 'Un parent va les ajouter depuis son application.',
     sosLabel: 'SOS : appuie 3 secondes pour appeler',
-    sosHint: 'Appuie fort 3 secondes',
+    sosHint: 'Appuie 3 secondes',
     emergency: (n: string) => `Secours · ${n}`,
     callFailed: 'L’appel n’a pas pu partir.',
     status: { wifi: 'Wi-Fi', cellular: 'Réseau', battery: (n: number) => `${n} %` }
@@ -497,7 +497,7 @@ const mg: Messages = {
     noContacts: 'Mbola tsy misy olona azo antsoina.',
     noContactsHint: 'Ray aman-dreny iray no hanampy azy avy amin’ny rindranasany.',
     sosLabel: 'SOS : tsindrio 3 segondra hiantsoana',
-    sosHint: 'Tsindrio mafy 3 segondra',
+    sosHint: 'Tsindrio 3 segondra',
     emergency: (n: string) => `Vonjy maika · ${n}`,
     callFailed: 'Tsy lasa ny antso.',
     status: { wifi: 'Wi-Fi', cellular: 'Tambajotra', battery: (n: number) => `${n} %` }
@@ -756,7 +756,7 @@ const en: Messages = {
     noContacts: 'No contacts yet.',
     noContactsHint: 'A parent will add them from their app.',
     sosLabel: 'SOS: hold 3 seconds to call',
-    sosHint: 'Press hard for 3 seconds',
+    sosHint: 'Hold for 3 seconds',
     emergency: (n: string) => `Emergency · ${n}`,
     callFailed: 'The call couldn’t go through.',
     status: { wifi: 'Wi-Fi', cellular: 'Network', battery: (n: number) => `${n}%` }

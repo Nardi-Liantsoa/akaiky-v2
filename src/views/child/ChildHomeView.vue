@@ -8,6 +8,7 @@ import { startChild, type ChildState } from '../../lib/childStartup'
 import { childIdentity, configSync, deviceSession as session } from '../../lib/deviceSessionInstance'
 import { deviceConfig, pause, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
 import { emergencyNumber } from '../../lib/emergency'
+import { sosPlan } from '../../lib/sos'
 import { AkaikyCall } from '../../native/akaikyCall'
 import { AkaikyDevice, type DeviceStatus } from '../../native/akaikyDevice'
 import ChildStatusBar from '../../components/child/ChildStatusBar.vue'
@@ -61,7 +62,7 @@ onMounted(async () => {
   lifecycle = handle
   // État réel au moment de l'écoute : lancée en arrière-plan, l'app ne relève rien.
   foreground = (await App.getState()).isActive
-  if (foreground && state.value.kind === 'paired') resume()
+  if (foreground && state.value.kind === 'paired') { resume(); startStatus() }
 })
 // Chaque nouvel état (même « appairé » → « appairé » pour un autre enfant) repart de zéro.
 watch(state, async (s) => {
@@ -77,8 +78,9 @@ watch(state, async (s) => {
 // Liste blanche du natif : il refuse tout numéro qui n'y est pas, quoi que demande l'écran.
 // Transmise à chaque changement, et de nouveau juste avant chaque appel.
 const allowedNumbers = () => (deviceConfig.config?.contacts ?? []).map((c) => c.phone)
-watch(() => deviceConfig.config?.contacts, () => {
-  if (!Capacitor.isNativePlatform()) return
+watch(() => deviceConfig.config?.contacts, (contacts) => {
+  // Configuration pas encore chargée : on ne remplace pas la liste gardée par le natif.
+  if (!Capacitor.isNativePlatform() || !contacts) return
   void AkaikyCall.setAllowed({ numbers: allowedNumbers() }).catch(() => {})
 }, { immediate: true })
 
@@ -91,7 +93,7 @@ async function readStatus() {
 function stopStatus() { clearInterval(statusTimer); statusTimer = undefined }
 function startStatus() {
   stopStatus()
-  if (state.value.kind !== 'paired' || !Capacitor.isNativePlatform()) return
+  if (state.value.kind !== 'paired' || !foreground || !Capacitor.isNativePlatform()) return
   void readStatus()
   statusTimer = setInterval(() => { void readStatus() }, 60_000)
 }
@@ -107,7 +109,8 @@ async function call(phone: string) {
   calling.value = true
   callError.value = false
   try {
-    await AkaikyCall.setAllowed({ numbers: allowedNumbers() })
+    // Au mieux : la liste gardée par le natif sert si cet envoi échoue.
+    await AkaikyCall.setAllowed({ numbers: allowedNumbers() }).catch(() => {})
     await AkaikyCall.call({ number: phone })
   } catch {
     callError.value = true
@@ -115,12 +118,21 @@ async function call(phone: string) {
     setTimeout(() => { calling.value = false }, 1500)
   }
 }
-// SOS maintenu 3 s : en attendant l'alerte complète (NAR-149), appel du premier contact
-// (premier de l'ordre SOS) ; sans contact, le numéro d'urgence.
-function sos() {
-  const first = contacts.value[0]
-  if (first) void call(first.phone)
-  else void callEmergency()
+// SOS maintenu 3 s : en attendant l'alerte complète (NAR-149), premier contact puis,
+// si l'appel ne part pas, le numéro d'urgence. Jamais bloqué par un appel en cours.
+async function sos() {
+  callError.value = false
+  await AkaikyCall.setAllowed({ numbers: allowedNumbers() }).catch(() => {})
+  for (const step of sosPlan(contacts.value, emergency.value)) {
+    try {
+      if (step.kind === 'contact') await AkaikyCall.call({ number: step.number })
+      else await AkaikyCall.emergency({ number: step.number })
+      return
+    } catch {
+      // Étape suivante.
+    }
+  }
+  callError.value = true
 }
 async function callEmergency() {
   callError.value = false

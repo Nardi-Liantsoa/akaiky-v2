@@ -28,7 +28,7 @@ onBeforeUnmount(cancel)
   <button
     class="sos" :class="{ holding }" type="button" :aria-label="t.child.sosLabel"
     @pointerdown.prevent="start" @pointerup="cancel" @pointerleave="cancel" @pointercancel="cancel"
-    @keydown.enter.prevent="start" @keyup.enter="cancel" @contextmenu.prevent
+    @keydown.enter.prevent="start" @keyup.enter="cancel" @keydown.space.prevent="start" @keyup.space="cancel" @contextmenu.prevent
   >
     <span class="word">SOS</span>
     <span class="hint">{{ t.child.sosHint }}</span>
