@@ -50,11 +50,12 @@ export function pause() {
 }
 
 // Démarre avec la dernière configuration connue (hors ligne), puis relève.
+// Rappelée à chaque (ré)appairage : repart de l'état « inactif », même après « perdu ».
 export async function startDeviceConfig(sync: ConfigSync) {
+  pause()
   source = sync
   deviceConfig.config = await sync.load()
   deviceConfig.status = 'idle'
-  resume()
 }
 
 // Tests : état et minuteries remis à zéro.

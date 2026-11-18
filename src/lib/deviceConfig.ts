@@ -38,8 +38,11 @@ export function createConfigSync({ session, store }: { session: DeviceSession, s
       try {
         const res = await session.getIfChanged<DeviceConfig>('/device/config', cached?.etag ?? null)
         if (!res) return null
-        cached = { etag: res.etag, config: res.data }
-        await store.set(CONFIG_KEY, JSON.stringify(cached)).catch(() => {})
+        // L'ETag n'avance que si la liste est bien enregistrée : sinon le relevé suivant
+        // la redemande (200) et retente l'écriture, au lieu d'un 304 sur une liste perdue.
+        const next = { etag: res.etag, config: res.data }
+        const saved = await store.set(CONFIG_KEY, JSON.stringify(next)).then(() => true, () => false)
+        cached = saved ? next : { etag: null, config: res.data }
         return res.data
       } catch (e) {
         if (e instanceof DeviceError && e.status === 401) {

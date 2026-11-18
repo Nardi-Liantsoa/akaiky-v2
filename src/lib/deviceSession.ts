@@ -24,7 +24,10 @@ export class DeviceError extends Error {
 
 export const REFRESH_KEY = 'device-refresh-token'
 
-export function createDeviceSession({ base, store, fetch: doFetch }: { base: string, store: SecretStore, fetch: typeof fetch }) {
+// `wipe` : clés de données liées à la session (configuration de l'enfant), effacées
+// quand la session est perdue ou remplacée par un nouvel appairage : jamais les
+// contacts d'un autre enfant affichés, ni gardés sur un téléphone retiré.
+export function createDeviceSession({ base, store, fetch: doFetch, wipe = [] }: { base: string, store: SecretStore, fetch: typeof fetch, wipe?: string[] }) {
   let access: string | null = null
   let refreshing: Promise<boolean> | null = null
 
@@ -40,6 +43,10 @@ export function createDeviceSession({ base, store, fetch: doFetch }: { base: str
   async function forget() {
     access = null
     await store.remove(REFRESH_KEY).catch(() => {})
+    await clearData()
+  }
+  async function clearData() {
+    for (const key of wipe) await store.remove(key).catch(() => {})
   }
   const post = (path: string, body: unknown) => doFetch(`${base}${path}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'omit'
@@ -92,6 +99,7 @@ export function createDeviceSession({ base, store, fetch: doFetch }: { base: str
       const res = await post('/device/pair', body)
       if (!res.ok) throw await failure(res)
       const json = await res.json()
+      await clearData()
       await keep(json)
       return { device: json.device, child: json.child }
     },

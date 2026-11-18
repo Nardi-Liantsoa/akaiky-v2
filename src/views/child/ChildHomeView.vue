@@ -39,15 +39,27 @@ async function start() {
 onMounted(start)
 
 // Appairé : configuration (contacts) relevée au premier plan, suspendue en arrière-plan.
+// Écouteur posé une fois au montage, retiré au démontage ; chaque passage à « appairé »
+// (premier lancement ou réappairage) repart d'un relevé neuf.
+let unmounted = false
 let lifecycle: PluginListenerHandle | undefined
+let foreground = true
+onMounted(async () => {
+  if (!Capacitor.isNativePlatform()) return
+  const handle = await App.addListener('appStateChange', ({ isActive }) => {
+    foreground = isActive
+    if (isActive && state.value.kind === 'paired') resume(); else pause()
+  })
+  if (unmounted) void handle.remove(); else lifecycle = handle
+})
 watch(() => state.value.kind, async (kind) => {
-  if (kind !== 'paired' || lifecycle) return
+  if (kind !== 'paired') { pause(); return }
   await startDeviceConfig(configSync)
-  lifecycle = await App.addListener('appStateChange', ({ isActive }) => { if (isActive) resume(); else pause() })
+  if (!unmounted && foreground && state.value.kind === 'paired') resume()
 })
 // Téléphone retiré pendant l'usage : l'écran le dit.
 watch(() => deviceConfig.status, (s) => { if (s === 'lost') state.value = { kind: 'revoked' } })
-onBeforeUnmount(() => { pause(); void lifecycle?.remove() })
+onBeforeUnmount(() => { unmounted = true; pause(); void lifecycle?.remove() })
 
 const text = computed(() => {
   const c = t.value.child

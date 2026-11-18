@@ -12,6 +12,7 @@ describe('useDeviceConfig', () => {
     const refresh = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(v(4, ['Maman', 'Papa']))
     await startDeviceConfig({ load: async () => v(3, ['Maman']), refresh })
     expect(deviceConfig.config?.contacts.map((c) => c.name)).toEqual(['Maman'])
+    resume()
     await vi.advanceTimersByTimeAsync(0)
     expect(deviceConfig.status).toBe('ready')
     await vi.advanceTimersByTimeAsync(POLL_MS)
@@ -22,6 +23,7 @@ describe('useDeviceConfig', () => {
   it('arrière-plan : plus aucun relevé ; retour au premier plan : relevé immédiat', async () => {
     const refresh = vi.fn().mockResolvedValue(null)
     await startDeviceConfig({ load: async () => null, refresh })
+    resume()
     await vi.advanceTimersByTimeAsync(0)
     pause()
     const calls = refresh.mock.calls.length
@@ -34,6 +36,7 @@ describe('useDeviceConfig', () => {
 
   it('hors ligne : la dernière liste reste affichée, état « hors ligne »', async () => {
     await startDeviceConfig({ load: async () => v(3, ['Maman']), refresh: async () => { throw new TypeError('Failed to fetch') } })
+    resume()
     await vi.advanceTimersByTimeAsync(0)
     expect(deviceConfig.status).toBe('offline')
     expect(deviceConfig.config?.contacts.map((c) => c.name)).toEqual(['Maman'])
@@ -42,10 +45,17 @@ describe('useDeviceConfig', () => {
   it('téléphone retiré : liste effacée, relevés arrêtés', async () => {
     const refresh = vi.fn(async () => { throw new DeviceError(401, 'device_session_lost') })
     await startDeviceConfig({ load: async () => v(3, ['Maman']), refresh })
+    resume()
     await vi.advanceTimersByTimeAsync(0)
     expect(deviceConfig.status).toBe('lost')
     expect(deviceConfig.config).toBeNull()
     await vi.advanceTimersByTimeAsync(POLL_MS * 3)
     expect(refresh).toHaveBeenCalledTimes(1)
+    // Réappairé : un nouveau départ relève de nouveau.
+    const again = vi.fn().mockResolvedValue(v(1, ['Papa']))
+    await startDeviceConfig({ load: async () => null, refresh: again })
+    resume()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(deviceConfig.config?.contacts.map((c) => c.name)).toEqual(['Papa'])
   })
 })

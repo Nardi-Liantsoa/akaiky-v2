@@ -34,6 +34,13 @@ const PREVIOUS_DAYS = 7
 
 const PUBLIC = { config: { public: true } }
 
+// If-None-Match : liste séparée par des virgules, validateurs faibles (W/) acceptés
+// (un mandataire qui compresse affaiblit l'ETag), `*` exclu.
+function matches(header, etag) {
+  if (typeof header !== 'string') return false
+  return header.split(',').some((t) => t.trim().replace(/^W\//, '') === etag)
+}
+
 // Place libre pour un téléphone de plus (enfant verrouillé par l'appelant). Même
 // règle au QR et à l'échange. Un téléphone dont la session ne peut plus être
 // renouvelée (perdu, réinitialisé, éteint plus de 180 jours) ne garde pas sa place.
@@ -194,18 +201,24 @@ export async function deviceSessionRoutes(app) {
   })
 
   // Configuration du téléphone (NAR-160) : contacts autorisés de SON enfant, lu sur la
-  // session (jamais un identifiant envoyé par le téléphone). Version et liste dans une
-  // même photo de la base ; ETag = config_version : 304 si rien n'a changé, ce qui
-  // rend le relevé toutes les 30 s presque gratuit.
+  // session (jamais un identifiant envoyé par le téléphone). ETag = enfant + version :
+  // une configuration d'un autre enfant (téléphone réappairé) ne vaut jamais 304.
+  // Le 304 ne coûte qu'une lecture ; version et liste ne sont lues ensemble, dans une
+  // même photo de la base, que lorsqu'elles ont changé.
   app.get('/config', { config: { device: true } }, async (req, reply) => {
+    const tagOf = (version) => `"${req.device.childId}.${version}"`
+    const { rows: [current] } = await db.query(
+      'SELECT config_version FROM children WHERE id = $1 AND family_id = $2', [req.device.childId, req.device.familyId])
+    if (!current) throw new HttpError(401, 'Session de l’appareil expirée.')
+    if (matches(req.headers['if-none-match'], tagOf(current.config_version))) {
+      return reply.header('etag', tagOf(current.config_version)).code(304).send()
+    }
     return withTransaction(db, async (conn) => {
       await conn.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
       const { rows: [child] } = await conn.query(
         'SELECT config_version FROM children WHERE id = $1 AND family_id = $2', [req.device.childId, req.device.familyId])
       if (!child) throw new HttpError(401, 'Session de l’appareil expirée.')
-      const etag = `"v${child.config_version}"`
-      reply.header('etag', etag)
-      if (req.headers['if-none-match'] === etag) return reply.code(304).send()
+      reply.header('etag', tagOf(child.config_version))
       const { rows } = await conn.query(
         `SELECT id, name_enc, phone_enc, position, avatar_color FROM allowed_contacts
           WHERE child_id = $1 AND family_id = $2 ORDER BY position`, [req.device.childId, req.device.familyId])

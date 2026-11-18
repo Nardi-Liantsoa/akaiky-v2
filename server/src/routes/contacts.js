@@ -33,7 +33,6 @@ const contactNotFound = () => new HttpError(404, 'Contact introuvable.', 'contac
 const duplicate = () => new HttpError(409, 'Ce numéro est déjà dans les contacts de cet enfant.', 'duplicate_phone')
 // Données associées du chiffrement : aussi lues par la configuration d'appareil (devices.js).
 export const contactAad = (id, column) => `allowed_contacts:${column}:${id}`
-const aad = contactAad
 
 export default async function contactsRoutes(app) {
   const { db, config } = app
@@ -42,8 +41,8 @@ export default async function contactsRoutes(app) {
   const serialize = (r) => ({
     id: r.id,
     childId: r.child_id,
-    name: openField(r.name_enc, key, aad(r.id, 'name')),
-    phone: openField(r.phone_enc, key, aad(r.id, 'phone')),
+    name: openField(r.name_enc, key, contactAad(r.id, 'name')),
+    phone: openField(r.phone_enc, key, contactAad(r.id, 'phone')),
     position: r.position,
     avatarColor: r.avatar_color,
     memberUserId: r.member_user_id,
@@ -116,7 +115,7 @@ export default async function contactsRoutes(app) {
       await conn.query(
         `INSERT INTO allowed_contacts(id, family_id, child_id, member_user_id, name_enc, phone_enc, phone_index, position, avatar_color)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [newId, own.familyId, req.params.childId, member, sealField(name, key, aad(newId, 'name')), sealField(phone, key, aad(newId, 'phone')),
+        [newId, own.familyId, req.params.childId, member, sealField(name, key, contactAad(newId, 'name')), sealField(phone, key, contactAad(newId, 'phone')),
           phoneIndex(phone), existing.length + 1, color])
       await audit(conn, req, 'contact_added', newId, { childId: req.params.childId })
       return readOne(conn, newId)
@@ -134,8 +133,8 @@ export default async function contactsRoutes(app) {
       const childId = await lockedContact(conn, own.familyId, id)
       const sets = [], values = [id, own.familyId]
       const set = (column, value) => { values.push(value); sets.push(`${column} = $${values.length}`) }
-      if (name !== undefined) set('name_enc', sealField(name, key, aad(id, 'name')))
-      if (phone !== undefined) { set('phone_enc', sealField(phone, key, aad(id, 'phone'))); set('phone_index', phoneIndex(phone)) }
+      if (name !== undefined) set('name_enc', sealField(name, key, contactAad(id, 'name')))
+      if (phone !== undefined) { set('phone_enc', sealField(phone, key, contactAad(id, 'phone'))); set('phone_index', phoneIndex(phone)) }
       if (req.body.avatarColor !== undefined) set('avatar_color', req.body.avatarColor)
       if (req.body.memberUserId !== undefined) set('member_user_id', await checkMember(conn, own.familyId, req.body.memberUserId))
       await conn.query(`UPDATE allowed_contacts SET ${sets.join(', ')} WHERE id = $1 AND family_id = $2`, values)

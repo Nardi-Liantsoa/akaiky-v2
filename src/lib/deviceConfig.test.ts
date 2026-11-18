@@ -54,6 +54,15 @@ describe('createConfigSync', () => {
     expect(store.data.has(CONFIG_KEY)).toBe(false)
   })
 
+  it('écriture du cache en échec : liste affichée, ETag non avancé (redemandée au relevé suivant)', async () => {
+    const store = memoryStore()
+    const getIfChanged = vi.fn(async () => ({ data: { version: 4, contacts: [MAMAN] }, etag: '"c.4"' }))
+    const sync = createConfigSync({ session: { getIfChanged } as unknown as DeviceSession, store: { ...store, set: async () => { throw new Error('keystore') } } })
+    expect((await sync.refresh())?.contacts).toEqual([MAMAN])
+    await sync.refresh()
+    expect(getIfChanged).toHaveBeenLastCalledWith('/device/config', null)
+  })
+
   it('cache abîmé ou d’une autre forme : ignoré', async () => {
     const store = memoryStore()
     store.data.set(CONFIG_KEY, '{"config":{"version":"x"}}')

@@ -247,7 +247,7 @@ test('configuration : contacts de SON enfant seulement, ETag et 304, changement 
   assert.deepEqual(first.json().contacts.map((c) => [c.name, c.phone, c.position]), [['Maman', '+261341234567', 1]])
   assert.deepEqual(Object.keys(first.json().contacts[0]).sort(), ['avatarColor', 'id', 'name', 'phone', 'position'])
   const etag = first.headers.etag
-  assert.match(etag, /^"v\d+"$/)
+  assert.match(etag, /^"[0-9a-f-]+\.\d+"$/)
   assert.equal(first.headers['access-control-expose-headers'], 'etag')
 
   // Rien n'a changé : 304 sans corps.
@@ -277,4 +277,17 @@ test('pré-vol CORS de l’app enfant : if-none-match autorisé', async () => {
   const res = await ctx.app.inject({ method: 'OPTIONS', url: '/api/device/config', headers: { origin: 'https://localhost', 'access-control-request-method': 'GET', 'access-control-request-headers': 'authorization, if-none-match' } })
   assert.equal(res.statusCode, 204)
   assert.match(res.headers['access-control-allow-headers'], /if-none-match/)
+})
+
+test('configuration : ETag lié à l’enfant ; validateur faible et liste acceptés ; autre enfant → 200', async () => {
+  const a = await paired()
+  const b = await paired()
+  const ra = await native(ctx.app, 'GET', '/api/device/config', { token: a.device.accessToken })
+  const tag = ra.headers.etag
+  assert.ok(tag.includes(a.fy.id))
+  assert.equal((await native(ctx.app, 'GET', '/api/device/config', { token: a.device.accessToken, headers: { 'if-none-match': `W/${tag}` } })).statusCode, 304)
+  assert.equal((await native(ctx.app, 'GET', '/api/device/config', { token: a.device.accessToken, headers: { 'if-none-match': `"x", ${tag}` } })).statusCode, 304)
+  assert.equal((await native(ctx.app, 'GET', '/api/device/config', { token: a.device.accessToken, headers: { 'if-none-match': '*' } })).statusCode, 200)
+  // Même version chez l'enfant de B : l'ETag de A n'y vaut pas 304.
+  assert.equal((await native(ctx.app, 'GET', '/api/device/config', { token: b.device.accessToken, headers: { 'if-none-match': tag } })).statusCode, 200)
 })
