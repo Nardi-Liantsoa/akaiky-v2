@@ -120,3 +120,26 @@ test('modifier le nom d’un contact lié : le membre lié n’est pas renvoyé'
   const body = calls.find((r) => r.method() === 'PATCH')!.postDataJSON()
   expect(body).toEqual({ name: 'Papa Rakoto' })
 })
+
+test('changement d’enfant : la carte des contacts reste en place, estompée, jusqu’à la nouvelle liste (pas de clignement)', async ({ page }) => {
+  const TIANA = { ...FY, id: '6f1c2b1e-0000-4000-8000-000000000102', firstName: 'Tiana', avatarColor: 'green' }
+  let release!: () => void
+  const slow = new Promise<void>((r) => { release = r })
+  const api = contactsApi([{ id: cid(1), name: 'Maman', phone: '+261341111111', avatarColor: 'orange', memberUserId: null, memberRole: null }])
+  await mockApi(page, { ...common, 'GET /api/children': () => ({ body: [FY, TIANA] }), ...api.handlers })
+  // Liste de Tiana retenue : déclarée après mockApi, cette route passe en premier.
+  await page.route(`**/api/children/${TIANA.id}/contacts`, async (route) => {
+    await slow
+    await route.fulfill({ json: { version: 1, max: 6, country: 'MG', contacts: [{ id: cid(9), childId: TIANA.id, name: 'Dadabe', phone: '+261331112233', position: 1, avatarColor: 'blue', memberUserId: null, memberRole: null }] } })
+  })
+  await page.goto('/espace/reglages')
+  await expect(page.getByText('Maman')).toBeVisible()
+  await page.getByRole('button', { name: 'Tiana' }).click()
+  // Pendant le chargement : la carte est toujours là (ancienne liste estompée, inactive).
+  const card = page.locator('section.contacts')
+  await expect(card).toHaveAttribute('aria-busy', 'true')
+  await expect(card).toBeVisible()
+  release()
+  await expect(page.getByText('Dadabe')).toBeVisible()
+  await expect(card).toHaveAttribute('aria-busy', 'false')
+})
