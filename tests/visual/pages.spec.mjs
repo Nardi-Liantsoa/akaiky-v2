@@ -35,10 +35,18 @@ const PARENT = {
       { id: '6f1c2b1e-0000-4000-8000-000000000203', childId: '6f1c2b1e-0000-4000-8000-000000000101', name: 'Mamie', phone: '+261321234567', position: 3, avatarColor: 'violet', memberUserId: null, memberRole: null }
     ]
   },
-  'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/messages': [
-    { id: '6f1c2b1e-0000-4000-8000-000000000301', slot: 1, sentAt: '2026-01-14T13:05:00Z', readBy: [{ name: 'Maman', readAt: '2026-01-14T13:06:00Z' }], readByMe: true },
-    { id: '6f1c2b1e-0000-4000-8000-000000000302', slot: 3, sentAt: '2026-01-14T07:40:00Z', readBy: [{ name: 'Maman', readAt: '2026-01-14T07:41:00Z' }, { name: 'Papa', readAt: '2026-01-14T07:50:00Z' }], readByMe: true }
-  ],
+  // Journal figé (NAR-152) : dates fixes ; l'accueil n'en montre que la journée en cours.
+  'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/journal': {
+    items: [
+      { id: '6f1c2b1e-0000-4000-8000-000000000301', kind: 'message', at: '2026-01-15T09:05:00Z', slot: 1, readBy: [{ name: 'Maman', readAt: '2026-01-15T09:06:00Z' }], readByMe: true },
+      { id: '6f1c2b1e-0000-4000-8000-000000000401', kind: 'call_blocked', at: '2026-01-15T08:40:00Z', contactId: null, name: null, phone: '+261329876543', durationS: null },
+      { id: '6f1c2b1e-0000-4000-8000-000000000402', kind: 'call_in', at: '2026-01-15T07:02:00Z', contactId: '6f1c2b1e-0000-4000-8000-000000000201', name: 'Maman', phone: '+261341234567', durationS: 134 },
+      { id: '6f1c2b1e-0000-4000-8000-000000000403', kind: 'unlock', at: '2026-01-14T17:30:00Z', source: 'code', durationS: 900 },
+      { id: '6f1c2b1e-0000-4000-8000-000000000404', kind: 'call_out', at: '2026-01-13T16:10:00Z', contactId: '6f1c2b1e-0000-4000-8000-000000000202', name: 'Papa', phone: '+261331234567', durationS: 0 }
+    ],
+    next: null,
+    counts: { blocked: 1 }
+  },
   'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/devices': [
     { id: '6f1c2b1e-0000-4000-8000-0000000000d1', model: 'Samsung Galaxy A10', osVersion: '11', appVersion: '1.0', createdAt: '2026-01-12T10:00:00Z', lastSeenAt: '2026-01-14T10:00:00Z' }
   ],
@@ -60,6 +68,7 @@ const PAGES = [
   ['parent-famille', '/espace/famille', PARENT],
   ['parent-ajouter-enfant', '/espace/enfant/nouveau', PARENT],
   ['parent-reglages', '/espace/reglages', PARENT],
+  ['parent-journal', '/espace/journal', PARENT],
   ['parent-telephone', '/espace/enfant/6f1c2b1e-0000-4000-8000-000000000101/telephone', PARENT],
   ['invitation-sans-session', '/invitation#invite=' + 'T'.repeat(43), ANONYME]
 ]

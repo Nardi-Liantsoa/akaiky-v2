@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ApiError } from '../../api/http'
 import { reorderContacts } from '../../api/contacts'
@@ -14,6 +14,14 @@ const props = defineProps<{ childId: string }>()
 const t = useT()
 const busy = ref(false)
 const error = ref('')
+
+// Changement d'enfant : la liste précédente reste affichée, estompée et inactive, le
+// temps que celle du nouvel enfant arrive (pas de carte qui disparaît puis revient).
+const fresh = computed(() => contacts.status === 'ready' && contacts.childId === props.childId)
+const snapshot = ref<typeof contacts.items>([])
+watch(fresh, (ok) => { if (ok) snapshot.value = contacts.items }, { immediate: true })
+watch(() => contacts.items, (items) => { if (fresh.value) snapshot.value = items })
+const shown = computed(() => (fresh.value ? contacts.items : snapshot.value))
 
 // Réorganisation par boutons Monter / Descendre : utilisable au doigt, au clavier
 // et au lecteur d'écran (le glisser-déposer HTML ne fonctionne pas dans les WebView mobiles).
@@ -39,15 +47,15 @@ async function move(index: number, delta: number) {
 </script>
 
 <template>
-  <section class="card contacts">
+  <section class="card contacts" :class="{ stale: !fresh }" :aria-busy="!fresh">
     <header>
       <h2>{{ t.contacts.title }}</h2>
-      <span class="count">{{ t.contacts.count(contacts.items.length, contacts.max) }}</span>
+      <span class="count">{{ t.contacts.count(shown.length, contacts.max) }}</span>
     </header>
     <p class="hint">{{ t.contacts.orderHint }}</p>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <ol v-if="contacts.items.length" class="list">
-      <li v-for="(c, i) in contacts.items" :key="c.id">
+    <ol v-if="shown.length" class="list">
+      <li v-for="(c, i) in shown" :key="c.id">
         <span class="rank" aria-hidden="true">{{ c.position }}</span>
         <ChildAvatar :name="c.name" :color="c.avatarColor" :size="36" />
         <span class="who">
@@ -57,19 +65,24 @@ async function move(index: number, delta: number) {
         </span>
         <span v-if="canManage()" class="actions">
           <button class="icon" type="button" :disabled="busy || i === 0" :aria-label="t.contacts.moveUp(c.name)" @click="move(i, -1)">↑</button>
-          <button class="icon" type="button" :disabled="busy || i === contacts.items.length - 1" :aria-label="t.contacts.moveDown(c.name)" @click="move(i, 1)">↓</button>
+          <button class="icon" type="button" :disabled="busy || i === shown.length - 1" :aria-label="t.contacts.moveDown(c.name)" @click="move(i, 1)">↓</button>
           <RouterLink class="icon" :to="{ name: 'contact', params: { childId, id: c.id } }" :aria-label="t.contacts.edit(c.name)">✎</RouterLink>
         </span>
       </li>
     </ol>
     <p v-else class="empty">{{ t.contacts.empty }}</p>
-    <RouterLink v-if="canManage() && contacts.items.length < contacts.max" class="add" :to="{ name: 'contact-nouveau', params: { childId } }">
+    <RouterLink v-if="canManage() && shown.length < contacts.max" class="add" :to="{ name: 'contact-nouveau', params: { childId } }">
       + {{ t.contacts.add }}
     </RouterLink>
   </section>
 </template>
 
 <style scoped>
+.stale {
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
 header {
   display: flex;
   align-items: baseline;

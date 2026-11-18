@@ -7,3 +7,7 @@ export function formatPhone(e164: string): string {
   if (fr) return `+33 ${fr.slice(1).join(' ')}`
   return e164
 }
+
+// Numéro E.164 qu'un contact peut porter : même règle que le serveur (server/src/phone.js),
+// « + », indicatif sans 0, 8 à 15 chiffres.
+export const isE164 = (v: unknown): v is string => typeof v === 'string' && /^\+[1-9]\d{7,14}$/.test(v)

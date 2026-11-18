@@ -8,6 +8,7 @@ import ChildAvatar from '../../components/parent/ChildAvatar.vue'
 import { useT } from '../../composables/useT'
 import { AVATAR_COLORS, type AvatarColor } from '../../lib/avatar'
 import { contactErrorText } from '../../lib/contactErrors'
+import { isE164 } from '../../lib/phone'
 import { children, loadChildren, selectChild } from '../../store/children'
 import { contacts, loadContacts } from '../../store/contacts'
 import { canManage, family, loadFamily } from '../../store/family'
@@ -43,7 +44,13 @@ const childGone = computed(() => contacts.error instanceof ApiError && contacts.
 
 // Rempli une fois par adresse ; changer d'adresse repart de zéro.
 let filledFor: string | null = null
-watch([childId, id], () => { filledFor = null; name.value = ''; phone.value = ''; color.value = null; memberUserId.value = null; confirming.value = false; error.value = '' })
+// Ajout depuis un appel bloqué du journal (« Autoriser », NAR-152) : numéro pré-rempli,
+// lu dans l'adresse et vérifié (E.164 seulement) ; le serveur le valide de toute façon.
+const prefilled = () => {
+  const q = route.query.phone
+  return !id.value && isE164(q) ? q : ''
+}
+watch([childId, id], () => { filledFor = null; name.value = ''; phone.value = prefilled(); color.value = null; memberUserId.value = null; confirming.value = false; error.value = '' }, { immediate: true })
 watch(existing, (c) => {
   if (c && c.id !== filledFor) {
     filledFor = c.id

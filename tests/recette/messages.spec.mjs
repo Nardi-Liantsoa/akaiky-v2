@@ -23,7 +23,7 @@ test('un message rapide envoyé par l’enfant arrive chez les parents, et l’e
   expect(sent.status()).toBe(200)
 
   await page.goto('/espace')
-  await expect(page.getByRole('heading', { name: 'Messages de Fy' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Aujourd’hui' })).toBeVisible()
   await expect(page.getByText('Je suis arrivé')).toBeVisible()
 
   // Affiché chez le parent : vu, et le téléphone le sait.

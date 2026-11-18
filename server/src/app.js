@@ -12,6 +12,7 @@ import invitationsRoutes from './routes/invitations.js'
 import childrenRoutes from './routes/children.js'
 import contactsRoutes from './routes/contacts.js'
 import { deviceMessagesRoutes, messagesRoutes } from './routes/messages.js'
+import { journalRoutes } from './routes/journal.js'
 import { devicesRoutes, deviceSessionRoutes } from './routes/devices.js'
 
 // Politique de contenu : tout vient de la même origine, aucun script en ligne,
@@ -294,6 +295,7 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   await app.register(devicesRoutes, { prefix: '/api' })
   await app.register(deviceSessionRoutes, { prefix: '/api/device' })
   await app.register(messagesRoutes, { prefix: '/api' })
+  await app.register(journalRoutes, { prefix: '/api' })
   await app.register(deviceMessagesRoutes, { prefix: '/api/device' })
 
   // APK de l'app enfant (NAR-165) : lu une fois au démarrage, servi tel quel, sans

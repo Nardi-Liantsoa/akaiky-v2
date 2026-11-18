@@ -30,7 +30,7 @@ const notFound = () => new HttpError(404, 'Message introuvable.', 'message_not_f
 const childNotFound = () => new HttpError(404, 'Enfant introuvable.', 'child_not_found')
 
 // Lecteurs de chaque message (membres actuels de la famille), nom affiché au choix.
-async function readersOf(db, config, familyId, childId, ids) {
+export async function readersOf(db, config, familyId, childId, ids) {
   if (!ids.length) return new Map()
   const { rows } = await db.query(
     `SELECT r.message_id, r.user_id, r.read_at, u.name, c.id AS contact_id, c.name_enc
