@@ -5,7 +5,7 @@ import { App } from '@capacitor/app'
 import { useT } from '../../composables/useT'
 import { appKind } from '../../lib/appKind'
 import { startChild, type ChildState } from '../../lib/childStartup'
-import { callJournal, childIdentity, configSync, deviceSession as session } from '../../lib/deviceSessionInstance'
+import { callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore } from '../../lib/deviceSessionInstance'
 import { deviceConfig, pause, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
 import { emergencyNumber } from '../../lib/emergency'
 import { sosPlan } from '../../lib/sos'
@@ -14,6 +14,10 @@ import { AkaikyDevice, type DeviceStatus } from '../../native/akaikyDevice'
 import ChildStatusBar from '../../components/child/ChildStatusBar.vue'
 import ContactTile from '../../components/child/ContactTile.vue'
 import SosButton from '../../components/child/SosButton.vue'
+import UnlockPanel from '../../components/child/UnlockPanel.vue'
+import { armKiosk, disarmKiosk, isUnlocked, kiosk, lockNow, refreshKiosk, useKioskPlugin } from '../../composables/useKiosk'
+import { AkaikyKiosk } from '../../native/kiosk'
+import { formatClock } from '../../lib/format'
 
 // Écran de l'app enfant : échange du jeton reçu au provisionnement (NAR-164), puis
 // accueil (NAR-142, maquette écran 1) : heure, contacts à appeler en un appui, SOS.
@@ -28,6 +32,12 @@ async function start() {
   try {
     // Hors du téléphone de l'enfant (web, app parent, développement) : écran d'attente.
     if (!Capacitor.isNativePlatform() || (await appKind()) !== 'enfant') { state.value = { kind: 'waiting' }; return }
+    // Mode appareil dédié (NAR-167) : état réel du natif et code parent gardé, dès
+    // l'ouverture et quel que soit l'état (hors ligne, retiré…) : la sortie reste possible.
+    useKioskPlugin(AkaikyKiosk)
+    void refreshKiosk().catch(() => {})
+    parentHash.value = await parentCodeStore.get()
+    lastCountry.value = await countryStore.get()
     state.value = await startChild({
       session,
       provisioning: {
@@ -56,6 +66,7 @@ onMounted(async () => {
   if (!Capacitor.isNativePlatform()) return
   const handle = await App.addListener('appStateChange', ({ isActive }) => {
     foreground = isActive
+    if (isActive) void refreshKiosk().catch(() => {})
     if (isActive && state.value.kind === 'paired') { resume(); startStatus(); syncJournal() } else { pause(); stopStatus(); clearTimeout(journalRetry) }
   })
   if (unmounted) { void handle.remove(); return }
@@ -69,6 +80,8 @@ watch(state, async (s) => {
   if (s.kind !== 'paired') {
     stopDeviceConfig()
     clearTimeout(journalRetry)
+    // Pas de levée automatique du verrou (un refus ponctuel du serveur ne doit pas rendre
+    // le téléphone à l'enfant) : un téléphone retiré se libère avec le code parent.
     // Plus d'enfant appairé ici : aucune liste de contacts gardée sur le téléphone.
     if (s.kind === 'waiting' || s.kind === 'expired' || s.kind === 'revoked') void configSync.clear()
     return
@@ -102,7 +115,7 @@ function startStatus() {
 watch(() => state.value.kind === 'paired', startStatus)
 
 const contacts = computed(() => [...(deviceConfig.config?.contacts ?? [])].sort((a, b) => a.position - b.position))
-const emergency = computed(() => emergencyNumber(deviceConfig.config?.country))
+const emergency = computed(() => emergencyNumber(deviceConfig.config?.country ?? lastCountry.value ?? undefined))
 const calling = ref(false)
 const callError = ref(false)
 // Journal (NAR-166) : durées relevées au retour du composeur, puis envoi (ou file hors
@@ -169,6 +182,45 @@ async function callEmergency() {
   await AkaikyCall.emergency({ number: emergency.value }).catch(() => { callError.value = true })
 }
 
+// Mode appareil dédié (NAR-167). Le verrou ne s'arme qu'une fois le téléphone appairé
+// ET un code parent connu : jamais de téléphone verrouillé sans sortie possible.
+// Le hachage reçu est gardé à part (parentCodeStore) : il sert aussi hors ligne et sur
+// les écrans d'erreur, où le bouton « Code parent » reste affiché.
+const parentHash = ref<string | null>(null)
+const lastCountry = ref<string | null>(null)
+watch(() => deviceConfig.config, async (config) => {
+  if (!config || state.value.kind !== 'paired') return
+  if (config.country && config.country !== lastCountry.value) { lastCountry.value = config.country; void countryStore.set(config.country) }
+  const hash = typeof config.parentCode === 'string' ? config.parentCode : null
+  // Rien de neuf : ni écriture, ni politique réappliquée (chaque relevé passe ici).
+  if (!hash || (hash === parentHash.value && kiosk.status?.armed)) return
+  // Armé seulement si le hachage est bien gardé : sinon, après un redémarrage hors
+  // ligne, le téléphone serait verrouillé sans code pour en sortir.
+  const saved = await parentCodeStore.set(hash).then(() => true, () => false)
+  if (!saved) return
+  parentHash.value = hash
+  await armKiosk().catch(() => refreshKiosk().catch(() => {}))
+})
+const unlocking = ref(false)
+const canUnlock = computed(() => !!kiosk.status?.deviceOwner && !!kiosk.status.armed && !isUnlocked())
+// Téléphone retiré, ou jamais relié : pendant une sortie, le parent peut le libérer
+// (plus de verrou ni de restriction, réinitialisable et réappairable).
+const canRelease = computed(() => isUnlocked() && state.value.kind !== 'paired')
+async function release() {
+  const status = await disarmKiosk().catch(() => null)
+  // Le code n'est oublié que si le verrou est bien levé : jamais armé sans code.
+  if (status && !status.armed) {
+    await parentCodeStore.clear()
+    parentHash.value = null
+  } else {
+    await refreshKiosk().catch(() => {})
+  }
+}
+const unlockedUntil = computed(() => kiosk.status?.unlockedUntil)
+async function openPhoneSettings() {
+  await AkaikyKiosk.openSettings().catch(() => {})
+}
+
 // Téléphone retiré pendant l'usage : l'écran le dit.
 watch(() => deviceConfig.status, (s) => { if (s === 'lost') state.value = { kind: 'revoked' } })
 onBeforeUnmount(() => { unmounted = true; pause(); stopStatus(); clearTimeout(journalRetry); void lifecycle?.remove() })
@@ -191,6 +243,13 @@ const text = computed(() => {
 <template>
   <main v-if="state.kind === 'paired'" class="home">
     <ChildStatusBar :status="status" />
+    <section v-if="unlockedUntil !== undefined" class="unlocked" role="status">
+      <p>{{ t.child.lock.unlockedUntil(formatClock(new Date(unlockedUntil))) }}</p>
+      <div class="unlocked-actions">
+        <button class="btn btn-ghost" type="button" @click="openPhoneSettings">{{ t.child.lock.settings }}</button>
+        <button class="btn" type="button" @click="lockNow().catch(() => {})">{{ t.child.lock.relock }}</button>
+      </div>
+    </section>
     <p v-if="callError" class="call-error" role="alert">{{ t.child.callFailed }}</p>
     <section v-if="contacts.length" class="grid" :class="{ single: contacts.length === 1 }">
       <ContactTile v-for="c in contacts" :key="c.id" :name="c.name" :color="c.avatarColor" :busy="calling" @call="call(c.phone, c)" />
@@ -202,13 +261,26 @@ const text = computed(() => {
     <footer class="actions">
       <SosButton @trigger="sos" />
       <button class="emergency" type="button" @click="callEmergency">{{ t.child.emergency(emergency) }}</button>
+      <button v-if="canUnlock" class="parent-code" type="button" @click="unlocking = true">{{ t.child.lock.open }}</button>
     </footer>
+    <UnlockPanel v-if="unlocking" :hash="parentHash" @close="unlocking = false" @unlocked="unlocking = false" />
   </main>
   <main v-else class="child">
     <h1>Akaiky</h1>
     <p class="waiting" role="status">{{ text.title }}</p>
     <p v-if="text.hint" class="hint">{{ text.hint }}</p>
     <button v-if="state.kind === 'offline' || state.kind === 'tooMany' || state.kind === 'failed'" class="btn retry" type="button" :disabled="busy" @click="start">{{ t.child.retry }}</button>
+    <!-- Verrouillé sur un écran d'attente ou d'erreur : secours et sortie parent restent là. -->
+    <template v-if="kiosk.status?.armed">
+      <button class="emergency" type="button" @click="callEmergency">{{ t.child.emergency(emergency) }}</button>
+      <button v-if="canUnlock" class="parent-code" type="button" @click="unlocking = true">{{ t.child.lock.open }}</button>
+      <template v-if="unlockedUntil !== undefined">
+        <p class="hint">{{ t.child.lock.unlockedUntil(formatClock(new Date(unlockedUntil))) }}</p>
+        <button v-if="canRelease" class="btn" type="button" @click="release">{{ t.child.lock.release }}</button>
+        <button class="btn btn-ghost" type="button" @click="lockNow().catch(() => {})">{{ t.child.lock.relock }}</button>
+      </template>
+      <UnlockPanel v-if="unlocking" :hash="parentHash" @close="unlocking = false" @unlocked="unlocking = false" />
+    </template>
   </main>
 </template>
 
@@ -276,6 +348,33 @@ h1 {
   color: var(--sos);
   font: inherit;
   font-weight: 900;
+}
+.unlocked {
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--surface);
+  text-align: center;
+  font-weight: 800;
+}
+.unlocked p {
+  margin: 0 0 8px;
+}
+.unlocked-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+/* Discret : réservé aux parents, protégé par le code. */
+.parent-code {
+  min-height: 48px;
+  padding: 0 16px;
+  border: 0;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
 }
 .call-error {
   margin: 0;
