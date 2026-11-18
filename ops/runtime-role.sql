@@ -32,5 +32,12 @@ GRANT UPDATE (first_name_enc, avatar_color) ON children TO app_runtime;
 -- Contacts autorisés (006_allowed_contacts.sql) : jamais la famille ni l'enfant d'un contact.
 GRANT INSERT, DELETE ON allowed_contacts TO app_runtime;
 GRANT UPDATE (name_enc, phone_enc, phone_index, position, avatar_color, member_user_id) ON allowed_contacts TO app_runtime;
+-- Appairage (007_devices.sql) : jamais la famille ni l'enfant d'un appareil, ni l'appareil d'une session.
+GRANT INSERT, DELETE ON pairing_tokens TO app_runtime;
+GRANT UPDATE (used_at) ON pairing_tokens TO app_runtime;
+GRANT INSERT ON child_devices TO app_runtime;
+GRANT UPDATE (last_seen_at, revoked_at) ON child_devices TO app_runtime;
+GRANT INSERT, DELETE ON device_sessions TO app_runtime;
+GRANT UPDATE (token_hash, expires_at, last_seen_at, refresh_hash, previous_refresh_hash, discarded_refresh_hash, rotated_at, refresh_expires_at) ON device_sessions TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;

@@ -133,6 +133,10 @@ async function remove() {
       </div>
     </form>
 
+    <RouterLink v-if="existing && allowed" class="btn btn-ghost phone" :to="{ name: 'telephone', params: { id: existing.id } }">
+      {{ t.pairing.open }}
+    </RouterLink>
+
     <div v-if="existing && allowed" class="danger-zone">
       <p class="hint">{{ t.children.removeHint }}</p>
       <button v-if="!confirming" class="btn btn-ghost" type="button" :disabled="busy" @click="confirming = true">{{ t.children.remove }}</button>
@@ -188,6 +192,9 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+.phone {
+  margin-top: 20px;
 }
 .danger-zone {
   margin-top: 28px;

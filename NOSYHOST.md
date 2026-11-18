@@ -71,6 +71,9 @@ TRUST_PROXY=<CIDR du réseau edge du client>           # adresses explicites, ja
 SMTP_HOST=… SMTP_PORT=465 SMTP_USER=… SMTP_PASS=…
 MAIL_FROM=Akaiky <no-reply@akaiky.a-definir.invalid>         # domaine avec SPF + DKIM aligné + DMARC
 # NATIVE_ORIGINS=https://localhost,capacitor://localhost   # seulement avec l'app mobile
+# DEVICE_APK_URL=https://akaiky.a-definir.invalid/downloads/akaiky-enfant.apk   # QR d'appairage (NAR-138, NAR-165)
+# DEVICE_APK_SIGNATURE_SHA256=<SHA-256 du certificat de signature, base64url>  # sans les deux : pas de QR (503)
+#   (exigent NATIVE_ORIGINS avec https://localhost : le téléphone appelle l'API depuis la WebView Android)
 # API_RATE_LIMIT=300                                   # requêtes/min/IP ; à relever derrière un NAT d'opérateur
 # PHONE_DEFAULT_COUNTRY=MG                            # pays des numéros saisis sans indicatif : MG ou FR
 # INVITATION_EMAILS_PER_HOUR=100                       # invitations envoyées par heure, tous comptes (budget séparé des courriels de compte)
