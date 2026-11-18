@@ -51,10 +51,37 @@ en thème sombre). Le thème de l'app (`AppTheme.NoActionBar`, `values/styles.xm
 pose une barre blanche (`values/colors_nav.xml`) ; ses icônes sombres viennent du
 greffon dès Android 8.0, de l'attribut de thème avant son chargement à partir de 8.1.
 
-**WebView 58 sur Android 8 d'usine** : Capacitor 8 refuse de démarrer sous la
-version 60 (« This app requires a WebView to work »). C'est le cas de l'image
-Android 8 sans services Google, et d'un téléphone jamais mis à jour par le Play
-Store. Constaté sur l'émulateur API 26 ; à trancher avant l'appairage (NAR-138).
+**WebView minimal : 64** (NAR-161). Le bundle vise Chrome 64 et plus (modules ES,
+`import()` et `import.meta`, `modernTargets` de `vite.config.ts`) ; `android.minWebViewVersion: 64`
+(`capacitor.config.ts`) suit cette cible, et `src/lib/webviewTarget.test.ts` échoue
+si les deux divergent. En dessous, Capacitor affiche `public/webview.html`
+(`server.errorPath`) : en malgache, français et anglais, sans JavaScript, il demande
+de relancer, puis sur Android de mettre à jour « Android System WebView » ou Chrome
+depuis le Play Store, sinon de réinstaller. Capacitor l'affiche aussi (Android et
+iOS) quand la page principale ne se charge pas : d'où ce texte valable dans tous les
+cas. Sans ce réglage, Capacitor laisse passer dès 60 et un WebView 60 à 63 resterait
+sur un écran blanc.
+
+Cas réel visé : un téléphone Android 8.0 ou 8.1 réinitialisé (les mises à jour du
+WebView sont effacées avec les données) et jamais remis à jour. Android 9 et suivants
+sortent d'usine avec un WebView 64 ou plus.
+
+**Téléphone d'enfant sous Android 8.x : à régler dans l'appairage (NAR-138).** Le QR
+de provisionnement exige une réinitialisation, qui remet le WebView d'usine (61 à 63
+sur Android 8.0 et 8.1). Une fois l'app verrouillée (Device Owner, lock task), ni
+l'enfant ni le parent n'atteignent le Play Store : l'écran de repli resterait affiché.
+L'appairage doit donc vérifier la version du WebView **avant** le verrouillage, et
+faire mettre à jour le WebView (ou refuser l'appareil) tant qu'elle est sous 64.
+
+**Huawei** : Capacitor compare `com.huawei.webview` à `minHuaweiWebViewVersion`
+(numérotation propre à Huawei, défaut 10), pas à `minWebViewVersion`. Un WebView Huawei
+basé sur Chromium < 64 donnerait un écran blanc. Non réglé faute de correspondance
+fiable entre les deux numérotations ; à vérifier sur un appareil Huawei réel.
+
+Ce poste ne peut pas vérifier Android 8 : l'image ARM API 26 n'a pas de WebView
+utilisable (« No WebView installed » au lancement ; l'écran « This app requires a
+WebView to work » vient de là, pas du seuil de version). Vérifié sur Android 14 en
+forçant le seuil (écran de repli), puis avec le seuil réel (app normale).
 
 **Outils requis** : SDK Android avec la plateforme `android-36` (compileSdk),
 **JDK 21** (`invalid source release: 21` avec le JDK 17 :

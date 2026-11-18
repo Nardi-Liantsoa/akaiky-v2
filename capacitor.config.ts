@@ -10,12 +10,23 @@ const config: CapacitorConfig = {
     allowMixedContent: false,
     // Deux variantes (android/app/build.gradle) : `npx cap run android` lance la
     // variante parent par défaut ; l'enfant avec `--flavor enfant`.
-    flavor: 'parent'
+    flavor: 'parent',
+    // Le bundle vise Chrome 64 et plus (modules ES, import(), import.meta ;
+    // vite.config.ts : modernTargets). Capacitor laisse passer dès 60 par défaut : un
+    // WebView 60 à 63 afficherait un écran blanc figé. En dessous de 64, Capacitor charge
+    // server.errorPath à la place (NAR-161 ; src/lib/webviewTarget.test.ts garde les
+    // deux alignés). Ne couvre pas le WebView Huawei (com.huawei.webview), comparé à
+    // minHuaweiWebViewVersion, qui suit une autre numérotation : limite documentée.
+    minWebViewVersion: 64
   },
   server: {
     // Origine https://localhost : contexte sécurisé (caméra, géolocalisation…)
     // et origine que l'API attend dans NATIVE_ORIGINS. iOS : capacitor://localhost.
-    androidScheme: 'https'
+    androidScheme: 'https',
+    // Écran de repli statique, trois langues, sans JavaScript (public/webview.html) :
+    // WebView trop ancien (Android), ou page principale qui ne se charge pas (Android
+    // et iOS) : son texte vaut pour les deux cas et les deux plateformes.
+    errorPath: 'webview.html'
   },
   plugins: {
     // Interface toujours claire (docs/DESIGN.md) : icônes sombres dans les deux barres
