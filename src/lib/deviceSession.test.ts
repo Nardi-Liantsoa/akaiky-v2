@@ -26,6 +26,15 @@ describe('createDeviceSession', () => {
     vi.unstubAllGlobals()
   })
 
+  it('écriture du Keystore en échec une fois : seconde tentative, session gardée', async () => {
+    const store = memoryStore()
+    let fails = 1
+    const flaky = { ...store, set: async (k: string, v: string) => { if (fails-- > 0) throw new Error('keystore'); await store.set(k, v) } }
+    const s = createDeviceSession({ base: '', store: flaky, fetch: async () => json(201, { ...TOKENS, device: { id: 'd' }, child: { id: 'c' } }) })
+    await s.pair('x', {})
+    expect(store.data.get(REFRESH_KEY)).toBe('r1')
+  })
+
   it('appairage refusé : erreur avec le code du serveur, rien de stocké', async () => {
     const store = memoryStore()
     const s = createDeviceSession({ base: '', store, fetch: async () => json(401, { code: 'pairing_invalid' }) })

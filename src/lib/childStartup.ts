@@ -2,13 +2,15 @@ import { DeviceError, type DeviceInfoBody, type DeviceMe, type DeviceSession } f
 
 // Démarrage de l'app enfant (NAR-164) : session existante, sinon jeton reçu au
 // provisionnement (QR), sinon attente. Dépendances injectées : testable sans natif.
+// Le jeton n'est effacé que lorsque le serveur l'a définitivement refusé (401) ou
+// accepté : tout autre échec le garde, pour un nouvel essai sans réinitialiser.
 export type ChildState =
   | { kind: 'paired', firstName: string }
   | { kind: 'waiting' }
   | { kind: 'expired' }      // jeton expiré ou déjà utilisé : nouveau QR, donc réinitialisation
-  | { kind: 'tooMany' }      // plafond de téléphones de l'enfant atteint
-  | { kind: 'revoked' }      // session refusée : téléphone retiré par un parent
-  | { kind: 'offline' }      // réseau ou serveur indisponible : réessayer, rien n'est perdu
+  | { kind: 'tooMany' }      // plafond atteint : un parent retire un téléphone, puis on réessaie
+  | { kind: 'revoked' }      // session refusée (401) : téléphone retiré par un parent
+  | { kind: 'offline' }      // réseau, serveur ou réponse inattendue : réessayer, rien n'est perdu
 
 export interface ChildDeps {
   session: DeviceSession
@@ -16,7 +18,7 @@ export interface ChildDeps {
   info(): Promise<DeviceInfoBody>
 }
 
-const transient = (e: unknown) => !(e instanceof DeviceError) || e.status >= 500 || e.status === 429
+const refused = (e: unknown) => e instanceof DeviceError && e.status === 401
 
 async function me(session: DeviceSession): Promise<ChildState> {
   const r = await session.get<DeviceMe>('/device/me')
@@ -25,30 +27,28 @@ async function me(session: DeviceSession): Promise<ChildState> {
 
 export async function startChild(deps: ChildDeps): Promise<ChildState> {
   try {
+    const token = await deps.provisioning.token()
     if (await deps.session.hasSession()) {
       try {
         return await me(deps.session)
       } catch (e) {
-        // Session refusée : le téléphone a été retiré. Un jeton récent peut encore servir.
-        if (transient(e)) return { kind: 'offline' }
-        if (!(await deps.provisioning.token())) return { kind: 'revoked' }
+        // Seul un 401 dit que le téléphone a été retiré ; un jeton récent peut encore servir.
+        if (!refused(e)) return { kind: 'offline' }
+        if (!token) return { kind: 'revoked' }
       }
     }
-    const token = await deps.provisioning.token()
     if (!token) return { kind: 'waiting' }
     try {
       await deps.session.pair(token, await deps.info())
     } catch (e) {
-      if (transient(e)) return { kind: 'offline' }   // jeton gardé : nouvel essai possible
-      // Refus définitif : le jeton ne servira plus.
-      await deps.provisioning.clear()
+      if (refused(e)) { await deps.provisioning.clear(); return { kind: 'expired' } }
+      // Refus de place : la transaction serveur est annulée, le jeton reste valable.
       if (e instanceof DeviceError && e.code === 'too_many_devices') return { kind: 'tooMany' }
-      return { kind: 'expired' }
+      return { kind: 'offline' }
     }
     await deps.provisioning.clear()
     return await me(deps.session)
   } catch (e) {
-    if (transient(e)) return { kind: 'offline' }
-    return { kind: 'revoked' }
+    return refused(e) ? { kind: 'revoked' } : { kind: 'offline' }
   }
 }

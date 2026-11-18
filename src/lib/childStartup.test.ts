@@ -32,8 +32,16 @@ describe('startChild', () => {
     expect(d.cleared()).toBe(true)
   })
 
-  it('plafond de téléphones atteint : message dédié', async () => {
-    expect(await startChild(deps({ token: 't', pair: async () => { throw new DeviceError(409, 'too_many_devices') } }))).toEqual({ kind: 'tooMany' })
+  it('plafond de téléphones atteint : message dédié, jeton gardé (encore valable)', async () => {
+    const d = deps({ token: 't', pair: async () => { throw new DeviceError(409, 'too_many_devices') } })
+    expect(await startChild(d)).toEqual({ kind: 'tooMany' })
+    expect(d.cleared()).toBe(false)
+  })
+
+  it('autre refus (400, 404…) : pas « expiré », jeton gardé', async () => {
+    const d = deps({ token: 't', pair: async () => { throw new DeviceError(400, null) } })
+    expect(await startChild(d)).toEqual({ kind: 'offline' })
+    expect(d.cleared()).toBe(false)
   })
 
   it('hors ligne pendant l’échange : jeton gardé pour un nouvel essai', async () => {
@@ -51,5 +59,7 @@ describe('startChild', () => {
   it('session refusée (téléphone retiré) sans jeton : retiré ; hors ligne : rien n’est perdu', async () => {
     expect(await startChild(deps({ session: true, me: async () => { throw new DeviceError(401, 'device_session_lost') } }))).toEqual({ kind: 'revoked' })
     expect(await startChild(deps({ session: true, me: async () => { throw new TypeError('offline') } }))).toEqual({ kind: 'offline' })
+    // 404 ou 403 inattendu : pas « retiré », on réessaiera.
+    expect(await startChild(deps({ session: true, me: async () => { throw new DeviceError(404, null) } }))).toEqual({ kind: 'offline' })
   })
 })

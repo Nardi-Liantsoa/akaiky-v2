@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
 
 android {
     namespace = "mg.nosytech.akaiky"
@@ -30,6 +31,10 @@ android {
             // mg.nosytech.akaiky.enfant : CHILD_APP_ID de src/lib/appKind.ts.
             applicationIdSuffix '.enfant'
         }
+    }
+    // Même cible que le Java de Capacitor (capacitor.build.gradle : VERSION_21).
+    kotlinOptions {
+        jvmTarget = '21'
     }
     buildTypes {
         release {

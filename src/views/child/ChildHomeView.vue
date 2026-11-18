@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { Capacitor } from '@capacitor/core'
-import { SecureStorage } from '@aparajita/capacitor-secure-storage'
-import { API_BASE } from '../../api/base'
 import { useT } from '../../composables/useT'
 import { appKind } from '../../lib/appKind'
 import { startChild, type ChildState } from '../../lib/childStartup'
-import { createDeviceSession } from '../../lib/deviceSession'
+import { deviceSession as session } from '../../lib/deviceSessionInstance'
 import { AkaikyDevice } from '../../native/akaikyDevice'
 
 // Écran de l'app enfant (NAR-164) : échange du jeton reçu au provisionnement (QR),
@@ -14,16 +12,6 @@ import { AkaikyDevice } from '../../native/akaikyDevice'
 const t = useT()
 const state = ref<ChildState | { kind: 'loading' }>({ kind: 'loading' })
 const busy = ref(false)
-
-const session = createDeviceSession({
-  base: API_BASE,
-  store: {
-    get: (k) => SecureStorage.get(k),
-    set: async (k, v) => { await SecureStorage.set(k, v) },
-    remove: async (k) => { await SecureStorage.remove(k) }
-  },
-  fetch: (...args) => fetch(...args)
-})
 
 async function start() {
   if (busy.value) return
@@ -67,7 +55,7 @@ const text = computed(() => {
     <h1>Akaiky</h1>
     <p class="waiting" role="status">{{ text.title }}</p>
     <p v-if="text.hint" class="hint">{{ text.hint }}</p>
-    <button v-if="state.kind === 'offline'" class="btn retry" type="button" :disabled="busy" @click="start">{{ t.child.retry }}</button>
+    <button v-if="state.kind === 'offline' || state.kind === 'tooMany'" class="btn retry" type="button" :disabled="busy" @click="start">{{ t.child.retry }}</button>
   </main>
 </template>
 
