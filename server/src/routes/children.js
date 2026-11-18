@@ -37,7 +37,11 @@ const PARENT_CODE = {
   required: ['code'],
   properties: { code: { type: 'string', maxLength: 20 } }
 }
-const COLUMNS = 'id, first_name_enc, avatar_color, created_at, parent_code_set_at'
+// Sortie du verrou demandée à distance (NAR-168) : 15 minutes, comme au téléphone.
+// Échéance renvoyée seulement tant qu'elle n'est pas passée (parents et téléphone).
+export const REMOTE_UNLOCK_MINUTES = 15
+export const REMOTE_UNLOCK_SQL = 'CASE WHEN remote_unlock_until > now() THEN remote_unlock_until END AS remote_unlock_until'
+const COLUMNS = `id, first_name_enc, avatar_color, created_at, parent_code_set_at, ${REMOTE_UNLOCK_SQL}`
 const firstName = (v) => text(v, { min: 1, max: 40, field: 'Prénom' })
 const notFound = () => new HttpError(404, 'Enfant introuvable.', 'child_not_found')
 const aad = (id) => `children:first_name:${id}`
@@ -51,7 +55,8 @@ export default async function childrenRoutes(app) {
     firstName: openField(r.first_name_enc, config.dataKey, aad(r.id)),
     avatarColor: r.avatar_color,
     createdAt: r.created_at,
-    parentCodeSetAt: r.parent_code_set_at ?? null
+    parentCodeSetAt: r.parent_code_set_at ?? null,
+    remoteUnlockUntil: r.remote_unlock_until ?? null
   })
   const childId = (req) => { if (!isUuid(req.params.id)) throw notFound(); return req.params.id }
 
@@ -122,13 +127,36 @@ export default async function childrenRoutes(app) {
       // Rôle relu sous verrou : un gestionnaire rétrogradé pendant le calcul n'écrit rien.
       const locked = await lockOwnFamily(conn, req, MANAGERS)
       const { rows: [updated] } = await conn.query(
-        `UPDATE children SET parent_code_hash = $3, parent_code_set_at = now()
+        `UPDATE children SET parent_code_hash = $3, parent_code_set_at = now(), remote_unlock_until = NULL
           WHERE id = $1 AND family_id = $2 RETURNING parent_code_set_at`, [id, locked.familyId, hash])
       if (!updated) throw notFound()
       await audit(conn, req, 'parent_code_set', id)
       return updated
     })
     return { parentCodeSetAt: row.parent_code_set_at }
+  })
+
+  // Déverrouillage à distance (NAR-168) : échéance de 15 minutes posée pour le téléphone de
+  // l'enfant, qui la lit au relevé suivant (30 s au premier plan). Sans code parent, le
+  // téléphone n'est jamais verrouillé : la demande est refusée (rien à déverrouiller).
+  const unlockLimit = createLimiter({ max: 20, windowMs: 60 * 60_000 })
+  app.post('/:id/unlock', async (req) => {
+    const id = childId(req)
+    const row = await withTransaction(db, async (conn) => {
+      const own = await lockOwnFamily(conn, req, MANAGERS)
+      // Enfant et code vérifiés d'abord : un refus (404, 409) n'entame pas le quota.
+      const { rows: [kid] } = await conn.query(
+        'SELECT parent_code_hash IS NOT NULL AS has_code FROM children WHERE id = $1 AND family_id = $2 FOR UPDATE', [id, own.familyId])
+      if (!kid) throw notFound()
+      if (!kid.has_code) throw new HttpError(409, 'Aucun code parent : le téléphone n’est pas verrouillé.', 'no_parent_code')
+      if (!unlockLimit(req.user.id)) throw new HttpError(429, 'Trop de déverrouillages demandés. Réessayez plus tard.')
+      const { rows: [updated] } = await conn.query(
+        `UPDATE children SET remote_unlock_until = now() + make_interval(mins => $3)
+          WHERE id = $1 AND family_id = $2 RETURNING remote_unlock_until`, [id, own.familyId, REMOTE_UNLOCK_MINUTES])
+      await audit(conn, req, 'remote_unlock', id)
+      return updated
+    })
+    return { remoteUnlockUntil: row.remote_unlock_until }
   })
 
   app.delete('/:id', async (req) => {
