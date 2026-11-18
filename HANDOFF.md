@@ -7,10 +7,12 @@
   (NAR-133, migration `003`) ; un parent sans famille la crée depuis l'accueil.
   Invitations, rôles et départs (NAR-134, migration `004`). Enfants avec prénom chiffré
   (NAR-135, migration `005`, clé `DATA_ENCRYPTION_KEY`).
+  Contacts autorisés côté parent (NAR-140, migration `006`) ; la synchronisation vers le
+  téléphone de l'enfant attend l'appairage (NAR-160, bloqué par NAR-138).
 - Identifiant `mg.nosytech.akaiky`, nom affiché « Akaiky ». Maquettes résumées dans
   `docs/DESIGN.md` ; jetons et police posés dans `src/style.css` (NAR-132).
-- Vérifié en local (NAR-135) : lint, build, tests front (24/24), tests API contre PostgreSQL
-  jetable, e2e Chromium (31/31), e2e WebKit (dans l'image Docker Playwright),
+- Vérifié en local (NAR-140) : lint, build, tests front (34/34), tests API contre PostgreSQL
+  jetable (109/109), e2e Chromium (37/37), e2e WebKit (dans l'image Docker Playwright),
   `npm audit` 0 vulnérabilité (racine et serveur), gitleaks et Semgrep (`p/javascript`,
   `p/typescript`) sans résultat, image Docker construite (utilisateur `node`),
   `/health` 200 et `/ready` 503 sans base, refus de démarrer en production sans clé MFA.

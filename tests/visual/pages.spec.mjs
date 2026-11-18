@@ -27,6 +27,14 @@ const PARENT = {
     { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'yellow', createdAt: '2026-01-10T10:00:00Z' },
     { id: '6f1c2b1e-0000-4000-8000-000000000102', firstName: 'Tiana', avatarColor: 'green', createdAt: '2026-01-11T10:00:00Z' }
   ],
+  'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/contacts': {
+    version: 4, max: 6, country: 'MG',
+    contacts: [
+      { id: '6f1c2b1e-0000-4000-8000-000000000201', childId: '6f1c2b1e-0000-4000-8000-000000000101', name: 'Maman', phone: '+261341234567', position: 1, avatarColor: 'orange', memberUserId: '6f1c2b1e-0000-4000-8000-000000000001', memberRole: 'owner' },
+      { id: '6f1c2b1e-0000-4000-8000-000000000202', childId: '6f1c2b1e-0000-4000-8000-000000000101', name: 'Papa', phone: '+261331234567', position: 2, avatarColor: 'blue', memberUserId: '6f1c2b1e-0000-4000-8000-000000000002', memberRole: 'manager' },
+      { id: '6f1c2b1e-0000-4000-8000-000000000203', childId: '6f1c2b1e-0000-4000-8000-000000000101', name: 'Mamie', phone: '+261321234567', position: 3, avatarColor: 'violet', memberUserId: null, memberRole: null }
+    ]
+  },
   'GET /api/families/me/invitations': [
     { id: '6f1c2b1e-0000-4000-8000-0000000000a1', email: 'mamie@exemple.fr', role: 'member', createdAt: '2026-01-14T10:00:00Z', expiresAt: '2026-01-21T10:00:00Z' }
   ]
@@ -44,6 +52,7 @@ const PAGES = [
   ['parent-creer-famille', '/espace', SANS_FAMILLE],
   ['parent-famille', '/espace/famille', PARENT],
   ['parent-ajouter-enfant', '/espace/enfant/nouveau', PARENT],
+  ['parent-reglages', '/espace/reglages', PARENT],
   ['invitation-sans-session', '/invitation#invite=' + 'T'.repeat(43), ANONYME]
 ]
 

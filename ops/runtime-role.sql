@@ -29,5 +29,8 @@ GRANT UPDATE (role), DELETE ON memberships TO app_runtime;
 -- Enfants (005_children.sql) : prénom chiffré, couleur ; jamais la famille d'un enfant.
 GRANT INSERT, DELETE ON children TO app_runtime;
 GRANT UPDATE (first_name_enc, avatar_color) ON children TO app_runtime;
+-- Contacts autorisés (006_allowed_contacts.sql) : jamais la famille ni l'enfant d'un contact.
+GRANT INSERT, DELETE ON allowed_contacts TO app_runtime;
+GRANT UPDATE (name_enc, phone_enc, phone_index, position, avatar_color, member_user_id) ON allowed_contacts TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;
