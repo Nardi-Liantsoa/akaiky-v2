@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ApiError } from '../../api/http'
-import { setParentCode, type Child } from '../../api/children'
+import { remoteUnlock, setParentCode, type Child } from '../../api/children'
 import { locale, useT } from '../../composables/useT'
 import { errorText } from '../../lib/errors'
-import { formatDay } from '../../lib/format'
+import { formatClock, formatDay } from '../../lib/format'
 import { parentCodeProblem } from '../../lib/parentCode'
 import { children, upsertChild } from '../../store/children'
 import { canManage } from '../../store/family'
@@ -21,7 +21,7 @@ const error = ref('')
 const saved = ref(false)
 
 // Autre enfant choisi : formulaire refermé, rien de saisi ne passe d'un enfant à l'autre.
-watch(() => props.child.id, () => { close(); saved.value = false; busy.value = false })
+watch(() => props.child.id, () => { close(); saved.value = false; busy.value = false; unlockBusy.value = false; unlockError.value = '' })
 
 function open() {
   editing.value = true
@@ -56,13 +56,42 @@ async function save() {
     const res = await setParentCode(child.id, code.value)
     // Appliqué à la liste des enfants (s'il y est encore) : « défini le … » suit sans relecture.
     const current = children.items.find((c) => c.id === child.id)
-    if (current) upsertChild({ ...current, parentCodeSetAt: res.parentCodeSetAt })
+    if (current) upsertChild({ ...current, parentCodeSetAt: res.parentCodeSetAt, remoteUnlockUntil: null })
     if (child.id === props.child.id) { close(); saved.value = true }
   } catch (e) {
     if (child.id === props.child.id) error.value = (e instanceof ApiError && problemText(e.code)) || errorText(e, t.value)
   } finally {
     // Autre enfant choisi entre-temps : son formulaire est déjà libre.
     if (child.id === props.child.id) busy.value = false
+  }
+}
+
+// Déverrouillage à distance (NAR-168, maquette écran 8) : 15 minutes, appliqué par le
+// téléphone à son relevé suivant (30 s s'il est connecté et à l'écran).
+const unlockBusy = ref(false)
+const unlockError = ref('')
+// Heure relue toutes les 30 s : l'état « demandé jusqu'à … » s'efface seul à l'échéance.
+const now = ref(Date.now())
+const clock = setInterval(() => { now.value = Date.now() }, 30_000)
+onBeforeUnmount(() => clearInterval(clock))
+const unlockedUntil = computed(() => {
+  const until = props.child.remoteUnlockUntil ? Date.parse(props.child.remoteUnlockUntil) : NaN
+  return Number.isNaN(until) || until <= now.value ? null : new Date(until)
+})
+async function unlockNow() {
+  if (unlockBusy.value) return
+  const child = props.child
+  unlockBusy.value = true
+  unlockError.value = ''
+  try {
+    const res = await remoteUnlock(child.id)
+    const current = children.items.find((c) => c.id === child.id)
+    if (current) upsertChild({ ...current, remoteUnlockUntil: res.remoteUnlockUntil })
+  } catch (e) {
+    if (child.id !== props.child.id) return
+    unlockError.value = e instanceof ApiError && e.code === 'no_parent_code' ? t.value.parentCode.unlockNoCode : errorText(e, t.value)
+  } finally {
+    if (child.id === props.child.id) unlockBusy.value = false
   }
 }
 </script>
@@ -101,12 +130,23 @@ async function save() {
         </div>
       </form>
     </template>
+    <div v-if="child.parentCodeSetAt" class="remote">
+      <p v-if="unlockedUntil" class="state" role="status">{{ t.parentCode.unlockedUntil(formatClock(unlockedUntil)) }}</p>
+      <p v-if="unlockError" class="error" role="alert">{{ unlockError }}</p>
+      <button v-if="canManage() && !editing" class="btn" type="button" :disabled="unlockBusy" @click="unlockNow">{{ t.parentCode.unlock }}</button>
+      <p v-if="canManage() && !editing" class="hint">{{ t.parentCode.unlockHint }}</p>
+    </div>
   </section>
 </template>
 
 <style scoped>
 .parent-code {
   margin-top: 16px;
+}
+.remote {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
 h2 {
   margin: 0;

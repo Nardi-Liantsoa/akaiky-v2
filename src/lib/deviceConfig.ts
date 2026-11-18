@@ -10,7 +10,8 @@ export interface DeviceContact { id: string, name: string, phone: string, positi
 // vérifié hors ligne (NAR-167) ; null tant qu'aucun gestionnaire ne l'a défini. Absent d'une
 // config mise en cache avant ce champ : équivaut à null (aucun code n'existait encore, et le
 // premier code défini fait avancer la version, donc un relevé complet).
-export interface DeviceConfig { version: number, country?: string, parentCode?: string | null, contacts: DeviceContact[] }
+// remoteUnlockUntil : fin d'un déverrouillage demandé par un parent (NAR-168), appliqué une fois.
+export interface DeviceConfig { version: number, country?: string, parentCode?: string | null, remoteUnlockUntil?: string | null, contacts: DeviceContact[] }
 export const CONFIG_KEY = 'device-config'
 
 interface Cached { childId: string, etag: string | null, config: DeviceConfig }
@@ -19,6 +20,7 @@ const valid = (v: unknown): v is Cached => {
   const c = (v as Cached | null)?.config
   return typeof (v as Cached | null)?.childId === 'string' && !!c && typeof c.version === 'number' && Array.isArray(c.contacts)
     && (c.parentCode === undefined || c.parentCode === null || typeof c.parentCode === 'string')
+    && (c.remoteUnlockUntil === undefined || c.remoteUnlockUntil === null || typeof c.remoteUnlockUntil === 'string')
     && c.contacts.every((x) => typeof x?.id === 'string' && typeof x.name === 'string' && typeof x.phone === 'string')
 }
 

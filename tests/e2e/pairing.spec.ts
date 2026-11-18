@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { FAMILY, mockApi, USER } from './mock'
 
 const me = { 'GET /api/auth/me': () => ({ body: { user: USER } }), 'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }) }
-const FY = { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'orange', createdAt: '2026-11-11T10:00:00Z', parentCodeSetAt: null }
+const FY = { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'orange', createdAt: '2026-11-11T10:00:00Z', parentCodeSetAt: null, remoteUnlockUntil: null }
 const PHONE = { id: '6f1c2b1e-0000-4000-8000-0000000000d1', model: 'Pixel 3a', osVersion: '14', appVersion: '1.0', createdAt: '2026-11-18T10:00:00Z', lastSeenAt: '2026-11-18T10:00:00Z' }
 const provisioning = {
   'android.app.extra.PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME': 'mg.nosytech.akaiky.enfant/mg.nosytech.akaiky.AkaikyDeviceAdminReceiver',

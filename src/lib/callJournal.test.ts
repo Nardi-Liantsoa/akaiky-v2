@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createCallJournal, PENDING_KEY, QUEUE_KEY, type CallEvent, type JournalDeps } from './callJournal'
+import { createCallJournal, PENDING_KEY, QUEUE_KEY, type DeviceEvent, type JournalDeps } from './callJournal'
 import { DeviceError } from './deviceSession'
 
 function setup(over: Partial<JournalDeps> = {}) {
@@ -8,7 +8,7 @@ function setup(over: Partial<JournalDeps> = {}) {
   let t = 1_000_000, n = 0
   const deps: JournalDeps = {
     store,
-    post: vi.fn(async (events: CallEvent[]) => ({ accepted: events.map((e) => e.id), rejected: [] })),
+    post: vi.fn(async (events: DeviceEvent[]) => ({ accepted: events.map((e) => e.id), rejected: [] })),
     lastOutgoing: vi.fn(async () => ({ found: true, startedAt: 1_000_500, durationS: 42 })),
     now: () => t,
     uuid: () => `id-${++n}`,
@@ -20,6 +20,17 @@ function setup(over: Partial<JournalDeps> = {}) {
 }
 
 describe('createCallJournal', () => {
+  it('déverrouillage (NAR-168) : mis dans la file avec son origine et sa durée, envoyé avec les appels', async () => {
+    const s = setup()
+    await s.journal.unlocked('remote', 12)
+    await s.journal.started({ id: 'maman', name: 'Maman' }, '+261341234567')
+    await s.journal.complete()
+    expect(s.queue().map((e: DeviceEvent) => e.kind)).toEqual(['unlock', 'call_out'])
+    expect(s.queue()[0]).toEqual({ id: 'id-1', kind: 'unlock', source: 'remote', startedAt: new Date(1_000_000).toISOString(), durationS: 720 })
+    await s.journal.flush()
+    expect(s.queue()).toEqual([])
+  })
+
   it('appel → durée lue au retour → envoyé ; file et appels en cours vidés', async () => {
     const s = setup()
     await s.journal.started({ id: 'maman', name: 'Maman' }, '+261341234567')
@@ -57,7 +68,7 @@ describe('createCallJournal', () => {
   })
 
   it('événement refusé par le serveur : retiré (ne bloque pas la file) ; 401 : file vidée', async () => {
-    const s = setup({ post: vi.fn(async (events: CallEvent[]) => ({ accepted: [] as string[], rejected: events.map((e) => e.id) })) })
+    const s = setup({ post: vi.fn(async (events: DeviceEvent[]) => ({ accepted: [] as string[], rejected: events.map((e) => e.id) })) })
     await s.journal.started({ id: 'autre', name: 'Autre' }, '+261320000000')
     await s.journal.complete()
     await s.journal.flush()
