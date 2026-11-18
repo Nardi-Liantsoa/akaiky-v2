@@ -259,6 +259,16 @@ const fr = {
     sosHint: 'Appuie 3 secondes',
     emergency: (n: string) => `Secours · ${n}`,
     callFailed: 'L’appel n’a pas pu partir.',
+    quick: {
+      open: 'Messages',
+      title: 'Dire à mes parents',
+      texts: ['Je suis arrivé', 'Viens me chercher', 'Je suis en retard', 'Tout va bien'],
+      sent: (text: string) => `« ${text} » envoyé`,
+      queued: (text: string) => `« ${text} » partira dès le retour du réseau`,
+      refused: (text: string) => `« ${text} » n’a pas pu partir. Réessaie.`,
+      seen: (name: string, time: string) => `${name} l’a vu · ${time}`,
+      close: 'Fermer'
+    },
     screening: {
       off: 'Filtrage des appels inactif : n’importe quel numéro peut appeler ce téléphone.',
       enable: 'Activer le filtrage des appels'
@@ -284,7 +294,7 @@ const fr = {
   },
   parent: {
     tabsLabel: 'Navigation principale',
-    home: { title: 'Accueil', empty: 'Les enfants de votre famille apparaîtront ici.' },
+    home: { title: 'Accueil', empty: 'Les enfants de votre famille apparaîtront ici.', messages: (name: string) => `Messages de ${name}`, noMessages: 'Aucun message pour l’instant.', seenBy: (names: string) => `Vu par ${names}`, messagesError: 'Impossible de charger les messages.' },
     log: { title: 'Journal', empty: 'Les appels, messages et alertes apparaîtront ici.' },
     settings: { title: 'Réglages' },
     family: { title: 'Famille', empty: 'Les membres de votre famille apparaîtront ici.' }
@@ -561,6 +571,16 @@ const mg: Messages = {
     sosHint: 'Tsindrio 3 segondra',
     emergency: (n: string) => `Vonjy maika · ${n}`,
     callFailed: 'Tsy lasa ny antso.',
+    quick: {
+      open: 'Hafatra',
+      title: 'Hilaza amin’ny ray aman-dreniko',
+      texts: ['Tonga aho', 'Avia haka ahy', 'Tara aho', 'Tsara ny zava-drehetra'],
+      sent: (text: string) => `Lasa ny « ${text} »`,
+      queued: (text: string) => `Handeha ny « ${text} » rehefa misy tambajotra indray`,
+      refused: (text: string) => `Tsy lasa ny « ${text} ». Andramo indray.`,
+      seen: (name: string, time: string) => `Hitan’i ${name} · ${time}`,
+      close: 'Hidiana'
+    },
     screening: {
       off: 'Tsy mandeha ny sivana antso : afaka miantso ity finday ity ny laharana rehetra.',
       enable: 'Hampandeha ny sivana antso'
@@ -586,7 +606,7 @@ const mg: Messages = {
   },
   parent: {
     tabsLabel: 'Fitetezana lehibe',
-    home: { title: 'Fandraisana', empty: 'Eto no hiseho ireo ankizy ao amin’ny fianakavianao.' },
+    home: { title: 'Fandraisana', empty: 'Eto no hiseho ireo ankizy ao amin’ny fianakavianao.', messages: (name: string) => `Hafatr’i ${name}`, noMessages: 'Mbola tsy misy hafatra.', seenBy: (names: string) => `Hitan’i ${names}`, messagesError: 'Tsy afaka nalaina ny hafatra.' },
     log: { title: 'Tantara', empty: 'Eto no hiseho ny antso, ny hafatra ary ny fampitandremana.' },
     settings: { title: 'Fandrindrana' },
     family: { title: 'Fianakaviana', empty: 'Eto no hiseho ireo mpikambana ao amin’ny fianakavianao.' }
@@ -861,6 +881,16 @@ const en: Messages = {
     sosHint: 'Hold for 3 seconds',
     emergency: (n: string) => `Emergency · ${n}`,
     callFailed: 'The call couldn’t go through.',
+    quick: {
+      open: 'Messages',
+      title: 'Tell my parents',
+      texts: ['I have arrived', 'Come and pick me up', 'I am running late', 'All is well'],
+      sent: (text: string) => `“${text}” sent`,
+      queued: (text: string) => `“${text}” will be sent when the network is back`,
+      refused: (text: string) => `“${text}” could not be sent. Try again.`,
+      seen: (name: string, time: string) => `${name} saw it · ${time}`,
+      close: 'Close'
+    },
     screening: {
       off: 'Call filtering is off: any number can call this phone.',
       enable: 'Turn on call filtering'
@@ -886,7 +916,7 @@ const en: Messages = {
   },
   parent: {
     tabsLabel: 'Main navigation',
-    home: { title: 'Home', empty: 'Your family’s children will appear here.' },
+    home: { title: 'Home', empty: 'Your family’s children will appear here.', messages: (name: string) => `Messages from ${name}`, noMessages: 'No messages yet.', seenBy: (names: string) => `Seen by ${names}`, messagesError: 'Could not load messages.' },
     log: { title: 'Log', empty: 'Calls, messages and alerts will appear here.' },
     settings: { title: 'Settings' },
     family: { title: 'Family', empty: 'Your family members will appear here.' }

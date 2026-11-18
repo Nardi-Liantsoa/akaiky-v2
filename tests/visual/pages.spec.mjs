@@ -35,6 +35,10 @@ const PARENT = {
       { id: '6f1c2b1e-0000-4000-8000-000000000203', childId: '6f1c2b1e-0000-4000-8000-000000000101', name: 'Mamie', phone: '+261321234567', position: 3, avatarColor: 'violet', memberUserId: null, memberRole: null }
     ]
   },
+  'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/messages': [
+    { id: '6f1c2b1e-0000-4000-8000-000000000301', slot: 1, sentAt: '2026-01-14T13:05:00Z', readBy: [{ name: 'Maman', readAt: '2026-01-14T13:06:00Z' }], readByMe: true },
+    { id: '6f1c2b1e-0000-4000-8000-000000000302', slot: 3, sentAt: '2026-01-14T07:40:00Z', readBy: [{ name: 'Maman', readAt: '2026-01-14T07:41:00Z' }, { name: 'Papa', readAt: '2026-01-14T07:50:00Z' }], readByMe: true }
+  ],
   'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/devices': [
     { id: '6f1c2b1e-0000-4000-8000-0000000000d1', model: 'Samsung Galaxy A10', osVersion: '11', appVersion: '1.0', createdAt: '2026-01-12T10:00:00Z', lastSeenAt: '2026-01-14T10:00:00Z' }
   ],
