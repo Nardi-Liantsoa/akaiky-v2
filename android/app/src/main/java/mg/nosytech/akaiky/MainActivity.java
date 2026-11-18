@@ -11,13 +11,16 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // Greffons locaux (pas des paquets npm) : enregistrés avant le pont.
         registerPlugin(AkaikyDevicePlugin.class);
-        // Appels : variante enfant seulement (CallPlugin n'est compilé que dans
-        // android/app/src/enfant, où CALL_PHONE est déclarée). L'app parent n'en a pas.
+        // Appels (NAR-142) et mode appareil dédié (NAR-167) : variante enfant seulement
+        // (compilés dans android/app/src/enfant, où sont déclarées leurs permissions).
+        // L'app parent n'en a pas.
         if ("enfant".equals(BuildConfig.FLAVOR)) {
-            try {
-                registerPlugin((Class<? extends Plugin>) Class.forName("mg.nosytech.akaiky.CallPlugin"));
-            } catch (ClassNotFoundException e) {
-                throw new IllegalStateException("CallPlugin absent de la variante enfant", e);
+            for (String name : new String[] { "mg.nosytech.akaiky.CallPlugin", "mg.nosytech.akaiky.KioskPlugin" }) {
+                try {
+                    registerPlugin((Class<? extends Plugin>) Class.forName(name));
+                } catch (ClassNotFoundException e) {
+                    throw new IllegalStateException(name + " absent de la variante enfant", e);
+                }
             }
         }
         super.onCreate(savedInstanceState);

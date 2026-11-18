@@ -10,7 +10,7 @@ import android.os.PersistableBundle
 /**
  * Receveur Device Admin de l'app enfant, désigné Device Owner par le QR de
  * provisionnement (nom fixé dans server/src/routes/devices.js, DEVICE_ADMIN_COMPONENT).
- * Ici, il ne fait que retenir le jeton d'appairage ; le verrouillage viendra avec NAR-139.
+ * Il retient le jeton d'appairage ; le verrou est posé ensuite par l'app (Kiosk, NAR-167).
  */
 class AkaikyDeviceAdminReceiver : DeviceAdminReceiver() {
 
