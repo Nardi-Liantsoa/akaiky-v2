@@ -33,11 +33,11 @@ describe('appKind', () => {
     expect(getInfo).toHaveBeenCalledTimes(1)
   })
 
-  it('lecture native en échec : parent, puis nouvel essai', async () => {
+  it('lecture native en échec : enfant (échec fermé), puis nouvel essai', async () => {
     native.value = true
-    getInfo.mockRejectedValueOnce(new Error('indisponible')).mockResolvedValueOnce({ id: 'mg.nosytech.akaiky.enfant' })
+    getInfo.mockRejectedValueOnce(new Error('indisponible')).mockResolvedValueOnce({ id: 'mg.nosytech.akaiky' })
     const { appKind } = await import('./appKind')
-    expect(await appKind()).toBe('parent')
     expect(await appKind()).toBe('enfant')
+    expect(await appKind()).toBe('parent')
   })
 })

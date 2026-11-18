@@ -2,4 +2,6 @@
 <resources>
     <string name="app_name">Akaiky</string>
     <string name="title_activity_main">Akaiky</string>
+    <string name="package_name">mg.nosytech.akaiky</string>
+    <string name="custom_url_scheme">mg.nosytech.akaiky</string>
 </resources>

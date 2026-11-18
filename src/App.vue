@@ -14,8 +14,10 @@ async function onLogout() {
 </script>
 
 <template>
-  <!-- L'app enfant n'a ni compte ni navigation : pas d'en-tête. -->
-  <header v-if="!route.meta.childApp" class="nav">
+  <!-- L'app enfant n'a ni compte ni navigation : pas d'en-tête. Rien non plus avant
+       la première navigation (matched vide) : l'app enfant ne voit jamais, même un
+       instant, la navigation parent pendant que appKind() lit l'identifiant natif. -->
+  <header v-if="route.matched.length && !route.meta.childApp" class="nav">
     <RouterLink class="brand" :to="{ name: 'accueil' }">Akaiky</RouterLink>
     <nav>
       <template v-if="auth.user">
