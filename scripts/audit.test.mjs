@@ -12,7 +12,7 @@ const report = (...advisories) => ({
   ])
 })
 const picomatch = { source: 1, name: 'picomatch', severity: 'high', url: 'https://github.com/advisories/GHSA-fc5q-39xc-vjpf' }
-const exception = { id: 'GHSA-fc5q-39xc-vjpf', package: 'picomatch', reason: 'outillage seul', added: '2026-11-18', expires: '2026-12-18' }
+const exception = { id: 'GHSA-fc5q-39xc-vjpf', package: 'picomatch', severity: 'high', reason: 'outillage seul', added: '2026-11-18', expires: '2026-12-18' }
 
 test('avis listé, exception valable : vert', () => {
   assert.deepEqual(evaluate(report(picomatch), [exception], '2026-11-18'), { ok: true, problems: [] })
@@ -53,6 +53,25 @@ test('rapport en erreur ou illisible : rouge', () => {
   assert.equal(evaluate(null, [exception], '2026-11-18').ok, false)
 })
 
-test('exception mal formée : rouge', () => {
+test('exception mal formée ou fichier qui n’est pas une liste : rouge, sans exception levée', () => {
   assert.equal(evaluate(report(picomatch), [{ ...exception, expires: undefined }], '2026-11-18').ok, false)
+  assert.equal(evaluate(report(picomatch), [{ ...exception, id: 123 }], '2026-11-18').ok, false)
+  assert.equal(evaluate(report(picomatch), [{ ...exception, severity: undefined }], '2026-11-18').ok, false)
+  assert.equal(evaluate(report(picomatch), exception, '2026-11-18').ok, false)
+  assert.equal(evaluate(report(picomatch), null, '2026-11-18').ok, false)
+})
+
+test('exception de plus de 30 jours, ou expirant avant son ajout : rouge', () => {
+  assert.match(evaluate(report(picomatch), [{ ...exception, expires: '2099-12-31' }], '2026-11-18').problems.join(), /30 jours au plus/)
+  assert.equal(evaluate(report(picomatch), [{ ...exception, expires: '2026-11-17' }], '2026-11-18').ok, false)
+})
+
+test('avis rétrogradé en low : toujours couvert, pas « devenue inutile »', () => {
+  assert.equal(evaluate(report({ ...picomatch, severity: 'low' }), [exception], '2026-11-18').ok, true)
+})
+
+test('avis passé à une gravité supérieure à celle acceptée : rouge', () => {
+  const r = evaluate(report({ ...picomatch, severity: 'critical' }), [exception], '2026-11-18')
+  assert.equal(r.ok, false)
+  assert.match(r.problems.join(), /passé en critical/)
 })

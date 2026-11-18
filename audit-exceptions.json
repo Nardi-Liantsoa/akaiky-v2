@@ -2,6 +2,7 @@
   {
     "id": "GHSA-fc5q-39xc-vjpf",
     "package": "picomatch",
+    "severity": "high",
     "reason": "ReDoS sur extglobs répétés, aucune version corrigée (picomatch <= 4.0.7, vérifié le 18/11/2026). Outillage de construction seulement (vite, tinyglobby, vitest, vue-router, vue-tsc) : absent de dist/web et du serveur ; motifs de glob issus de nos fichiers de configuration, jamais d'une entrée utilisateur. NAR-159.",
     "added": "2026-11-18",
     "expires": "2026-12-18"
