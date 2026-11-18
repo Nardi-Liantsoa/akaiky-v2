@@ -1,0 +1,65 @@
+import { expect, test } from '@playwright/test'
+import { FAMILY, mockApi, USER } from './mock'
+
+const me = { 'GET /api/auth/me': () => ({ body: { user: USER } }), 'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }) }
+const FY = { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'yellow', createdAt: '2026-11-10T10:00:00Z', parentCodeSetAt: null }
+const contacts = { [`GET /api/children/${FY.id}/contacts`]: () => ({ body: { version: 1, max: 6, country: 'MG', contacts: [] } }) }
+const PUT = `PUT /api/children/${FY.id}/parent-code`
+
+test('le gestionnaire définit le code parent : refus immédiats, puis « défini le … »', async ({ page }) => {
+  const calls = await mockApi(page, {
+    ...me, ...contacts,
+    'GET /api/families/me': () => ({ body: FAMILY }),
+    'GET /api/children': () => ({ body: [FY] }),
+    [PUT]: () => ({ body: { parentCodeSetAt: '2026-11-18T09:00:00Z' } })
+  })
+  await page.goto('/espace/reglages')
+  await expect(page.getByText('Pas encore défini')).toBeVisible()
+  await page.getByRole('button', { name: 'Définir le code' }).click()
+  const code = page.getByLabel('Nouveau code (6 chiffres)'), confirm = page.getByLabel('Confirmer le code')
+  // Seuls les chiffres passent, six au plus.
+  await code.fill('12a3456789')
+  await expect(code).toHaveValue('123456')
+  await confirm.fill('123456')
+  await page.getByRole('button', { name: 'Enregistrer le code' }).click()
+  await expect(page.getByRole('alert')).toHaveText(/trop facile à deviner/)
+  await code.fill('482915')
+  await confirm.fill('482916')
+  await page.getByRole('button', { name: 'Enregistrer le code' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Les deux codes ne sont pas identiques.')
+  expect(calls.filter((r) => r.method() === 'PUT')).toHaveLength(0)
+
+  await confirm.fill('482915')
+  await page.getByRole('button', { name: 'Enregistrer le code' }).click()
+  await expect(page.getByText('Défini le 18 novembre.')).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'Code enregistré' })).toBeVisible()
+  await expect(page.getByLabel('Nouveau code (6 chiffres)')).toHaveCount(0)
+  expect(calls.find((r) => r.method() === 'PUT')!.postDataJSON()).toEqual({ code: '482915' })
+  await expect(page.getByRole('button', { name: 'Changer le code' })).toBeVisible()
+})
+
+test('refus du serveur traduit ; un contact voit l’état sans pouvoir changer le code', async ({ page }) => {
+  await mockApi(page, {
+    ...me, ...contacts,
+    'GET /api/families/me': () => ({ body: FAMILY }),
+    'GET /api/children': () => ({ body: [FY] }),
+    [PUT]: () => ({ status: 400, body: { error: '…', code: 'weak_parent_code' } })
+  })
+  await page.goto('/espace/reglages')
+  await page.getByRole('button', { name: 'Définir le code' }).click()
+  await page.getByLabel('Nouveau code (6 chiffres)').fill('482915')
+  await page.getByLabel('Confirmer le code').fill('482915')
+  await page.getByRole('button', { name: 'Enregistrer le code' }).click()
+  await expect(page.getByRole('alert')).toHaveText(/trop facile à deviner/)
+
+  const asMember = { ...FAMILY, role: 'member', members: [{ userId: USER.id, name: USER.name, role: 'member', isMe: true }] }
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
+  await mockApi(page, {
+    ...me, ...contacts,
+    'GET /api/families/me': () => ({ body: asMember }),
+    'GET /api/children': () => ({ body: [{ ...FY, parentCodeSetAt: '2026-11-17T09:00:00Z' }] })
+  })
+  await page.reload()
+  await expect(page.getByText('Défini le 17 novembre.')).toBeVisible()
+  await expect(page.getByRole('button', { name: /le code/ })).toHaveCount(0)
+})

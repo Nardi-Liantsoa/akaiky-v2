@@ -34,6 +34,20 @@ describe('createConfigSync', () => {
     expect(JSON.parse(store.data.get(CONFIG_KEY)!).etag).toBe('"fy.4"')
   })
 
+  it('code parent : gardé avec la config ; une réponse mal formée n’écrase pas le cache valable', async () => {
+    const store = memoryStore()
+    const hash = 'pbkdf2-sha256$600000$c2Vs$Y2xl'
+    const getIfChanged = vi.fn()
+      .mockResolvedValueOnce({ data: { version: 4, parentCode: hash, contacts: [MAMAN] }, etag: '"fy.4"' })
+      .mockResolvedValueOnce({ data: { version: 5, parentCode: 42, contacts: [] }, etag: '"fy.5"' })
+    const sync = createConfigSync({ session: session(getIfChanged), store })
+    await sync.load('fy')
+    expect((await sync.refresh())?.parentCode).toBe(hash)
+    await expect(sync.refresh()).rejects.toThrow()
+    expect(JSON.parse(store.data.get(CONFIG_KEY)!).config).toEqual({ version: 4, parentCode: hash, contacts: [MAMAN] })
+    expect((await createConfigSync({ session: session(vi.fn()), store }).load('fy'))?.parentCode).toBe(hash)
+  })
+
   it('cache d’un autre enfant (téléphone réappairé) : ignoré', async () => {
     const store = memoryStore()
     store.data.set(CONFIG_KEY, cache('ancien', '"ancien.3"'))

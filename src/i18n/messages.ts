@@ -215,6 +215,22 @@ const fr = {
     memberGone: 'Ce membre ne fait plus partie de la famille.',
     memberLinked: 'Ce membre est déjà lié à un autre contact de cet enfant.'
   },
+  parentCode: {
+    title: 'Code parent',
+    hint: 'Six chiffres pour sortir du mode verrouillé sur le téléphone de l’enfant. Ne le donnez pas à l’enfant.',
+    setOn: (date: string) => `Défini le ${date}.`,
+    notSet: 'Pas encore défini : sans code, le téléphone ne pourra pas être déverrouillé.',
+    set: 'Définir le code',
+    change: 'Changer le code',
+    code: 'Nouveau code (6 chiffres)',
+    confirm: 'Confirmer le code',
+    save: 'Enregistrer le code',
+    cancel: 'Annuler',
+    saved: 'Code enregistré. Le téléphone le recevra à sa prochaine connexion.',
+    invalid: 'Le code doit compter exactement 6 chiffres.',
+    weak: 'Code trop facile à deviner : évitez les chiffres identiques, les suites et les motifs répétés.',
+    mismatch: 'Les deux codes ne sont pas identiques.'
+  },
   child: {
     waiting: 'Ce téléphone sera bientôt prêt.',
     hint: 'Un parent va le configurer depuis son application.',
@@ -476,6 +492,22 @@ const mg: Messages = {
     memberGone: 'Tsy ao amin’ny fianakaviana intsony io mpikambana io.',
     memberLinked: 'Efa mifandray amin’ny mpifandray hafa an’ity zaza ity io mpikambana io.'
   },
+  parentCode: {
+    title: 'Kaody ray aman-dreny',
+    hint: 'Isa enina hialana amin’ny fanidiana eo amin’ny findain’ny zaza. Aza omena ny zaza.',
+    setOn: (date: string) => `Napetraka tamin’ny ${date}.`,
+    notSet: 'Mbola tsy napetraka : raha tsy misy kaody dia tsy afaka sokafana ny finday.',
+    set: 'Hametraka ny kaody',
+    change: 'Hanova ny kaody',
+    code: 'Kaody vaovao (isa 6)',
+    confirm: 'Hamarino ny kaody',
+    save: 'Hitahiry ny kaody',
+    cancel: 'Hanafoana',
+    saved: 'Voatahiry ny kaody. Hahazo azy ny finday rehefa mifandray indray.',
+    invalid: 'Tsy maintsy isa 6 marina ny kaody.',
+    weak: 'Mora loha-vinaina loatra ny kaody : aza mampiasa isa mitovy, mifanarakaraka na miverimberina.',
+    mismatch: 'Tsy mitovy ireo kaody roa.'
+  },
   child: {
     waiting: 'Ho vonona tsy ho ela ity finday ity.',
     hint: 'Ray aman-dreny iray no handrindra azy avy amin’ny rindranasany.',
@@ -734,6 +766,22 @@ const en: Messages = {
     notFound: 'This contact no longer exists.',
     memberGone: 'This member is no longer in the family.',
     memberLinked: 'This member is already linked to another contact of this child.'
+  },
+  parentCode: {
+    title: 'Parent code',
+    hint: 'Six digits to leave locked mode on the child’s phone. Do not share it with the child.',
+    setOn: (date: string) => `Set on ${date}.`,
+    notSet: 'Not set yet: without a code, the phone cannot be unlocked.',
+    set: 'Set the code',
+    change: 'Change the code',
+    code: 'New code (6 digits)',
+    confirm: 'Confirm the code',
+    save: 'Save the code',
+    cancel: 'Cancel',
+    saved: 'Code saved. The phone will receive it the next time it connects.',
+    invalid: 'The code must be exactly 6 digits.',
+    weak: 'This code is too easy to guess: avoid repeated digits, sequences and patterns.',
+    mismatch: 'The two codes do not match.'
   },
   child: {
     waiting: 'This phone will be ready soon.',
