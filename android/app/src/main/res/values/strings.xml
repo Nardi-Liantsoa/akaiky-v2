@@ -1,5 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
     <!-- app_name, title_activity_main : propres à chaque variante (src/parent, src/enfant).
-         package_name, custom_url_scheme : générés depuis l'applicationId (build.gradle). -->
+         Pas de schéma d'URL personnalisé : les liens profonds (App Links vérifiés) viendront
+         avec l'appairage. -->
 </resources>

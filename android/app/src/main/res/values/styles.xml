@@ -15,8 +15,9 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
-        <!-- Blanche avec icônes sombres dès Android 8.1 (API 27) ; noire sur Android 8.0,
-             qui ne sait pas assombrir les icônes (values-v27/colors_nav.xml). -->
+        <!-- Blanche à icônes sombres. Les icônes sombres viennent du greffon SystemBars
+             (drapeau disponible dès Android 8.0) ; l'attribut de thème, lui, n'existe
+             qu'à partir de 8.1 et ne sert qu'avant le chargement du greffon. -->
         <item name="android:navigationBarColor">@color/navigation_bar</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
     </style>

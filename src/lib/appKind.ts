@@ -13,20 +13,19 @@ export const CHILD_APP_ID = 'mg.nosytech.akaiky.enfant'
 export const kindFromAppId = (id: string | null | undefined): AppKind =>
   id === CHILD_APP_ID || id?.startsWith(`${CHILD_APP_ID}.`) ? 'enfant' : 'parent'
 
-// Dernier résultat lu, pour l'affichage (en-tête) : null tant qu'il n'est pas connu.
-// Mis à jour à chaque lecture, y compris au nouvel essai après un échec.
+// Résultat pour l'affichage (en-tête) : null tant qu'il n'est pas connu.
 export const currentKind = ref<AppKind | null>(null)
 
+// Lu une seule fois par lancement, et retenu même en cas d'échec : routeur, en-tête
+// et bouton retour voient toujours la même réponse. Lecture native en échec ou
+// identifiant vide (appel local, ne devrait pas arriver) : enfant. On échoue fermé :
+// le téléphone de l'enfant ne doit jamais montrer l'espace parent ; l'écran enfant,
+// lui, ne montre rien (un parent qui le verrait force l'arrêt de l'app).
 let pending: Promise<AppKind> | null = null
 export function appKind(): Promise<AppKind> {
-  // Lecture native en échec (appel local, ne devrait pas arriver) : enfant, sans le
-  // retenir, pour réessayer à la navigation suivante. On échoue fermé : le
-  // téléphone de l'enfant ne doit jamais montrer l'espace parent, alors que l'écran
-  // enfant ne montre rien (un parent relance l'app).
-  // Identifiant vide : même échec fermé.
-  const failClosed = (): AppKind => { pending = null; return 'enfant' }
-  pending ??= Capacitor.isNativePlatform()
-    ? App.getInfo().then((info) => (info.id ? kindFromAppId(info.id) : failClosed()), failClosed)
-    : Promise.resolve('parent')
-  return pending.then((kind) => { currentKind.value = kind; return kind })
+  pending ??= (Capacitor.isNativePlatform()
+    ? App.getInfo().then((info): AppKind => (info.id ? kindFromAppId(info.id) : 'enfant'), (): AppKind => 'enfant')
+    : Promise.resolve<AppKind>('parent')
+  ).then((kind) => { currentKind.value = kind; return kind })
+  return pending
 }

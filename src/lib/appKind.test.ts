@@ -35,29 +35,28 @@ describe('appKind', () => {
     expect(getInfo).toHaveBeenCalledTimes(1)
   })
 
-  it('lecture native en échec : enfant (échec fermé), puis nouvel essai', async () => {
+  it('lecture native en échec : enfant (échec fermé), retenu pour tout le lancement', async () => {
     native.value = true
-    getInfo.mockRejectedValueOnce(new Error('indisponible')).mockResolvedValueOnce({ id: 'mg.nosytech.akaiky' })
-    const { appKind } = await import('./appKind')
-    expect(await appKind()).toBe('enfant')
-    expect(await appKind()).toBe('parent')
-  })
-
-  it('natif, identifiant vide : enfant (échec fermé), puis nouvel essai', async () => {
-    native.value = true
-    getInfo.mockResolvedValueOnce({ id: '' }).mockResolvedValueOnce({ id: 'mg.nosytech.akaiky' })
-    const { appKind } = await import('./appKind')
-    expect(await appKind()).toBe('enfant')
-    expect(await appKind()).toBe('parent')
-  })
-
-  it('currentKind suit la dernière lecture (en-tête de l’app)', async () => {
-    native.value = true
-    getInfo.mockRejectedValueOnce(new Error('indisponible')).mockResolvedValueOnce({ id: 'mg.nosytech.akaiky' })
+    getInfo.mockRejectedValueOnce(new Error('indisponible')).mockResolvedValue({ id: 'mg.nosytech.akaiky' })
     const { appKind, currentKind } = await import('./appKind')
     expect(currentKind.value).toBeNull()
-    await appKind()
+    expect(await appKind()).toBe('enfant')
+    expect(await appKind()).toBe('enfant')
     expect(currentKind.value).toBe('enfant')
+    expect(getInfo).toHaveBeenCalledTimes(1)
+  })
+
+  it('natif, identifiant vide : enfant (échec fermé)', async () => {
+    native.value = true
+    getInfo.mockResolvedValue({ id: '' })
+    const { appKind } = await import('./appKind')
+    expect(await appKind()).toBe('enfant')
+  })
+
+  it('currentKind reprend la lecture (en-tête de l’app)', async () => {
+    native.value = true
+    getInfo.mockResolvedValue({ id: 'mg.nosytech.akaiky' })
+    const { appKind, currentKind } = await import('./appKind')
     await appKind()
     expect(currentKind.value).toBe('parent')
   })
