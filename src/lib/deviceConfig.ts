@@ -1,28 +1,47 @@
 import { DeviceError, type DeviceSession, type SecretStore } from './deviceSession'
+import type { ScheduleRule } from './schedule'
 
 // Configuration du téléphone de l'enfant (NAR-160) : contacts autorisés, version.
 // Relevée avec ETag (304 si inchangée) et gardée pour fonctionner hors ligne.
 // Décision : le cache va dans le stockage sécurisé (Keystore), comme la session :
 // ce sont des données de mineurs (noms et numéros), jamais en localStorage.
 // Le cache est lié à l'enfant : celui d'un autre enfant (téléphone réappairé) est ignoré.
-export interface DeviceContact { id: string, name: string, phone: string, position: number, avatarColor: string }
+// parent : contact lié à un membre owner ou manager, seul montré pendant une plage « école ».
+export interface DeviceContact { id: string, name: string, phone: string, position: number, avatarColor: string, parent?: boolean }
 // parentCode : hachage « pbkdf2-sha256$<itérations>$<sel>$<clé> » du code parent (NAR-139),
 // vérifié hors ligne (NAR-167) ; null tant qu'aucun gestionnaire ne l'a défini. Absent d'une
 // config mise en cache avant ce champ : équivaut à null (aucun code n'existait encore, et le
 // premier code défini fait avancer la version, donc un relevé complet).
 // remoteUnlockUntil : fin d'un déverrouillage demandé par un parent (NAR-168), appliqué une fois.
 // messageTexts : textes modifiés des messages rapides, par emplacement (NAR-173).
-export interface DeviceConfig { version: number, country?: string, parentCode?: string | null, remoteUnlockUntil?: string | null, messageTexts?: Record<string, string>, contacts: DeviceContact[] }
+// schedules, timezone : plages « école » actives et fuseau de la famille (NAR-148). Absents
+// d'une config mise en cache avant ces champs : aucune plage (la première plage créée fait
+// avancer la version, donc un relevé complet, contacts « parent » compris).
+export interface DeviceConfig {
+  version: number, country?: string, parentCode?: string | null, remoteUnlockUntil?: string | null,
+  messageTexts?: Record<string, string>, schedules?: ScheduleRule[], timezone?: string, contacts: DeviceContact[]
+}
 export const CONFIG_KEY = 'device-config'
 
 interface Cached { childId: string, etag: string | null, config: DeviceConfig }
 
+const minute = (v: unknown) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 1439
+const validRule = (r: ScheduleRule | null) => typeof r?.label === 'string' && Number.isInteger(r.days) && r.days >= 1 && r.days <= 127
+  && minute(r.startMin) && minute(r.endMin) && r.startMin !== r.endMin
+// Plages mal formées écartées une à une : une plage abîmée ne bloque jamais le reste de
+// la configuration (contacts, code parent). Le fuseau inconnu est remplacé à l'usage.
+function clean<T extends Cached>(v: T): T {
+  if (Array.isArray(v.config.schedules)) v.config.schedules = v.config.schedules.filter(validRule)
+  return v
+}
 const valid = (v: unknown): v is Cached => {
   const c = (v as Cached | null)?.config
   return typeof (v as Cached | null)?.childId === 'string' && !!c && typeof c.version === 'number' && Array.isArray(c.contacts)
     && (c.parentCode === undefined || c.parentCode === null || typeof c.parentCode === 'string')
     && (c.remoteUnlockUntil === undefined || c.remoteUnlockUntil === null || typeof c.remoteUnlockUntil === 'string')
     && (c.messageTexts === undefined || (typeof c.messageTexts === 'object' && c.messageTexts !== null && Object.values(c.messageTexts).every((x) => typeof x === 'string')))
+    && (c.timezone === undefined || typeof c.timezone === 'string')
+    && (c.schedules === undefined || Array.isArray(c.schedules))
     && c.contacts.every((x) => typeof x?.id === 'string' && typeof x.name === 'string' && typeof x.phone === 'string')
 }
 
@@ -41,7 +60,7 @@ export function createConfigSync({ session, store }: { session: DeviceSession, s
       try {
         const raw = await store.get(CONFIG_KEY)
         const parsed = typeof raw === 'string' ? JSON.parse(raw) : null
-        cached = valid(parsed) && parsed.childId === forChild ? parsed : null
+        cached = valid(parsed) && parsed.childId === forChild ? clean(parsed) : null
       } catch {
         cached = null
       }
@@ -70,10 +89,11 @@ export function createConfigSync({ session, store }: { session: DeviceSession, s
       // Même contrôle qu'à la lecture : une réponse mal formée n'écrase pas un cache valable
       // (qui serait ensuite rejeté en entier au démarrage, contacts compris).
       if (!valid(next)) throw new Error('Configuration du téléphone mal formée.')
+      clean(next)
       const saved = await store.set(CONFIG_KEY, JSON.stringify(next)).then(() => true, () => false)
       if (gen !== generation) { await store.remove(CONFIG_KEY).catch(() => {}); return null }
       cached = saved ? next : { ...next, etag: null }
-      return res.data
+      return next.config
     }
   }
 }

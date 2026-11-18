@@ -15,6 +15,7 @@
 import { HttpError, audit, isUuid } from '../lib.js'
 import { REMOTE_UNLOCK_MINUTES, REMOTE_UNLOCK_SQL } from './children.js'
 import { templateAad } from './messages.js'
+import { scheduleOf } from './schedules.js'
 import { withTransaction } from '../db.js'
 import { MANAGERS, ROLES, lockOwnFamily, requireOwnFamily } from '../families.js'
 import { createLimiter, newToken, rateLimitKey, tokenHash } from '../security.js'
@@ -303,9 +304,18 @@ export async function deviceSessionRoutes(app) {
       const { rows: tpl } = await conn.query(
         'SELECT slot, text_enc FROM quick_message_templates WHERE child_id = $1 AND family_id = $2', [req.device.childId, req.device.familyId])
       const messageTexts = Object.fromEntries(tpl.map((r) => [r.slot, openField(r.text_enc, config.dataKey, templateAad(req.device.childId, r.slot))]))
+      // Contacts, avec « parent » : lié à un membre owner ou manager (seuls montrés pendant
+      // une plage « école », NAR-148). Ni le membre ni son rôle ne partent vers le téléphone.
       const { rows } = await conn.query(
-        `SELECT id, name_enc, phone_enc, position, avatar_color FROM allowed_contacts
-          WHERE child_id = $1 AND family_id = $2 ORDER BY position`, [req.device.childId, req.device.familyId])
+        `SELECT a.id, a.name_enc, a.phone_enc, a.position, a.avatar_color,
+                COALESCE(m.role IN ('owner', 'manager'), false) AS parent
+           FROM allowed_contacts a
+           LEFT JOIN memberships m ON m.family_id = a.family_id AND m.user_id = a.member_user_id
+          WHERE a.child_id = $1 AND a.family_id = $2 ORDER BY a.position`, [req.device.childId, req.device.familyId])
+      // Plages « école » actives (désactivées : non envoyées) et fuseau de la famille.
+      const { rows: plan } = await conn.query(
+        'SELECT * FROM schedules WHERE child_id = $1 AND family_id = $2 AND enabled ORDER BY start_min, id', [req.device.childId, req.device.familyId])
+      const { rows: [fam] } = await conn.query('SELECT timezone FROM families WHERE id = $1', [req.device.familyId])
       // Champ par champ : ni membre lié ni rôle, seulement ce que le téléphone affiche et appelle.
       return {
         version: Number(child.config_version),
@@ -318,12 +328,15 @@ export async function deviceSessionRoutes(app) {
         // le téléphone l'applique une fois (l'échéance sert d'identifiant de la demande).
         remoteUnlockUntil: child.remote_unlock_until ?? null,
         messageTexts,
+        timezone: fam.timezone,
+        schedules: plan.map((r) => { const s = scheduleOf(config, r); return { label: s.label, days: s.days, startMin: s.startMin, endMin: s.endMin } }),
         contacts: rows.map((r) => ({
           id: r.id,
           name: openField(r.name_enc, config.dataKey, contactAad(r.id, 'name')),
           phone: openField(r.phone_enc, config.dataKey, contactAad(r.id, 'phone')),
           position: r.position,
-          avatarColor: r.avatar_color
+          avatarColor: r.avatar_color,
+          parent: r.parent
         }))
       }
     })

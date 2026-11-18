@@ -7,6 +7,7 @@ import ChildSwitcher from '../../components/parent/ChildSwitcher.vue'
 import ContactsCard from '../../components/settings/ContactsCard.vue'
 import ParentCodeCard from '../../components/settings/ParentCodeCard.vue'
 import MessageTemplatesCard from '../../components/settings/MessageTemplatesCard.vue'
+import ScheduleCard from '../../components/settings/ScheduleCard.vue'
 import { useT } from '../../composables/useT'
 import { contactErrorText } from '../../lib/contactErrors'
 import { children, loadChildren, selectedChild } from '../../store/children'
@@ -60,6 +61,7 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
           <ContactsCard :child-id="current.id" />
         </template>
         <ParentCodeCard :child="current" />
+        <ScheduleCard :child-id="current.id" />
         <MessageTemplatesCard :child-id="current.id" />
       </template>
     </template>

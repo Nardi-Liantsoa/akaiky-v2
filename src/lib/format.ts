@@ -2,7 +2,7 @@ import type { Locale } from '../i18n/messages'
 
 // Dates à l'heure de Madagascar. Les noms de mois malgaches sont écrits ici :
 // Intl ne les fournit pas partout (WebView anciennes, iOS).
-const TZ = 'Indian/Antananarivo'
+export const TZ = 'Indian/Antananarivo'
 const MG_MONTHS = ['Janoary', 'Febroary', 'Martsa', 'Aprily', 'Mey', 'Jona', 'Jolay', 'Aogositra', 'Septambra', 'Oktobra', 'Novambra', 'Desambra']
 
 export function formatDay(iso: string, locale: Locale): string {
@@ -19,9 +19,10 @@ export function formatDay(iso: string, locale: Locale): string {
 
 const MG_DAYS = ['Alahady', 'Alatsinainy', 'Talata', 'Alarobia', 'Alakamisy', 'Zoma', 'Asabotsy']
 
-// Heure de l'écran de l'enfant (« 14:05 »), à l'heure de Madagascar.
-export function formatClock(date: Date): string {
-  return new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
+// Heure de l'écran de l'enfant (« 14:05 »), à l'heure de Madagascar ou du fuseau donné
+// (fin d'une plage « école », dans le fuseau de la famille).
+export function formatClock(date: Date, timeZone: string = TZ): string {
+  return new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
 }
 
 // Jour et date de l'écran de l'enfant (« mardi 18 novembre », « Talata 18 Novambra »).

@@ -47,6 +47,9 @@ GRANT UPDATE (token_hash, expires_at, last_seen_at, refresh_hash, previous_refre
 GRANT INSERT ON device_events TO app_runtime;
 -- Messages rapides (012_quick_messages.sql) : ajout seul.
 GRANT INSERT ON quick_messages, quick_message_reads TO app_runtime;
+-- Plages horaires « école » (014_schedules.sql).
+GRANT INSERT, DELETE ON schedules TO app_runtime;
+GRANT UPDATE (label_enc, days_mask, start_min, end_min, enabled) ON schedules TO app_runtime;
 -- Textes des messages rapides (013_message_templates.sql).
 GRANT INSERT, DELETE ON quick_message_templates TO app_runtime;
 GRANT UPDATE (text_enc, updated_at) ON quick_message_templates TO app_runtime;
