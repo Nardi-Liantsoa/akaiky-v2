@@ -4,6 +4,7 @@
 //   POST /children/:id/pairing   owner, manager : jeton 15 min, usage unique, et
 //                                 la charge utile du QR de provisionnement Android ;
 //   GET  /children/:id/devices   membres : téléphones appairés actifs ;
+//   GET  /children/:id/calls     membres : appels de l'enfant (sortants, reçus, bloqués), NAR-145 ;
 //   POST /devices/:id/revoke     owner, manager : révocation immédiate.
 // Côté téléphone (session d'appareil, préfixe /api/device) :
 //   POST /pair     public : jeton d'appairage → identifiants d'appareil ;
@@ -17,7 +18,7 @@ import { withTransaction } from '../db.js'
 import { MANAGERS, ROLES, lockOwnFamily, requireOwnFamily } from '../families.js'
 import { createLimiter, newToken, rateLimitKey, tokenHash } from '../security.js'
 import { securityAlert } from '../login-guard.js'
-import { openField, sealField } from '../crypto-fields.js'
+import { blindIndex, openField, sealField } from '../crypto-fields.js'
 import { contactAad } from './contacts.js'
 
 export const PAIRING_MINUTES = 15
@@ -86,12 +87,15 @@ const EVENTS = {
           id: { type: 'string', maxLength: 36 },
           // call_out : appel sortant (contactId requis) ; unlock : sortie du verrou (NAR-168,
           // source requise, durée de la sortie en secondes).
-          kind: { type: 'string', enum: ['call_out', 'unlock'] },
+          // call_in : appel reçu d'un contact ; call_blocked : appel rejeté sans sonnerie
+          // (numéro hors liste, ou masqué : sans numéro), NAR-145.
+          kind: { type: 'string', enum: ['call_out', 'call_in', 'call_blocked', 'unlock'] },
           source: { type: 'string', enum: ['code', 'remote'] },
           contactId: { type: 'string', maxLength: 36 },
           // Instantané au moment de l'appel : le contact peut être retiré avant l'envoi.
           name: { type: 'string', maxLength: 200 },
-          phone: { type: 'string', pattern: '^\\+[1-9][0-9]{6,14}$' },
+          // Contact : E.164. Numéro bloqué : tel que reçu (E.164 si possible, sinon chiffres).
+          phone: { type: 'string', pattern: '^\\+?[0-9]{2,15}$' },
           startedAt: { type: 'string', maxLength: 40 },
           durationS: { type: ['integer', 'null'], minimum: 0, maximum: 86400 }
         }
@@ -150,6 +154,41 @@ export async function devicesRoutes(app) {
       `SELECT id, model, os_version, app_version, created_at, last_seen_at FROM child_devices
         WHERE child_id = $1 AND family_id = $2 AND revoked_at IS NULL ORDER BY created_at, id`, [id, own.familyId])
     return rows.map((r) => ({ id: r.id, model: r.model, osVersion: r.os_version, appVersion: r.app_version, createdAt: r.created_at, lastSeenAt: r.last_seen_at }))
+  })
+
+  // Appels de l'enfant (NAR-145) : sortants, reçus et bloqués, du plus récent au plus
+  // ancien, par pages de 50 ; curseur (date, id) : ni doublon ni trou quand de nouveaux
+  // appels arrivent pendant la lecture. Tous les membres de la famille ; jamais l'admin
+  // de la plateforme (pas membre). Champ par champ, numéros déchiffrés ici seulement.
+  const CALL_KINDS = ['call_out', 'call_in', 'call_blocked']
+  app.get('/children/:id/calls', async (req) => {
+    const id = childId(req)
+    const own = await requireOwnFamily(db, req, ROLES)
+    const { rows: [child] } = await db.query('SELECT id FROM children WHERE id = $1 AND family_id = $2', [id, own.familyId])
+    if (!child) throw childNotFound()
+    const kind = typeof req.query.kind === 'string' && CALL_KINDS.includes(req.query.kind) ? [req.query.kind] : CALL_KINDS
+    const [beforeAt, beforeId] = typeof req.query.before === 'string' ? req.query.before.split('_') : []
+    const cursor = beforeAt && !Number.isNaN(Date.parse(beforeAt)) && isUuid(beforeId) ? [new Date(beforeAt), beforeId] : null
+    const { rows } = await db.query(
+      `SELECT id, kind, contact_id, name_enc, phone_enc, started_at, duration_s FROM device_events
+        WHERE child_id = $1 AND family_id = $2 AND kind = ANY($3::text[])
+          AND ($4::timestamptz IS NULL OR (started_at, id) < ($4, $5::uuid))
+        ORDER BY started_at DESC, id DESC LIMIT 51`,
+      [id, own.familyId, kind, cursor?.[0] ?? null, cursor?.[1] ?? null])
+    const page = rows.slice(0, 50)
+    const last = page.at(-1)
+    return {
+      calls: page.map((r) => ({
+        id: r.id,
+        kind: r.kind,
+        contactId: r.contact_id,
+        name: r.name_enc ? openField(r.name_enc, config.dataKey, eventAad(r.id, 'name')) : null,
+        phone: r.phone_enc ? openField(r.phone_enc, config.dataKey, eventAad(r.id, 'phone')) : null,
+        startedAt: r.started_at,
+        durationS: r.duration_s
+      })),
+      next: rows.length > 50 && last ? `${last.started_at.toISOString()}_${last.id}` : null
+    }
   })
 
   app.post('/devices/:id/revoke', async (req) => {
@@ -304,10 +343,15 @@ export async function deviceSessionRoutes(app) {
         const unlock = e.kind === 'unlock'
         // Forme propre à chaque type : un appel a un contact, un déverrouillage une origine
         // et aucune donnée de contact (au plus 15 minutes).
+        const e164 = typeof e.phone === 'string' && /^\+[1-9][0-9]{6,14}$/.test(e.phone)
         const shaped = unlock
           ? e.source !== undefined && e.contactId === undefined && e.name === undefined && e.phone === undefined
             && typeof e.durationS === 'number' && e.durationS > 0 && e.durationS <= REMOTE_UNLOCK_MINUTES * 60
-          : e.source === undefined && isUuid(e.contactId)
+          : e.kind === 'call_blocked'
+            ? e.source === undefined && e.contactId === undefined && e.name === undefined && (e.durationS === undefined || e.durationS === null)
+            : e.kind === 'call_in'
+              ? e.source === undefined && e164 && (e.contactId === undefined || isUuid(e.contactId))
+              : e.source === undefined && isUuid(e.contactId) && (e.phone === undefined || e164)
         const plausible = shaped && isUuid(e.id) && !Number.isNaN(started)
           && started <= now + 5 * 60000 && started >= now - 90 * 86400000
         const contact = known.get(e.contactId)
@@ -315,12 +359,14 @@ export async function deviceSessionRoutes(app) {
         if (!plausible || foreign) { rejected.push(e.id); continue }
         const name = typeof e.name === 'string' ? e.name.trim().slice(0, 80) : ''
         const insert = (contactId) => conn.query(
-          `INSERT INTO device_events(id, family_id, child_id, device_id, kind, contact_id, name_enc, phone_enc, started_at, duration_s, unlock_source)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (id) DO NOTHING`,
+          `INSERT INTO device_events(id, family_id, child_id, device_id, kind, contact_id, name_enc, phone_enc, started_at, duration_s, unlock_source, phone_index)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) ON CONFLICT (id) DO NOTHING`,
           [e.id, req.device.familyId, req.device.childId, req.device.id, e.kind, contactId,
             name ? sealField(name, config.dataKey, eventAad(e.id, 'name')) : null,
             e.phone ? sealField(e.phone, config.dataKey, eventAad(e.id, 'phone')) : null,
-            new Date(started), e.durationS ?? null, unlock ? e.source : null])
+            new Date(started), e.durationS ?? null, unlock ? e.source : null,
+            // Index aveugle : regrouper les appels d'un même numéro sans le déchiffrer.
+            e.phone ? blindIndex(e.phone, config.dataKey, 'phone') : null])
         await conn.query('SAVEPOINT ev')
         let rowCount
         try {
