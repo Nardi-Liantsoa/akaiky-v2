@@ -8,6 +8,7 @@ import { consumeQuota, createAuthQueue } from '../quotas.js'
 import { createLoginGuard, securityAlert } from '../login-guard.js'
 import { nativeRoutes } from '../native.js'
 import { setTimeout as delay } from 'node:timers/promises'
+import { passwordOf } from '../password-confirm.js'
 
 // Réponse identique que l'adresse existe ou non : l'API ne révèle jamais
 // quels emails ont un compte.
@@ -107,6 +108,57 @@ export default async function authRoutes(app) {
   }
 
   app.get('/me', PUBLIC, async (req) => ({ user: req.user ? me(req.user) : null }))
+
+  // Suppression de son propre compte, mot de passe redemandé. Un parent principal doit
+  // d'abord céder ce rôle ou supprimer la famille : une famille ne reste jamais sans owner ;
+  // le dernier administrateur, en nommer un autre. Par cascade : sessions (cookie et Bearer),
+  // appareils de confiance, MFA, jetons, adhésion, « vu par » ; lien d'un contact autorisé
+  // vers ce membre effacé, invitations envoyées sans invitant (celles en attente sont
+  // supprimées ici). Toutes les invitations reçues à son adresse, acceptées comprises, sont
+  // supprimées : l'adresse est une donnée personnelle et une invitation utilisée n'est plus lue.
+  const ownerMustTransfer = () => new HttpError(409, 'Cédez d’abord le rôle de parent principal ou supprimez la famille.', 'owner_must_transfer_or_delete')
+  const lastAdmin = () => new HttpError(409, 'Dernier administrateur : nommez-en un autre avant de supprimer ce compte.', 'last_admin')
+  const isLastAdmin = async (conn, userId) => (await conn.query(
+    `SELECT 1 FROM users u WHERE u.id = $1 AND u.is_admin
+        AND NOT EXISTS (SELECT 1 FROM users o WHERE o.is_admin AND o.id <> u.id)`, [userId])).rows.length > 0
+  app.delete('/me', async (req, reply) => {
+    const user = app.requireUser(req)
+    const ownerCheck = await db.query("SELECT 1 FROM memberships WHERE user_id = $1 AND role = 'owner'", [user.id])
+    if (ownerCheck.rows.length) throw ownerMustTransfer()
+    if (await isLastAdmin(db, user.id)) throw lastAdmin()
+    const password = passwordOf(req.body)
+    const address = email(user.email)
+    await app.confirmPassword(req, password, async (conn) => {
+      // Adhésion verrouillée quel que soit son rôle, et rôle relu ici : les changements de
+      // rôle et les départs verrouillent toutes les adhésions de la famille (lockedMembers,
+      // families.js), donc une promotion simultanée passe avant (→ 409) ou après (adhésion
+      // déjà effacée → membre introuvable). Ordre des verrous : invitations reçues (lockFirst),
+      // utilisateur, puis adhésion.
+      const { rows: [membership] } = await conn.query(
+        'SELECT family_id, role FROM memberships WHERE user_id = $1 FOR UPDATE', [user.id])
+      if (membership?.role === 'owner') throw ownerMustTransfer()
+      // Deux administrateurs qui se suppriment en même temps : l'un après l'autre (verrou de
+      // transaction), le second relit la base après la validation du premier et est refusé.
+      const { rows: [admin] } = await conn.query('SELECT is_admin FROM users WHERE id = $1', [user.id])
+      if (admin?.is_admin) {
+        await conn.query("SELECT pg_advisory_xact_lock(hashtext('akaiky:last_admin'))")
+        if (await isLastAdmin(conn, user.id)) throw lastAdmin()
+      }
+      await conn.query('DELETE FROM invitations WHERE invited_by = $1 AND used_at IS NULL', [user.id])
+      await conn.query('DELETE FROM invitations WHERE email = $1', [address])
+      await audit(conn, req, 'account_deleted', user.id)
+      await conn.query('DELETE FROM users WHERE id = $1', [user.id])
+    }, {
+      // Même ordre que l'acceptation (invitation verrouillée, puis la ligne de l'utilisateur
+      // par la clé étrangère de l'adhésion créée) : sinon interblocage avec une acceptation
+      // simultanée par ce même compte.
+      lockFirst: (conn) => conn.query('SELECT id FROM invitations WHERE email = $1 FOR UPDATE', [address]),
+    })
+    authCookie(reply, config, 'session', '', 0)
+    authCookie(reply, config, 'challenge', '', 0)
+    authCookie(reply, config, 'device', '', 0)
+    return { ok: true }
+  })
 
   app.post('/register', PUBLIC, async (req, reply) => {
     const b = req.body || {}

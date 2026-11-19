@@ -42,7 +42,7 @@ leur moyen de preuve est à fixer avec le ticket qui les construit.
 - [C18] (prévu) Un proche invité avec le rôle « contact » appelle l'enfant et reçoit les SOS, mais ne peut modifier aucun réglage. (CdC C16)
 - [C19] (prévu) Un parent ne voit jamais les données d'une autre famille. (CdC C17)
 - [C20] (prévu) Les positions de plus de 30 jours sont supprimées. (CdC C18)
-- [C21] (prévu) La suppression du compte efface les données de la famille. (CdC C19)
+- [C21] La suppression du compte efface les données de la famille. (CdC C19)
 - [C22] (prévu) L'application est disponible en malgache, en français et en anglais. (CdC C20)
 
 ## Qualité, sur toutes les pages

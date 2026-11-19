@@ -18,6 +18,8 @@ export interface Family {
 
 export const getMyFamily = () => api.get<Family>('/families/me')
 export const createFamily = (name: string) => api.post<Pick<Family, 'id' | 'name' | 'role'>>('/families', { name })
+// Owner seul, mot de passe redemandé ; tout ce qui dépend de la famille est effacé.
+export const deleteFamily = (password: string) => api.del<{ ok: true }>('/families/me', { password })
 export const renameFamily = (name: string) => api.patch<Pick<Family, 'id' | 'name' | 'role'>>('/families/me', { name })
 
 export type InviteRole = Exclude<FamilyRole, 'owner'>

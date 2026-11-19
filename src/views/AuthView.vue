@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, ApiError } from '../api/http'
 import { native } from '../api/transport'
@@ -8,6 +8,7 @@ import { auth, login, register, retry, setUser } from '../store/auth'
 import { useT } from '../composables/useT'
 import { errorText } from '../lib/errors'
 import { safeNext } from '../lib/nextPath'
+import { takeNotice } from '../store/notice'
 import PasswordInput from '../components/PasswordInput.vue'
 import MfaQr from '../components/MfaQr.vue'
 
@@ -30,6 +31,10 @@ const linkToken = ref('')
 const busy = ref(false)
 const error = ref('')
 const notice = ref('')
+// Arrivée juste après la suppression du compte : on le confirme. La clé est gardée,
+// le texte résolu à l'affichage (suit le changement de langue).
+const accountDeleted = ref(takeNotice('accountDeleted'))
+const shownNotice = computed(() => notice.value || (accountDeleted.value ? t.value.deletion.accountDeleted : ''))
 
 // Inscription en attente de confirmation : survit au rechargement (24 h), pour
 // que la personne ne croie pas son compte perdu. Effacée à la confirmation.
@@ -52,6 +57,7 @@ function go(next: Mode) {
   mode.value = next
   error.value = ''
   notice.value = ''
+  accountDeleted.value = false
 }
 
 async function run(task: () => Promise<void>) {
@@ -183,7 +189,7 @@ onMounted(async () => {
 
 <template>
   <main class="page narrow">
-    <p v-if="notice" class="notice" role="status">{{ notice }}</p>
+    <p v-if="shownNotice" class="notice" role="status">{{ shownNotice }}</p>
     <div v-if="auth.offline" class="notice" role="status">
       {{ auth.offline === 'network' ? t.errors.network : t.errors.busy }}
       <button type="button" class="link" :disabled="busy" @click="retryOffline">{{ t.errors.retry }}</button>

@@ -7,6 +7,7 @@ import { MANAGERS, ROLES, lockOwnFamily, notFound, requireOwnFamily, roleDenied 
 import { createLimiter, newToken } from '../security.js'
 import { authEmails } from '../mailer.js'
 import { consumeQuota } from '../quotas.js'
+import { passwordOf } from '../password-confirm.js'
 
 // Le schéma ne fait que borner l'entrée brute ; la règle (1 à 80 caractères
 // après retrait des espaces) est celle de text(), comme char_length en base.
@@ -121,6 +122,41 @@ export default async function familiesRoutes(app) {
       await audit(conn, req, 'family_renamed', row.id)
       return { id: row.id, name: row.name, role: row.role }
     })
+  })
+
+  // Suppression de la famille (owner seul, mot de passe redemandé). Le rôle est vérifié
+  // AVANT le corps : un non-owner reçoit 403 quoi qu'il envoie. Tout ce qui dépend de la
+  // famille part par cascade (adhésions, invitations, enfants, puis contacts, jetons
+  // d'appairage, téléphones et leurs sessions, journal, messages, modèles, plages).
+  // Le compte de l'owner reste, ses sessions aussi.
+  app.delete('/me', async (req) => {
+    app.requireUser(req)
+    await requireOwnFamily(db, req, ['owner']) // pas de famille → 404, autre rôle → 403
+    const password = passwordOf(req.body)
+    const { emails: others } = await app.confirmPassword(req, password, async (conn) => {
+      // Relu sous verrou (même ordre que les changements de rôle) : un owner rétrogradé
+      // entre-temps ne supprime rien.
+      const { familyId, members } = await lockedMembers(conn, req, ['owner'])
+      await conn.query('SELECT 1 FROM families WHERE id = $1 FOR UPDATE', [familyId])
+      const { rows: recipients } = await conn.query(
+        'SELECT u.email FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.family_id = $1 AND m.user_id <> $2',
+        [familyId, req.user.id])
+      const { rows: [{ children }] } = await conn.query('SELECT count(*)::int AS children FROM children WHERE family_id = $1', [familyId])
+      // Des comptes seulement : aucune donnée personnelle dans le journal.
+      await audit(conn, req, 'family_deleted', familyId, { members: members.length, children })
+      await conn.query('DELETE FROM families WHERE id = $1', [familyId])
+      return { emails: recipients.map((r) => r.email) }
+    })
+    // confirmPassword a rendu sa place dans la garde (et sa connexion) en revenant.
+    // Courriels en arrière-plan, après la réponse : la latence SMTP ne la retarde pas ;
+    // un échec est journalisé, la suppression est faite.
+    const log = req.log
+    setImmediate(async () => {
+      for (const to of others) {
+        try { await mailer.send({ to, ...emails.familyDeleted() }) } catch (e) { log.error({ err: e }, 'Avis de suppression de famille non envoyé') }
+      }
+    })
+    return { ok: true }
   })
 
   // --- Invitations (owner, manager) ---

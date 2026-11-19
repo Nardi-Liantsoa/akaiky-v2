@@ -5,6 +5,7 @@ import { join, extname, relative } from 'node:path'
 import { HttpError, SESSION_RULE } from './lib.js'
 import { tokenHash, createLimiter, rateLimitKey } from './security.js'
 import { readAuthCookie } from './auth-cookies.js'
+import { createPasswordConfirm } from './password-confirm.js'
 import authRoutes from './routes/auth.js'
 import adminRoutes from './routes/admin.js'
 import familiesRoutes from './routes/families.js'
@@ -100,6 +101,8 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   // 503 ; /health répond toujours (il ne doit jamais dépendre de la base).
   app.decorate('dbReady', dbReady)
   app.decorate('mailer', mailer)
+  // Mot de passe redemandé avant une suppression (famille, compte) : garde de connexion partagée.
+  app.decorate('confirmPassword', createPasswordConfirm(db))
 
   // Par IP et par minute. Derrière le NAT d'un opérateur mobile, beaucoup
   // d'utilisateurs partagent une adresse : à relever (API_RATE_LIMIT) si l'app
@@ -109,6 +112,8 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   // ~128 Mo (scrypt). Libérés à la réponse, au délai dépassé ou à l'abandon.
   const hashes = new Map(), hashingRequests = new Map()
   const HASHING = /^\/api\/auth\/(?:login|register|reset-password|native\/login)(?:\?|$)/
+  // Suppressions confirmées par mot de passe (famille, compte) : un calcul aussi.
+  const HASHING_DELETE = /^\/api\/(?:families|auth)\/me(?:\?|$)/
   app.addHook('onRequest', async (req, reply) => {
     const path = req.url.split('?')[0]
     let decoded
@@ -120,7 +125,7 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
       reply.header('retry-after', '60')
       throw new HttpError(429, 'Trop de requêtes. Réessayez dans une minute.')
     }
-    if (req.method === 'POST' && HASHING.test(req.url)) {
+    if ((req.method === 'POST' && HASHING.test(req.url)) || (req.method === 'DELETE' && HASHING_DELETE.test(req.url))) {
       const source = rateLimitKey(req.ip)
       if ((hashes.get(source) || 0) >= 2) throw new HttpError(429, 'Trop de requêtes simultanées. Réessayez.')
       hashes.set(source, (hashes.get(source) || 0) + 1)
