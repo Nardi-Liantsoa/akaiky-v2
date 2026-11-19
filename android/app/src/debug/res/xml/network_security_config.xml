@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Version de développement seulement (src/debug) : HTTPS partout, sauf 127.0.0.1, pour tester
+     la mise à jour de l'APK (NAR-170) avec un serveur local par `adb reverse`. Jamais dans
+     l'APK distribué (release : src/main/res/xml/network_security_config.xml). -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

@@ -64,6 +64,17 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
 - **APK enfant (NAR-165, 18/11/2026)** : signé par un keystore hors dépôt
   (`~/.config/akaiky-v2/`), embarqué dans l'image et servi à `/downloads/akaiky-enfant.apk`.
   Somme du certificat : `Gg-Buz0ZeueZt6lby12Z4DwwXw43F_xwO0XBWYshbyU` (`NOSYHOST.md` § 6).
+- **Mise à jour de l'APK enfant (NAR-170, 19/11/2026)** : `/api/device/config` annonce `apk: { versionCode, url, sha256 }`
+  (`DEVICE_APK_VERSION_CODE`, exigé en production avec `DEVICE_APK_URL` ; SHA-256 calculé au démarrage sur l'APK
+  embarqué, sinon `DEVICE_APK_SHA256` ; rien d'annoncé si l'empreinte de certificat, la version écrite par la
+  release ou l'empreinte configurée ne concordent pas ; dans l'ETag). L'écran (`src/lib/apkUpdate.ts`) essaie quand la
+  version est plus récente, sans SOS, une fois par 6 h, tout réseau ; le natif (`ApkUpdate.kt`, règles pures
+  `ApkUpdatePolicy.kt`) refuse pendant un appel, vérifie SHA-256, paquet, version annoncée et strictement supérieure,
+  certificat identique à l'installé, puis installe par `PackageInstaller` (Device Owner, sans confirmation).
+  `DISALLOW_INSTALL_APPS` levée seulement de la création de session au résultat (fenêtre persistée, reposée par le
+  résultat, une alarme de 5 min, tout démarrage du processus, `Kiosk.enforce`, redémarrage, remplacement du paquet) ;
+  `DISALLOW_INSTALL_UNKNOWN_SOURCES` jamais levée. App rouverte après remplacement (lock task à la reprise).
+  Limites : `HANDOFF.md`. Nouvelle coque enfant.
 - **WebView minimal (NAR-161, 18/11/2026)** : 64, la cible Chrome du bundle (`import()`,
   `import.meta`). En dessous, écran de repli statique en trois langues
   (`public/webview.html`) qui demande la mise à jour d'« Android System WebView ».

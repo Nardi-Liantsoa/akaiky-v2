@@ -74,6 +74,8 @@ MAIL_FROM=Akaiky <no-reply@akaiky.a-definir.invalid>         # domaine avec SPF 
 # DEVICE_APK_URL=https://akaiky.a-definir.invalid/downloads/akaiky-enfant.apk   # QR d'appairage (NAR-138, NAR-165)
 # DEVICE_APK_SIGNATURE_SHA256=<SHA-256 du certificat de signature, base64url>  # sans les deux : pas de QR (503)
 #   (exigent NATIVE_ORIGINS avec https://localhost : le téléphone appelle l'API depuis la WebView Android)
+# DEVICE_APK_VERSION_CODE=<versionCode>              # mise à jour des téléphones (NAR-170) ; exigé en production avec DEVICE_APK_URL
+# DEVICE_APK_SHA256=<SHA-256 hexadécimal du fichier>   # seulement si l'APK est servi ailleurs que par ce serveur
 # API_RATE_LIMIT=300                                   # requêtes/min/IP ; à relever derrière un NAT d'opérateur
 # PHONE_DEFAULT_COUNTRY=MG                            # pays des numéros saisis sans indicatif : MG ou FR
 # INVITATION_EMAILS_PER_HOUR=100                       # invitations envoyées par heure, tous comptes (budget séparé des courriels de compte)
@@ -155,7 +157,17 @@ Variables de l'app (avec `NATIVE_ORIGINS` contenant `https://localhost`) :
 ```
 DEVICE_APK_URL=https://<domaine>/downloads/akaiky-enfant.apk
 DEVICE_APK_SIGNATURE_SHA256=Gg-Buz0ZeueZt6lby12Z4DwwXw43F_xwO0XBWYshbyU
+DEVICE_APK_VERSION_CODE=<versionCode affiché par la release>
 ```
+
+`DEVICE_APK_VERSION_CODE` (NAR-170) est **exigé en production** dès que `DEVICE_APK_URL` est posé :
+les téléphones verrouillés se mettent à jour quand il dépasse leur version. Le SHA-256 du
+fichier est calculé au démarrage sur l'APK embarqué ; un APK servi ailleurs exige
+`DEVICE_APK_SHA256` (hexadécimal). Si la version configurée diffère de
+`akaiky-enfant.version-code` (écrit par la release, exigé dans l'image), ou l'empreinte de `DEVICE_APK_SHA256`
+de l'APK embarqué, l'API le journalise et n'annonce aucune mise à jour. **Avant le prochain
+déploiement de production avec `DEVICE_APK_URL` : poser `DEVICE_APK_VERSION_CODE`**, sinon
+l'application refuse de démarrer.
 
 La somme est publique (empreinte du certificat, pas un secret) ; elle ne change que si
 le keystore change, ce qui rendrait les téléphones existants impossibles à mettre à jour.

@@ -28,6 +28,8 @@ import { AkaikyKiosk, UNLOCK_MINUTES, type LaunchableApp } from '../../native/ki
 import { AkaikyBackground } from '../../native/akaikyBackground'
 import { API_BASE } from '../../api/base'
 import { createBackgroundStatus } from '../../lib/backgroundStatus'
+import { createApkUpdater } from '../../lib/apkUpdate'
+import { AkaikyUpdate } from '../../native/akaikyUpdate'
 import { formatClock } from '../../lib/format'
 import { activeWindow, safeTimeZone, visibleContacts } from '../../lib/schedule'
 
@@ -85,7 +87,7 @@ onMounted(async () => {
     foreground = isActive
     if (isActive) startClock(); else stopClock()
     if (isActive) { void refreshKiosk().catch(() => {}).then(() => applyRemoteUnlock()); void readScreening(); void readSos() }
-    if (isActive && state.value.kind === 'paired') { resume(); startStatus(); syncJournal(); void backgroundStatus.ensure(); void syncApps() } else { pause(); stopStatus(); clearTimeout(journalRetry) }
+    if (isActive && state.value.kind === 'paired') { resume(); startStatus(); syncJournal(); void backgroundStatus.ensure(); void syncApps(); checkUpdate() } else { pause(); stopStatus(); clearTimeout(journalRetry) }
   })
   // SOS en cours (NAR-151) : état poussé par le service natif quand la WebView est éveillée,
   // relu à chaque reprise (écran rallumé pendant la cascade).
@@ -513,6 +515,14 @@ async function openPhoneSettings() {
   await AkaikyKiosk.openSettings().catch(() => {})
 }
 
+// Mise à jour de l'app (NAR-170) : version annoncée par la configuration, installée par le natif
+// (qui revérifie tout et refuse pendant un appel). Jamais pendant un SOS ; au plus un essai par 6 h.
+const apkUpdater = createApkUpdater({ plugin: AkaikyUpdate, busy: () => sosBusy || sosOpen.value || !!sosState.value?.active })
+function checkUpdate() {
+  if (!Capacitor.isNativePlatform() || state.value.kind !== 'paired') return
+  void apkUpdater.check(deviceConfig.config?.apk)
+}
+watch(() => deviceConfig.config?.apk, checkUpdate)
 // Téléphone retiré pendant l'usage : l'écran le dit.
 watch(() => deviceConfig.status, (s) => { if (s === 'lost') state.value = { kind: 'revoked' } })
 onBeforeUnmount(() => { unmounted = true; clearInterval(sosWatch); clearInterval(schoolWatch); stopClock(); pause(); stopStatus(); clearTimeout(journalRetry); void lifecycle?.remove(); void sosListener?.remove() })

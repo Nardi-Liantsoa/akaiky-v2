@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { startDb, startApp, call, newUser } from './helpers.js'
+import { createHash } from 'node:crypto'
+import { startDb, startApp, call, native, newUser } from './helpers.js'
 
 const APK = Buffer.from('PK\u0003\u0004 faux APK de test')
 let dbh, withApk, without, dir
@@ -72,5 +73,67 @@ test('QR vers ce serveur sans l’APK attendu (absent ou autre certificat) : 503
     assert.equal(await pairingStatus(apps.at(-1)), 201)
   } finally {
     for (const a of apps) await a.close()
+  }
+})
+
+test('mise à jour annoncée (NAR-170) : versionCode, adresse et SHA-256 du fichier embarqué ; ETag lié à la version', async () => {
+  const url = 'https://app.test/downloads/akaiky-enfant.apk'
+  const env = (extra) => ({
+    DOWNLOADS_DIR: dir, NATIVE_ORIGINS: 'capacitor://localhost,https://localhost', API_RATE_LIMIT: '100000',
+    DEVICE_APK_URL: url, DEVICE_APK_SIGNATURE_SHA256: 'A'.repeat(43), ...extra
+  })
+  // Téléphone appairé sur ce serveur : sa configuration.
+  const deviceConfig = async (ctx, etag) => {
+    const owner = await newUser(ctx)
+    await call(ctx.app, 'POST', '/api/families', { cookie: owner.cookie, body: { name: 'F' } })
+    const kid = (await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { parentalConsent: true, firstName: 'Fy' } })).json()
+    const qr = (await call(ctx.app, 'POST', `/api/children/${kid.id}/pairing`, { cookie: owner.cookie })).json()
+    const token = qr.provisioning['android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE']['akaiky.pairing']
+    const device = (await native(ctx.app, 'POST', '/api/device/pair', { body: { token, model: 'Pixel', osVersion: '14', appVersion: '1.0' } })).json()
+    return native(ctx.app, 'GET', '/api/device/config', { token: device.accessToken, headers: etag ? { 'if-none-match': etag } : {} })
+  }
+  const apps = []
+  const start = async (extra) => { const a = await startApp(dbh.url, env(extra)); apps.push(a); return a }
+  try {
+    writeFileSync(join(dir, 'akaiky-enfant.cert-sha256'), 'A'.repeat(43) + '\n')
+    const sha = createHash('sha256').update(APK).digest('hex')
+    // Version de l'APK embarqué inconnue (fichier de la release absent) : rien d'annoncé.
+    assert.equal((await deviceConfig(await start({ DEVICE_APK_VERSION_CODE: '7' }))).json().apk, null)
+    writeFileSync(join(dir, 'akaiky-enfant.version-code'), '7\n')
+    const v7 = await deviceConfig(await start({ DEVICE_APK_VERSION_CODE: '7' }))
+    assert.equal(v7.statusCode, 200, v7.body)
+    assert.deepEqual(v7.json().apk, { versionCode: 7, url, sha256: sha })
+    assert.ok(v7.headers.etag.includes(`.7.${sha.slice(0, 16)}`), v7.headers.etag)
+    // Un DEVICE_APK_SHA256 cohérent avec le fichier embarqué est accepté.
+    assert.equal((await deviceConfig(await start({ DEVICE_APK_VERSION_CODE: '7', DEVICE_APK_SHA256: sha }))).json().apk.sha256, sha)
+
+    // Nouvelle version déployée : l'ancien ETag ne vaut plus 304, le téléphone la voit.
+    writeFileSync(join(dir, 'akaiky-enfant.version-code'), '8\n')
+    const ctx8 = await start({ DEVICE_APK_VERSION_CODE: '8' })
+    const owner = await newUser(ctx8)
+    await call(ctx8.app, 'POST', '/api/families', { cookie: owner.cookie, body: { name: 'F' } })
+    const kid = (await call(ctx8.app, 'POST', '/api/children', { cookie: owner.cookie, body: { parentalConsent: true, firstName: 'Fy' } })).json()
+    const qr = (await call(ctx8.app, 'POST', `/api/children/${kid.id}/pairing`, { cookie: owner.cookie })).json()
+    const device = (await native(ctx8.app, 'POST', '/api/device/pair', { body: { token: qr.provisioning['android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE']['akaiky.pairing'], model: 'P', osVersion: '14', appVersion: '1.0' } })).json()
+    const first = await native(ctx8.app, 'GET', '/api/device/config', { token: device.accessToken })
+    assert.equal((await native(ctx8.app, 'GET', '/api/device/config', { token: device.accessToken, headers: { 'if-none-match': first.headers.etag } })).statusCode, 304)
+    const stale = first.headers.etag.replace(`.8.${sha.slice(0, 16)}`, `.7.${sha.slice(0, 16)}`)
+    const seen = await native(ctx8.app, 'GET', '/api/device/config', { token: device.accessToken, headers: { 'if-none-match': stale } })
+    assert.equal(seen.statusCode, 200)
+    assert.equal(seen.json().apk.versionCode, 8)
+
+    // Incohérences : rien d'annoncé (le téléphone téléchargerait un fichier qu'il refuserait).
+    assert.equal((await deviceConfig(await start({ DEVICE_APK_VERSION_CODE: '7', DEVICE_APK_SHA256: 'f'.repeat(64) }))).json().apk, null)
+    writeFileSync(join(dir, 'akaiky-enfant.version-code'), '6\n')
+    assert.equal((await deviceConfig(await start({ DEVICE_APK_VERSION_CODE: '7' }))).json().apk, null)
+    writeFileSync(join(dir, 'akaiky-enfant.version-code'), '7\n')
+    assert.equal((await deviceConfig(await start({ DEVICE_APK_VERSION_CODE: '7' }))).json().apk.versionCode, 7)
+    // APK servi ailleurs : DEVICE_APK_SHA256 exigé pour l'annoncer.
+    const cdn = { DEVICE_APK_URL: 'https://cdn.example.test/akaiky-enfant.apk', DEVICE_APK_VERSION_CODE: '9' }
+    assert.equal((await deviceConfig(await start(cdn))).json().apk, null)
+    assert.deepEqual((await deviceConfig(await start({ ...cdn, DEVICE_APK_SHA256: 'e'.repeat(64) }))).json().apk, { versionCode: 9, url: cdn.DEVICE_APK_URL, sha256: 'e'.repeat(64) })
+  } finally {
+    for (const a of apps) await a.close()
+    rmSync(join(dir, 'akaiky-enfant.version-code'), { force: true })
   }
 })

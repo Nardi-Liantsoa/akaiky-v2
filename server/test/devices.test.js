@@ -244,6 +244,25 @@ test('sans APK configuré : pas de QR (503) ; configuration incomplète refusée
   assert.ok(loadConfig({ ...base, ...APK, NATIVE_ORIGINS: 'https://localhost' }).deviceApk)
 })
 
+test('mise à jour de l’APK (NAR-170) : DEVICE_APK_VERSION_CODE et DEVICE_APK_SHA256 validés, versionCode exigé en production', () => {
+  const base = { NODE_ENV: 'test', DATABASE_URL: 'postgres://x', APP_ORIGIN: ORIGIN, NATIVE_ORIGINS: 'https://localhost' }
+  const apk = (extra) => loadConfig({ ...base, ...APK, ...extra }).deviceApk
+  assert.equal(apk({}).versionCode, null)
+  assert.equal(apk({ DEVICE_APK_VERSION_CODE: '12' }).versionCode, 12)
+  for (const bad of ['0', '-3', '1.5', 'abc', '12a', '9999999999']) {
+    assert.throws(() => apk({ DEVICE_APK_VERSION_CODE: bad }), /DEVICE_APK_VERSION_CODE/, bad)
+  }
+  assert.equal(apk({ DEVICE_APK_SHA256: 'AB'.repeat(32) }).sha256, 'ab'.repeat(32))
+  assert.throws(() => apk({ DEVICE_APK_SHA256: 'A'.repeat(43) }), /DEVICE_APK_SHA256/)
+  // Sans adresse d'APK, ces variables n'ont pas de sens : refusées plutôt qu'ignorées.
+  assert.throws(() => loadConfig({ ...base, DEVICE_APK_VERSION_CODE: '3' }), /exigent DEVICE_APK_URL/)
+  const prod = { ...base, NODE_ENV: 'production', MFA_ENCRYPTION_KEY: 'ab'.repeat(32), DATA_ENCRYPTION_KEY: 'cd'.repeat(32), TRUST_PROXY: '172.21.0.0/16', PUSH_PROVIDER: 'none', ...APK }
+  assert.throws(() => loadConfig(prod), /DEVICE_APK_VERSION_CODE requis en production/)
+  assert.equal(loadConfig({ ...prod, DEVICE_APK_VERSION_CODE: '4' }).deviceApk.versionCode, 4)
+  // Production sans APK : rien d'exigé.
+  assert.equal(loadConfig({ ...prod, DEVICE_APK_URL: '', DEVICE_APK_SIGNATURE_SHA256: '' }).deviceApk, null)
+})
+
 test('configuration : contacts de SON enfant seulement, ETag et 304, changement vu tout de suite', async () => {
   const { owner, fy, device } = await paired()
   const add = (childId, name, phone) => call(ctx.app, 'POST', `/api/children/${childId}/contacts`, { cookie: owner.cookie, body: { name, phone } })
@@ -258,6 +277,8 @@ test('configuration : contacts de SON enfant seulement, ETag et 304, changement 
   assert.equal(first.statusCode, 200, first.body)
   assert.deepEqual(first.json().contacts.map((c) => [c.name, c.phone, c.position]), [['Maman', '+261341234567', 1]])
   assert.equal(first.json().country, 'MG')
+  // Aucune version annoncée (DEVICE_APK_VERSION_CODE absent) : null, ETag inchangé (NAR-170).
+  assert.equal(first.json().apk, null)
   assert.deepEqual(Object.keys(first.json().contacts[0]).sort(), ['avatarColor', 'id', 'name', 'parent', 'phone', 'position'])
   const etag = first.headers.etag
   assert.match(etag, /^"[0-9a-f-]+\.\d+\.MG"$/)

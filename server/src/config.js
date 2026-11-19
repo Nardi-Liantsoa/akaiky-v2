@@ -47,7 +47,12 @@ function phoneCountry(v) {
 function deviceApk(env, production, natives) {
   const url = env.DEVICE_APK_URL || ''
   const checksum = env.DEVICE_APK_SIGNATURE_SHA256 || ''
-  if (!url && !checksum) return null
+  const versionRaw = env.DEVICE_APK_VERSION_CODE
+  const shaRaw = env.DEVICE_APK_SHA256
+  if (!url && !checksum) {
+    if (versionRaw || shaRaw) throw new Error('DEVICE_APK_VERSION_CODE et DEVICE_APK_SHA256 exigent DEVICE_APK_URL')
+    return null
+  }
   if (!url || !checksum) throw new Error('DEVICE_APK_URL et DEVICE_APK_SIGNATURE_SHA256 vont ensemble')
   if (!/^https:\/\/[a-z0-9.-]+(:\d+)?\/[^\s?#]*\.apk$/i.test(url) && !(!production && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(url))) {
     throw new Error('DEVICE_APK_URL : adresse https d’un fichier .apk')
@@ -58,7 +63,22 @@ function deviceApk(env, production, natives) {
   // Le téléphone appelle /api/device/* depuis la WebView Android (https://localhost) :
   // sans cette origine autorisée, un QR serait émis pour un échange toujours refusé.
   if (!natives.includes('https://localhost')) throw new Error('DEVICE_APK_URL exige NATIVE_ORIGINS avec https://localhost (WebView Android)')
-  return { url, signatureChecksum: checksum }
+  // Mise à jour de l'app enfant sur le téléphone verrouillé (NAR-170) : versionCode de l'APK
+  // publié (enfant { } d'android/app/build.gradle), annoncé dans /api/device/config. Exigé en
+  // production : sans lui, aucun téléphone ne saurait qu'une version plus récente existe.
+  let versionCode = null
+  if (versionRaw !== undefined && versionRaw !== '') {
+    versionCode = Number(versionRaw)
+    if (!/^\d+$/.test(versionRaw) || !Number.isSafeInteger(versionCode) || versionCode < 1 || versionCode > 2100000000) {
+      throw new Error('DEVICE_APK_VERSION_CODE : entier strictement positif (versionCode de l’APK publié)')
+    }
+  } else if (production) {
+    throw new Error('DEVICE_APK_VERSION_CODE requis en production avec DEVICE_APK_URL (versionCode de l’APK publié, NOSYHOST.md § 6)')
+  }
+  // SHA-256 du fichier APK (hexadécimal) quand il n'est pas servi par ce serveur ; sinon
+  // calculé au démarrage sur le fichier embarqué (app.js).
+  if (shaRaw && !/^[a-f0-9]{64}$/i.test(shaRaw)) throw new Error('DEVICE_APK_SHA256 : SHA-256 du fichier en hexadécimal (64 caractères)')
+  return { url, signatureChecksum: checksum, versionCode, sha256: shaRaw ? shaRaw.toLowerCase() : null }
 }
 
 // Notifications push (NAR-141) : fcm (envoi réel), fake (mémoire, développement et tests),

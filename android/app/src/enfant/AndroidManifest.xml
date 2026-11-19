@@ -54,7 +54,8 @@
             <data android:scheme="http" />
         </intent>
     </queries>
-    <application>
+    <!-- EnfantApplication : restriction d'installation reposée dès le démarrage du processus (NAR-170). -->
+    <application android:name="mg.nosytech.akaiky.EnfantApplication">
         <!-- Lanceur du téléphone de l'enfant (NAR-167) : l'accueil et le redémarrage
              ramènent à l'app ; Kiosk la désigne lanceur par défaut une fois armée. -->
         <activity android:name="mg.nosytech.akaiky.MainActivity" tools:node="merge">
@@ -66,6 +67,9 @@
         </activity>
 
         <receiver android:name="mg.nosytech.akaiky.RelockReceiver" android:exported="false" />
+        <!-- Mise à jour de l'app par elle-même (NAR-170) : résultat de PackageInstaller et
+             alarme de sécurité de la fenêtre d'installation (PendingIntent explicites). -->
+        <receiver android:name="mg.nosytech.akaiky.ApkUpdateReceiver" android:exported="false" />
 
         <!-- SOS hors ligne (NAR-151) : survit à l'écran éteint ; lancé par l'écran seulement. -->
         <service

@@ -122,6 +122,19 @@ describe('createConfigSync', () => {
     }
   })
 
+  it('version de l’app (NAR-170) : gardée si bien formée, mise à null seule sinon', async () => {
+    const apk = { versionCode: 8, url: 'https://akaiky.test/downloads/akaiky-enfant.apk', sha256: 'a'.repeat(64) }
+    for (const [sent, kept] of [[apk, apk], [null, null], [{ ...apk, url: 'http://x.test/a.apk' }, null], [{ versionCode: '8' }, null]] as const) {
+      const store = memoryStore()
+      const getIfChanged = vi.fn(async () => ({ data: { version: 6, apk: sent, contacts: [MAMAN] }, etag: '"fy.6"' }))
+      const sync = createConfigSync({ session: session(getIfChanged), store })
+      await sync.load('fy')
+      const config = await sync.refresh()
+      expect(config?.apk).toEqual(kept)
+      expect(config?.contacts).toEqual([MAMAN])
+    }
+  })
+
   it('applications autorisées (NAR-143) : entrées mal formées écartées une à une, le reste gardé', async () => {
     const good = { package: 'com.android.calculator2', label: 'Calculatrice', position: 1 }
     const store = memoryStore()
