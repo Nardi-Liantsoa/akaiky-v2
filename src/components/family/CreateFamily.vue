@@ -6,11 +6,14 @@ import { useT } from '../../composables/useT'
 import { familyNameValid } from '../../lib/familyName'
 import { errorText } from '../../lib/errors'
 import { loadFamily } from '../../store/family'
+import { takeNotice } from '../../store/notice'
 
 const t = useT()
 const name = ref('')
 const busy = ref(false)
 const error = ref('')
+// Arrivée ici juste après la suppression de la famille : on le confirme.
+const deleted = takeNotice('familyDeleted')
 
 async function submit() {
   if (busy.value || !familyNameValid(name.value)) return
@@ -31,6 +34,7 @@ async function submit() {
 
 <template>
   <section class="create">
+    <p v-if="deleted" class="notice" role="status">{{ t.deletion.familyDeleted }}</p>
     <h1>{{ t.family.createTitle }}</h1>
     <p class="lead">{{ t.family.createLead }}</p>
     <form class="card" @submit.prevent="submit">
@@ -45,6 +49,12 @@ async function submit() {
 </template>
 
 <style scoped>
+.notice {
+  padding: 11px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  margin: 8px 0 16px;
+}
 h1 {
   font-size: 2rem;
   margin: 8px 0 8px;

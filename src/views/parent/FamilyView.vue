@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { renameFamily } from '../../api/families'
+import { useRouter } from 'vue-router'
+import { deleteFamily, renameFamily } from '../../api/families'
+import DeleteConfirm from '../../components/account/DeleteConfirm.vue'
 import { ApiError } from '../../api/http'
 import InviteForm from '../../components/family/InviteForm.vue'
 import LoadError from '../../components/family/LoadError.vue'
@@ -9,9 +11,11 @@ import PendingInvitations from '../../components/family/PendingInvitations.vue'
 import { useT } from '../../composables/useT'
 import { familyNameValid } from '../../lib/familyName'
 import { errorText } from '../../lib/errors'
-import { canManage, family, loadFamily, setFamilyName } from '../../store/family'
+import { canManage, family, loadFamily, setFamilyName, setNoFamily } from '../../store/family'
+import { notice } from '../../store/notice'
 
 const t = useT()
+const router = useRouter()
 const editing = ref(false)
 const name = ref('')
 const busy = ref(false)
@@ -24,6 +28,30 @@ function edit() {
   name.value = family.data?.name ?? ''
   error.value = ''
   editing.value = true
+}
+
+// Zone sensible (owner) : suppression de la famille, mot de passe redemandé.
+const deleting = ref(false)
+const deleteError = ref('')
+async function removeFamily(password: string) {
+  if (deleting.value) return
+  deleting.value = true
+  deleteError.value = ''
+  try {
+    await deleteFamily(password)
+    // État « sans famille » posé localement (pas de relecture qui pourrait échouer) :
+    // l'accueil présente la création, avec la confirmation.
+    // Clé posée avant la navigation : CreateFamily la lit à son montage.
+    setNoFamily()
+    notice.value = 'familyDeleted'
+    await router.replace({ name: 'espace' })
+  } catch (e) {
+    deleteError.value = e instanceof ApiError && e.code === 'wrong_password' ? t.value.deletion.wrongPassword : errorText(e, t.value)
+    // Rôle changé ailleurs : l'état affiché est périmé.
+    if (e instanceof ApiError && (e.status === 403 || e.status === 404)) await loadFamily(true)
+  } finally {
+    deleting.value = false
+  }
 }
 
 async function save() {
@@ -78,6 +106,13 @@ async function save() {
         <div class="invite">
           <InviteForm @sent="sent++" />
         </div>
+      </template>
+
+      <template v-if="family.data.role === 'owner'">
+        <h2 class="section">{{ t.deletion.zone }}</h2>
+        <DeleteConfirm id="delete-family" :title="t.deletion.familyAction" :lead="t.deletion.familyLead"
+          :items="t.deletion.familyItems" :action="t.deletion.familyAction" :confirm="t.deletion.familyConfirm"
+          :busy="deleting" :error="deleteError" @cancel="deleteError = ''" @confirm="removeFamily" />
       </template>
     </template>
   </section>

@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { api } from '../api/http'
-import { isAdmin } from '../store/auth'
+import { RouterLink, useRouter } from 'vue-router'
+import { api, ApiError } from '../api/http'
+import DeleteConfirm from '../components/account/DeleteConfirm.vue'
+import { isAdmin, logout } from '../store/auth'
+import { notice } from '../store/notice'
 import { useT, locale } from '../composables/useT'
 import { errorText } from '../lib/errors'
 
@@ -35,6 +38,38 @@ const regenerate = () => run(async () => {
   codes.value = (await api.post<{ recoveryCodes: string[] }>('/auth/mfa/recovery-codes', { code: code.value.trim() })).recoveryCodes
   code.value = ''
 })
+
+// Suppression du compte, mot de passe redemandé. Un parent principal doit d'abord
+// céder ce rôle ou supprimer la famille (409) : on le lui explique. Le dernier
+// administrateur doit en nommer un autre (409 last_admin).
+const router = useRouter()
+const deleting = ref(false)
+const deleteError = ref('')
+const mustTransfer = ref(false)
+async function removeAccount(password: string) {
+  if (deleting.value) return
+  deleting.value = true
+  deleteError.value = ''
+  mustTransfer.value = false
+  try {
+    await api.del('/auth/me', { password })
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'owner_must_transfer_or_delete') mustTransfer.value = true
+    else if (e instanceof ApiError && e.code === 'last_admin') deleteError.value = t.value.deletion.lastAdmin
+    else deleteError.value = e instanceof ApiError && e.code === 'wrong_password' ? t.value.deletion.wrongPassword : errorText(e, t.value)
+    deleting.value = false
+    return
+  }
+  // Compte effacé côté serveur (sessions comprises) : déconnexion locale, même hors ligne.
+  notice.value = 'accountDeleted'
+  try { await logout() } catch { /* session déjà effacée par le serveur */ }
+  deleting.value = false
+  await router.replace({ name: 'connexion' })
+}
+function resetDelete() {
+  deleteError.value = ''
+  mustTransfer.value = false
+}
 
 onMounted(load)
 </script>
@@ -85,10 +120,22 @@ onMounted(load)
         </li>
       </ul>
     </section>
+
+    <DeleteConfirm v-if="state" id="delete-account" :title="t.deletion.accountTitle" :lead="t.deletion.accountLead"
+      :action="t.deletion.accountAction" :confirm="t.deletion.accountConfirm" :busy="deleting" :error="deleteError"
+      @cancel="resetDelete" @confirm="removeAccount">
+      <div v-if="mustTransfer" class="error" role="alert">
+        <p>{{ t.deletion.ownerMustTransfer }}</p>
+        <RouterLink :to="{ name: 'famille' }">{{ t.deletion.toFamily }}</RouterLink>
+      </div>
+    </DeleteConfirm>
   </main>
 </template>
 
 <style scoped>
+.error p {
+  margin: 0 0 8px;
+}
 .card {
   margin-bottom: 16px;
 }

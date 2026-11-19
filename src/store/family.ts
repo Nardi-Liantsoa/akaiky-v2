@@ -65,6 +65,16 @@ export function loadFamily(force = false): Promise<void> {
   return run
 }
 
+// Famille supprimée par cette session : état « sans famille » posé tout de suite,
+// sans relire le serveur (un chargement encore en vol est ignoré). Enfants et
+// contacts suivent l'identifiant de la famille et se vident d'eux-mêmes.
+export function setNoFamily() {
+  resetIfOtherUser()
+  generation++
+  pending = null
+  Object.assign(family, { status: 'none', data: null, error: null })
+}
+
 // Nom renvoyé par le serveur après un renommage : appliqué sans recharger.
 export function setFamilyName(name: string) {
   if (family.data) family.data.name = name

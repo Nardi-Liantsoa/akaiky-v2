@@ -162,4 +162,11 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   (NAR-178). Positions (30 jours) : avec leur table, NAR-146. Une purge de plus de 10 minutes
   est annulée et retentée chaque heure : avant la production avec un gros historique, vérifier
   le volume (ou purger par lots).
+- **Suppression du compte et de la famille (NAR-177, C21)** : immédiate, par cascade en base
+  (`DELETE /api/families/me` par le parent principal, `DELETE /api/auth/me` pour son compte ; mot
+  de passe redemandé, garde de connexion). Un parent principal cède son rôle ou supprime la
+  famille avant son compte, le dernier administrateur en nomme un autre (409 `last_admin`) ; toutes
+  les invitations reçues à son adresse, acceptées comprises, sont effacées. Les sauvegardes gardent ces données jusqu'à leur rotation (durée à
+  écrire dans la politique de confidentialité, NAR-178) ; le journal d'audit ne garde que
+  l'action et des comptes, sans donnée personnelle.
 - **Traductions malgaches** : à faire relire par une personne de langue maternelle.

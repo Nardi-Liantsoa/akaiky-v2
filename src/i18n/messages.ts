@@ -120,6 +120,32 @@ const fr = {
     tooManyInvites: 'Trop d’invitations en attente. Annulez-en une d’abord.',
     invalidEmail: 'Adresse e-mail invalide.'
   },
+  deletion: {
+    zone: 'Zone sensible',
+    familyAction: 'Supprimer la famille',
+    familyLead: 'La famille et tout ce qui s’y rattache seront effacés immédiatement, pour tous ses membres. Cette action est définitive.',
+    familyItems: [
+      'les enfants et leurs réglages (code parent, plages horaires, messages rapides) ;',
+      'les contacts autorisés ;',
+      'les téléphones des enfants, aussitôt déconnectés ;',
+      'le journal des appels et les messages reçus ;',
+      'les membres et les invitations en attente (les comptes des membres sont conservés et ils sont prévenus par e-mail).'
+    ],
+    familyConfirm: 'Supprimer définitivement la famille',
+    familyDeleted: 'La famille a été supprimée. Vous pouvez en créer une nouvelle.',
+    passwordLead: 'Saisissez votre mot de passe pour confirmer.',
+    passwordLabel: 'Votre mot de passe',
+    cancel: 'Annuler',
+    wrongPassword: 'Mot de passe incorrect.',
+    accountTitle: 'Supprimer mon compte',
+    accountLead: 'Votre compte, vos sessions (web et application) et votre place dans votre famille seront effacés immédiatement. Cette action est définitive.',
+    accountAction: 'Supprimer mon compte',
+    accountConfirm: 'Supprimer définitivement mon compte',
+    lastAdmin: 'Dernier administrateur : nommez-en un autre avant de supprimer ce compte.',
+    ownerMustTransfer: 'Vous êtes le parent principal de votre famille : elle ne peut pas rester sans lui. Cédez d’abord ce rôle à un autre membre, ou supprimez la famille.',
+    toFamily: 'Aller à l’écran Famille',
+    accountDeleted: 'Votre compte a été supprimé.'
+  },
   invite: {
     title: 'Invitation',
     join: (family: string, role: string) => `Vous êtes invité à rejoindre « ${family} » comme ${role}.`,
@@ -514,6 +540,32 @@ const mg: Messages = {
     tooManyInvites: 'Be loatra ny fanasana miandry. Foano aloha ny iray.',
     invalidEmail: 'Tsy mety ny adiresy mailaka.'
   },
+  deletion: {
+    zone: 'Faritra saro-pady',
+    familyAction: 'Hamafa ny fianakaviana',
+    familyLead: 'Ho voafafa avy hatrany ny fianakaviana sy izay rehetra mifandray aminy, ho an’ny mpikambana rehetra. Tsy azo averina intsony izany.',
+    familyItems: [
+      'ireo ankizy sy ny fandrindrana azy (kaody ray aman-dreny, fotoana voafetra, hafatra haingana);',
+      'ireo mpifandray nahazo alalana;',
+      'ireo findain’ny ankizy, tapaka avy hatrany;',
+      'ny tantaran’ny antso sy ireo hafatra voaray;',
+      'ireo mpikambana sy ireo fanasana miandry (tsy voafafa kosa ny kaontin’ny mpikambana, ary ampahafantarina amin’ny mailaka izy ireo).'
+    ],
+    familyConfirm: 'Hamafa tanteraka ny fianakaviana',
+    familyDeleted: 'Voafafa ny fianakaviana. Afaka mamorona vaovao ianao.',
+    passwordLead: 'Ampidiro ny tenimiafinao hanamafisana.',
+    passwordLabel: 'Ny tenimiafinao',
+    cancel: 'Hanafoana',
+    wrongPassword: 'Diso ny tenimiafina.',
+    accountTitle: 'Hamafa ny kaontiko',
+    accountLead: 'Ho voafafa avy hatrany ny kaontinao, ny fidiranao (tranonkala sy rindranasa) ary ny toeranao ao amin’ny fianakavianao. Tsy azo averina intsony izany.',
+    accountAction: 'Hamafa ny kaontiko',
+    accountConfirm: 'Hamafa tanteraka ny kaontiko',
+    lastAdmin: 'Mpitantana farany ianao: manendre iray hafa aloha vao mamafa ity kaonty ity.',
+    ownerMustTransfer: 'Ianao no ray aman-dreny lehibe ao amin’ny fianakavianao: tsy afaka tsy hisy azy ny fianakaviana. Omeo mpikambana hafa aloha io andraikitra io, na fafao ny fianakaviana.',
+    toFamily: 'Mankany amin’ny pejy Fianakaviana',
+    accountDeleted: 'Voafafa ny kaontinao.'
+  },
   invite: {
     title: 'Fanasana',
     join: (family: string, role: string) => `Asaina hiditra ao amin’ny « ${family} » ho ${role} ianao.`,
@@ -905,6 +957,32 @@ const en: Messages = {
     alreadyMember: 'This person is already in the family.',
     tooManyInvites: 'Too many pending invitations. Cancel one first.',
     invalidEmail: 'Invalid email address.'
+  },
+  deletion: {
+    zone: 'Danger zone',
+    familyAction: 'Delete the family',
+    familyLead: 'The family and everything attached to it will be erased immediately, for all its members. This cannot be undone.',
+    familyItems: [
+      'the children and their settings (parent code, schedules, quick messages);',
+      'the allowed contacts;',
+      'the children’s phones, disconnected right away;',
+      'the call log and received messages;',
+      'the members and pending invitations (members keep their accounts and are notified by email).'
+    ],
+    familyConfirm: 'Permanently delete the family',
+    familyDeleted: 'The family has been deleted. You can create a new one.',
+    passwordLead: 'Enter your password to confirm.',
+    passwordLabel: 'Your password',
+    cancel: 'Cancel',
+    wrongPassword: 'Wrong password.',
+    accountTitle: 'Delete my account',
+    accountLead: 'Your account, your sessions (web and app) and your place in your family will be erased immediately. This cannot be undone.',
+    accountAction: 'Delete my account',
+    accountConfirm: 'Permanently delete my account',
+    lastAdmin: 'Last administrator: appoint another one before deleting this account.',
+    ownerMustTransfer: 'You are the main parent of your family, and it cannot be left without one. First hand this role to another member, or delete the family.',
+    toFamily: 'Go to the Family screen',
+    accountDeleted: 'Your account has been deleted.'
   },
   invite: {
     title: 'Invitation',
