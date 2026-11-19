@@ -295,7 +295,11 @@ export async function deviceSessionRoutes(app) {
   app.get('/config', { config: { device: true } }, async (req, reply) => {
     // Le pays fait partie de la réponse : il entre dans l'ETag, sinon un changement de
     // pays (ou un téléphone mis en cache avant ce champ) resterait sur un 304.
-    const tagOf = (version) => `"${req.device.childId}.${version}.${config.phoneCountry}"`
+    // Mise à jour annoncée (NAR-170) : version et fichier aussi, sinon un téléphone à jour
+    // de ses contacts ne verrait jamais une nouvelle version de l'app.
+    const apk = app.childApkUpdate ?? null
+    const apkTag = apk ? `.${apk.versionCode}.${apk.sha256.slice(0, 16)}` : ''
+    const tagOf = (version) => `"${req.device.childId}.${version}.${config.phoneCountry}${apkTag}"`
     if (req.headers['if-none-match']) {
       const { rows: [current] } = await db.query(
         'SELECT config_version FROM children WHERE id = $1 AND family_id = $2', [req.device.childId, req.device.familyId])
@@ -344,6 +348,8 @@ export async function deviceSessionRoutes(app) {
         remoteUnlockUntil: child.remote_unlock_until ?? null,
         // Sirène pendant un SOS (NAR-151), appliquée hors ligne par le téléphone.
         sosSiren: child.sos_siren,
+        // Dernière version de l'app enfant (NAR-170) : { versionCode, url, sha256 } ou null.
+        apk,
         messageTexts,
         timezone: fam.timezone,
         allowedApps: apps.map((r) => ({ package: r.package, label: openField(r.label_enc, config.dataKey, allowedAppAad(req.device.childId, r.package)), position: r.position })),

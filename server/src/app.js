@@ -384,6 +384,10 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
     : null
   app.decorate('childApkMissing', Boolean(apkProblem))
   if (apkProblem) app.log.error(`DEVICE_APK_URL désigne ce serveur, mais ${apkProblem} : aucun QR ne sera émis (NOSYHOST.md § 6).`)
+  // Mise à jour annoncée aux téléphones (NAR-170) : versionCode configuré, SHA-256 du fichier
+  // calculé ici sur l'APK servi par ce serveur (sinon DEVICE_APK_SHA256). Le téléphone vérifie
+  // aussi le paquet, la version et le certificat ; un doute ici n'annonce rien.
+  app.decorate('childApkUpdate', childApkUpdate({ config, servedHere, apkProblem, childApk, versionFile: (await readFile(join(config.downloadsDir, 'akaiky-enfant.version-code'), 'utf8').catch(() => '')).trim(), log: app.log }))
   // Hors /api, donc hors du limiteur global : le sien, qui ne compte que les envois complets.
   const apkLimit = createLimiter({ max: 30, windowMs: 15 * 60000 })
   const fresh = (header) => typeof header === 'string' && header.split(',').some((t) => { const v = t.trim().replace(/^W\//, ''); return v === '*' || v === apkTag })
@@ -420,4 +424,22 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   })
 
   return app
+}
+
+// Bloc `apk` de /api/device/config (NAR-170), ou null : rien à annoncer, ou une incohérence
+// (journalisée) qui pourrait faire télécharger un fichier que le téléphone refuserait.
+function childApkUpdate({ config, servedHere, apkProblem, childApk, versionFile, log }) {
+  const apk = config.deviceApk
+  if (!apk?.versionCode) return null
+  const embedded = servedHere && childApk ? createHash('sha256').update(childApk).digest('hex') : null
+  const problem = apkProblem ? apkProblem
+    : servedHere && !embedded ? 'APK absent de l’image'
+    : !servedHere && !apk.sha256 ? 'DEVICE_APK_SHA256 manque (APK servi ailleurs)'
+    : embedded && apk.sha256 && apk.sha256 !== embedded ? 'DEVICE_APK_SHA256 diffère de l’APK embarqué'
+    // Version de l'APK embarqué inconnue : un écart ferait télécharger en boucle un fichier refusé.
+    : servedHere && !versionFile ? 'downloads/akaiky-enfant.version-code manque à l’image'
+    : servedHere && versionFile !== String(apk.versionCode) ? `DEVICE_APK_VERSION_CODE (${apk.versionCode}) diffère de l’APK embarqué (${versionFile})`
+    : null
+  if (problem) { log.error(`Mise à jour de l’app enfant non annoncée : ${problem} (NOSYHOST.md § 6).`); return null }
+  return { versionCode: apk.versionCode, url: apk.url, sha256: embedded ?? apk.sha256 }
 }

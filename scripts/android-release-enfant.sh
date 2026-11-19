@@ -39,5 +39,9 @@ mkdir -p downloads
 cp "$APK" downloads/akaiky-enfant.apk
 # Lue par le serveur au démarrage : comparée à DEVICE_APK_SIGNATURE_SHA256.
 printf '%s\n' "$CHECKSUM" > downloads/akaiky-enfant.cert-sha256
+# Comparé à DEVICE_APK_VERSION_CODE au démarrage : la mise à jour n'est annoncée aux
+# téléphones (NAR-170) que si les deux concordent.
+printf '%s\n' "$NEW" > downloads/akaiky-enfant.version-code
 echo "APK : downloads/akaiky-enfant.apk, versionCode $NEW ($(du -h downloads/akaiky-enfant.apk | cut -f1))"
 echo "DEVICE_APK_SIGNATURE_SHA256=$CHECKSUM"
+echo "DEVICE_APK_VERSION_CODE=$NEW"
