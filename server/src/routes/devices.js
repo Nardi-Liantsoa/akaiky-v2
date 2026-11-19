@@ -90,7 +90,8 @@ const EVENTS = {
           // call_out : appel sortant (contactId requis) ; unlock : sortie du verrou (NAR-168,
           // source requise, durée de la sortie en secondes).
           // call_in : appel reçu d'un contact ; call_blocked : appel rejeté sans sonnerie
-          // (numéro hors liste, ou masqué : sans numéro), NAR-145.
+          // (numéro hors liste, ou masqué : sans numéro), NAR-145 ; ou contact non parent
+          // pendant une plage « école » (NAR-176) : contactId et nom, numéro E.164.
           kind: { type: 'string', enum: ['call_out', 'call_in', 'call_blocked', 'unlock'] },
           source: { type: 'string', enum: ['code', 'remote'] },
           contactId: { type: 'string', maxLength: 36 },
@@ -355,7 +356,7 @@ export async function deviceSessionRoutes(app) {
     await withTransaction(db, async (conn) => {
       const ids = [...new Set(req.body.events.map((e) => e.contactId).filter(isUuid))]
       // Contacts du lot lus d'un coup : ceux de cet enfant, et ceux qui existent ailleurs.
-      const { rows } = await conn.query('SELECT id, child_id, family_id FROM allowed_contacts WHERE id = ANY($1::uuid[])', [ids])
+      const { rows } = await conn.query('SELECT id, child_id, family_id, phone_index FROM allowed_contacts WHERE id = ANY($1::uuid[])', [ids])
       const known = new Map(rows.map((r) => [r.id, r]))
       for (const e of req.body.events) {
         const started = Date.parse(e.startedAt)
@@ -367,7 +368,8 @@ export async function deviceSessionRoutes(app) {
           ? e.source !== undefined && e.contactId === undefined && e.name === undefined && e.phone === undefined
             && typeof e.durationS === 'number' && e.durationS > 0 && e.durationS <= REMOTE_UNLOCK_MINUTES * 60
           : e.kind === 'call_blocked'
-            ? e.source === undefined && e.contactId === undefined && e.name === undefined && (e.durationS === undefined || e.durationS === null)
+            ? e.source === undefined && (e.durationS === undefined || e.durationS === null)
+              && (e.contactId === undefined ? e.name === undefined : isUuid(e.contactId) && e164 && typeof e.name === 'string')
             : e.kind === 'call_in'
               ? e.source === undefined && e164 && (e.contactId === undefined || isUuid(e.contactId))
               : e.source === undefined && isUuid(e.contactId) && (e.phone === undefined || e164)
@@ -376,7 +378,13 @@ export async function deviceSessionRoutes(app) {
         const contact = known.get(e.contactId)
         const foreign = contact && (contact.child_id !== req.device.childId || contact.family_id !== req.device.familyId)
         if (!plausible || foreign) { rejected.push(e.id); continue }
-        const name = typeof e.name === 'string' ? e.name.trim().slice(0, 80) : ''
+        // Contact bloqué pendant une plage (NAR-176) : nom et contact gardés seulement si le
+        // numéro est bien le sien (index aveugle) ; sinon (contact inconnu ou retiré, numéro
+        // modifié depuis) l'appel reste, comme un numéro bloqué ordinaire : jamais un numéro
+        // quelconque sous le nom d'un contact, et rien de perdu.
+        const plainBlock = e.kind === 'call_blocked' && e.contactId !== undefined
+          && !(contact && blindIndex(e.phone, config.dataKey, 'phone').equals(contact.phone_index))
+        const name = !plainBlock && typeof e.name === 'string' ? e.name.trim().slice(0, 80) : ''
         const insert = (contactId) => conn.query(
           `INSERT INTO device_events(id, family_id, child_id, device_id, kind, contact_id, name_enc, phone_enc, started_at, duration_s, unlock_source, phone_index)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) ON CONFLICT (id) DO NOTHING`,
@@ -389,7 +397,7 @@ export async function deviceSessionRoutes(app) {
         await conn.query('SAVEPOINT ev')
         let rowCount
         try {
-          ;({ rowCount } = await insert(contact ? contact.id : null))
+          ;({ rowCount } = await insert(contact && !plainBlock ? contact.id : null))
         } catch (err) {
           // Contact retiré entre la lecture du lot et l'écriture : enregistré sans lien.
           // Toute autre erreur remonte (500) : la file du téléphone est gardée pour un nouvel essai.
