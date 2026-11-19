@@ -45,7 +45,7 @@ export const REMOTE_UNLOCK_SQL = 'CASE WHEN remote_unlock_until > now() THEN rem
 // Dernier passage d'un téléphone appairé non révoqué (état « vu à … » de la carte, NAR-174).
 const LAST_SEEN_SQL = `(SELECT max(d.last_seen_at) FROM child_devices d
   WHERE d.child_id = children.id AND d.family_id = children.family_id AND d.revoked_at IS NULL) AS phone_last_seen_at`
-const COLUMNS = `id, first_name_enc, avatar_color, created_at, parent_code_set_at, ${REMOTE_UNLOCK_SQL}, ${LAST_SEEN_SQL}`
+const COLUMNS = `id, first_name_enc, avatar_color, created_at, parent_code_set_at, sos_siren, ${REMOTE_UNLOCK_SQL}, ${LAST_SEEN_SQL}`
 const firstName = (v) => text(v, { min: 1, max: 40, field: 'Prénom' })
 const notFound = () => new HttpError(404, 'Enfant introuvable.', 'child_not_found')
 const aad = (id) => `children:first_name:${id}`
@@ -61,6 +61,7 @@ export default async function childrenRoutes(app) {
     createdAt: r.created_at,
     parentCodeSetAt: r.parent_code_set_at ?? null,
     remoteUnlockUntil: r.remote_unlock_until ?? null,
+    sosSiren: r.sos_siren,
     phoneLastSeenAt: r.phone_last_seen_at ?? null
   })
   const childId = (req) => { if (!isUuid(req.params.id)) throw notFound(); return req.params.id }
@@ -164,6 +165,28 @@ export default async function childrenRoutes(app) {
       return updated
     })
     return { remoteUnlockUntil: row.remote_unlock_until }
+  })
+
+  // Sirène pendant un SOS (NAR-151) : le téléphone de l'enfant la lit dans sa configuration
+  // (sosSiren). Corps validé à la main, après les droits : un contact reçoit 403 quoi qu'il envoie.
+  app.put('/:id/sos-siren', async (req) => {
+    return withTransaction(db, async (conn) => {
+      const own = await lockOwnFamily(conn, req, MANAGERS)
+      if (!isUuid(req.params.id)) throw notFound()
+      // Enfant verrouillé : deux enregistrements simultanés de la même valeur n'écrivent qu'une fois.
+      const { rows: [kid] } = await conn.query(
+        'SELECT sos_siren FROM children WHERE id = $1 AND family_id = $2 FOR UPDATE', [req.params.id, own.familyId])
+      if (!kid) throw notFound()
+      const body = req.body
+      if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).join() !== 'enabled' || typeof body.enabled !== 'boolean') {
+        throw new HttpError(400, 'Réglage de la sirène invalide.', 'invalid_sos_siren')
+      }
+      // Rien ne change : ni écriture, ni audit, ni nouvelle version de la configuration du téléphone.
+      if (kid.sos_siren === body.enabled) return { sosSiren: body.enabled }
+      await conn.query('UPDATE children SET sos_siren = $3 WHERE id = $1 AND family_id = $2', [req.params.id, own.familyId, body.enabled])
+      await audit(conn, req, 'sos_siren_set', req.params.id, { enabled: body.enabled })
+      return { sosSiren: body.enabled }
+    })
   })
 
   app.delete('/:id', async (req) => {
