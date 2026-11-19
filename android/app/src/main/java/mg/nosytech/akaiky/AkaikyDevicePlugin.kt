@@ -2,11 +2,6 @@ package mg.nosytech.akaiky
 
 import android.app.admin.DevicePolicyManager
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.os.BatteryManager
 import android.content.pm.PackageManager
 import android.os.Build
 import android.webkit.WebView
@@ -37,26 +32,15 @@ class AkaikyDevicePlugin : Plugin() {
         call.resolve()
     }
 
-    /** Batterie et réseau, pour la barre d'état de l'écran de l'enfant (NAR-142). */
+    /** Batterie, réseau et carte SIM : barre d'état de l'écran (NAR-142) et signal de vie (NAR-147, NAR-180). */
     @PluginMethod
     fun getStatus(call: PluginCall) {
         val result = JSObject()
-        val battery = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        if (battery != null) {
-            val level = battery.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = battery.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-            if (level >= 0 && scale > 0) result.put("battery", level * 100 / scale)
-            val status = battery.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-            result.put("charging", status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL)
-        }
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-        val caps = cm?.getNetworkCapabilities(cm.activeNetwork)
-        result.put("network", when {
-            caps == null -> "none"
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cellular"
-            else -> "other"
-        })
+        val battery = DeviceSignals.battery(context)
+        battery.pct?.let { result.put("battery", it) }
+        battery.charging?.let { result.put("charging", it) }
+        result.put("network", DeviceSignals.network(context))
+        result.put("simState", DeviceSignals.simState(context))
         call.resolve(result)
     }
 

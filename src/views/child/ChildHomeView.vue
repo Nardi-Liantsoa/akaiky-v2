@@ -18,6 +18,9 @@ import UnlockPanel from '../../components/child/UnlockPanel.vue'
 import QuickMessagesPanel from '../../components/child/QuickMessagesPanel.vue'
 import { armKiosk, disarmKiosk, isUnlocked, kiosk, lockNow, refreshKiosk, unlockKiosk, useKioskPlugin } from '../../composables/useKiosk'
 import { AkaikyKiosk, UNLOCK_MINUTES } from '../../native/kiosk'
+import { AkaikyBackground } from '../../native/akaikyBackground'
+import { API_BASE } from '../../api/base'
+import { createBackgroundStatus } from '../../lib/backgroundStatus'
 import { formatClock } from '../../lib/format'
 import { activeWindow, safeTimeZone, visibleContacts } from '../../lib/schedule'
 
@@ -25,6 +28,9 @@ import { activeWindow, safeTimeZone, visibleContacts } from '../../lib/schedule'
 // accueil (NAR-142, maquette écran 1) : heure, contacts à appeler en un appui, SOS.
 // Fonctionne sans Internet : contacts et enfant gardés, appels par la carte SIM.
 const t = useT()
+// Signal natif en arrière-plan (NAR-180) : jeton « signal de vie » émis par la session
+// d'appareil, une fois par lancement ou quand le natif le dit perdu.
+const backgroundStatus = createBackgroundStatus({ session, plugin: AkaikyBackground, apiBase: API_BASE })
 const state = ref<ChildState | { kind: 'loading' }>({ kind: 'loading' })
 const busy = ref(false)
 
@@ -71,7 +77,7 @@ onMounted(async () => {
     foreground = isActive
     if (isActive) startClock(); else stopClock()
     if (isActive) { void refreshKiosk().catch(() => {}).then(() => applyRemoteUnlock()); void readScreening() }
-    if (isActive && state.value.kind === 'paired') { resume(); startStatus(); syncJournal() } else { pause(); stopStatus(); clearTimeout(journalRetry) }
+    if (isActive && state.value.kind === 'paired') { resume(); startStatus(); syncJournal(); void backgroundStatus.ensure() } else { pause(); stopStatus(); clearTimeout(journalRetry) }
   })
   if (unmounted) { void handle.remove(); return }
   lifecycle = handle
@@ -88,9 +94,16 @@ watch(state, async (s) => {
     // Pas de levée automatique du verrou (un refus ponctuel du serveur ne doit pas rendre
     // le téléphone à l'enfant) : un téléphone retiré se libère avec le code parent.
     // Plus d'enfant appairé ici : aucune liste de contacts gardée sur le téléphone.
-    if (s.kind === 'waiting' || s.kind === 'expired' || s.kind === 'revoked') void configSync.clear()
+    if (s.kind === 'waiting' || s.kind === 'expired' || s.kind === 'revoked') {
+      void configSync.clear()
+      // Plus de session : le signal natif en arrière-plan (NAR-180) s'arrête aussi.
+      void backgroundStatus.stop()
+    }
     return
   }
+  // Appairé : signal de vie natif en arrière-plan, écran éteint compris (NAR-180), avec un
+  // jeton « signal de vie » émis par la session d'appareil (hors ligne : au retour au premier plan).
+  void backgroundStatus.ensure()
   await startDeviceConfig(configSync, s.childId)
   syncJournal()
   if (!unmounted && foreground && state.value === s) resume()
@@ -342,6 +355,9 @@ async function release() {
     await AkaikyCall.stopFiltering().catch(() => {})
     await parentCodeStore.clear()
     parentHash.value = null
+    // Arrêt de la surveillance en arrière-plan sans l'attendre : un échec ou une lenteur
+    // du natif ne doit jamais laisser le code ni le filtre en place.
+    void backgroundStatus.stop().catch(() => {})
   } else {
     await refreshKiosk().catch(() => {})
   }
