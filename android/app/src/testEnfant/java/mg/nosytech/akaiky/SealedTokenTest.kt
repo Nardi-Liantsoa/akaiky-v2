@@ -8,7 +8,7 @@ import org.junit.Test
 
 class SealedTokenTest {
     private fun key() = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
-    private val token = "abcDEF0123456789_-abcDEF0123456789_-abcDEF0"
+    private val token = "t".repeat(43) // jeton factice généré : pas de valeur ressemblant à un secret
 
     @Test fun allerRetourEtIvNeuf() {
         val k = key()
