@@ -58,6 +58,11 @@ export function authEmails(appName) {
       subject: `Invitation à rejoindre une famille — ${appName}`,
       text: `Bonjour,\n\nVous êtes invité à rejoindre une famille sur ${appName}, l’application qui relie les parents à leurs enfants.\n\nPour accepter, ouvrez ce lien (valable 7 jours, utilisable une seule fois) puis connectez-vous ou créez votre compte avec cette adresse :\n\n${link}\n\nSi vous ne vous attendiez pas à cette invitation, ignorez simplement ce message.${sign}`
     }),
+    // Ni le nom de la famille ni celui du parent principal : textes libres saisis par un tiers.
+    familyDeleted: () => ({
+      subject: `Une famille dont vous faisiez partie a été supprimée — ${appName}`,
+      text: `Bonjour,\n\nLe parent principal d’une famille dont vous faisiez partie sur ${appName} vient de la supprimer. Les enfants, leurs contacts, leurs journaux et leurs messages ont été effacés, et leurs téléphones ont été déconnectés.\n\nVotre compte, lui, est conservé : vous pouvez créer une nouvelle famille ou en rejoindre une autre sur invitation.\n\nSi vous pensez qu’il s’agit d’une erreur, rapprochez-vous du parent principal de cette famille.${sign}`
+    }),
     passwordChanged: () => ({
       subject: `Votre mot de passe a été modifié — ${appName}`,
       text: `Bonjour,\n\nLe mot de passe de votre compte vient d’être modifié et toutes vos sessions ont été fermées.\n\nSi vous n’êtes pas à l’origine de ce changement, prévenez-nous immédiatement.${sign}`
