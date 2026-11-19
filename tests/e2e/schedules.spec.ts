@@ -1,4 +1,5 @@
 import { expect, test, type Request } from '@playwright/test'
+import { cancelEveryWay, confirmSheet } from './confirm'
 import { FAMILY, mockApi, USER } from './mock'
 
 // Plages horaires « école » (NAR-148) : carte de Réglages, gestionnaire et contact.
@@ -42,7 +43,7 @@ function schedulesApi(initial: S[] = []) {
   return { handlers, sent }
 }
 
-test('le gestionnaire ajoute « École » lun–ven 8:00–16:00, la désactive, puis la supprime', async ({ page }) => {
+test('le gestionnaire ajoute « École » lun–ven 8:00–16:00, la désactive, puis la retire après confirmation', async ({ page }) => {
   const api = schedulesApi()
   await mockApi(page, api.handlers)
   await page.goto('/espace/reglages')
@@ -62,8 +63,16 @@ test('le gestionnaire ajoute « École » lun–ven 8:00–16:00, la désactive,
   await expect(toggle).toHaveAttribute('aria-checked', 'false')
   expect(api.sent[1]).toEqual({ method: 'PUT', body: { label: 'École', days: 31, startMin: 480, endMin: 960, enabled: false } })
 
-  await card.getByRole('button', { name: 'Supprimer' }).click()
+  // Retrait : la feuille d'abord, rien ne part avant « Confirmer le retrait ».
+  const deletes = () => api.sent.filter((x) => x.method === 'DELETE')
+  await card.getByRole('button', { name: 'Retirer', exact: true }).click()
+  const sheet = confirmSheet(page, 'Retirer la plage « École » ?')
+  await expect(sheet.getByRole('listitem')).toHaveText(['le téléphone de l’enfant ne l’appliquera plus, dès sa prochaine mise à jour.'])
+  expect(deletes()).toHaveLength(0)
+  await sheet.getByRole('button', { name: 'Confirmer le retrait' }).click()
   await expect(card.getByText('Aucune plage pour l’instant.')).toBeVisible()
+  await expect(confirmSheet(page)).toHaveCount(0)
+  expect(deletes()).toHaveLength(1)
 })
 
 test('plage de nuit : fin avant le début annoncée ; sans jour ni heures valides, rien ne part', async ({ page }) => {
@@ -87,6 +96,26 @@ test('plage de nuit : fin avant le début annoncée ; sans jour ni heures valide
   await card.getByLabel('Fin').fill('07:00')
   await card.getByRole('button', { name: 'Enregistrer la plage' }).click()
   await expect(card.getByText('Dim · 21:00–7:00 · parents + SOS')).toBeVisible()
+})
+
+test('retrait d’une plage : Annuler, Échap et fond referment la feuille sans rien envoyer, focus rendu', async ({ page }) => {
+  const api = schedulesApi([{ id: sid(1), label: 'École', days: 31, startMin: 480, endMin: 960, enabled: true }])
+  const calls = await mockApi(page, api.handlers)
+  await page.goto('/espace/reglages')
+  const card = page.locator('#plages')
+  await cancelEveryWay(page, card.getByRole('button', { name: 'Retirer', exact: true }), calls, (r) => r.method() === 'DELETE')
+  await expect(card.getByText('Lun–Ven · 8:00–16:00 · parents + SOS')).toBeVisible()
+  expect(api.sent).toEqual([])
+})
+
+test('« Retirer » une plage, dans les trois langues', async ({ page }) => {
+  const api = schedulesApi([{ id: sid(1), label: 'École', days: 31, startMin: 480, endMin: 960, enabled: true }])
+  await mockApi(page, api.handlers)
+  for (const [lang, label] of [['fr', 'Retirer'], ['mg', 'Esory'], ['en', 'Remove']] as const) {
+    await page.addInitScript((l) => { try { localStorage.setItem('akaiky-v2.lang', l) } catch { /* stockage indisponible */ } }, lang)
+    await page.goto('/espace/reglages')
+    await expect(page.locator('#plages').getByRole('button', { name: label, exact: true })).toBeVisible()
+  }
 })
 
 test('un contact de famille voit les plages sans pouvoir les modifier', async ({ page }) => {

@@ -1,4 +1,5 @@
 import { expect, test, type Request } from '@playwright/test'
+import { cancelEveryWay, confirmSheet } from './confirm'
 import { FAMILY, mockApi, USER } from './mock'
 
 type C = { id: string, childId: string, name: string, phone: string, position: number, avatarColor: string, memberUserId: string | null, memberRole: string | null }
@@ -119,6 +120,47 @@ test('modifier le nom d’un contact lié : le membre lié n’est pas renvoyé'
   // Seul le champ modifié part.
   const body = calls.find((r) => r.method() === 'PATCH')!.postDataJSON()
   expect(body).toEqual({ name: 'Papa Rakoto' })
+})
+
+test('retirer un contact : feuille de confirmation, rien ne part avant « Confirmer », retour aux Réglages', async ({ page }) => {
+  const api = contactsApi([
+    { id: cid(1), name: 'Maman', phone: '+261341111111', avatarColor: 'orange', memberUserId: null, memberRole: null },
+    { id: cid(2), name: 'Mamie', phone: '+261321111111', avatarColor: 'violet', memberUserId: null, memberRole: null }
+  ])
+  let removed = false
+  const calls = await mockApi(page, {
+    ...common,
+    ...api.handlers,
+    [`GET /api/children/${FY.id}/contacts`]: () => ({ body: { version: 1, max: 6, country: 'MG', contacts: removed ? api.items().slice(1) : api.items() } }),
+    [`DELETE /api/contacts/${cid(1)}`]: () => { removed = true; return { body: { ok: true } } }
+  })
+  const isDelete = (r: Request) => r.method() === 'DELETE'
+  await page.goto(`/espace/reglages/enfant/${FY.id}/contact/${cid(1)}`)
+  const remove = page.getByRole('button', { name: 'Retirer ce contact' })
+  await cancelEveryWay(page, remove, calls, isDelete)
+  await expect(page.getByLabel('Nom affiché')).toHaveValue('Maman')
+
+  await remove.click()
+  const sheet = confirmSheet(page, 'Retirer Maman ?')
+  await expect(sheet.getByRole('listitem')).toHaveCount(2)
+  expect(calls.filter(isDelete)).toHaveLength(0)
+  await sheet.getByRole('button', { name: 'Confirmer : retirer ce contact' }).click()
+  await expect(page).toHaveURL(/\/espace\/reglages$/)
+  await expect(page.getByText('1 sur 6')).toBeVisible()
+  expect(calls.filter(isDelete).map((r) => new URL(r.url()).pathname)).toEqual([`/api/contacts/${cid(1)}`])
+})
+
+test('retrait d’un contact refusé : feuille refermée, erreur sur la page', async ({ page }) => {
+  const api = contactsApi([{ id: cid(1), name: 'Maman', phone: '+261341111111', avatarColor: 'orange', memberUserId: null, memberRole: null }])
+  await mockApi(page, { ...common, ...api.handlers, [`DELETE /api/contacts/${cid(1)}`]: () => ({ status: 500, body: { error: 'Erreur.' } }) })
+  await page.goto(`/espace/reglages/enfant/${FY.id}/contact/${cid(1)}`)
+  const remove = page.getByRole('button', { name: 'Retirer ce contact' })
+  await remove.click()
+  await confirmSheet(page).getByRole('button', { name: 'Confirmer : retirer ce contact' }).click()
+  await expect(confirmSheet(page)).toHaveCount(0)
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(remove).toBeFocused()
+  await expect(page).toHaveURL(new RegExp(`/contact/${cid(1)}$`))
 })
 
 test('changement d’enfant : la carte des contacts reste en place, estompée, jusqu’à la nouvelle liste (pas de clignement)', async ({ page }) => {

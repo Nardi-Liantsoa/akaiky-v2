@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { removeMember, setMemberRole, type FamilyMember, type FamilyRole } from '../../api/families'
+import { useConfirm } from '../../composables/useConfirm'
 import { useT } from '../../composables/useT'
 import { familyErrorText } from '../../lib/familyErrors'
 import { family, loadFamily } from '../../store/family'
 import AppButton from '../ui/AppButton.vue'
+import ConfirmSheet from '../ui/ConfirmSheet.vue'
 
 const emit = defineEmits<{ changed: [] }>()
 const t = useT()
 const busy = ref(false)
 const error = ref('')
-// Retrait en deux temps (pas de boîte de dialogue native) : id du membre à confirmer.
-const confirming = ref<string | null>(null)
+// Retrait (ou départ) confirmé par la feuille commune (NAR-184) : membre à confirmer.
+const confirming = useConfirm<FamilyMember>()
 // Incrémenté après chaque action : la liste est redessinée depuis l'état relu,
 // même si un refus laisse le rôle inchangé (le menu revient alors à la vraie valeur).
 const version = ref(0)
@@ -28,7 +30,6 @@ async function run(task: () => Promise<unknown>) {
   error.value = ''
   try {
     await task()
-    confirming.value = null
   } catch (e) {
     error.value = familyErrorText(e, t.value)
   } finally {
@@ -38,11 +39,16 @@ async function run(task: () => Promise<unknown>) {
     // Un rôle retiré ou un départ peut supprimer des invitations en attente.
     emit('changed')
     busy.value = false
+    // Erreur montrée au-dessus de la liste, feuille refermée.
+    confirming.close()
   }
 }
 
 const changeRole = (m: FamilyMember, role: FamilyRole) => run(() => setMemberRole(m.userId, role))
-const remove = (m: FamilyMember) => run(() => removeMember(m.userId))
+function remove() {
+  const m = confirming.target.value
+  if (m) void run(() => removeMember(m.userId))
+}
 </script>
 
 <template>
@@ -60,16 +66,20 @@ const remove = (m: FamilyMember) => run(() => removeMember(m.userId))
           </select>
           <span v-else class="role">{{ t.family.roles[m.role] }}</span>
           <template v-if="canEdit(m) || m.isMe">
-            <AppButton v-if="confirming !== m.userId" variant="ghost" small :disabled="busy" @click="confirming = m.userId">
+            <AppButton variant="ghost" small :disabled="busy" @click="confirming.ask(m, $event)">
               {{ m.isMe ? t.family.leave : t.family.remove }}
-            </AppButton>
-            <AppButton v-else variant="danger" small :disabled="busy" @click="remove(m)">
-              {{ m.isMe ? t.family.confirmLeave : t.family.confirmRemove }}
             </AppButton>
           </template>
         </span>
       </li>
     </ul>
+    <ConfirmSheet
+      v-if="confirming.target.value" id="member-remove"
+      :title="confirming.target.value.isMe ? t.family.leaveTitle : t.family.removeTitle(confirming.target.value.name)"
+      :items="confirming.target.value.isMe ? t.family.leaveItems : t.family.removeItems"
+      :confirm="confirming.target.value.isMe ? t.family.confirmLeave : t.family.confirmRemove"
+      :busy="busy" :opener="confirming.opener.value" @close="confirming.close()" @confirm="remove"
+    />
   </div>
 </template>
 

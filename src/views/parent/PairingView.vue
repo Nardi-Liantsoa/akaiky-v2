@@ -5,6 +5,7 @@ import QRCode from 'qrcode'
 import { createPairing, listDevices, revokeDevice, type ChildDevice } from '../../api/devices'
 import { ApiError } from '../../api/http'
 import LoadError from '../../components/family/LoadError.vue'
+import { useConfirm } from '../../composables/useConfirm'
 import { locale, useT } from '../../composables/useT'
 import { remaining } from '../../lib/countdown'
 import { errorText } from '../../lib/errors'
@@ -12,6 +13,7 @@ import { formatDay } from '../../lib/format'
 import { children, dropChild, loadChildren } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
+import ConfirmSheet from '../../components/ui/ConfirmSheet.vue'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
 
 // Écran 10 de la maquette : appairage du téléphone de l'enfant par QR de
@@ -30,7 +32,8 @@ const error = ref('')
 const devices = ref<ChildDevice[]>([])
 const devicesStatus = ref<'loading' | 'ready' | 'error'>('loading')
 const justPaired = ref(false)
-const confirming = ref<string | null>(null)
+// Retrait confirmé par la feuille commune (NAR-184) : rien ne part avant « Confirmer ».
+const confirming = useConfirm<ChildDevice>()
 
 const left = computed(() => (expiresAt.value ? remaining(expiresAt.value, now.value) : null))
 const expired = computed(() => Boolean(expiresAt.value) && left.value === null)
@@ -106,20 +109,22 @@ async function show() {
   }
 }
 
-async function revoke(id: string) {
-  if (busy.value) return
+async function revoke() {
+  const id = confirming.target.value?.id
+  if (!id || busy.value) return
   busy.value = true
   error.value = ''
   try {
     await revokeDevice(id)
     devices.value = devices.value.filter((d) => d.id !== id)
-    confirming.value = null
   } catch (e) {
     error.value = errorText(e, t.value)
     if (e instanceof ApiError && e.code === 'device_not_found') void refreshDevices()
     forgetIfGone(e)
   } finally {
     busy.value = false
+    // Erreur montrée sur la page, feuille refermée.
+    confirming.close()
   }
 }
 
@@ -138,7 +143,7 @@ watch(childId, () => {
   expiresAt.value = ''
   error.value = ''
   justPaired.value = false
-  confirming.value = null
+  confirming.close()
   devices.value = []
   devicesStatus.value = 'loading'
   if (childId.value) void refreshDevices()
@@ -187,10 +192,14 @@ watch(childId, () => {
             <strong>{{ d.model || t.pairing.unknownModel }}</strong>
             <span class="meta">{{ t.pairing.since(formatDay(d.createdAt, locale)) }}</span>
           </div>
-          <AppButton v-if="confirming !== d.id" variant="ghost" :disabled="busy" @click="confirming = d.id">{{ t.pairing.revoke }}</AppButton>
-          <AppButton v-else variant="danger" :disabled="busy" @click="revoke(d.id)">{{ t.pairing.confirmRevoke }}</AppButton>
+          <AppButton variant="ghost" :disabled="busy" @click="confirming.ask(d, $event)">{{ t.pairing.revoke }}</AppButton>
         </li>
       </ul>
+      <ConfirmSheet
+        v-if="confirming.target.value" id="device-revoke" :title="t.pairing.revokeTitle(confirming.target.value.model || t.pairing.unknownModel)"
+        :items="t.pairing.revokeItems" :confirm="t.pairing.confirmRevoke" :busy="busy" :opener="confirming.opener.value"
+        @close="confirming.close()" @confirm="revoke"
+      />
       <p v-if="devices.length" class="hint">{{ t.pairing.revokeHint }}</p>
 
       <RouterLink class="btn btn-ghost back" :to="{ name: 'enfant', params: { id: child.id } }">{{ t.children.cancel }}</RouterLink>
