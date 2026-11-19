@@ -19,7 +19,7 @@ const daysAgo = (d) => new Date(Date.now() - d * 86_400_000)
 async function pairedChild() {
   const owner = await newUser(ctx)
   await call(ctx.app, 'POST', '/api/families', { cookie: owner.cookie, body: { name: 'Famille' } })
-  const kid = (await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { firstName: 'Fy' } })).json()
+  const kid = (await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { parentalConsent: true, firstName: 'Fy' } })).json()
   const qr = await call(ctx.app, 'POST', `/api/children/${kid.id}/pairing`, { cookie: owner.cookie })
   const res = await native(ctx.app, 'POST', '/api/device/pair', { body: { token: qr.json().provisioning[BUNDLE]['akaiky.pairing'], model: 'Pixel 3a' } })
   const { rows: [d] } = await ctx.db.query('SELECT id, family_id, child_id FROM child_devices WHERE child_id = $1', [kid.id])

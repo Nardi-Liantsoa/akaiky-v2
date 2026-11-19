@@ -43,7 +43,7 @@ export const api = (page, method, path, data) => page.request.fetch(`/api${path}
 // parcours d'inscription lui-même est testé par son critère.
 export async function newClient(page, { name = 'Client Recette' } = {}) {
   const email = uniqueEmail()
-  expect((await api(page, 'POST', '/auth/register', { name, email, password: PASSWORD })).status()).toBeLessThan(300)
+  expect((await api(page, 'POST', '/auth/register', { name, email, password: PASSWORD, consent: true })).status()).toBeLessThan(300)
   const token = /#confirm=([A-Za-z0-9_-]+)/.exec((await mailFor(email, /Confirmez/)).text)[1]
   expect((await api(page, 'POST', '/auth/confirm', { token })).ok()).toBe(true)
   expect((await api(page, 'POST', '/auth/login', { email, password: PASSWORD })).ok()).toBe(true)

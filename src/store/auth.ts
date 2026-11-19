@@ -56,8 +56,9 @@ export function setUser(user: User | null) {
   auth.user = user
 }
 
+// consent : case « majeur·e, autorité parentale » cochée (NAR-178).
 export async function register(name: string, email: string, password: string): Promise<void> {
-  await api.post('/auth/register', { name, email, password })
+  await api.post('/auth/register', { name, email, password, consent: true })
 }
 
 export async function logout(): Promise<void> {

@@ -25,7 +25,7 @@ async function join(owner, role) {
   return guest
 }
 async function pairedChild(owner, firstName) {
-  const kid = (await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { firstName } })).json()
+  const kid = (await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { parentalConsent: true, firstName } })).json()
   const qr = await call(ctx.app, 'POST', `/api/children/${kid.id}/pairing`, { cookie: owner.cookie })
   const res = await native(ctx.app, 'POST', '/api/device/pair', { body: { token: qr.json().provisioning[BUNDLE]['akaiky.pairing'], model: 'Pixel 3a', osVersion: '14', appVersion: '1.0' } })
   assert.equal(res.statusCode, 201, res.body)
@@ -120,7 +120,7 @@ test('un membre supprime son compte : adhésion partie, famille intacte, lien du
   await family(owner)
   const member = await join(owner, 'manager')
   const memberId = (await whoami(member)).id
-  const kid = (await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { firstName: 'Tiana' } })).json()
+  const kid = (await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { parentalConsent: true, firstName: 'Tiana' } })).json()
   const contact = (await call(ctx.app, 'POST', `/api/children/${kid.id}/contacts`, { cookie: owner.cookie, body: { name: 'Papa', phone: '034 22 222 22', memberUserId: memberId } })).json()
   // Invitation envoyée par ce gestionnaire, encore en attente.
   assert.equal((await call(ctx.app, 'POST', '/api/families/me/invitations', { cookie: member.cookie, body: { email: 'cousine@exemple.fr', role: 'member' } })).statusCode, 201)

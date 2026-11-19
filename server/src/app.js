@@ -9,6 +9,7 @@ import { createPasswordConfirm } from './password-confirm.js'
 import authRoutes from './routes/auth.js'
 import adminRoutes from './routes/admin.js'
 import familiesRoutes from './routes/families.js'
+import { exportRoutes } from './routes/export.js'
 import invitationsRoutes from './routes/invitations.js'
 import childrenRoutes from './routes/children.js'
 import contactsRoutes from './routes/contacts.js'
@@ -295,6 +296,7 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   await app.register(authRoutes, { prefix: '/api/auth' })
   await app.register(adminRoutes, { prefix: '/api/admin' })
   await app.register(familiesRoutes, { prefix: '/api/families' })
+  await app.register(exportRoutes, { prefix: '/api/families' })
   await app.register(invitationsRoutes, { prefix: '/api/invitations' })
   await app.register(childrenRoutes, { prefix: '/api/children' })
   await app.register(contactsRoutes, { prefix: '/api' })

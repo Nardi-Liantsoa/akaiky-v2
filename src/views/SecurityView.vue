@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { Capacitor } from '@capacitor/core'
 import { RouterLink, useRouter } from 'vue-router'
 import { api, ApiError } from '../api/http'
 import DeleteConfirm from '../components/account/DeleteConfirm.vue'
@@ -7,6 +8,8 @@ import { isAdmin, logout } from '../store/auth'
 import { notice } from '../store/notice'
 import { useT, locale } from '../composables/useT'
 import { errorText } from '../lib/errors'
+import { exportFamily } from '../api/families'
+import { canManage, family, loadFamily } from '../store/family'
 
 interface Device { id: string, label: string | null, last_used_at?: string, last_seen_at?: string, current: boolean }
 interface Security { devices: Device[], mfaEnabled: boolean, recoveryCodesRemaining: number }
@@ -71,7 +74,37 @@ function resetDelete() {
   mustTransfer.value = false
 }
 
-onMounted(load)
+// Export des données de la famille (NAR-178, droit d'accès) : owner et manager.
+// Fichier construit par le serveur, enregistré par un lien de téléchargement temporaire.
+// Pas d'export dans l'app native : la WebView ignore ce téléchargement (Filesystem/Share
+// demanderait une nouvelle coque) ; on renvoie vers la version web.
+const nativeApp = Capacitor.isNativePlatform()
+const exporting = ref(false)
+const exportError = ref('')
+async function downloadExport() {
+  if (nativeApp || exporting.value) return
+  exporting.value = true
+  exportError.value = ''
+  try {
+    const data = await exportFamily()
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `akaiky-famille-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  } catch (e) {
+    exportError.value = e instanceof ApiError && e.status === 429 ? t.value.dataExport.tooMany : errorText(e, t.value)
+    if (e instanceof ApiError && e.code === 'family_role') void loadFamily(true)
+  } finally {
+    exporting.value = false
+  }
+}
+
+onMounted(() => { load(); void loadFamily() })
 </script>
 
 <template>
@@ -119,6 +152,19 @@ onMounted(load)
           <button class="btn btn-ghost" type="button" :disabled="busy" @click="revokeApp(d.id)">{{ t.security.revoke }}</button>
         </li>
       </ul>
+    </section>
+
+    <section v-if="family.status === 'ready' && family.data" class="card" aria-labelledby="export-title">
+      <h2 id="export-title">{{ t.dataExport.title }}</h2>
+      <template v-if="canManage()">
+        <p class="hint">{{ t.dataExport.lead }}</p>
+        <p v-if="nativeApp" class="hint">{{ t.dataExport.nativeHint }}</p>
+        <template v-else>
+          <p v-if="exportError" class="error" role="alert">{{ exportError }}</p>
+          <button class="btn btn-ghost" type="button" :disabled="exporting" @click="downloadExport">{{ exporting ? t.dataExport.busy : t.dataExport.action }}</button>
+        </template>
+      </template>
+      <p v-else class="hint">{{ t.dataExport.memberHint }}</p>
     </section>
 
     <DeleteConfirm v-if="state" id="delete-account" :title="t.deletion.accountTitle" :lead="t.deletion.accountLead"

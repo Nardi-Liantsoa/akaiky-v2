@@ -17,9 +17,10 @@ const accounts = [
 ]
 for (const a of accounts) {
   await db.query(
-    `INSERT INTO users(email, name, password_hash, is_admin, email_verified_at) VALUES ($1, $2, $3, $4, now())
+    `INSERT INTO users(email, name, password_hash, is_admin, email_verified_at, consent_at) VALUES ($1, $2, $3, $4, now(), now())
      ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, password_hash = EXCLUDED.password_hash,
-       is_admin = EXCLUDED.is_admin, failed_logins = 0, locked_until = NULL`,
+       is_admin = EXCLUDED.is_admin, failed_logins = 0, locked_until = NULL,
+       consent_at = COALESCE(users.consent_at, EXCLUDED.consent_at)`,
     [a.email, a.name, await hashPassword(a.password), !!a.admin])
 }
 console.log('\nComptes (base locale uniquement) :')

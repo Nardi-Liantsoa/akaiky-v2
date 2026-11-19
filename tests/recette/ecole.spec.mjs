@@ -17,7 +17,7 @@ test('pendant la plage « école », le téléphone ne montre que les parents et
   await newClient(page)
   expect((await api(page, 'POST', '/families', { name: 'Famille Recette' })).ok()).toBe(true)
   const me = (await (await api(page, 'GET', '/auth/me')).json()).user
-  const fy = await (await api(page, 'POST', '/children', { firstName: 'Fy' })).json()
+  const fy = await (await api(page, 'POST', '/children', { firstName: 'Fy', parentalConsent: true })).json()
   expect((await api(page, 'POST', `/children/${fy.id}/contacts`, { name: 'Maman', phone: '034 12 345 67', memberUserId: me.id })).status()).toBe(201)
   expect((await api(page, 'POST', `/children/${fy.id}/contacts`, { name: 'Mamie', phone: '034 76 543 21' })).status()).toBe(201)
   const qr = await (await api(page, 'POST', `/children/${fy.id}/pairing`, {})).json()

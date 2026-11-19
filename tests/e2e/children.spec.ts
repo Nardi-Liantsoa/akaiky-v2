@@ -31,16 +31,24 @@ test('owner sans enfant : ajouter deux enfants, cartes empilées, sélection gar
   await expect(page.getByText('Ajoutez votre premier enfant pour configurer son téléphone.')).toBeVisible()
   await page.getByRole('link', { name: 'Ajouter un enfant' }).click()
   await page.getByLabel('Prénom').fill('Fy')
+  // Sans la case de consentement : message, rien n'est envoyé (NAR-178).
+  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Cochez cette case pour continuer.')
+  expect(calls.some((r) => r.method() === 'POST' && r.url().endsWith('/api/children'))).toBe(false)
+  // Toute la ligne est cliquable : le texte coche la case.
+  await page.getByText('Je suis titulaire de l’autorité parentale sur cet enfant').click()
+  await expect(page.getByRole('checkbox', { name: /autorité parentale sur cet enfant/ })).toBeChecked()
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page).toHaveURL(/\/espace$/)
   await expect(cardButton(page, 'Fy')).toBeVisible()
   await expect(cardButton(page, 'Fy')).toContainText('Aucun téléphone relié')
   // Sans couleur choisie, rien n'est envoyé : la rotation est celle du serveur.
-  expect(calls.find((r) => r.method() === 'POST' && r.url().endsWith('/api/children'))!.postDataJSON()).toEqual({ firstName: 'Fy' })
+  expect(calls.find((r) => r.method() === 'POST' && r.url().endsWith('/api/children'))!.postDataJSON()).toEqual({ firstName: 'Fy', parentalConsent: true })
 
   await page.getByRole('link', { name: '+ Ajouter un enfant' }).click()
   await page.getByLabel('Prénom').fill('Tiana')
   await page.getByLabel('Violet').check()
+  await page.getByRole('checkbox', { name: /autorité parentale sur cet enfant/ }).check()
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(cardNames(page)).toHaveText(['Fy', 'Tiana'])
   // L'enfant tout juste ajouté est sélectionné : sa carte est dépliée.
@@ -117,6 +125,7 @@ test('plafond atteint : message traduit', async ({ page }) => {
   })
   await page.goto('/espace/enfant/nouveau')
   await page.getByLabel('Prénom').fill('Encore')
+  await page.getByRole('checkbox', { name: /autorité parentale sur cet enfant/ }).check()
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page.getByRole('alert')).toHaveText('Nombre maximal d’enfants atteint.')
 })

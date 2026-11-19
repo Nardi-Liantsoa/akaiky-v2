@@ -407,6 +407,20 @@ const fr = {
     settings: { title: 'Réglages' },
     family: { title: 'Famille', empty: 'Les membres de votre famille apparaîtront ici.' }
   },
+  consent: {
+    signup: 'Je suis majeur·e et titulaire de l’autorité parentale sur les enfants que j’ajouterai.',
+    child: 'Je suis titulaire de l’autorité parentale sur cet enfant et j’accepte que ses appels et messages soient journalisés (90 jours).',
+    required: 'Cochez cette case pour continuer.'
+  },
+  dataExport: {
+    title: 'Données de la famille',
+    lead: 'Téléchargez un fichier avec toutes les données de la famille : membres, enfants, contacts, téléphones, plages, messages et journal.',
+    action: 'Exporter les données de la famille',
+    busy: 'Préparation du fichier…',
+    tooMany: 'Trop d’exports : réessayez dans une heure.',
+    memberHint: 'Le parent principal ou un gestionnaire de la famille peut exporter ses données.',
+    nativeHint: 'L’export se fait depuis la version web d’Akaiky (navigateur).'
+  },
   admin: {
     title: 'Administration',
     users: 'Comptes',
@@ -827,6 +841,20 @@ const mg: Messages = {
     settings: { title: 'Fandrindrana' },
     family: { title: 'Fianakaviana', empty: 'Eto no hiseho ireo mpikambana ao amin’ny fianakavianao.' }
   },
+  consent: {
+    signup: 'Efa olon-dehibe aho ary manana ny fahefana ray aman-dreny amin’ireo ankizy hampidiriko.',
+    child: 'Manana ny fahefana ray aman-dreny amin’ity ankizy ity aho ary manaiky fa voasoratra ny antso sy hafatra ataony (90 andro).',
+    required: 'Asio marika ity efajoro ity raha hanohy.'
+  },
+  dataExport: {
+    title: 'Ny angon’ny fianakaviana',
+    lead: 'Alaivo ny rakitra misy ny angon’ny fianakaviana rehetra: mpikambana, ankizy, mpifandray, finday, fotoana, hafatra ary tantara.',
+    action: 'Haondrana ny angon’ny fianakaviana',
+    busy: 'Manomana ny rakitra…',
+    tooMany: 'Be loatra ny fanondranana: andramo indray afaka iray ora.',
+    memberHint: 'Ny ray aman-dreny lehibe na mpitantana ny fianakaviana no afaka manondrana ny angony.',
+    nativeHint: 'Ny dikan’i Akaiky amin’ny tranonkala (navigateur) no anaovana ny fanondranana.'
+  },
   admin: {
     title: 'Fitantanana',
     users: 'Kaonty',
@@ -1244,6 +1272,20 @@ const en: Messages = {
     },
     settings: { title: 'Settings' },
     family: { title: 'Family', empty: 'Your family members will appear here.' }
+  },
+  consent: {
+    signup: 'I am an adult and hold parental authority over the children I will add.',
+    child: 'I hold parental authority over this child and agree that their calls and messages are logged (90 days).',
+    required: 'Tick this box to continue.'
+  },
+  dataExport: {
+    title: 'Family data',
+    lead: 'Download a file with all the family’s data: members, children, contacts, phones, schedules, messages and log.',
+    action: 'Export family data',
+    busy: 'Preparing the file…',
+    tooMany: 'Too many exports: try again in an hour.',
+    memberHint: 'The family’s main parent or a manager can export its data.',
+    nativeHint: 'Export is done from the web version of Akaiky (browser).'
   },
   admin: {
     title: 'Administration',

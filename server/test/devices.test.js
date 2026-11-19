@@ -11,7 +11,7 @@ after(async () => { await ctx.close(); dbh.stop() })
 
 const BUNDLE = 'android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE'
 const family = (u) => call(ctx.app, 'POST', '/api/families', { cookie: u.cookie, body: { name: 'Famille' } })
-const child = async (u, firstName = 'Fy') => (await call(ctx.app, 'POST', '/api/children', { cookie: u.cookie, body: { firstName } })).json()
+const child = async (u, firstName = 'Fy') => (await call(ctx.app, 'POST', '/api/children', { cookie: u.cookie, body: { parentalConsent: true, firstName } })).json()
 const pairing = (u, childId) => call(ctx.app, 'POST', `/api/children/${childId}/pairing`, { cookie: u.cookie })
 const tokenOf = (res) => res.json().provisioning[BUNDLE]['akaiky.pairing']
 const pair = (token, extra = {}) => native(ctx.app, 'POST', '/api/device/pair', { body: { token, model: 'Pixel 3a', osVersion: '14', appVersion: '1.0', ...extra } })
@@ -230,7 +230,7 @@ test('sans APK configuré : pas de QR (503) ; configuration incomplète refusée
   try {
     const owner = await newUser(other)
     await call(other.app, 'POST', '/api/families', { cookie: owner.cookie, body: { name: 'F' } })
-    const fy = (await call(other.app, 'POST', '/api/children', { cookie: owner.cookie, body: { firstName: 'Fy' } })).json()
+    const fy = (await call(other.app, 'POST', '/api/children', { cookie: owner.cookie, body: { parentalConsent: true, firstName: 'Fy' } })).json()
     const res = await call(other.app, 'POST', `/api/children/${fy.id}/pairing`, { cookie: owner.cookie })
     assert.equal(res.statusCode, 503)
     assert.equal(res.json().code, 'pairing_unavailable')

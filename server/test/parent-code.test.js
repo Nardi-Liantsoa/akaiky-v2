@@ -11,7 +11,7 @@ after(async () => { await ctx.close(); dbh.stop() })
 
 const BUNDLE = 'android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE'
 const family = (u) => call(ctx.app, 'POST', '/api/families', { cookie: u.cookie, body: { name: 'Famille' } })
-const child = async (u, firstName = 'Fy') => (await call(ctx.app, 'POST', '/api/children', { cookie: u.cookie, body: { firstName } })).json()
+const child = async (u, firstName = 'Fy') => (await call(ctx.app, 'POST', '/api/children', { cookie: u.cookie, body: { parentalConsent: true, firstName } })).json()
 const setCode = (u, id, code) => call(ctx.app, 'PUT', `/api/children/${id}/parent-code`, { cookie: u.cookie, body: { code } })
 const list = (u) => call(ctx.app, 'GET', '/api/children', { cookie: u.cookie })
 const config = (device, etag) => native(ctx.app, 'GET', '/api/device/config', { token: device.accessToken, headers: etag ? { 'if-none-match': etag } : {} })
@@ -141,7 +141,7 @@ test('le hachage n’atteint aucun compte ; seul le téléphone de CET enfant le
   const responses = [
     await list(owner),
     await call(ctx.app, 'PATCH', `/api/children/${fy.kid.id}`, { cookie: owner.cookie, body: { firstName: 'Fyfy' } }),
-    await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { firstName: 'Hery' } }),
+    await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { parentalConsent: true, firstName: 'Hery' } }),
     await call(ctx.app, 'GET', `/api/children/${fy.kid.id}/devices`, { cookie: owner.cookie }),
     await call(ctx.app, 'GET', '/api/families/me', { cookie: owner.cookie })
   ]

@@ -12,7 +12,7 @@ CREATE ROLE app_runtime LOGIN PASSWORD :'runtime_password'
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 GRANT USAGE ON SCHEMA public TO app_runtime;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO app_runtime;
-GRANT INSERT (email, name, password_hash) ON users TO app_runtime;
+GRANT INSERT (email, name, password_hash, consent_at) ON users TO app_runtime;
 GRANT UPDATE (name, password_hash, email_verified_at, failed_logins, locked_until) ON users TO app_runtime;
 GRANT INSERT, UPDATE, DELETE ON sessions, user_tokens TO app_runtime;
 GRANT INSERT ON audit_log TO app_runtime;

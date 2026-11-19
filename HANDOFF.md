@@ -31,6 +31,13 @@
   absent de ce poste ; recette `iphone` et comparaison visuelle (pas encore de `main`
   de référence au-delà du premier commit) ; coque iOS non construite (Xcode 15.3
   trop ancien sur ce poste).
+- Export RGPD et consentement (NAR-178) : `GET /api/families/me/export` (owner/manager, bouton dans
+  « Sécurité ») ; cases de consentement obligatoires à l'inscription et à l'ajout d'un enfant
+  (migration `018`). Politique de confidentialité en **brouillon** (`docs/confidentialite.md`) :
+  responsable, contact, durée des sauvegardes NosyHost et autorité de contrôle à compléter ;
+  aucune page in-app ni lien encore (case sans mention de la politique). Export désactivé dans
+  l'app native (la WebView ignore le téléchargement par lien) : bouton masqué, renvoi vers la
+  version web ; un export natif (Filesystem/Share) demanderait une nouvelle coque.
 
 ## Décisions datées
 

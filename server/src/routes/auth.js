@@ -167,12 +167,15 @@ export default async function authRoutes(app) {
     const name = text(b.name, { max: 80, min: 1, field: 'Nom' })
     const problem = passwordProblem(b.password, e)
     if (problem) throw new HttpError(400, problem)
+    // Consentement (NAR-178) : vérifié avant toute lecture de la base, donc avant la branche
+    // « adresse déjà prise » : la réponse ne dit jamais si un compte existe.
+    if (b.consent !== true) throw new HttpError(400, 'Cochez la case de consentement pour créer un compte.', 'consent_required')
     await consumeQuota(db, 'registrations', config.quotas.registrationsPerHour)
     await emailBudget()
     // Le hachage est calculé dans les deux cas (adresse neuve ou déjà prise).
     const hash = await hashPassword(b.password)
     const { rows } = await db.query(
-      `INSERT INTO users(email, name, password_hash) VALUES ($1, $2, $3)
+      `INSERT INTO users(email, name, password_hash, consent_at) VALUES ($1, $2, $3, now())
        ON CONFLICT (email) DO NOTHING RETURNING id`, [e, name, hash])
     if (rows[0]) {
       const token = await issueToken(rows[0].id, 'confirm', 24)

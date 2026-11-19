@@ -11,7 +11,7 @@ const device = (page, method, path, { token, data } = {}) => page.request.fetch(
 test('un message rapide envoyé par l’enfant arrive chez les parents, et l’enfant voit qu’il a été lu @C14 @C90', async ({ page }) => {
   await newClient(page)
   expect((await api(page, 'POST', '/families', { name: 'Famille Recette' })).ok()).toBe(true)
-  const fy = await (await api(page, 'POST', '/children', { firstName: 'Fy' })).json()
+  const fy = await (await api(page, 'POST', '/children', { firstName: 'Fy', parentalConsent: true })).json()
   const qr = await (await api(page, 'POST', `/children/${fy.id}/pairing`, {})).json()
   const token = qr.provisioning['android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE']['akaiky.pairing']
   const paired = await device(page, 'POST', '/pair', { data: { token, model: 'Recette' } })
