@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import shared from '../../tests/fixtures/schedule-cases.json'
 import { activeWindow, daysSummary, safeTimeZone, visibleContacts, fromTimeInput, toTimeInput, weekMinute, type ScheduleRule } from './schedule'
 
 const TZ = 'Indian/Antananarivo' // UTC+3, sans changement d'heure
@@ -54,7 +55,7 @@ describe('activeWindow (NAR-148)', () => {
   })
 
   it('toute la semaine couverte : sans fin', () => {
-    const always: ScheduleRule = { label: 'Toujours', days: 127, startMin: 0, endMin: 0 + 1439 }
+    const always: ScheduleRule = { label: 'Toujours', days: 127, startMin: 0, endMin: 1439 }
     const gap: ScheduleRule = { label: 'Minuit', days: 127, startMin: 1439, endMin: 0 }
     expect(activeWindow(at(2, 12), [always, gap], TZ)).toEqual({ label: 'Toujours', until: null })
   })
@@ -94,4 +95,15 @@ describe('safeTimeZone', () => {
     expect(safeTimeZone('Madagascar')).toBe('Indian/Antananarivo')
     expect(safeTimeZone(undefined)).toBe('Indian/Antananarivo')
   })
+})
+
+// Mêmes cas que le filtre natif (SchoolScheduleTest.kt, NAR-176).
+describe('cas partagés avec le natif', () => {
+  const rules = shared.rules as Record<string, ScheduleRule | Omit<ScheduleRule, 'label'>>
+  for (const c of shared.cases) {
+    it(c.name, () => {
+      const list = c.rules.map((k) => ({ label: k, ...rules[k] }))
+      expect(activeWindow(new Date(c.at), list, c.tz) !== null).toBe(c.active)
+    })
+  }
 })

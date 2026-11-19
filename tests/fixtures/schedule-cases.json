@@ -1,0 +1,30 @@
+{
+  "_doc": "Cas partagés des plages « école » (NAR-148/176) : src/lib/schedule.test.ts (écran) et SchoolScheduleTest.kt (filtre natif) doivent donner le même « active ». 2026-11-16 est un lundi ; heures en UTC (Madagascar = UTC+3).",
+  "rules": {
+    "ecole": { "days": 31, "startMin": 480, "endMin": 960 },
+    "nuitVendredi": { "days": 16, "startMin": 1260, "endMin": 420 },
+    "dimanche": { "days": 64, "startMin": 1320, "endMin": 360 },
+    "club": { "days": 31, "startMin": 900, "endMin": 1050 },
+    "debutEgalFin": { "days": 127, "startMin": 480, "endMin": 480 },
+    "joursHorsMasque": { "days": 255, "startMin": 0, "endMin": 1439 }
+  },
+  "cases": [
+    { "name": "lundi 7:59:59, avant l'école", "at": "2026-11-16T04:59:59Z", "rules": ["ecole"], "tz": "Indian/Antananarivo", "active": false },
+    { "name": "lundi 8:00, début", "at": "2026-11-16T05:00:00Z", "rules": ["ecole"], "tz": "Indian/Antananarivo", "active": true },
+    { "name": "lundi 15:59, dernière minute", "at": "2026-11-16T12:59:30Z", "rules": ["ecole"], "tz": "Indian/Antananarivo", "active": true },
+    { "name": "lundi 16:00, fin exclue", "at": "2026-11-16T13:00:00Z", "rules": ["ecole"], "tz": "Indian/Antananarivo", "active": false },
+    { "name": "lundi 14:30, après-midi", "at": "2026-11-16T11:30:00Z", "rules": ["ecole"], "tz": "Indian/Antananarivo", "active": true },
+    { "name": "samedi 10:00, jour exclu", "at": "2026-11-21T07:00:00Z", "rules": ["ecole"], "tz": "Indian/Antananarivo", "active": false },
+    { "name": "vendredi 22:00, nuit", "at": "2026-11-20T19:00:00Z", "rules": ["nuitVendredi"], "tz": "Indian/Antananarivo", "active": true },
+    { "name": "samedi 6:59, fin de nuit", "at": "2026-11-21T03:59:00Z", "rules": ["nuitVendredi"], "tz": "Indian/Antananarivo", "active": true },
+    { "name": "samedi 7:00, nuit finie", "at": "2026-11-21T04:00:00Z", "rules": ["nuitVendredi"], "tz": "Indian/Antananarivo", "active": false },
+    { "name": "jeudi 22:00, jour non coché", "at": "2026-11-19T19:00:00Z", "rules": ["nuitVendredi"], "tz": "Indian/Antananarivo", "active": false },
+    { "name": "lundi 5:00, suite du dimanche soir", "at": "2026-11-16T02:00:00Z", "rules": ["dimanche"], "tz": "Indian/Antananarivo", "active": true },
+    { "name": "lundi 16:30, chevauchement école + club", "at": "2026-11-16T13:30:00Z", "rules": ["ecole", "club"], "tz": "Indian/Antananarivo", "active": true },
+    { "name": "lundi 17:30, après le club", "at": "2026-11-16T14:30:00Z", "rules": ["ecole", "club"], "tz": "Indian/Antananarivo", "active": false },
+    { "name": "Paris, lundi 8:30 (7:30 UTC)", "at": "2026-11-16T07:30:00Z", "rules": ["ecole"], "tz": "Europe/Paris", "active": true },
+    { "name": "plage mal formée (début = fin) : ignorée des deux côtés", "at": "2026-11-16T07:00:00Z", "rules": ["debutEgalFin"], "tz": "Indian/Antananarivo", "active": false },
+    { "name": "jours hors masque (255) : ignorée des deux côtés", "at": "2026-11-16T07:00:00Z", "rules": ["joursHorsMasque"], "tz": "Indian/Antananarivo", "active": false },
+    { "name": "aucune plage", "at": "2026-11-16T07:00:00Z", "rules": [], "tz": "Indian/Antananarivo", "active": false }
+  ]
+}
