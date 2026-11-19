@@ -8,6 +8,7 @@ import { formatClock, formatDay } from '../../lib/format'
 import { parentCodeProblem } from '../../lib/parentCode'
 import { children, upsertChild } from '../../store/children'
 import { canManage } from '../../store/family'
+import AppButton from '../ui/AppButton.vue'
 
 // Code parent de l'enfant (NAR-139). Le code ne revient jamais du serveur : la carte
 // dit seulement s'il est défini et depuis quand. Un contact (member) ne voit que l'état.
@@ -105,9 +106,9 @@ async function unlockNow() {
     </p>
     <p v-if="saved" class="saved" role="status">{{ t.parentCode.saved }}</p>
     <template v-if="canManage()">
-      <button v-if="!editing" class="btn btn-ghost" type="button" @click="open">
+      <AppButton v-if="!editing" variant="ghost" @click="open">
         {{ child.parentCodeSetAt ? t.parentCode.change : t.parentCode.set }}
-      </button>
+      </AppButton>
       <form v-else @submit.prevent="save">
         <p v-if="error" class="error" role="alert">{{ error }}</p>
         <div class="field">
@@ -125,15 +126,15 @@ async function unlockNow() {
           />
         </div>
         <div class="actions">
-          <button class="btn" type="submit" :disabled="busy || !complete">{{ t.parentCode.save }}</button>
-          <button class="btn btn-ghost" type="button" :disabled="busy" @click="close">{{ t.parentCode.cancel }}</button>
+          <AppButton type="submit" :disabled="busy || !complete">{{ t.parentCode.save }}</AppButton>
+          <AppButton variant="ghost" :disabled="busy" @click="close">{{ t.parentCode.cancel }}</AppButton>
         </div>
       </form>
     </template>
     <div v-if="child.parentCodeSetAt" class="remote">
       <p v-if="unlockedUntil" class="state" role="status">{{ t.parentCode.unlockedUntil(formatClock(unlockedUntil)) }}</p>
       <p v-if="unlockError" class="error" role="alert">{{ unlockError }}</p>
-      <button v-if="canManage() && !editing" class="btn" type="button" :disabled="unlockBusy" @click="unlockNow">{{ t.parentCode.unlock }}</button>
+      <AppButton v-if="canManage() && !editing" :disabled="unlockBusy" @click="unlockNow">{{ t.parentCode.unlock }}</AppButton>
       <p v-if="canManage() && !editing" class="hint">{{ t.parentCode.unlockHint }}</p>
     </div>
   </section>
@@ -150,8 +151,6 @@ async function unlockNow() {
 }
 h2 {
   margin: 0;
-  font-size: 1.15rem;
-  font-weight: 800;
 }
 .hint {
   margin: 4px 0 8px;

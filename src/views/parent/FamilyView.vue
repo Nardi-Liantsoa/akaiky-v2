@@ -13,6 +13,7 @@ import { familyNameValid } from '../../lib/familyName'
 import { errorText } from '../../lib/errors'
 import { canManage, family, loadFamily, setFamilyName, setNoFamily } from '../../store/family'
 import { notice } from '../../store/notice'
+import AppButton from '../../components/ui/AppButton.vue'
 
 const t = useT()
 const router = useRouter()
@@ -87,13 +88,13 @@ async function save() {
             <input id="family-rename" v-model="name" class="input" required autocomplete="off" data-selectable />
           </div>
           <div class="actions">
-            <button class="btn" type="submit" :disabled="busy || !familyNameValid(name)">{{ t.family.save }}</button>
-            <button class="btn btn-ghost" type="button" @click="editing = false">{{ t.family.cancel }}</button>
+            <AppButton type="submit" :disabled="busy || !familyNameValid(name)">{{ t.family.save }}</AppButton>
+            <AppButton variant="ghost" @click="editing = false">{{ t.family.cancel }}</AppButton>
           </div>
         </form>
         <template v-else>
           <h2>{{ family.data.name }}</h2>
-          <button v-if="canManage()" class="btn btn-ghost" type="button" @click="edit">{{ t.family.rename }}</button>
+          <AppButton v-if="canManage()" variant="ghost" @click="edit">{{ t.family.rename }}</AppButton>
         </template>
       </div>
 
@@ -120,7 +121,6 @@ async function save() {
 
 <style scoped>
 h1 {
-  font-size: 2rem;
   margin: 8px 0 20px;
 }
 .head {
@@ -144,8 +144,6 @@ h1 {
 }
 .section {
   margin: 28px 0 12px;
-  font-size: 1.15rem;
-  font-weight: 800;
 }
 .invite {
   margin-top: 28px;

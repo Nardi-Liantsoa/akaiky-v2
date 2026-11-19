@@ -95,14 +95,14 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
         <p v-else class="message" />
         <div class="pad">
           <button v-for="k in KEYS" :key="k" type="button" class="key" :disabled="busy || blocked" @click="press(k)">{{ k }}</button>
-          <button type="button" class="key small" :disabled="busy" @click="emit('close')">{{ t.child.lock.close }}</button>
+          <button type="button" class="key key-small" :disabled="busy" @click="emit('close')">{{ t.child.lock.close }}</button>
           <button type="button" class="key" :disabled="busy || blocked" @click="press('0')">0</button>
-          <button type="button" class="key small" :disabled="busy || !digits" :aria-label="t.child.lock.erase" @click="erase">⌫</button>
+          <button type="button" class="key key-small" :disabled="busy || !digits" :aria-label="t.child.lock.erase" @click="erase">⌫</button>
         </div>
       </template>
       <template v-else>
         <p class="message">{{ t.child.lock.noCode }}</p>
-        <button type="button" class="key small close" @click="emit('close')">{{ t.child.lock.close }}</button>
+        <button type="button" class="key key-small close" @click="emit('close')">{{ t.child.lock.close }}</button>
       </template>
     </div>
   </Teleport>
@@ -174,7 +174,7 @@ h2 {
   font-size: 1.8rem;
   font-weight: 800;
 }
-.key.small {
+.key.key-small {
   font-size: 1rem;
 }
 .key:disabled {

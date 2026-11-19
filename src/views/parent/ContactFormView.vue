@@ -12,6 +12,7 @@ import { isE164 } from '../../lib/phone'
 import { children, loadChildren, selectChild } from '../../store/children'
 import { contacts, loadContacts } from '../../store/contacts'
 import { canManage, family, loadFamily } from '../../store/family'
+import AppButton from '../../components/ui/AppButton.vue'
 
 const t = useT()
 const route = useRoute()
@@ -122,7 +123,7 @@ async function remove() {
     <p v-else-if="allowed && childGone" class="error" role="alert">{{ t.children.notFound }}</p>
     <div v-else-if="allowed && (children.status === 'error' || contacts.status === 'error')" class="error" role="alert">
       <p>{{ t.contacts.loadError }} {{ contacts.status === 'error' ? contactErrorText(contacts.error, t) : '' }}</p>
-      <button class="btn btn-ghost" type="button" @click="loadChildren(true); loadContacts(childId, true)">{{ t.errors.retry }}</button>
+      <AppButton variant="ghost" @click="loadChildren(true); loadContacts(childId, true)">{{ t.errors.retry }}</AppButton>
     </div>
     <p v-else-if="!allowed || !ready" class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
     <p v-else-if="!child" class="error" role="alert">{{ t.children.notFound }}</p>
@@ -153,13 +154,13 @@ async function remove() {
           </label>
         </fieldset>
         <div class="actions">
-          <button class="btn" type="submit" :disabled="busy || !valid">{{ t.contacts.save }}</button>
+          <AppButton type="submit" :disabled="busy || !valid">{{ t.contacts.save }}</AppButton>
           <RouterLink class="btn btn-ghost" :to="{ name: 'reglages' }">{{ t.contacts.cancel }}</RouterLink>
         </div>
       </form>
       <div v-if="existing" class="danger-zone">
-        <button v-if="!confirming" class="btn btn-ghost" type="button" :disabled="busy" @click="confirming = true">{{ t.contacts.remove }}</button>
-        <button v-else class="btn danger" type="button" :disabled="busy" @click="remove">{{ t.contacts.confirmRemove }}</button>
+        <AppButton v-if="!confirming" variant="ghost" :disabled="busy" @click="confirming = true">{{ t.contacts.remove }}</AppButton>
+        <AppButton v-else variant="danger" :disabled="busy" @click="remove">{{ t.contacts.confirmRemove }}</AppButton>
       </div>
     </template>
   </section>
@@ -172,7 +173,6 @@ async function remove() {
   font-weight: 700;
 }
 h1 {
-  font-size: 2rem;
   margin: 0 0 20px;
 }
 .colors {
@@ -220,10 +220,6 @@ h1 {
 }
 .danger-zone {
   margin-top: 28px;
-}
-.danger {
-  background: var(--danger);
-  color: var(--accent-ink);
 }
 .loading {
   min-height: 30vh;

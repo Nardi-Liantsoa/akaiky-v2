@@ -12,6 +12,7 @@ import { formatLongDate } from '../../lib/format'
 import { groupByDay } from '../../lib/groupByDay'
 import { children, loadChildren, selectedChild } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
+import AppButton from '../../components/ui/AppButton.vue'
 
 // Journal de l'enfant (NAR-152, maquette écran 9) : appels, appels bloqués, déverrouillages
 // et messages, groupés par jour, filtrables, par pages. Messages affichés = vus.
@@ -104,7 +105,7 @@ const dayLabel = (g: { when: string, date: Date }) =>
            le bouton est à côté, pas dedans. -->
       <div class="active-filter">
         <p role="status" class="filter-status">{{ filter !== 'all' ? t.parent.log.activeFilter(t.parent.log.summary[filter]) : '' }}</p>
-        <button v-if="filter !== 'all'" type="button" class="show-all" @click="filter = 'all'">{{ t.parent.log.showAll }}</button>
+        <AppButton v-if="filter !== 'all'" variant="link" @click="filter = 'all'">{{ t.parent.log.showAll }}</AppButton>
       </div>
       <p v-if="status === 'error'" class="error" role="alert">{{ t.parent.log.loadError }}</p>
       <div v-else-if="status === 'ready' && !items.length" class="card"><p class="empty">{{ t.parent.log.empty }}</p></div>
@@ -116,7 +117,7 @@ const dayLabel = (g: { when: string, date: Date }) =>
             <LogItem v-for="i in g.items" :key="i.id" :item="i" :child-id="current.id" :can-allow="canManage()" />
           </ul>
         </section>
-        <button v-if="next" class="btn btn-ghost more" type="button" :disabled="loadingMore || refreshing" @click="more">{{ t.parent.log.more }}</button>
+        <AppButton v-if="next" variant="ghost" class="more" :disabled="loadingMore || refreshing" @click="more">{{ t.parent.log.more }}</AppButton>
       </div>
       <p v-else class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
     </template>
@@ -128,7 +129,6 @@ const dayLabel = (g: { when: string, date: Date }) =>
 
 <style scoped>
 h1 {
-  font-size: 2rem;
   margin: 8px 0 16px;
 }
 .active-filter {
@@ -144,19 +144,6 @@ h1 {
 }
 .filter-status {
   margin: 0;
-}
-.show-all {
-  border: 0;
-  background: none;
-  color: var(--accent);
-  font: inherit;
-  font-weight: 800;
-  text-decoration: underline;
-  cursor: pointer;
-}
-.show-all:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
 }
 .day + .day {
   margin-top: 20px;

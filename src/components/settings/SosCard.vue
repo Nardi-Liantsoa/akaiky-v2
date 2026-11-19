@@ -56,8 +56,6 @@ async function toggle() {
 }
 h2 {
   margin: 0 0 12px;
-  font-size: 1.15rem;
-  font-weight: 800;
 }
 .row {
   display: flex;
@@ -87,6 +85,12 @@ h2 {
   border-radius: 999px;
   background: var(--border-strong);
   cursor: pointer;
+}
+/* Zone tactile de 48 px de haut, dessin inchangé. */
+.toggle::after {
+  content: '';
+  position: absolute;
+  inset: -8px 0;
 }
 .toggle[aria-checked='true'] {
   background: var(--accent);

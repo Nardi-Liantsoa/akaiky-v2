@@ -6,6 +6,7 @@ import { errorText } from '../../lib/errors'
 import { clock, daysSummary, fromTimeInput, toTimeInput } from '../../lib/schedule'
 import { canManage } from '../../store/family'
 import { contacts } from '../../store/contacts'
+import AppButton from '../ui/AppButton.vue'
 
 // Plages horaires « école » d'un enfant (NAR-148, maquette écran 8). Un gestionnaire les
 // crée, modifie, active ou supprime ; un contact les voit. Le téléphone les applique seul.
@@ -125,7 +126,7 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
     <p class="hint">{{ t.schedules.hint }}</p>
     <div v-if="status === 'error'" class="error" role="alert">
       <p>{{ t.schedules.loadError }} {{ error }}</p>
-      <button class="btn btn-ghost" type="button" @click="load(childId)">{{ t.errors.retry }}</button>
+      <AppButton variant="ghost" @click="load(childId)">{{ t.errors.retry }}</AppButton>
     </div>
     <template v-else>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
@@ -142,8 +143,8 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
               :aria-label="t.schedules.toggle(s.label)" @click="toggle(s)"
             ><span class="knob" /></button>
             <div class="row-actions">
-              <button type="button" class="link" :disabled="busy" @click="open(s)">{{ t.schedules.edit }}</button>
-              <button type="button" class="link danger" :disabled="busy" @click="remove(s)">{{ t.schedules.remove }}</button>
+              <AppButton variant="link" :disabled="busy" @click="open(s)">{{ t.schedules.edit }}</AppButton>
+              <AppButton variant="danger-link" :disabled="busy" @click="remove(s)">{{ t.schedules.remove }}</AppButton>
             </div>
           </template>
           <p v-else class="state">{{ s.enabled ? t.schedules.on : t.schedules.off }}</p>
@@ -177,11 +178,11 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
         </div>
         <p v-if="crossesMidnight" class="note">{{ t.schedules.overnight }}</p>
         <div class="form-actions">
-          <button class="btn" type="submit" :disabled="busy">{{ t.schedules.save }}</button>
-          <button class="btn btn-ghost" type="button" :disabled="busy" @click="close">{{ t.schedules.cancel }}</button>
+          <AppButton type="submit" :disabled="busy">{{ t.schedules.save }}</AppButton>
+          <AppButton variant="ghost" :disabled="busy" @click="close">{{ t.schedules.cancel }}</AppButton>
         </div>
       </form>
-      <button v-else-if="canManage() && status === 'ready'" class="btn btn-ghost" type="button" @click="open()">+ {{ t.schedules.add }}</button>
+      <AppButton v-else-if="canManage() && status === 'ready'" variant="ghost" @click="open()">+ {{ t.schedules.add }}</AppButton>
     </template>
   </section>
 </template>
@@ -192,8 +193,6 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
 }
 h2 {
   margin: 0;
-  font-size: 1.15rem;
-  font-weight: 800;
 }
 h3 {
   margin: 0 0 8px;
@@ -254,6 +253,12 @@ h3 {
   background: var(--border-strong);
   cursor: pointer;
 }
+/* Zone tactile de 48 px de haut, dessin inchangé. */
+.toggle::after {
+  content: '';
+  position: absolute;
+  inset: -8px 0;
+}
 .toggle[aria-checked='true'] {
   background: var(--accent);
 }
@@ -271,7 +276,6 @@ h3 {
   transform: translateX(20px);
 }
 .toggle:focus-visible,
-.link:focus-visible,
 .day:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
@@ -280,19 +284,6 @@ h3 {
   display: flex;
   flex: 1 0 100%;
   gap: 16px;
-}
-.link {
-  padding: 4px 0;
-  border: 0;
-  background: none;
-  color: var(--accent);
-  font: inherit;
-  font-weight: 800;
-  text-decoration: underline;
-  cursor: pointer;
-}
-.link.danger {
-  color: var(--danger);
 }
 .warning {
   margin: 0 0 12px;
@@ -323,8 +314,8 @@ h3 {
   font-weight: 700;
 }
 .day {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--tap);
+  min-height: var(--tap);
   padding: 0 8px;
   border: 2px solid var(--border-strong);
   border-radius: 999px;
@@ -337,7 +328,7 @@ h3 {
 .day[aria-pressed='true'] {
   border-color: var(--accent);
   background: var(--accent);
-  color: var(--accent-ink, #fff);
+  color: var(--on-color);
 }
 .times {
   display: grid;

@@ -91,8 +91,6 @@ header {
 }
 h2 {
   margin: 0;
-  font-size: 1.15rem;
-  font-weight: 800;
 }
 .count {
   color: var(--text-soft);
@@ -152,8 +150,8 @@ h2 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: var(--tap);
+  height: var(--tap);
   border: 1px solid var(--border-strong);
   border-radius: 50%;
   background: var(--surface);

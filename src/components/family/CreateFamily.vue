@@ -7,6 +7,7 @@ import { familyNameValid } from '../../lib/familyName'
 import { errorText } from '../../lib/errors'
 import { loadFamily } from '../../store/family'
 import { takeNotice } from '../../store/notice'
+import AppButton from '../ui/AppButton.vue'
 
 const t = useT()
 const name = ref('')
@@ -43,7 +44,7 @@ async function submit() {
         <label for="family-name">{{ t.family.nameLabel }}</label>
         <input id="family-name" v-model="name" class="input" required :placeholder="t.family.namePlaceholder" autocomplete="off" data-selectable />
       </div>
-      <button class="btn" type="submit" :disabled="busy || !familyNameValid(name)">{{ t.family.create }}</button>
+      <AppButton block type="submit" :disabled="busy || !familyNameValid(name)">{{ t.family.create }}</AppButton>
     </form>
   </section>
 </template>
@@ -56,14 +57,10 @@ async function submit() {
   margin: 8px 0 16px;
 }
 h1 {
-  font-size: 2rem;
   margin: 8px 0 8px;
 }
 .lead {
   margin: 0 0 20px;
   color: var(--text-soft);
-}
-.btn {
-  width: 100%;
 }
 </style>

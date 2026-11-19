@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useT } from '../../composables/useT'
 import { accentToken, initial, tintToken } from '../../lib/avatar'
+import AppIcon from '../ui/AppIcon.vue'
 
 // Vignette d'un contact autorisé : un appui appelle (maquette écran 1). Tout est
 // porté par l'image (initiale, couleur, pastille verte) : l'enfant de 6 ans ne lit pas.
@@ -17,7 +18,7 @@ const badge = computed(() => ({ background: accentToken(props.color) }))
     <span class="avatar" :style="badge" aria-hidden="true">{{ initial(name) }}</span>
     <span class="name">{{ name }}</span>
     <span class="dial" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z" /></svg>
+      <AppIcon name="call" :size="22" />
     </span>
   </button>
 </template>

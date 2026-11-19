@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useT } from '../../composables/useT'
 import type { AppTile } from '../../lib/appInventory'
+import AppIcon from '../ui/AppIcon.vue'
 
 // Rangée d'applications de l'accueil enfant (NAR-143, maquette écran 1) : « Messages »
 // (messages rapides, hors du quota de 4) puis les applications autorisées par le parent.
@@ -12,7 +13,7 @@ const t = useT()
 <template>
   <nav class="apps" :aria-label="t.child.apps.label">
     <button class="tile messages" type="button" @click="emit('messages')">
-      <span class="glyph" aria-hidden="true">✉</span>
+      <span class="glyph" aria-hidden="true"><AppIcon name="mail" :size="22" /></span>
       <span class="name">{{ t.child.quick.open }}</span>
     </button>
     <button v-for="a in apps" :key="a.package" class="tile" type="button" :aria-label="t.child.apps.open(a.label)" @click="emit('launch', a.package)">

@@ -4,6 +4,7 @@ import { removeMember, setMemberRole, type FamilyMember, type FamilyRole } from 
 import { useT } from '../../composables/useT'
 import { familyErrorText } from '../../lib/familyErrors'
 import { family, loadFamily } from '../../store/family'
+import AppButton from '../ui/AppButton.vue'
 
 const emit = defineEmits<{ changed: [] }>()
 const t = useT()
@@ -59,12 +60,12 @@ const remove = (m: FamilyMember) => run(() => removeMember(m.userId))
           </select>
           <span v-else class="role">{{ t.family.roles[m.role] }}</span>
           <template v-if="canEdit(m) || m.isMe">
-            <button v-if="confirming !== m.userId" class="btn btn-ghost small" type="button" :disabled="busy" @click="confirming = m.userId">
+            <AppButton v-if="confirming !== m.userId" variant="ghost" small :disabled="busy" @click="confirming = m.userId">
               {{ m.isMe ? t.family.leave : t.family.remove }}
-            </button>
-            <button v-else class="btn danger small" type="button" :disabled="busy" @click="remove(m)">
+            </AppButton>
+            <AppButton v-else variant="danger" small :disabled="busy" @click="remove(m)">
               {{ m.isMe ? t.family.confirmLeave : t.family.confirmRemove }}
-            </button>
+            </AppButton>
           </template>
         </span>
       </li>
@@ -107,14 +108,5 @@ const remove = (m: FamilyMember) => run(() => removeMember(m.userId))
 .role-select {
   width: auto;
   padding: 8px 10px;
-}
-.small {
-  min-height: 40px;
-  padding: 6px 14px;
-  font-size: 0.9rem;
-}
-.danger {
-  background: var(--danger);
-  color: var(--accent-ink);
 }
 </style>

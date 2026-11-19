@@ -8,6 +8,7 @@ import { useT } from '../../composables/useT'
 import { errorText } from '../../lib/errors'
 import { children, loadChildren } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
+import AppButton from '../../components/ui/AppButton.vue'
 
 const t = useT()
 onMounted(() => { void loadFamily() })
@@ -24,7 +25,7 @@ watch(() => family.status, (s) => { if (s === 'ready') void loadChildren(true) }
     <h1>{{ t.parent.home.title }}</h1>
     <div v-if="children.status === 'error'" class="error" role="alert">
       <p>{{ t.children.loadError }} {{ errorText(children.error, t) }}</p>
-      <button class="btn btn-ghost" type="button" @click="loadChildren(true)">{{ t.errors.retry }}</button>
+      <AppButton variant="ghost" @click="loadChildren(true)">{{ t.errors.retry }}</AppButton>
     </div>
     <template v-else-if="children.status === 'ready'">
       <ChildCards v-if="children.items.length" />
@@ -40,7 +41,6 @@ watch(() => family.status, (s) => { if (s === 'ready') void loadChildren(true) }
 
 <style scoped>
 h1 {
-  font-size: 2rem;
   margin: 8px 0 16px;
 }
 .empty p {

@@ -62,7 +62,6 @@ onMounted(async () => {
 }
 h2 {
   margin: 28px 0 10px;
-  font-size: 1.15rem;
 }
 .scroll {
   overflow-x: auto;

@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { locale, useT } from '../../composables/useT'
 import { formatClock, formatLongDate } from '../../lib/format'
 import type { DeviceStatus } from '../../native/akaikyDevice'
+import AppIcon from '../ui/AppIcon.vue'
 
 // Heure et date en grand, réseau et batterie (maquette écran 1). Valeurs natives
 // relues par le parent de ce composant ; l'heure avance ici, chaque seconde utile.
@@ -33,7 +34,7 @@ const network = computed(() => {
     <div class="system" aria-live="off">
       <span v-if="network" class="network">{{ network }}</span>
       <span v-if="status?.battery !== undefined" class="battery" :class="{ low: status.battery < 15 }">
-        <svg viewBox="0 0 24 12" width="22" height="11" aria-hidden="true"><rect x="0.5" y="0.5" width="20" height="11" rx="2.5" fill="none" stroke="currentColor" /><rect x="21" y="3.5" width="2.5" height="5" rx="1" fill="currentColor" /><rect x="2" y="2" :width="Math.max(1, (status.battery / 100) * 17)" height="8" rx="1.5" fill="currentColor" /></svg>
+        <AppIcon name="battery" :size="22"><rect x="2" y="2" :width="Math.max(1, (status.battery / 100) * 17)" height="8" rx="1.5" fill="currentColor" stroke="none" /></AppIcon>
         {{ t.child.status.battery(status.battery) }}
       </span>
     </div>

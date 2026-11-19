@@ -4,6 +4,7 @@ import { cancelInvitation, listInvitations, type Invitation } from '../../api/fa
 import { locale, useT } from '../../composables/useT'
 import { familyErrorText } from '../../lib/familyErrors'
 import { formatDay } from '../../lib/format'
+import AppButton from '../ui/AppButton.vue'
 
 const props = defineProps<{ refresh: number }>()
 const t = useT()
@@ -48,7 +49,7 @@ watch(() => props.refresh, load)
           <span class="email" data-selectable>{{ i.email }}</span>
           <span class="meta">{{ t.family.roles[i.role] }} · {{ t.family.expires(formatDay(i.expiresAt, locale)) }}</span>
         </span>
-        <button class="btn btn-ghost small" type="button" :disabled="busy" @click="cancel(i.id)">{{ t.family.cancelInvite }}</button>
+        <AppButton variant="ghost" small :disabled="busy" @click="cancel(i.id)">{{ t.family.cancelInvite }}</AppButton>
       </li>
     </ul>
   </section>
@@ -57,8 +58,6 @@ watch(() => props.refresh, load)
 <style scoped>
 .section {
   margin: 28px 0 12px;
-  font-size: 1.15rem;
-  font-weight: 800;
 }
 .list {
   list-style: none;
@@ -88,11 +87,6 @@ watch(() => props.refresh, load)
 }
 .meta {
   color: var(--text-soft);
-  font-size: 0.9rem;
-}
-.small {
-  min-height: 40px;
-  padding: 6px 14px;
   font-size: 0.9rem;
 }
 </style>

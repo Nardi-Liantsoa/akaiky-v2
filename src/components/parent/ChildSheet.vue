@@ -2,6 +2,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { pushSheet } from '../../composables/useSheetStack'
 import { useT } from '../../composables/useT'
+import AppButton from '../ui/AppButton.vue'
 
 // Feuille du bas (NAR-174) : menu d'un enfant, liste des enfants. Rendue dans <body>
 // (jamais sous l'en-tête), inscrite dans la pile des feuilles (Échap, retour Android,
@@ -42,7 +43,7 @@ function trap(e: KeyboardEvent) {
       <div ref="sheet" class="sheet" role="dialog" aria-modal="true" :aria-label="title" tabindex="-1" @keydown.tab="trap">
         <h2>{{ title }}</h2>
         <slot />
-        <button type="button" class="btn btn-ghost close" @click="emit('close')">{{ t.children.close }}</button>
+        <AppButton variant="ghost" class="close" @click="emit('close')">{{ t.children.close }}</AppButton>
       </div>
     </div>
   </Teleport>
@@ -69,8 +70,6 @@ function trap(e: KeyboardEvent) {
 }
 h2 {
   margin: 0 0 12px;
-  font-size: 1.15rem;
-  font-weight: 800;
 }
 .close {
   width: 100%;

@@ -7,6 +7,7 @@ import { formatClock } from '../../lib/format'
 import { formatPhone, isE164 } from '../../lib/phone'
 import { QUICK_TINT, quickText } from '../../lib/quickMessages'
 import QuickIcon from '../messages/QuickIcon.vue'
+import AppIcon from '../ui/AppIcon.vue'
 
 // Une ligne du journal (NAR-152, maquette écran 9). Appel bloqué : « Autoriser » ouvre
 // l'ajout d'un contact pré-rempli avec le numéro (gestionnaires seulement, numéro connu).
@@ -44,11 +45,7 @@ const allowPhone = computed(() => (props.canAllow && props.item.kind === 'call_b
   <li class="item" :class="view.tone">
     <span class="icon" aria-hidden="true" :style="item.kind === 'message' ? { background: QUICK_TINT[item.slot] } : undefined">
       <QuickIcon v-if="item.kind === 'message'" :kind="item.slot" :size="24" />
-      <svg v-else viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <template v-if="item.kind === 'call_blocked'"><circle cx="12" cy="12" r="9" /><path d="M6 6l12 12" /></template>
-        <template v-else-if="item.kind === 'unlock'"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 7.5-2" /></template>
-        <path v-else d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" />
-      </svg>
+      <AppIcon v-else :name="item.kind === 'call_blocked' ? 'blocked' : item.kind === 'unlock' ? 'unlock' : 'phone'" />
     </span>
     <span class="body">
       <span class="title">{{ view.title }}</span>

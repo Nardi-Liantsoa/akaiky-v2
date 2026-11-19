@@ -8,6 +8,7 @@ import { familyErrorText } from '../lib/familyErrors'
 import { forgetInviteToken, takeInviteToken } from '../lib/inviteToken'
 import { auth } from '../store/auth'
 import { loadFamily } from '../store/family'
+import AppButton from '../components/ui/AppButton.vue'
 
 type State = 'loading' | 'missing' | 'signedOut' | 'ready' | 'other' | 'failed'
 
@@ -78,7 +79,7 @@ async function accept() {
       <p v-else-if="state === 'other'" class="error" role="alert">{{ t.invite.otherAccount }}</p>
       <template v-else-if="state === 'ready'">
         <p class="join">{{ t.invite.join(familyName, t.family.roles[role]) }}</p>
-        <button class="btn" type="button" :disabled="busy" @click="accept">{{ t.invite.accept }}</button>
+        <AppButton :disabled="busy" @click="accept">{{ t.invite.accept }}</AppButton>
       </template>
       <template v-else>
         <p class="error" role="alert">{{ error }}</p>
@@ -92,9 +93,6 @@ async function accept() {
 .invite {
   max-width: 520px;
   margin: 0 auto;
-}
-.invite h1 {
-  font-size: 2rem;
 }
 .join {
   font-size: 1.1rem;

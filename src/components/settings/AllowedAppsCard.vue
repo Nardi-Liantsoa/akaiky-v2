@@ -5,6 +5,7 @@ import { ApiError } from '../../api/http'
 import { useT } from '../../composables/useT'
 import { errorText } from '../../lib/errors'
 import { canManage } from '../../store/family'
+import AppButton from '../ui/AppButton.vue'
 
 // Applications autorisées sur le téléphone de l'enfant (NAR-143, maquette écran 8) : puces
 // « ✓ Appareil photo », « + Ajouter » ouvre la liste des applications envoyée par le
@@ -86,7 +87,7 @@ const remove = (pkg: string) => save(allowed.value.map((a) => a.package).filter(
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     <div v-if="status === 'error' && !data" class="error" role="alert">
       <p>{{ t.allowedApps.loadError }}</p>
-      <button class="btn btn-ghost" type="button" @click="load(childId)">{{ t.errors.retry }}</button>
+      <AppButton variant="ghost" @click="load(childId)">{{ t.errors.retry }}</AppButton>
     </div>
     <template v-else-if="data">
       <ul v-if="allowed.length" class="chips">
@@ -108,7 +109,7 @@ const remove = (pkg: string) => save(allowed.value.map((a) => a.package).filter(
       <div v-if="picking && canManage() && !full" id="apps-picker" class="picker" role="group" :aria-label="t.allowedApps.pickerTitle">
         <div class="picker-head">
           <h3>{{ t.allowedApps.pickerTitle }}</h3>
-          <button class="btn btn-ghost" type="button" @click="picking = false">{{ t.allowedApps.close }}</button>
+          <AppButton variant="ghost" @click="picking = false">{{ t.allowedApps.close }}</AppButton>
         </div>
         <p v-if="!addable.length" class="state">{{ t.allowedApps.nothingToAdd }}</p>
         <ul v-else class="choices">
@@ -138,8 +139,6 @@ const remove = (pkg: string) => save(allowed.value.map((a) => a.package).filter(
 }
 h2 {
   margin: 0 0 8px;
-  font-size: 1.15rem;
-  font-weight: 800;
 }
 h3 {
   margin: 0;
@@ -170,7 +169,7 @@ h3 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 40px;
+  min-height: var(--tap);
   padding: 0 14px;
   border: 0;
   border-radius: 999px;
@@ -187,9 +186,9 @@ h3 {
   cursor: pointer;
 }
 .remove {
-  min-width: 32px;
-  min-height: 32px;
-  margin-right: -8px;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  margin-right: -14px;
   border: 0;
   border-radius: 50%;
   background: transparent;

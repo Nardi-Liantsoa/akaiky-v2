@@ -15,6 +15,7 @@ import { contactErrorText } from '../../lib/contactErrors'
 import { children, loadChildren, selectedChild } from '../../store/children'
 import { contacts, loadContacts } from '../../store/contacts'
 import { canManage, family, loadFamily } from '../../store/family'
+import AppButton from '../../components/ui/AppButton.vue'
 
 const t = useT()
 const current = computed(selectedChild)
@@ -40,7 +41,7 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
     <h1>{{ t.parent.settings.title }}</h1>
     <div v-if="children.status === 'error'" class="error" role="alert">
       <p>{{ t.children.loadError }}</p>
-      <button class="btn btn-ghost" type="button" @click="loadChildren(true)">{{ t.errors.retry }}</button>
+      <AppButton variant="ghost" @click="loadChildren(true)">{{ t.errors.retry }}</AppButton>
     </div>
     <template v-else-if="children.status === 'ready'">
       <div v-if="!children.items.length" class="card empty">
@@ -51,14 +52,14 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
         <ChildSwitcher v-if="children.items.length > 1" />
         <div v-if="contacts.status === 'error'" class="error" role="alert">
           <p>{{ t.contacts.loadError }} {{ contactErrorText(contacts.error, t) }}</p>
-          <button class="btn btn-ghost" type="button" @click="loadContacts(current.id, true)">{{ t.errors.retry }}</button>
+          <AppButton variant="ghost" @click="loadContacts(current.id, true)">{{ t.errors.retry }}</AppButton>
         </div>
         <!-- Liste de cet enfant, ou celle d'avant estompée pendant le chargement (pas de clignement). -->
         <template v-else>
           <!-- Relecture en échec : la liste affichée peut être périmée, on le dit. -->
           <div v-if="contacts.error && contacts.childId === current.id" class="error" role="alert">
             <p>{{ t.contacts.loadError }} {{ contactErrorText(contacts.error, t) }}</p>
-            <button class="btn btn-ghost" type="button" @click="loadContacts(current.id, true)">{{ t.errors.retry }}</button>
+            <AppButton variant="ghost" @click="loadContacts(current.id, true)">{{ t.errors.retry }}</AppButton>
           </div>
           <ContactsCard :child-id="current.id" />
         </template>
@@ -81,7 +82,6 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
   font-weight: 700;
 }
 h1 {
-  font-size: 2rem;
   margin: 0 0 16px;
 }
 .empty p {

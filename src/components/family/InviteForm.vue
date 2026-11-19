@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { inviteMember, type InviteRole } from '../../api/families'
 import { useT } from '../../composables/useT'
 import { familyErrorText } from '../../lib/familyErrors'
+import AppButton from '../ui/AppButton.vue'
 
 const emit = defineEmits<{ sent: [] }>()
 const t = useT()
@@ -47,15 +48,13 @@ async function submit() {
         <option value="manager">{{ t.family.roles.manager }}</option>
       </select>
     </div>
-    <button class="btn" type="submit" :disabled="busy || !email.trim()">{{ t.family.invite }}</button>
+    <AppButton type="submit" :disabled="busy || !email.trim()">{{ t.family.invite }}</AppButton>
   </form>
 </template>
 
 <style scoped>
 h2 {
   margin: 0 0 6px;
-  font-size: 1.15rem;
-  font-weight: 800;
 }
 .lead {
   margin: 0 0 16px;

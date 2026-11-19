@@ -11,6 +11,7 @@ import { errorText } from '../../lib/errors'
 import { formatDay } from '../../lib/format'
 import { children, dropChild, loadChildren } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
+import AppButton from '../../components/ui/AppButton.vue'
 
 // Écran 10 de la maquette : appairage du téléphone de l'enfant par QR de
 // provisionnement Android. Réservé aux gestionnaires (le serveur le vérifie aussi).
@@ -148,7 +149,7 @@ watch(childId, () => {
     <LoadError v-if="family.status === 'error'" />
     <div v-else-if="children.status === 'error'" class="error" role="alert">
       <p>{{ t.children.loadError }}</p>
-      <button class="btn btn-ghost" type="button" @click="loadChildren(true)">{{ t.errors.retry }}</button>
+      <AppButton variant="ghost" @click="loadChildren(true)">{{ t.errors.retry }}</AppButton>
     </div>
     <p v-else-if="family.status !== 'ready' || children.status !== 'ready'" class="loading" role="status">
       <span class="visually-hidden">{{ t.family.loading }}</span>
@@ -174,9 +175,9 @@ watch(childId, () => {
           <p class="hint">{{ t.pairing.openApp }}</p>
         </template>
         <p v-else-if="expired" class="hint" role="status">{{ t.pairing.expired }}</p>
-        <button v-if="!qr" class="btn" type="button" :disabled="busy" @click="show">
+        <AppButton v-if="!qr" :disabled="busy" @click="show">
           {{ expiresAt || justPaired ? t.pairing.renew : t.pairing.show }}
-        </button>
+        </AppButton>
       </div>
 
       <p class="warning">{{ t.pairing.warning }}</p>
@@ -184,7 +185,7 @@ watch(childId, () => {
       <h2>{{ t.pairing.devices }}</h2>
       <div v-if="devicesStatus === 'error'" class="error" role="alert">
         <p>{{ t.pairing.loadError }}</p>
-        <button class="btn btn-ghost" type="button" @click="refreshDevices()">{{ t.errors.retry }}</button>
+        <AppButton variant="ghost" @click="refreshDevices()">{{ t.errors.retry }}</AppButton>
       </div>
       <p v-else-if="devicesStatus === 'ready' && !devices.length" class="hint">{{ t.pairing.none }}</p>
       <ul v-else-if="devicesStatus === 'ready'" class="devices">
@@ -193,8 +194,8 @@ watch(childId, () => {
             <strong>{{ d.model || t.pairing.unknownModel }}</strong>
             <span class="meta">{{ t.pairing.since(formatDay(d.createdAt, locale)) }}</span>
           </div>
-          <button v-if="confirming !== d.id" class="btn btn-ghost" type="button" :disabled="busy" @click="confirming = d.id">{{ t.pairing.revoke }}</button>
-          <button v-else class="btn danger" type="button" :disabled="busy" @click="revoke(d.id)">{{ t.pairing.confirmRevoke }}</button>
+          <AppButton v-if="confirming !== d.id" variant="ghost" :disabled="busy" @click="confirming = d.id">{{ t.pairing.revoke }}</AppButton>
+          <AppButton v-else variant="danger" :disabled="busy" @click="revoke(d.id)">{{ t.pairing.confirmRevoke }}</AppButton>
         </li>
       </ul>
       <p v-if="devices.length" class="hint">{{ t.pairing.revokeHint }}</p>
@@ -206,7 +207,6 @@ watch(childId, () => {
 
 <style scoped>
 h1 {
-  font-size: 2rem;
   margin: 8px 0 20px;
 }
 h2 {
@@ -242,7 +242,7 @@ h2 {
 .qr-card img {
   max-width: 100%;
   height: auto;
-  background: #fff;
+  background: var(--on-color);
   border-radius: 12px;
 }
 .validity {
