@@ -110,6 +110,19 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     assert.deepEqual(logged.json(), { accepted: [ev.id], rejected: [] })
     await assert.rejects(pool.query('UPDATE device_events SET duration_s = 0'), /permission denied/)
     await assert.rejects(pool.query('DELETE FROM device_events'), /permission denied/)
+    // Applications autorisées sous le rôle restreint (023_allowed_apps.sql) : inventaire remplacé,
+    // liste choisie puis vidée ; config_version suit par déclencheur ; aucun UPDATE.
+    const inventory = { apps: [{ package: 'com.android.calculator2', label: 'Calculatrice' }] }
+    for (let i = 0; i < 2; i++) {
+      const sent = await native(app, 'PUT', '/api/device/apps', { token: renewedPhone.json().accessToken, body: inventory })
+      assert.equal(sent.statusCode, 200, sent.body)
+    }
+    assert.equal((await call(app, 'PUT', `/api/children/${kid.id}/allowed-apps`, { cookie: user.cookie, body: { packages: ['com.android.calculator2'] } })).statusCode, 200)
+    assert.deepEqual((await native(app, 'GET', '/api/device/config', { token: renewedPhone.json().accessToken })).json().allowedApps.map((x) => x.package), ['com.android.calculator2'])
+    assert.equal((await call(app, 'GET', `/api/children/${kid.id}/apps`, { cookie: user.cookie })).statusCode, 200)
+    assert.equal((await call(app, 'PUT', `/api/children/${kid.id}/allowed-apps`, { cookie: user.cookie, body: { packages: [] } })).statusCode, 200)
+    await assert.rejects(pool.query('UPDATE allowed_apps SET child_id = child_id'), /permission denied/)
+    await assert.rejects(pool.query('UPDATE device_apps SET device_id = device_id'), /permission denied/)
     // Purge à échéance (016_retention.sql) : lancée par le rôle restreint, durées fixées dans
     // la base ; aucun DELETE direct sur les journaux pour autant.
     await pool.query("SELECT purge_expired()")

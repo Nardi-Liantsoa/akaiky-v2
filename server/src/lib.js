@@ -2,7 +2,8 @@
 
 // `code` : identifiant stable que le front peut tester (le message, lui, peut changer).
 export class HttpError extends Error {
-  constructor(status, message, code) { super(message); this.status = status; this.code = code }
+  // extra : champs de plus dans la réponse (ex. `package` du paquet refusé), jamais un secret.
+  constructor(status, message, code, extra) { super(message); this.status = status; this.code = code; this.extra = extra }
 }
 
 export const isUuid = (s) => typeof s === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s)

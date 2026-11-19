@@ -19,6 +19,7 @@ import { schedulesRoutes } from './routes/schedules.js'
 import { devicesRoutes, deviceSessionRoutes } from './routes/devices.js'
 import { devicePushRoutes, pushRoutes } from './routes/push.js'
 import { childStatusRoutes, deviceStatusRoutes } from './routes/device-status.js'
+import { appsRoutes, deviceAppsRoutes } from './routes/apps.js'
 
 // Politique de contenu : tout vient de la même origine, aucun script en ligne,
 // aucun tiers (polices hébergées sur place).
@@ -326,7 +327,7 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   app.setErrorHandler((err, req, reply) => {
     if (err instanceof HttpError) {
       if (err.retryAfter) reply.header('retry-after', String(err.retryAfter))
-      return reply.code(err.status).send({ error: err.message, ...(err.code ? { code: err.code } : {}) })
+      return reply.code(err.status).send({ ...(err.extra ?? {}), error: err.message, ...(err.code ? { code: err.code } : {}) })
     }
     if (err.validation) return reply.code(400).send({ error: 'Requête invalide.' })
     if (err.statusCode === 413) return reply.code(413).send({ error: 'Requête trop volumineuse.' })
@@ -361,6 +362,8 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   await app.register(devicePushRoutes, { prefix: '/api/device' })
   await app.register(childStatusRoutes, { prefix: '/api' })
   await app.register(deviceStatusRoutes, { prefix: '/api/device' })
+  await app.register(appsRoutes, { prefix: '/api' })
+  await app.register(deviceAppsRoutes, { prefix: '/api/device' })
 
   // APK de l'app enfant (NAR-165) : lu une fois au démarrage, servi tel quel, sans
   // session (Android le télécharge pendant le provisionnement par QR). L'intégrité
