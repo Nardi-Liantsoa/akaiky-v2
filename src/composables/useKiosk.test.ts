@@ -12,7 +12,12 @@ function fakeKiosk() {
     disarm: vi.fn(async () => status()),
     unlockFor: vi.fn(async ({ minutes }: { minutes: number }) => { until = Date.now() + Math.min(minutes, 15) * 60_000; return status() }),
     lockNow: vi.fn(async () => { until = undefined; return status() }),
-    openSettings: vi.fn(async () => {})
+    openSettings: vi.fn(async () => {}),
+    listLaunchableApps: vi.fn(async () => ({ apps: [] })),
+    applyAllowedApps: vi.fn(async ({ packages }: { packages: string[] }) => ({ deviceOwner: true, armed: true, allowed: packages, hidden: 0 })),
+    launchApp: vi.fn(async () => {}),
+    bringToFront: vi.fn(async () => ({ brought: false })),
+    refresh: vi.fn(async () => status())
   } satisfies AkaikyKioskPlugin
   return p
 }

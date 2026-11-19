@@ -74,5 +74,8 @@ GRANT INSERT ON device_alerts TO app_runtime;
 GRANT UPDATE (closed_at) ON device_alerts TO app_runtime;
 -- Jeton « signal de vie » du natif (021_heartbeat_tokens.sql) : émis (30 jours), remplacé, effacé à la révocation et au rejeu.
 GRANT UPDATE (heartbeat_token_hash, heartbeat_token_expires_at) ON child_devices TO app_runtime;
+-- Applications autorisées (023_allowed_apps.sql) : inventaire du téléphone et liste de l'enfant
+-- remplacés en entier (suppression puis ajout) ; config_version suit par déclencheur.
+GRANT INSERT, DELETE ON device_apps, allowed_apps TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;

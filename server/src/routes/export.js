@@ -17,6 +17,7 @@ import { contactAad } from './contacts.js'
 import { eventAad } from './devices.js'
 import { messageTextAad, templateAad } from './messages.js'
 import { scheduleAad } from './schedules.js'
+import { allowedAppAad } from './apps.js'
 
 export const EXPORTS_PER_HOUR = 5
 export const JOURNAL_CAP = 5000
@@ -83,6 +84,9 @@ export async function exportRoutes(app) {
       'SELECT child_id, kind, opened_at, closed_at FROM device_alerts WHERE family_id = $1 ORDER BY child_id, opened_at, kind'))
     const schedules = byChild(await q(
       'SELECT id, child_id, label_enc, days_mask, start_min, end_min, enabled FROM schedules WHERE family_id = $1 ORDER BY child_id, start_min, created_at, id'))
+    // Applications autorisées (NAR-143) : la liste choisie seulement, jamais l'inventaire du téléphone.
+    const allowedApps = byChild(await q(
+      'SELECT child_id, package, label_enc, position FROM allowed_apps WHERE family_id = $1 ORDER BY child_id, position'))
     const templates = byChild(await q(
       'SELECT child_id, slot, text_enc FROM quick_message_templates WHERE family_id = $1 ORDER BY child_id, slot'))
     // Une ligne de plus que le plafond par enfant : elle signale la coupe sans être exportée.
@@ -142,6 +146,9 @@ export async function exportRoutes(app) {
         deviceAlerts: (alerts.get(c.id) ?? []).map((r) => ({ kind: r.kind, openedAt: r.opened_at, closedAt: r.closed_at ?? null })),
         schedules: (schedules.get(c.id) ?? []).map((r) => ({
           label: open(r.label_enc, scheduleAad(r.id), 'schedules', r.id), days: r.days_mask, startMin: r.start_min, endMin: r.end_min, enabled: r.enabled
+        })),
+        allowedApps: (allowedApps.get(c.id) ?? []).map((r) => ({
+          package: r.package, label: open(r.label_enc, allowedAppAad(c.id, r.package), 'allowed_apps', `${c.id}:${r.package}`), position: r.position
         })),
         messageTexts: Object.fromEntries((templates.get(c.id) ?? []).map((r) =>
           [r.slot, open(r.text_enc, templateAad(c.id, r.slot), 'quick_message_templates', `${c.id}:${r.slot}`)])),

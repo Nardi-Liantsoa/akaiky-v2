@@ -55,6 +55,9 @@ class CallPlugin : Plugin() {
             .putStringSet("parents", parents).putString("schedules", schedules)
             .apply { if (country != null) putString("country", country) }
             .apply { if (timezone != null) putString("timezone", timezone) else remove("timezone") }.apply()
+        // Plages reçues (NAR-143) : liste du lock task relue, apps autorisées retirées si une
+        // plage est déjà active, rendues sinon.
+        Kiosk.enforceOnMain(context, activity)
         call.resolve()
     }
 
@@ -66,6 +69,7 @@ class CallPlugin : Plugin() {
     @PluginMethod
     fun stopFiltering(call: PluginCall) {
         prefs.edit().putBoolean("filtering", false).remove("allowed").remove("parents").remove("schedules").remove("timezone").apply()
+        Kiosk.enforceOnMain(context, activity)
         call.resolve()
     }
 

@@ -336,6 +336,27 @@ const fr = {
     unlockedUntil: (time: string) => `Déverrouillage demandé jusqu’à ${time}.`,
     unlockNoCode: 'Choisissez d’abord un code parent : sans code, le téléphone n’est pas verrouillé.'
   },
+  allowedApps: {
+    title: 'Applications autorisées',
+    hint: (max: number) => `${max} au plus, en plus des appels, des messages et du SOS. Les autres applications sont cachées sur le téléphone. Navigateurs bloqués.`,
+    count: (n: number, max: number) => `${n} sur ${max}`,
+    add: '+ Ajouter',
+    remove: (name: string) => `Retirer ${name}`,
+    blocked: (name: string) => `${name} : bloquée`,
+    refused: (name: string, reason: string) => `${name} : ${reason}`,
+    full: (max: number) => `${max} applications au plus : retirez-en une pour en ajouter une autre.`,
+    none: 'Aucune application autorisée pour l’instant.',
+    noInventory: 'Le téléphone n’a pas encore envoyé la liste de ses applications.',
+    pickerTitle: 'Applications du téléphone',
+    close: 'Fermer',
+    nothingToAdd: 'Toutes les applications du téléphone sont déjà autorisées.',
+    loadError: 'Applications indisponibles pour le moment.',
+    errors: {
+      protected_app: 'Cette application ne peut pas être autorisée.',
+      app_not_installed: 'Cette application n’est plus sur le téléphone.',
+      too_many_allowed_apps: '4 applications au plus.'
+    }
+  },
   sosSettings: {
     title: 'SOS',
     siren: 'Sirène pendant un SOS',
@@ -344,6 +365,11 @@ const fr = {
     off: 'Désactivée'
   },
   child: {
+    apps: {
+      label: 'Mes applications',
+      open: (name: string) => `Ouvrir ${name}`,
+      failed: 'Cette application ne s’ouvre pas pour l’instant.'
+    },
     waiting: 'Ce téléphone sera bientôt prêt.',
     hint: 'Un parent va le configurer depuis son application.',
     hello: (name: string) => `Bonjour ${name} !`,
@@ -834,6 +860,27 @@ const mg: Messages = {
     unlockedUntil: (time: string) => `Nangatahina ny fanokafana hatramin’ny ${time}.`,
     unlockNoCode: 'Misafidiana kaody ray aman-dreny aloha : raha tsy misy kaody dia tsy hidy ny finday.'
   },
+  allowedApps: {
+    title: 'Fampiharana nahazoan-dalana',
+    hint: (max: number) => `${max} farafahabetsany, ankoatra ny antso, ny hafatra ary ny SOS. Afenina ao amin'ny finday ireo fampiharana hafa. Voasakana ny mpitety tranonkala.`,
+    count: (n: number, max: number) => `${n} amin'ny ${max}`,
+    add: '+ Hanampy',
+    remove: (name: string) => `Esory ${name}`,
+    blocked: (name: string) => `${name} : voasakana`,
+    refused: (name: string, reason: string) => `${name} : ${reason}`,
+    full: (max: number) => `${max} farafahabetsany : esory ny iray vao manampy hafa.`,
+    none: 'Mbola tsy misy fampiharana nahazoan-dalana.',
+    noInventory: 'Mbola tsy nandefa ny lisitry ny fampiharana ao aminy ny finday.',
+    pickerTitle: 'Fampiharana ao amin’ny finday',
+    close: 'Hidio',
+    nothingToAdd: 'Efa nahazoan-dalana avokoa ny fampiharana rehetra ao amin’ny finday.',
+    loadError: 'Tsy azo jerena aloha ireo fampiharana.',
+    errors: {
+      protected_app: 'Tsy azo omena alalana io fampiharana io.',
+      app_not_installed: 'Tsy ao amin’ny finday intsony io fampiharana io.',
+      too_many_allowed_apps: 'Fampiharana 4 farafahabetsany.'
+    }
+  },
   sosSettings: {
     title: 'SOS',
     siren: 'Feo fampitandremana mandritra ny SOS',
@@ -842,6 +889,11 @@ const mg: Messages = {
     off: 'Tsy mandeha'
   },
   child: {
+    apps: {
+      label: 'Ireo fampiharako',
+      open: (name: string) => `Sokafy ${name}`,
+      failed: 'Tsy misokatra aloha io fampiharana io.'
+    },
     waiting: 'Ho vonona tsy ho ela ity finday ity.',
     hint: 'Ray aman-dreny iray no handrindra azy avy amin’ny rindranasany.',
     hello: (name: string) => `Salama ${name} !`,
@@ -1326,6 +1378,27 @@ const en: Messages = {
     unlockedUntil: (time: string) => `Unlock requested until ${time}.`,
     unlockNoCode: 'Choose a parent code first: without a code, the phone is not locked.'
   },
+  allowedApps: {
+    title: 'Allowed apps',
+    hint: (max: number) => `Up to ${max}, on top of calls, messages and SOS. Other apps are hidden on the phone. Browsers are blocked.`,
+    count: (n: number, max: number) => `${n} of ${max}`,
+    add: '+ Add',
+    remove: (name: string) => `Remove ${name}`,
+    blocked: (name: string) => `${name}: blocked`,
+    refused: (name: string, reason: string) => `${name}: ${reason}`,
+    full: (max: number) => `${max} apps at most: remove one to add another.`,
+    none: 'No app allowed yet.',
+    noInventory: 'The phone hasn’t sent its list of apps yet.',
+    pickerTitle: 'Apps on the phone',
+    close: 'Close',
+    nothingToAdd: 'Every app on the phone is already allowed.',
+    loadError: 'Apps unavailable right now.',
+    errors: {
+      protected_app: 'This app can’t be allowed.',
+      app_not_installed: 'This app is no longer on the phone.',
+      too_many_allowed_apps: '4 apps at most.'
+    }
+  },
   sosSettings: {
     title: 'SOS',
     siren: 'Siren during an SOS',
@@ -1334,6 +1407,11 @@ const en: Messages = {
     off: 'Off'
   },
   child: {
+    apps: {
+      label: 'My apps',
+      open: (name: string) => `Open ${name}`,
+      failed: 'This app won’t open right now.'
+    },
     waiting: 'This phone will be ready soon.',
     hint: 'A parent will set it up from their app.',
     hello: (name: string) => `Hello ${name}!`,

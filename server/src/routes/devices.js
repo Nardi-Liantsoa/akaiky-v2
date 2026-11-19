@@ -22,6 +22,7 @@ import { createLimiter, newToken, rateLimitKey, tokenHash } from '../security.js
 import { securityAlert } from '../login-guard.js'
 import { blindIndex, openField, sealField } from '../crypto-fields.js'
 import { contactAad } from './contacts.js'
+import { allowedAppAad } from './apps.js'
 
 export const PAIRING_MINUTES = 15
 // Téléphones actifs par enfant : le sien, plus un de rechange pendant un changement.
@@ -210,6 +211,8 @@ export async function devicesRoutes(app) {
       await conn.query('DELETE FROM push_tokens WHERE device_id = $1', [device.id])
       // Ses alertes ouvertes (NAR-147) se ferment : un téléphone retiré n'est plus suivi.
       await conn.query('UPDATE device_alerts SET closed_at = now() WHERE device_id = $1 AND closed_at IS NULL', [device.id])
+      // Son inventaire d'applications (NAR-143) : plus rien de ce téléphone n'est gardé ni montré.
+      await conn.query('DELETE FROM device_apps WHERE device_id = $1', [device.id])
       await audit(conn, req, 'device_revoked', device.id)
     })
     return { ok: true }
@@ -325,6 +328,9 @@ export async function deviceSessionRoutes(app) {
       const { rows: plan } = await conn.query(
         'SELECT * FROM schedules WHERE child_id = $1 AND family_id = $2 AND enabled ORDER BY start_min, id', [req.device.childId, req.device.familyId])
       const { rows: [fam] } = await conn.query('SELECT timezone FROM families WHERE id = $1', [req.device.familyId])
+      // Applications autorisées (NAR-143), dans l'ordre choisi par le parent.
+      const { rows: apps } = await conn.query(
+        'SELECT package, label_enc, position FROM allowed_apps WHERE child_id = $1 AND family_id = $2 ORDER BY position', [req.device.childId, req.device.familyId])
       // Champ par champ : ni membre lié ni rôle, seulement ce que le téléphone affiche et appelle.
       return {
         version: Number(child.config_version),
@@ -340,6 +346,7 @@ export async function deviceSessionRoutes(app) {
         sosSiren: child.sos_siren,
         messageTexts,
         timezone: fam.timezone,
+        allowedApps: apps.map((r) => ({ package: r.package, label: openField(r.label_enc, config.dataKey, allowedAppAad(req.device.childId, r.package)), position: r.position })),
         schedules: plan.map((r) => { const s = scheduleOf(config, r); return { label: s.label, days: s.days, startMin: s.startMin, endMin: s.endMin } }),
         contacts: rows.map((r) => ({
           id: r.id,

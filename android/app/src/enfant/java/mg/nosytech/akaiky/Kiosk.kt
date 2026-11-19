@@ -29,7 +29,8 @@ import android.telecom.TelecomManager
  * Sans Device Owner (développement, app installée à la main), rien n'est appliqué.
  */
 object Kiosk {
-    private const val PREFS = "akaiky.kiosk"
+    // Aussi lues par AllowedApps (liste autorisée, apps cachées par nous, NAR-143).
+    internal const val PREFS = "akaiky.kiosk"
     private const val RELOCK_REQUEST = 1670
 
     // Restrictions posées tant que le téléphone est armé, sortie temporaire comprise :
@@ -155,16 +156,22 @@ object Kiosk {
         safely("paquets") { dpm.setLockTaskPackages(admin, emptyArray()) }
         safely("barre d'état") { dpm.setStatusBarDisabled(admin, false) }
         safely("lanceur") { dpm.clearPackagePersistentPreferredActivities(admin, context.packageName) }
+        // Apps cachées (NAR-143) : liste autorisée oubliée tout de suite, puis toutes rendues.
+        safely("applications") { AllowedApps.releaseAll(context) }
         for (r in restrictions() + UserManager.DISALLOW_DEBUGGING_FEATURES) safely("restriction $r") { dpm.clearUserRestriction(admin, r) }
     }
 
     private fun lockTaskPackages(context: Context): Array<String> {
         val telecom = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
         val system = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) telecom?.systemDialerPackage else null
-        return KioskPolicy.lockTaskPackages(
+        val base = KioskPolicy.lockTaskPackages(
             context.packageName,
             listOf(telecom?.defaultDialerPackage, system, "com.android.server.telecom", "com.android.phone"),
         )
+        // Apps autorisées par le parent (NAR-143) : lancées depuis l'écran, sans quitter le verrou ;
+        // retirées pendant une plage « école » (relu à chaque enforce : début et fin de plage vus
+        // par le minuteur de l'écran, plages reçues, ouverture d'app, retour au premier plan).
+        return AppsPolicy.lockTaskPackages(base, AllowedApps.allowed(context), IncomingCalls.inSchool(context))
     }
 
     private fun relockIntent(context: Context): PendingIntent =
@@ -188,6 +195,13 @@ object Kiosk {
     private fun cancelRelock(context: Context) {
         val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         am.cancel(relockIntent(context))
+    }
+
+    /** Applique l'état voulu depuis n'importe quel fil (passe par le fil principal). */
+    fun enforceOnMain(context: Context, activity: Activity?) {
+        val run = Runnable { safely("verrou") { enforce(context, activity) } }
+        if (activity != null) activity.runOnUiThread(run)
+        else android.os.Handler(android.os.Looper.getMainLooper()).post(run)
     }
 
     /** Ramène l'app au premier plan (fin de sortie) : sa reprise remet le verrou. */
