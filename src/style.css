@@ -42,6 +42,9 @@
   --tint-mint: #d5f1e3;
   --tint-butter: #fef0c1;
   --accent-yellow: #f6b82f;
+  /* Avertissement (ni erreur ni succès) : fond beurre, encre brune ≥ 7:1. */
+  --warning-bg: var(--tint-butter);
+  --warning-ink: #5c3d00;
 
   /* Rôles génériques, adossés aux jetons ci-dessus : les écrans du starter
    * (connexion, sécurité, administration) les utilisent. */
@@ -57,9 +60,28 @@
   --accent-ink: var(--on-color);
   --danger: var(--sos);
 
+  /* Typographie : tailles de titre et de texte (NAR-182). */
+  --fs-h1: 2rem;
+  --fs-h2: 1.15rem;
+  --fs-body: 1rem;
+  --fs-small: 0.9rem;
+
+  /* Espacements : échelle de 4 px. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
   --radius: 24px;
   --radius-sm: 14px;
-  --tap: 48px;
+  --radius-pill: 999px;
+  --tap: 48px; /* zone tactile minimale, app parent */
+  --tap-child: 64px; /* zone tactile minimale, app enfant (CdC §7.3) */
+  /* Anneau de focus clavier, commun à tous les boutons et liens. */
+  --focus-ring: 3px solid var(--accent);
+  --focus-offset: 2px;
   --tab-height: 64px;
   --gutter: clamp(16px, 4vw, 40px);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -89,6 +111,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
+  font-size: var(--fs-body);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -108,11 +131,16 @@ a:hover {
 }
 
 h1 {
-  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  font-size: var(--fs-h1);
   font-weight: 900;
   line-height: 1.15;
   letter-spacing: -0.01em;
-  margin: 0 0 12px;
+  margin: 0 0 var(--space-3);
+}
+
+h2 {
+  font-size: var(--fs-h2);
+  font-weight: 800;
 }
 
 .card {
@@ -152,11 +180,11 @@ h1 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 11px 20px;
   min-height: var(--tap);
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--accent);
   color: var(--accent-ink);
   font: inherit;
@@ -166,15 +194,61 @@ h1 {
 }
 .btn:hover {
   opacity: 0.9;
+  text-decoration: none;
 }
-.btn[disabled] {
-  opacity: 0.55;
+/* Désactivé : couleurs pleines plutôt qu'une opacité, le libellé reste lisible
+ * (--ink-mute sur --surface-muted ≥ 4.5:1). */
+.btn:disabled {
+  background: var(--surface-muted);
+  border-color: transparent;
+  color: var(--text-mute);
   pointer-events: none;
 }
 .btn-ghost {
   background: transparent;
   border-color: var(--border-strong);
   color: var(--text);
+}
+.btn-danger {
+  background: var(--danger);
+  color: var(--on-color);
+}
+/* Action secondaire en texte : soulignée (pas seulement colorée), même zone tactile. */
+.btn-link,
+.btn-danger-link {
+  padding: 0 var(--space-1);
+  border: 0;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+}
+.btn-link:hover,
+.btn-danger-link:hover {
+  text-decoration: underline;
+}
+.btn-danger-link {
+  color: var(--danger);
+}
+.btn-link:disabled,
+.btn-danger-link:disabled {
+  background: none;
+}
+.btn-small {
+  padding: 6px 14px;
+  font-size: var(--fs-small);
+}
+.btn-block {
+  width: 100%;
+}
+.btn:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+/* Repli pour tout autre contrôle sans règle de focus propre (spécificité nulle
+ * du sélecteur : une règle locale l'emporte toujours). */
+:where(button, a, select, summary, [role='button']):focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 
 .error {

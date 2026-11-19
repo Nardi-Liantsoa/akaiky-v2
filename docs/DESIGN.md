@@ -32,6 +32,39 @@ par l'app (`src/assets/fonts/`, haché par Vite ; licence SIL OFL 1.1 dans `publ
 Rayons généreux (≈ 24 px pour les cartes, pilule pour boutons et puces).
 Zones tactiles enfant ≥ 64 px (CdC §7.3) ; les vignettes de contact en font bien plus.
 
+### Jetons de structure (NAR-182)
+
+| Jeton | Valeur | Usage |
+|---|---|---|
+| `--on-color` | `#ffffff` | texte et fond blanc posés sur une couleur (bandeau marine, fond du QR) |
+| `--warning-bg` / `--warning-ink` | `--tint-butter` / `#5c3d00` | avertissement (ni erreur ni succès), encre ≥ 7:1 |
+| `--fs-h1` / `--fs-h2` | `2rem` / `1.15rem` | titres de page et de section (règles globales `h1`, `h2`) |
+| `--fs-body` / `--fs-small` | `1rem` / `0.9rem` | texte courant, texte secondaire et petits boutons |
+| `--space-1` … `--space-6` | 4, 8, 12, 16, 24, 32 px | espacements (échelle de 4 px) |
+| `--radius-pill` | `999px` | boutons et puces |
+| `--tap` / `--tap-child` | `48px` / `64px` | zone tactile minimale, app parent / app enfant |
+| `--focus-ring` / `--focus-offset` | `3px solid var(--accent)` / `2px` | anneau de focus clavier |
+
+`h1` et `h2` sont stylés globalement (`src/style.css`) : un composant ne redéfinit que
+la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du journal).
+
+## Composants d'interface (`src/components/ui/`)
+
+- **`AppButton`** — tout bouton d'action. `variant` : `primary` (défaut, fond `--accent`),
+  `ghost` (contour), `danger` (fond `--danger`), `link` (texte souligné), `danger-link`
+  (texte souligné rouge) ; `small` (texte `--fs-small`, moins de marge interne) et
+  `block` (pleine largeur) se combinent avec toute variante. Toujours ≥ `--tap` (48 px) de
+  haut, `type="button"` par défaut (`type="submit"` à demander), anneau `--focus-ring` au
+  clavier ; désactivé en couleurs pleines (`--text-mute` sur `--surface-muted`), lisible.
+  Les classes globales `.btn`, `.btn-ghost`… restent pour un `RouterLink` présenté en bouton.
+- **`AppIcon`** — icône du jeu unique `src/components/ui/icons.ts` (tracés en ligne, sans
+  bibliothèque), par `name`. Décorative par défaut (`aria-hidden`) ; avec `label`, image
+  nommée (`role="img"`). `size` fixe la largeur (24 par défaut), la hauteur suit le cadre.
+  Une icône nouvelle s'ajoute au jeu, jamais en `<svg>` local.
+
+Tout autre contrôle sans règle de focus propre reçoit l'anneau par une règle globale de
+spécificité nulle (`:where(button, a, …):focus-visible`).
+
 ## Écrans
 
 App **enfant** (Android, mode appareil dédié) :
