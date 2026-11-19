@@ -52,6 +52,12 @@ onBeforeUnmount(cancel)
   touch-action: none;
   user-select: none;
 }
+/* Anneau de focus clavier bien visible (NAR-187) : dessiné hors du bouton, que le
+ * débordement caché du remplissage ne rogne pas. */
+.sos:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
 .word,
 .hint {
   position: relative;

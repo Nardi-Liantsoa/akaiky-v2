@@ -163,9 +163,11 @@ h2 {
   grid-template-columns: repeat(3, 80px);
   gap: 14px;
 }
-/* Touches de 80 px (≥ 64 px demandés) : doigts d'enfant et de parent pressé. */
+/* Touches de 80 px (≥ --tap-child, 64 px) : doigts d'enfant et de parent pressé. */
 .key {
   height: 80px;
+  min-height: var(--tap-child);
+  min-width: var(--tap-child);
   border: 2px solid var(--border-strong);
   border-radius: 50%;
   background: var(--surface);
@@ -181,12 +183,12 @@ h2 {
   opacity: 0.4;
 }
 .key:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 .close {
   width: auto;
   min-width: 160px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 </style>
