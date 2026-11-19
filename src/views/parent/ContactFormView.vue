@@ -15,6 +15,7 @@ import { contacts, loadContacts } from '../../store/contacts'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
 import ConfirmSheet from '../../components/ui/ConfirmSheet.vue'
+import FormField from '../../components/ui/FormField.vue'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
 
 const t = useT()
@@ -138,26 +139,24 @@ async function remove() {
     <template v-else>
       <form class="card" @submit.prevent="save">
         <p v-if="error" class="error" role="alert">{{ error }}</p>
-        <div class="field">
-          <label for="contact-name">{{ t.contacts.name }}</label>
-          <input id="contact-name" v-model="name" class="input" autocomplete="off" required :placeholder="t.contacts.namePlaceholder" data-selectable />
-        </div>
-        <div class="field">
-          <label for="contact-phone">{{ t.contacts.phone }}</label>
-          <input id="contact-phone" v-model="phone" class="input" type="tel" inputmode="tel" autocomplete="off" required :placeholder="t.contacts.phonePlaceholder[contacts.country]" data-selectable />
-        </div>
-        <div class="field">
-          <label for="contact-member">{{ t.contacts.member }}</label>
-          <select id="contact-member" v-model="memberUserId" class="input">
+        <FormField id="contact-name" :label="t.contacts.name" v-slot="{ control }">
+          <input v-bind="control" v-model="name" class="input" autocomplete="off" required :placeholder="t.contacts.namePlaceholder" data-selectable />
+        </FormField>
+        <FormField id="contact-phone" :label="t.contacts.phone" v-slot="{ control }">
+          <input v-bind="control" v-model="phone" class="input" type="tel" inputmode="tel" autocomplete="off" required :placeholder="t.contacts.phonePlaceholder[contacts.country]" data-selectable />
+        </FormField>
+        <FormField id="contact-member" :label="t.contacts.member" v-slot="{ control }">
+          <select v-bind="control" v-model="memberUserId" class="input">
             <option :value="null">{{ t.contacts.noMember }}</option>
             <option v-for="m in family.data?.members ?? []" :key="m.userId" :value="m.userId">{{ m.name }} · {{ t.family.roles[m.role] }}</option>
           </select>
-        </div>
+        </FormField>
         <fieldset class="field colors">
           <legend>{{ t.contacts.color }}</legend>
           <label v-for="c in AVATAR_COLORS" :key="c" class="swatch">
             <input v-model="color" type="radio" name="contact-color" :value="c" :aria-label="t.children.colors[c]" />
-            <ChildAvatar :name="name || '?'" :color="c" :size="44" />
+            <!-- Nom encore vide : pastille unie, sans « ? ». -->
+            <ChildAvatar :name="name" :color="c" :size="44" />
           </label>
         </fieldset>
         <div class="actions">
@@ -197,10 +196,6 @@ h1 {
 .colors legend {
   width: 100%;
   margin-bottom: 8px;
-  font-size: 0.78rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-mute);
 }
 .swatch {
   position: relative;

@@ -13,6 +13,7 @@ import PasswordInput from '../components/PasswordInput.vue'
 import ConsentCheckbox from '../components/account/ConsentCheckbox.vue'
 import MfaQr from '../components/MfaQr.vue'
 import AppButton from '../components/ui/AppButton.vue'
+import FormField from '../components/ui/FormField.vue'
 
 type Mode = 'login' | 'register' | 'forgot' | 'reset' | 'confirm' | 'sent' | 'mfa' | 'enroll' | 'recovery'
 
@@ -206,14 +207,12 @@ onMounted(async () => {
     <form v-if="mode === 'login'" class="card" @submit.prevent="submitLogin">
       <h1>{{ t.auth.loginTitle }}</h1>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <div class="field">
-        <label for="email">{{ t.auth.email }}</label>
-        <input id="email" v-model="email" class="input" type="email" autocomplete="email" required />
-      </div>
-      <div class="field">
-        <label for="password">{{ t.auth.password }}</label>
-        <PasswordInput id="password" v-model="password" autocomplete="current-password" />
-      </div>
+      <FormField id="email" :label="t.auth.email" v-slot="{ control }">
+        <input v-bind="control" v-model="email" class="input" type="email" autocomplete="email" required />
+      </FormField>
+      <FormField id="password" :label="t.auth.password" v-slot="{ control }">
+        <PasswordInput v-bind="control" v-model="password" autocomplete="current-password" />
+      </FormField>
       <label v-if="!native" class="check"><input v-model="remember" type="checkbox" /> {{ t.auth.rememberDevice }}</label>
       <AppButton block type="submit" :disabled="busy">{{ busy ? t.auth.wait : t.auth.submitLogin }}</AppButton>
       <p class="links">
@@ -225,19 +224,15 @@ onMounted(async () => {
     <form v-else-if="mode === 'register'" class="card" @submit.prevent="submitRegister">
       <h1>{{ t.auth.registerTitle }}</h1>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <div class="field">
-        <label for="name">{{ t.auth.name }}</label>
-        <input id="name" v-model="name" class="input" autocomplete="name" maxlength="80" required />
-      </div>
-      <div class="field">
-        <label for="email">{{ t.auth.email }}</label>
-        <input id="email" v-model="email" class="input" type="email" autocomplete="email" required />
-      </div>
-      <div class="field">
-        <label for="password">{{ t.auth.password }}</label>
-        <PasswordInput id="password" v-model="password" autocomplete="new-password" />
-        <small>{{ t.auth.passwordHint }}</small>
-      </div>
+      <FormField id="name" :label="t.auth.name" v-slot="{ control }">
+        <input v-bind="control" v-model="name" class="input" autocomplete="name" maxlength="80" required />
+      </FormField>
+      <FormField id="email" :label="t.auth.email" v-slot="{ control }">
+        <input v-bind="control" v-model="email" class="input" type="email" autocomplete="email" required />
+      </FormField>
+      <FormField id="password" :label="t.auth.password" :help="t.auth.passwordHint" v-slot="{ control }">
+        <PasswordInput v-bind="control" v-model="password" autocomplete="new-password" />
+      </FormField>
       <ConsentCheckbox id="signup-consent" v-model="consent" :label="t.consent.signup" v-model:error="consentError" />
       <AppButton block type="submit" :disabled="busy">{{ busy ? t.auth.wait : t.auth.submitRegister }}</AppButton>
       <p class="links"><AppButton variant="link" @click="go('login')">{{ t.auth.toLogin }}</AppButton></p>
@@ -254,10 +249,9 @@ onMounted(async () => {
     <form v-else-if="mode === 'forgot'" class="card" @submit.prevent="submitForgot">
       <h1>{{ t.auth.forgotTitle }}</h1>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <div class="field">
-        <label for="email">{{ t.auth.email }}</label>
-        <input id="email" v-model="email" class="input" type="email" autocomplete="email" required />
-      </div>
+      <FormField id="email" :label="t.auth.email" v-slot="{ control }">
+        <input v-bind="control" v-model="email" class="input" type="email" autocomplete="email" required />
+      </FormField>
       <AppButton block type="submit" :disabled="busy">{{ busy ? t.auth.wait : t.auth.submitForgot }}</AppButton>
       <p class="links"><AppButton variant="link" @click="go('login')">{{ t.auth.toLogin }}</AppButton></p>
     </form>
@@ -265,11 +259,9 @@ onMounted(async () => {
     <form v-else-if="mode === 'reset'" class="card" @submit.prevent="submitReset">
       <h1>{{ t.auth.resetTitle }}</h1>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <div class="field">
-        <label for="password">{{ t.auth.newPassword }}</label>
-        <PasswordInput id="password" v-model="password" autocomplete="new-password" />
-        <small>{{ t.auth.passwordHint }}</small>
-      </div>
+      <FormField id="password" :label="t.auth.newPassword" :help="t.auth.passwordHint" v-slot="{ control }">
+        <PasswordInput v-bind="control" v-model="password" autocomplete="new-password" />
+      </FormField>
       <AppButton block type="submit" :disabled="busy">{{ busy ? t.auth.wait : t.auth.submitReset }}</AppButton>
     </form>
 
@@ -284,10 +276,9 @@ onMounted(async () => {
       <h1>{{ t.mfa.enrollTitle }}</h1>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <p>{{ t.mfa.enrollLead }}</p>
-      <div class="field">
-        <label for="invitation">{{ t.mfa.invitation }}</label>
-        <input id="invitation" v-model="invitation" class="input" autocomplete="off" required />
-      </div>
+      <FormField id="invitation" :label="t.mfa.invitation" v-slot="{ control }">
+        <input v-bind="control" v-model="invitation" class="input" autocomplete="off" required />
+      </FormField>
       <AppButton block type="submit" :disabled="busy">{{ t.mfa.continue }}</AppButton>
       <p class="links"><AppButton variant="link" @click="cancelMfa">{{ t.mfa.cancel }}</AppButton></p>
     </form>
@@ -300,10 +291,9 @@ onMounted(async () => {
         <MfaQr :secret="enrollment.secret" :account="enrollment.account" :issuer="enrollment.issuer" />
         <p class="secret">{{ enrollment.secret }}</p>
       </template>
-      <div class="field">
-        <label for="code">{{ t.mfa.codeLabel }}</label>
-        <input id="code" v-model="code" class="input" autocomplete="one-time-code" inputmode="text" required />
-      </div>
+      <FormField id="code" :label="t.mfa.codeLabel" v-slot="{ control }">
+        <input v-bind="control" v-model="code" class="input" autocomplete="one-time-code" inputmode="text" required />
+      </FormField>
       <AppButton block type="submit" :disabled="busy">{{ t.mfa.verify }}</AppButton>
       <p class="links"><AppButton variant="link" @click="cancelMfa">{{ t.mfa.cancel }}</AppButton></p>
     </form>
@@ -331,9 +321,6 @@ h1 {
   margin-bottom: 16px;
   font-size: 0.9rem;
   color: var(--text-soft);
-}
-small {
-  color: var(--text-mute);
 }
 .links {
   display: flex;

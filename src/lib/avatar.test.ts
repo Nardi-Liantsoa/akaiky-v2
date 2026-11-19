@@ -6,7 +6,7 @@ describe('avatar', () => {
     expect(initial('fy')).toBe('F')
     expect(initial('  élodie')).toBe('É')
     expect(initial('👨‍👩‍👧 Rabe')).toBe('👨‍👩‍👧')
-    expect(initial('   ')).toBe('?')
+    expect(initial('   ')).toBe('')
   })
   it('couleurs : liste fermée, chacune liée à un jeton', () => {
     for (const c of AVATAR_COLORS) expect(colorToken(c)).toMatch(/^var\(--[a-z-]+\)$/)

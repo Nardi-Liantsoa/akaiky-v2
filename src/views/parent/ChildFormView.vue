@@ -14,6 +14,7 @@ import { children, dropChild, loadChildren, selectChild, upsertChild } from '../
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
 import ConfirmSheet from '../../components/ui/ConfirmSheet.vue'
+import FormField from '../../components/ui/FormField.vue'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
 
 const t = useT()
@@ -129,15 +130,15 @@ async function remove() {
     <p v-else-if="id && !existing" class="error" role="alert">{{ t.children.notFound }}</p>
     <form v-else class="card" @submit.prevent="save">
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <div class="field">
-        <label for="child-name">{{ t.children.firstName }}</label>
-        <input id="child-name" v-model="name" class="input" autocomplete="off" required data-selectable />
-      </div>
+      <FormField id="child-name" :label="t.children.firstName" v-slot="{ control }">
+        <input v-bind="control" v-model="name" class="input" autocomplete="off" required data-selectable />
+      </FormField>
       <fieldset class="field colors">
         <legend>{{ t.children.color }}</legend>
         <label v-for="c in AVATAR_COLORS" :key="c" class="swatch">
           <input v-model="color" type="radio" name="child-color" :value="c" :aria-label="t.children.colors[c]" />
-          <ChildAvatar :name="name || '?'" :color="c" :size="44" />
+          <!-- Prénom encore vide : pastille unie, sans « ? ». -->
+          <ChildAvatar :name="name" :color="c" :size="44" />
         </label>
       </fieldset>
       <ConsentCheckbox v-if="!id" id="child-consent" v-model="consent" :label="t.consent.child" v-model:error="consentError" />
@@ -152,7 +153,7 @@ async function remove() {
     </RouterLink>
 
     <div v-if="existing && allowed" class="danger-zone">
-      <p class="hint">{{ t.children.removeHint }}</p>
+      <p class="help">{{ t.children.removeHint }}</p>
       <AppButton variant="ghost" :disabled="busy" @click="confirming.ask(existing.id, $event)">{{ t.children.remove }}</AppButton>
     </div>
     <ConfirmSheet
@@ -178,10 +179,6 @@ h1 {
 .colors legend {
   width: 100%;
   margin-bottom: 8px;
-  font-size: 0.78rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-mute);
 }
 .swatch {
   position: relative;
@@ -215,8 +212,5 @@ h1 {
 }
 .danger-zone {
   margin-top: 28px;
-}
-.hint {
-  color: var(--text-soft);
 }
 </style>

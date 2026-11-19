@@ -11,6 +11,7 @@ import { errorText } from '../lib/errors'
 import { exportFamily } from '../api/families'
 import { canManage, family, loadFamily } from '../store/family'
 import AppButton from '../components/ui/AppButton.vue'
+import SectionCard from '../components/ui/SectionCard.vue'
 
 interface Device { id: string, label: string | null, last_used_at?: string, last_seen_at?: string, current: boolean }
 interface Security { devices: Device[], mfaEnabled: boolean, recoveryCodesRemaining: number }
@@ -113,13 +114,12 @@ onMounted(() => { load(); void loadFamily() })
     <h1>{{ t.security.title }}</h1>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
 
-    <section v-if="state" class="card">
-      <h2>{{ t.mfa.title }}</h2>
+    <SectionCard v-if="state" :title="t.mfa.title">
       <p>{{ state.mfaEnabled ? t.security.mfaOn : t.security.mfaOff }}</p>
       <template v-if="state.mfaEnabled && isAdmin()">
         <p>{{ t.security.remaining(state.recoveryCodesRemaining) }}</p>
         <form @submit.prevent="regenerate">
-          <p class="hint">{{ t.security.regenerateLead }}</p>
+          <p class="help">{{ t.security.regenerateLead }}</p>
           <div class="row">
             <input v-model="code" class="input" autocomplete="one-time-code" :aria-label="t.mfa.codeLabel" required />
             <AppButton type="submit" :disabled="busy">{{ t.security.regenerate }}</AppButton>
@@ -130,11 +130,10 @@ onMounted(() => { load(); void loadFamily() })
           <ul class="codes"><li v-for="c in codes" :key="c">{{ c }}</li></ul>
         </template>
       </template>
-    </section>
+    </SectionCard>
 
-    <section v-if="state" class="card">
-      <h2>{{ t.security.devices }}</h2>
-      <p v-if="!state.devices.length" class="hint">{{ t.security.none }}</p>
+    <SectionCard v-if="state" :title="t.security.devices">
+      <p v-if="!state.devices.length" class="help">{{ t.security.none }}</p>
       <ul class="devices">
         <li v-for="d in state.devices" :key="d.id">
           <span>{{ d.label }}<em v-if="d.current"> · {{ t.security.current }}</em><br /><small>{{ t.security.lastUsed(date(d.last_used_at)) }}</small></span>
@@ -142,31 +141,29 @@ onMounted(() => { load(); void loadFamily() })
         </li>
       </ul>
       <AppButton v-if="state.devices.length > 1" variant="ghost" :disabled="busy" @click="revokeDevice('all')">{{ t.security.revokeAll }}</AppButton>
-    </section>
+    </SectionCard>
 
-    <section v-if="state" class="card">
-      <h2>{{ t.security.apps }}</h2>
-      <p v-if="!apps.length" class="hint">{{ t.security.none }}</p>
+    <SectionCard v-if="state" :title="t.security.apps">
+      <p v-if="!apps.length" class="help">{{ t.security.none }}</p>
       <ul class="devices">
         <li v-for="d in apps" :key="d.id">
           <span>{{ d.label || '—' }}<em v-if="d.current"> · {{ t.security.current }}</em><br /><small>{{ t.security.lastUsed(date(d.last_seen_at)) }}</small></span>
           <AppButton variant="ghost" :disabled="busy" @click="revokeApp(d.id)">{{ t.security.revoke }}</AppButton>
         </li>
       </ul>
-    </section>
+    </SectionCard>
 
-    <section v-if="family.status === 'ready' && family.data" class="card" aria-labelledby="export-title">
-      <h2 id="export-title">{{ t.dataExport.title }}</h2>
+    <SectionCard v-if="family.status === 'ready' && family.data" :title="t.dataExport.title">
       <template v-if="canManage()">
-        <p class="hint">{{ t.dataExport.lead }}</p>
-        <p v-if="nativeApp" class="hint">{{ t.dataExport.nativeHint }}</p>
+        <p class="help">{{ t.dataExport.lead }}</p>
+        <p v-if="nativeApp" class="help">{{ t.dataExport.nativeHint }}</p>
         <template v-else>
           <p v-if="exportError" class="error" role="alert">{{ exportError }}</p>
           <AppButton variant="ghost" :disabled="exporting" @click="downloadExport">{{ exporting ? t.dataExport.busy : t.dataExport.action }}</AppButton>
         </template>
       </template>
-      <p v-else class="hint">{{ t.dataExport.memberHint }}</p>
-    </section>
+      <p v-else class="help">{{ t.dataExport.memberHint }}</p>
+    </SectionCard>
 
     <DeleteConfirm v-if="state" id="delete-account" :title="t.deletion.accountTitle" :lead="t.deletion.accountLead"
       :items="t.deletion.accountItems" :action="t.deletion.accountAction" :confirm="t.deletion.accountConfirm" :busy="deleting" :error="deleteError"
@@ -186,10 +183,6 @@ onMounted(() => { load(); void loadFamily() })
 .card {
   margin-bottom: 16px;
 }
-h2 {
-  margin: 0 0 8px;
-}
-.hint,
 small {
   color: var(--text-mute);
 }

@@ -173,9 +173,9 @@ watch(childId, () => {
           <img :src="qr" width="280" height="280" :alt="t.pairing.qrLabel" />
           <p class="validity">{{ t.pairing.validity }}</p>
           <p class="countdown" aria-live="off">{{ left ? t.pairing.remaining(left) : '' }}</p>
-          <p class="hint">{{ t.pairing.openApp }}</p>
+          <p class="help">{{ t.pairing.openApp }}</p>
         </template>
-        <p v-else-if="expired" class="hint" role="status">{{ t.pairing.expired }}</p>
+        <p v-else-if="expired" class="help" role="status">{{ t.pairing.expired }}</p>
         <AppButton v-if="!qr" :disabled="busy" @click="show">
           {{ expiresAt || justPaired ? t.pairing.renew : t.pairing.show }}
         </AppButton>
@@ -185,7 +185,7 @@ watch(childId, () => {
 
       <h2>{{ t.pairing.devices }}</h2>
       <StatusBlock v-if="devicesStatus === 'error'" state="error" :text="t.pairing.loadError" @retry="refreshDevices()" />
-      <p v-else-if="devicesStatus === 'ready' && !devices.length" class="hint">{{ t.pairing.none }}</p>
+      <p v-else-if="devicesStatus === 'ready' && !devices.length" class="help">{{ t.pairing.none }}</p>
       <ul v-else-if="devicesStatus === 'ready'" class="devices">
         <li v-for="d in devices" :key="d.id" class="card device">
           <div>
@@ -200,7 +200,7 @@ watch(childId, () => {
         :items="t.pairing.revokeItems" :confirm="t.pairing.confirmRevoke" :busy="busy" :opener="confirming.opener.value"
         @close="confirming.close()" @confirm="revoke"
       />
-      <p v-if="devices.length" class="hint">{{ t.pairing.revokeHint }}</p>
+      <p v-if="devices.length" class="help">{{ t.pairing.revokeHint }}</p>
 
       <RouterLink class="btn btn-ghost back" :to="{ name: 'enfant', params: { id: child.id } }">{{ t.children.cancel }}</RouterLink>
     </template>
@@ -281,8 +281,7 @@ h2 {
   display: flex;
   flex-direction: column;
 }
-.meta,
-.hint {
+.meta {
   color: var(--text-soft);
 }
 .ok {
