@@ -137,7 +137,13 @@ export async function messagesRoutes(app) {
     const own = await requireOwnFamily(db, req, ROLES)
     const { rows: [message] } = await db.query('SELECT id FROM quick_messages WHERE id = $1 AND family_id = $2', [req.params.id, own.familyId])
     if (!message) throw notFound()
-    await db.query('INSERT INTO quick_message_reads(message_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [message.id, req.user.id])
+    try {
+      await db.query('INSERT INTO quick_message_reads(message_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [message.id, req.user.id])
+    } catch (e) {
+      // Message purgé entre la lecture et l'insertion : même réponse qu'un message inconnu.
+      if (e.code === '23503') throw notFound()
+      throw e
+    }
     return { ok: true }
   })
 

@@ -152,5 +152,14 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   qu'une ressource en accepte (`ampy-api`, « Fichiers déposés »).
 - **Perte du téléphone d'un admin** : codes de secours, sinon procédure manuelle
   avec vérification d'identité hors site — jamais sur la seule preuve d'accès à l'email.
-- **Journal d'audit** : durée de conservation à fixer (RGPD), l'IP n'y reste pas indéfiniment.
+- **Durées de conservation (NAR-153)** : purge quotidienne par `purge_expired()`
+  (`server/src/migrations/016_retention.sql`) : journal du téléphone (compté depuis sa
+  réception par le serveur) et messages rapides 90 jours ; journal d'audit 1 an, adresse IP
+  effacée à 90 jours ; sessions 30 jours après la fin de tout renouvellement ; jetons expirés.
+  Dernier tour et nombres supprimés : `SELECT * FROM job_runs`. Changer une durée = une
+  nouvelle migration (jamais depuis l'application). Les sauvegardes gardent les données
+  supprimées jusqu'à leur rotation : durée à écrire dans la politique de confidentialité
+  (NAR-178). Positions (30 jours) : avec leur table, NAR-146. Une purge de plus de 10 minutes
+  est annulée et retentée chaque heure : avant la production avec un gros historique, vérifier
+  le volume (ou purger par lots).
 - **Traductions malgaches** : à faire relire par une personne de langue maternelle.
