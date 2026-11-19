@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test'
 import { FAMILY, mockApi, USER } from './mock'
 
-type Kid = { id: string, firstName: string, avatarColor: string, createdAt: string, parentCodeSetAt: string | null, remoteUnlockUntil: string | null, phoneLastSeenAt: string | null }
+type Kid = { id: string, firstName: string, avatarColor: string, createdAt: string, parentCodeSetAt: string | null, remoteUnlockUntil: string | null, phoneLastSeenAt: string | null, sosSiren: boolean }
 const me = { 'GET /api/auth/me': () => ({ body: { user: USER } }), 'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }) }
-const kid = (n: number, firstName: string, avatarColor = 'orange'): Kid => ({ id: `6f1c2b1e-0000-4000-8000-0000000001${String(n).padStart(2, '0')}`, firstName, avatarColor, createdAt: `2026-11-1${n}T10:00:00Z`, parentCodeSetAt: null, remoteUnlockUntil: null, phoneLastSeenAt: null })
+const kid = (n: number, firstName: string, avatarColor = 'orange'): Kid => ({ id: `6f1c2b1e-0000-4000-8000-0000000001${String(n).padStart(2, '0')}`, firstName, avatarColor, createdAt: `2026-11-1${n}T10:00:00Z`, parentCodeSetAt: null, remoteUnlockUntil: null, phoneLastSeenAt: null, sosSiren: false })
 
 // API des enfants simulée avec un état (ajouts, modifications, retraits).
 function childrenApi(initial: Kid[] = []) {

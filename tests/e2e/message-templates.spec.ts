@@ -2,7 +2,7 @@ import { expect, test, type Request } from '@playwright/test'
 import { FAMILY, mockApi, USER } from './mock'
 
 // Textes des messages rapides (NAR-173) : Réglages, gestionnaire et contact.
-const FY = { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'yellow', createdAt: '2026-11-10T10:00:00Z', parentCodeSetAt: null, remoteUnlockUntil: null, phoneLastSeenAt: null }
+const FY = { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'yellow', createdAt: '2026-11-10T10:00:00Z', parentCodeSetAt: null, remoteUnlockUntil: null, phoneLastSeenAt: null, sosSiren: false }
 const base = `/api/children/${FY.id}/message-templates`
 
 function templatesApi(initial: Record<number, string | null> = {}) {

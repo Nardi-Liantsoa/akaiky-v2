@@ -8,6 +8,7 @@ import ContactsCard from '../../components/settings/ContactsCard.vue'
 import ParentCodeCard from '../../components/settings/ParentCodeCard.vue'
 import MessageTemplatesCard from '../../components/settings/MessageTemplatesCard.vue'
 import ScheduleCard from '../../components/settings/ScheduleCard.vue'
+import SosCard from '../../components/settings/SosCard.vue'
 import { useT } from '../../composables/useT'
 import { contactErrorText } from '../../lib/contactErrors'
 import { children, loadChildren, selectedChild } from '../../store/children'
@@ -62,6 +63,7 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
         </template>
         <ParentCodeCard :child="current" />
         <ScheduleCard :child-id="current.id" />
+        <SosCard :child="current" />
         <MessageTemplatesCard :child-id="current.id" />
       </template>
     </template>

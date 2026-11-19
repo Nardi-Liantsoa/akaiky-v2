@@ -89,6 +89,45 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   `call_blocked` avec son nom (« pendant une plage horaire »). Pas d'exception pour un numéro
   d'urgence présenté (falsifiable). Plages et parents reçus par `setAllowed` ; une modification
   faite par un parent n'arrive au téléphone qu'à sa prochaine reprise, comme les contacts.
+- **SOS hors ligne (NAR-151, tranche 1, 19/11/2026)** : service natif au premier plan (`SosService.kt`,
+  notification « SOS en cours », types `phoneCall|location`, Android 14 : `FOREGROUND_SERVICE_PHONE_CALL`/`_LOCATION`,
+  `MANAGE_OWN_CALLS` prérequis du type `phoneCall`), lancé par `AkaikySos.start` (écran maintenu 3 s) ; écran éteint compris.
+  `START_REDELIVER_INTENT` : processus tué, le SOS reprend où il en était, avancement gardé dans les préférences
+  privées (étapes, état des SMS et de la cascade, heure de l'appel en cours ; **jamais de numéro ni de position**).
+  Règle pure partagée `src/lib/sosCascade.ts` / `SosCascade.kt`, cas communs `tests/fixtures/sos-cascade-cases.json`.
+  SMS (SmsManager multipart, sans données) aux contacts `parent` de la liste native, sinon à tous, plage « école »
+  comprise (un SMS ne fait sonner personne) ; texte traduit par l'écran (≤ 160 caractères GSM 7 bits : « ~ » et
+  apostrophe droite, jamais « ± » ni « ’ ») ; position = dernière connue (GPS/réseau, < 2 min et ≤ 100 m) sinon relevé
+  de 10 s au plus, `geo:lat,lon` à 5 décimales ; **la position ne part que dans le SMS, jamais vers le serveur ni dans
+  les journaux** (ni numéro). Résultat d'envoi suivi par contact (`PendingIntent`). Cascade : parents puis autres dans
+  l'ordre, pendant une plage les seuls parents, puis composeur des secours prérempli (Android interdit l'appel direct
+  d'un numéro d'urgence : l'enfant appuie sur « Appeler ») ; arrêt au premier décroché, à « Annuler », quand un contact
+  appelle le téléphone, ou sur « Appeler les secours » (appel en cours coupé). Appel entrant pendant le SOS : il ne
+  prend le relais que si le numéro est joignable (`IncomingCalls.reachable`, ou laissé sonner par le filtre dans les
+  15 s) ; un inconnu est ignoré, la cascade continue. Numéros appelés revérifiés contre la même liste native.
+  Sirène (`children.sos_siren`) : ton synthétisé (aucun fichier), flux alarme au maximum (volume rendu ensuite), en
+  pause pendant tout appel, arrêtée au décroché, à l'annulation ou à 2 min (maintenue sur le composeur des secours).
+  Permissions d'exécution (SMS, position, état du téléphone, journal d'appels, `ANSWER_PHONE_CALLS`, notifications)
+  accordées d'office en Device Owner (`setPermissionGrantState`) ; `SEND_SMS` et `READ_CALL_LOG` sont des permissions
+  « restreintes » (accordées sur l'émulateur installé par adb) : **à vérifier sur un téléphone provisionné par QR**.
+  **Limite de détection du décroché** : sans être l'app téléphone par défaut, Android ne signale pour un appel sortant
+  que « en ligne » (dès la composition) puis « raccroché » (`READ_PRECISE_PHONE_STATE` est réservée au système). Donc :
+  appel coupé après 25 s en ligne (`TelecomManager.endCall`, Android 9+ ; sur Android 8 l'appel finit par le réseau),
+  décroché = au moins 8 s connectées d'après le journal d'appels lu après la fin ; **journal illisible ou muet : appel
+  non décroché**, la cascade continue (contact suivant, puis secours ; aucune estimation par le temps « en ligne » ; après la mort du processus, journal muet : le même contact est rappelé).
+  Décroché (journal) puis coupé par nous = le même contact rappelé une fois sans coupure. Une messagerie qui décroche
+  plus de 8 s compte comme « décroché ».
+  **Jamais un appel lancé tant qu'un autre peut être en ligne** (`SosCascade.lineFree`) : `isInCall` lisible et vrai,
+  attente sans limite (relancée à `CALL_STATE_IDLE`) ; illisible (jamais pris pour « libre »), un appel que `endCall`
+  n'a pas coupé n'est fini qu'à l'apparition de son entrée au journal d'appels (sortant, même numéro, après son
+  lancement), 30 min au plus ; sirène en pause pendant cette attente. **Jamais deux SOS à la fois** : `start` refuse
+  (`already`) un SOS en cours, un lancement non confirmé (marqué avant `startForegroundService`, 5 s au plus) ou un SOS
+  gardé à reprendre ; le service refuse un autre `runId` pendant un SOS en cours (jamais redistribué). Repli de l'écran
+  après 5 s sans confirmation : `cancel({ runId, fallback: true })` attendu 1,5 s au plus, puis l'appel direct ; le
+  service ne lance jamais ce `runId`, ni un lancement reçu plus de 4 s après la demande (`requestedAt`). SOS gardé sans
+  service ni signe de vie depuis 2 min (écrit toutes les 30 s), ou au redémarrage (`BOOT_COMPLETED`) : effacé, jamais
+  rejoué, état `interrupted` (« SOS interrompu », à relancer), jamais montré en cours ; l'écran relit l'état toutes les 15 s.
+  Hors périmètre (NAR-181) : arrêt par prise en charge d'un parent, journal du SOS envoyé au serveur.
 - **Hors connexion** : appels et SOS par SMS sans Internet (natif enfant). L'app
   parent démarre hors ligne et le dit, sans déconnecter.
 - **Notifications** : FCM (Android) et APNs (iOS), comptes au nom du client. Alertes
@@ -174,7 +213,7 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
 | `families` | `memberships` (rôle relu en base à chaque requête) | membres (`GET /api/families/me`) ; export complet `owner`/`manager` (`GET /api/families/me/export`, NAR-178) | toute session sans famille, qui devient `owner` (une famille par compte en v1) | `owner`, `manager` (nom) | `owner` seul (`DELETE /api/families/me`, mot de passe redemandé par la garde de connexion, rôle vérifié avant le corps ; NAR-177) : cascade vers adhésions, invitations, enfants et tout ce qui en dépend, téléphones déconnectés ; autres membres prévenus par e-mail ; le compte de l'owner reste ; `DELETE` accordé au rôle applicatif (017) |
 | `users` | le compte lui-même | lui-même (`/api/auth/me`) ; nom pour les membres de sa famille | inscription publique (`consent: true` exigé, vérifié avant la branche « adresse déjà prise » : 400 `consent_required` identique ; `consent_at` gardé, NAR-178) | lui-même (nom, mot de passe) | lui-même (`DELETE /api/auth/me`, NAR-177) |
 | `memberships` | `family_id` | membres de la même famille (nom et rôle, sans adresse) | création de famille (`owner`) ; acceptation d'une invitation (rôle de l'invitation) | `owner` : tout rôle ; `manager` : entre `manager` et `member`, jamais un `owner` ; dernier `owner` jamais rétrogradé (`UPDATE (role)` seul accordé) | chacun peut partir ; `owner` retire tout membre, `manager` un `manager`/`member` ; dernier `owner` protégé ; cascade depuis `families` et `users` (suppression de son compte, `DELETE /api/auth/me`, mot de passe redemandé ; refusée à un `owner`, 409 `owner_must_transfer_or_delete`, et au dernier administrateur, 409 `last_admin` ; invitations reçues à son adresse toutes effacées ; `DELETE` sur `users` accordé, 017) |
-| `children` (prénom chiffré AES-256-GCM, `DATA_ENCRYPTION_KEY`, données associées `children:first_name:<id>`) | `family_id` (adhésion de la session ; chaque requête filtre `id` **et** `family_id`) | membres | `owner`, `manager` (20 par famille, sous verrou ; `parentalConsent: true` exigé, sinon 400 `consent_required` ; `consent_at` et `consent_by` gardés, NAR-178) | `owner`, `manager` (prénom, couleur ; code parent par `PUT /api/children/:id/parent-code` ; déverrouillage à distance de 15 min par `POST /api/children/:id/unlock`, audité, refusé sans code ; jamais la famille) | `owner`, `manager` ; cascade depuis `families` |
+| `children` (prénom chiffré AES-256-GCM, `DATA_ENCRYPTION_KEY`, données associées `children:first_name:<id>`) | `family_id` (adhésion de la session ; chaque requête filtre `id` **et** `family_id`) | membres | `owner`, `manager` (20 par famille, sous verrou ; `parentalConsent: true` exigé, sinon 400 `consent_required` ; `consent_at` et `consent_by` gardés, NAR-178) | `owner`, `manager` (prénom, couleur ; sirène du SOS `sos_siren` par `PUT /api/children/:id/sos-siren` `{ enabled }`, member 403 quel que soit le corps, autre famille 404, audité `sos_siren_set`, valeur inchangée sans écriture ni audit, `config_version` avancée par déclencheur, lue par le téléphone dans `sosSiren` de `/api/device/config`, NAR-151 ; code parent par `PUT /api/children/:id/parent-code` ; déverrouillage à distance de 15 min par `POST /api/children/:id/unlock`, audité, refusé sans code ; jamais la famille) | `owner`, `manager` ; cascade depuis `families` |
 | `allowed_contacts` (nom et numéro E.164 chiffrés, index aveugle HMAC du numéro ; 6 par enfant, ordonnés) | `family_id` + `child_id` (clé étrangère composite vers l'enfant de la même famille ; membre lié aussi de la même famille) | membres | `owner`, `manager` (enfant verrouillé : plafond et ordre justes ; numéro unique par enfant) | `owner`, `manager` (nom, numéro, couleur, membre lié, ordre ; jamais l'enfant ni la famille) | `owner`, `manager` (positions recomptées) ; cascade depuis l'enfant ; lien au membre effacé s'il quitte la famille |
 | `invitations` (jeton haché, adresse invitée, rôle `manager`/`member`, 7 jours) | `family_id` (lu sur l'adhésion de la session) | `owner`, `manager` (en attente et encore acceptables, avec adresse) | `owner`, `manager` (10 en attente par famille ; une par adresse : la nouvelle remplace l'ancienne une fois son courriel parti ; enregistrée, puis envoyée hors transaction, supprimée si l'envoi échoue) | acceptation par le seul compte de l'adresse invitée, invitant encore gestionnaire, jeton consommé une fois (`UPDATE (used_at)` seul) | `owner`, `manager` (annulation) ; invitations d'un gestionnaire retiré ou rétrogradé ; cascade depuis `families` |
 | `pairing_tokens` (jeton d'appairage haché, 15 min, usage unique ; porté par le QR) | `family_id` + `child_id` (clé étrangère composite vers l'enfant ; famille lue sur l'adhésion de la session) | — (jamais relu par l'API, sinon pour l'échange) | `owner`, `manager` (un seul valable par enfant : le nouveau remplace les précédents) | échange par le téléphone : `used_at` posé atomiquement, une seule fois (`UPDATE (used_at)` seul) | remplacement par un nouveau QR ; cascade depuis l'enfant |

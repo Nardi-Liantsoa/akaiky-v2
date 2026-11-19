@@ -109,4 +109,16 @@ describe('createConfigSync', () => {
     expect(config?.timezone).toBe('Inconnu/Zone')
     expect(JSON.parse(store.data.get(CONFIG_KEY)!).config.schedules).toEqual([good])
   })
+
+  it('sirène du SOS (NAR-151) : gardée si booléenne, écartée seule sinon', async () => {
+    for (const [sent, kept] of [[true, true], [false, false], ['oui', undefined]] as const) {
+      const store = memoryStore()
+      const getIfChanged = vi.fn(async () => ({ data: { version: 6, sosSiren: sent, contacts: [MAMAN] }, etag: '"fy.6"' }))
+      const sync = createConfigSync({ session: session(getIfChanged), store })
+      await sync.load('fy')
+      const config = await sync.refresh()
+      expect(config?.sosSiren).toBe(kept)
+      expect(config?.contacts).toEqual([MAMAN])
+    }
+  })
 })

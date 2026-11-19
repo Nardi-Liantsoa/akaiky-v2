@@ -2,7 +2,7 @@ import { expect, test, type Request } from '@playwright/test'
 import { FAMILY, mockApi, USER } from './mock'
 
 // Plages horaires « école » (NAR-148) : carte de Réglages, gestionnaire et contact.
-const FY = { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'yellow', createdAt: '2026-11-10T10:00:00Z', parentCodeSetAt: null, remoteUnlockUntil: null, phoneLastSeenAt: null }
+const FY = { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'yellow', createdAt: '2026-11-10T10:00:00Z', parentCodeSetAt: null, remoteUnlockUntil: null, phoneLastSeenAt: null, sosSiren: false }
 const base = `/api/children/${FY.id}/schedules`
 type S = { id: string, label: string, days: number, startMin: number, endMin: number, enabled: boolean }
 const sid = (n: number) => `6f1c2b1e-0000-4000-8000-0000000003${String(n).padStart(2, '0')}`

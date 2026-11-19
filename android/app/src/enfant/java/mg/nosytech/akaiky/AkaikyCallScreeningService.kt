@@ -34,7 +34,10 @@ class AkaikyCallScreeningService : CallScreeningService() {
         val now = System.currentTimeMillis()
         val response = CallResponse.Builder()
         when (decision) {
-            CallPolicy.Incoming.RING -> if (filtering && shown != null) IncomingCalls.record(this, "call_in", shown, now)
+            CallPolicy.Incoming.RING -> if (filtering && shown != null) {
+                IncomingCalls.markScreenedAllowed(this, now)
+                IncomingCalls.record(this, "call_in", shown, now)
+            }
             CallPolicy.Incoming.BLOCK_UNKNOWN, CallPolicy.Incoming.BLOCK_HIDDEN, CallPolicy.Incoming.BLOCK_SCHEDULE -> {
                 response.setDisallowCall(true).setRejectCall(true).setSkipNotification(true)
                 IncomingCalls.record(this, "call_blocked", if (decision == CallPolicy.Incoming.BLOCK_HIDDEN) null else shown, now,

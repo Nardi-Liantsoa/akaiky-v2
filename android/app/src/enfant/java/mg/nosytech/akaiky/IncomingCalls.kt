@@ -80,6 +80,13 @@ object IncomingCalls {
         return readings.firstOrNull { it in allowed } ?: readings.firstOrNull() ?: n
     }
 
+    /**
+     * Dernier appel entrant qu'a laissé sonner le filtre (numéro autorisé, liste active) :
+     * le SOS (SosService) y reconnaît, sur Android 12+, un contact qui rappelle l'enfant.
+     */
+    fun markScreenedAllowed(context: Context, at: Long) { prefs(context).edit().putLong("screenedAllowedAt", at).commit() }
+    fun screenedAllowedAt(context: Context): Long = prefs(context).getLong("screenedAllowedAt", 0L)
+
     /** school : refusé parce qu'une plage « école » était en cours (contact non parent). */
     @Synchronized
     fun record(context: Context, kind: String, phone: String?, startedAt: Long, school: Boolean = false) {

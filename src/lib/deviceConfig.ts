@@ -17,9 +17,10 @@ export interface DeviceContact { id: string, name: string, phone: string, positi
 // schedules, timezone : plages « école » actives et fuseau de la famille (NAR-148). Absents
 // d'une config mise en cache avant ces champs : aucune plage (la première plage créée fait
 // avancer la version, donc un relevé complet, contacts « parent » compris).
+// sosSiren : sirène pendant un SOS (NAR-151), choisie par un parent ; absente = coupée.
 export interface DeviceConfig {
   version: number, country?: string, parentCode?: string | null, remoteUnlockUntil?: string | null,
-  messageTexts?: Record<string, string>, schedules?: ScheduleRule[], timezone?: string, contacts: DeviceContact[]
+  messageTexts?: Record<string, string>, schedules?: ScheduleRule[], timezone?: string, sosSiren?: boolean, contacts: DeviceContact[]
 }
 export const CONFIG_KEY = 'device-config'
 
@@ -32,6 +33,8 @@ const validRule = (r: ScheduleRule | null) => typeof r?.label === 'string' && Nu
 // la configuration (contacts, code parent). Le fuseau inconnu est remplacé à l'usage.
 function clean<T extends Cached>(v: T): T {
   if (Array.isArray(v.config.schedules)) v.config.schedules = v.config.schedules.filter(validRule)
+  // Sirène mal formée : coupée (jamais un refus de toute la configuration).
+  if (v.config.sosSiren !== undefined && typeof v.config.sosSiren !== 'boolean') delete v.config.sosSiren
   return v
 }
 const valid = (v: unknown): v is Cached => {
