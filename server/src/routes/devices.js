@@ -204,6 +204,9 @@ export async function devicesRoutes(app) {
       if (!device) throw deviceNotFound()
       // Ses sessions tombent tout de suite : la requête suivante du téléphone reçoit 401.
       await conn.query('DELETE FROM device_sessions WHERE device_id = $1', [device.id])
+      // Ses jetons push aussi : plus aucune notification vers ce téléphone (la ligne de
+      // l'appareil reste, la cascade ne joue donc pas).
+      await conn.query('DELETE FROM push_tokens WHERE device_id = $1', [device.id])
       await audit(conn, req, 'device_revoked', device.id)
     })
     return { ok: true }

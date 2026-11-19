@@ -1,3 +1,5 @@
+import { loadServiceAccount } from './push.js'
+
 // Configuration par variables d'environnement (contrat NosyHost). Toute valeur
 // manquante ou invalide arrête le démarrage : mieux vaut un conteneur qui ne
 // démarre pas qu'une API qui tourne avec une sécurité dégradée.
@@ -59,6 +61,17 @@ function deviceApk(env, production, natives) {
   return { url, signatureChecksum: checksum }
 }
 
+// Notifications push (NAR-141) : fcm (envoi réel), fake (mémoire, développement et tests),
+// none (aucun envoi). Choix explicite exigé en production, où fake est refusé ; fcm exige
+// un compte de service valable dès le démarrage.
+function push(env, production) {
+  const provider = env.PUSH_PROVIDER || (production ? '' : 'fake')
+  if (!provider) throw new Error('PUSH_PROVIDER requis en production : fcm ou none')
+  if (!['fcm', 'fake', 'none'].includes(provider)) throw new Error('PUSH_PROVIDER : fcm, fake ou none')
+  if (production && provider === 'fake') throw new Error('PUSH_PROVIDER=fake est réservé aux tests : interdit en production')
+  return { provider, serviceAccount: provider === 'fcm' ? loadServiceAccount(env.FCM_SERVICE_ACCOUNT) : null }
+}
+
 export function loadConfig(env = process.env) {
   const production = env.NODE_ENV === 'production'
   const natives = nativeOrigins(env.NATIVE_ORIGINS)
@@ -80,6 +93,7 @@ export function loadConfig(env = process.env) {
   if (production && env.SMTP_HOST && !env.MAIL_FROM) throw new Error('MAIL_FROM requis en production (adresse d’un domaine authentifié SPF/DKIM/DMARC)')
   // Recette automatique (skill ampy-recette) : emails écrits dans un fichier au lieu d'être envoyés.
   if (production && env.MAIL_OUTBOX) throw new Error('MAIL_OUTBOX est réservé aux tests : interdit en production')
+  const pushConfig = push(env, production)
   return {
     appName: env.APP_NAME || 'Akaiky',
     mfaKey,
@@ -95,6 +109,7 @@ export function loadConfig(env = process.env) {
     extraOrigins: (env.APP_EXTRA_ORIGINS || '').split(',').map((s) => s.trim().replace(/\/$/, '')).filter(Boolean),
     nativeOrigins: natives,
     deviceApk: deviceApk(env, production, natives),
+    push: pushConfig,
     staticDir: env.STATIC_DIR || new URL('../../dist/web', import.meta.url).pathname,
     // APK de l'app enfant embarqué dans l'image (NAR-165), servi à /downloads/akaiky-enfant.apk.
     downloadsDir: env.DOWNLOADS_DIR || new URL('../../downloads', import.meta.url).pathname,

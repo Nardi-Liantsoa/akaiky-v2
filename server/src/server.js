@@ -3,6 +3,7 @@ import { createPool, migrate, verifySchema } from './db.js'
 import { createMailer } from './mailer.js'
 import { buildApp } from './app.js'
 import { startJobs } from './jobs.js'
+import { createPushProvider } from './push.js'
 
 const config = loadConfig()
 const db = createPool(config.databaseUrl)
@@ -25,13 +26,13 @@ const mailLog = { info: (obj, msg) => console.log(JSON.stringify({ level: 30, ti
 const app = await buildApp({ config, db, mailer: createMailer(config, mailLog), dbReady: false })
 // Écoute immédiate : /health répond même si la base n'est pas encore là.
 await app.listen({ port: config.port, host: '0.0.0.0' })
-// Purge à échéance (NAR-153) : lancée une fois la base prête, arrêtée avec l'API.
+// Purge à échéance (NAR-153) et file push (NAR-141) : lancées une fois la base prête, arrêtée avec l'API.
 // Rien n'est lancé si l'arrêt a déjà commencé.
 let stopJobs = async () => {}
 let stopping = false
 waitForDb(app.log).then(() => {
   if (stopping) return
-  app.dbReady = true; app.log.info('base prête'); stopJobs = startJobs(db, app.log)
+  app.dbReady = true; app.log.info('base prête'); stopJobs = startJobs(db, app.log, { push: { provider: createPushProvider(config.push), config } })
 })
   .catch((e) => { app.log.fatal({ err: e.message }, 'base injoignable'); process.exit(1) })
 

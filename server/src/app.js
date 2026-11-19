@@ -17,6 +17,7 @@ import { deviceMessagesRoutes, messagesRoutes } from './routes/messages.js'
 import { journalRoutes } from './routes/journal.js'
 import { schedulesRoutes } from './routes/schedules.js'
 import { devicesRoutes, deviceSessionRoutes } from './routes/devices.js'
+import { devicePushRoutes, pushRoutes } from './routes/push.js'
 
 // Politique de contenu : tout vient de la même origine, aucun script en ligne,
 // aucun tiers (polices hébergées sur place).
@@ -226,6 +227,10 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
            ), seen AS (
              UPDATE child_devices c SET last_seen_at = now() FROM s
               WHERE c.id = s.id AND c.last_seen_at < now() - interval '1 minute'
+           ), push_seen AS (
+             -- Jeton push du téléphone : « vu à » au plus une fois par heure (purge à 60 jours).
+             UPDATE push_tokens t SET last_seen_at = now() FROM s
+              WHERE t.device_id = s.id AND t.last_seen_at < now() - interval '1 hour'
            )
            SELECT id, family_id, child_id FROM s`, [tokenHash(token)])
         if (rows[0]) req.device = { id: rows[0].id, familyId: rows[0].family_id, childId: rows[0].child_id }
@@ -241,15 +246,22 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
       // Une seule requête : prolonge, joint l'utilisateur (relu à chaque fois :
       // un changement de rôle s'applique tout de suite) et intègre la condition
       // MFA — une session d'admin sans second facteur vérifié n'est pas une session.
+      // Le jeton push de la session est « vu » au plus une fois par heure (purge à 60 jours).
       const { rows } = await db.query(
-        `UPDATE sessions s SET last_seen_at = now(),
-                expires_at = CASE WHEN s.kind = 'cookie'
-                  THEN LEAST(now() + make_interval(days => $2), s.created_at + make_interval(days => $3))
-                  ELSE s.expires_at END
-          FROM users u
-         WHERE s.token_hash = $1 AND s.kind = $4 AND s.expires_at > now() AND u.id = s.user_id
-           AND ${SESSION_RULE}
-         RETURNING u.id, u.email, u.name, u.is_admin`,
+        `WITH sess AS (
+           UPDATE sessions s SET last_seen_at = now(),
+                  expires_at = CASE WHEN s.kind = 'cookie'
+                    THEN LEAST(now() + make_interval(days => $2), s.created_at + make_interval(days => $3))
+                    ELSE s.expires_at END
+             FROM users u
+            WHERE s.token_hash = $1 AND s.kind = $4 AND s.expires_at > now() AND u.id = s.user_id
+              AND ${SESSION_RULE}
+            RETURNING s.id AS session_id, u.id, u.email, u.name, u.is_admin
+         ), push_seen AS (
+           UPDATE push_tokens t SET last_seen_at = now() FROM sess
+            WHERE t.session_id = sess.session_id AND t.last_seen_at < now() - interval '1 hour'
+         )
+         SELECT id, email, name, is_admin FROM sess`,
         [hash, config.session.idleDays, config.session.absoluteDays, kind])
       if (rows[0]) { req.user = rows[0]; req.sessionHash = hash }
     }
@@ -306,6 +318,8 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   await app.register(journalRoutes, { prefix: '/api' })
   await app.register(schedulesRoutes, { prefix: '/api' })
   await app.register(deviceMessagesRoutes, { prefix: '/api/device' })
+  await app.register(pushRoutes, { prefix: '/api' })
+  await app.register(devicePushRoutes, { prefix: '/api/device' })
 
   // APK de l'app enfant (NAR-165) : lu une fois au démarrage, servi tel quel, sans
   // session (Android le télécharge pendant le provisionnement par QR). L'intégrité

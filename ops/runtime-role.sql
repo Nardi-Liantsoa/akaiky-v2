@@ -59,5 +59,11 @@ GRANT UPDATE (label_enc, days_mask, start_min, end_min, enabled) ON schedules TO
 -- Textes des messages rapides (013_message_templates.sql).
 GRANT INSERT, DELETE ON quick_message_templates TO app_runtime;
 GRANT UPDATE (text_enc, updated_at) ON quick_message_templates TO app_runtime;
+-- Notifications push (019_push.sql) : jamais le propriétaire d'un jeton ni le jeton ; la file
+-- ne change que d'état. Purge : par purge_expired().
+GRANT INSERT, DELETE ON push_tokens TO app_runtime;
+GRANT UPDATE (platform, lang, last_seen_at) ON push_tokens TO app_runtime;
+GRANT INSERT ON push_outbox TO app_runtime;
+GRANT UPDATE (status, attempts, next_attempt_at, last_error, sent_at) ON push_outbox TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;
