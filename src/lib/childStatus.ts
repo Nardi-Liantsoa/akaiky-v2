@@ -4,7 +4,7 @@ import { dayKey } from './groupByDay'
 
 // État du téléphone d'un enfant, pour sa carte (NAR-174) : « Téléphone vu à 14:05 »
 // aujourd'hui, sinon avec la date ; « Aucun téléphone relié » sans téléphone appairé.
-// Batterie, réseau et carte SIM viendront avec NAR-147.
+// Batterie, réseau et carte SIM : composant PhoneStatus (NAR-147).
 export function phoneStatus(lastSeenAt: string | null, t: Messages, locale: Locale, now: Date = new Date()): string {
   if (!lastSeenAt) return t.children.noPhone
   const seen = new Date(lastSeenAt)

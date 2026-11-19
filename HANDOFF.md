@@ -188,4 +188,20 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   GROUP BY 1`). Téléphones sans services Google (Huawei récents) : aucun push ; toute information
   reste visible dans l'app (messages rapides dans l'écran de l'enfant). Clé API Firebase à
   restreindre dans la console Google Cloud. Côté app : NAR-179 (nouvelle coque).
+- **État du téléphone (NAR-147, premier volet)** : signal `POST /api/device/heartbeat` envoyé par
+  l'app enfant **au premier plan seulement** (au démarrage, toutes les 15 min, tout de suite sous 15 %
+  ou si la carte SIM change ; même si le relevé natif échoue : batterie et charge `null`, réseau et
+  carte SIM `unknown`) ; alertes `device_alerts` (batterie < 15 % hors charge, fermée à 20 % seulement,
+  pas de nouvelle alerte batterie dans les 60 min qui suivent une fermeture ; carte SIM absente ;
+  silence de 60 min, veille de `jobs.js` toutes les 5 min) avec une notification à l'ouverture.
+  L'export de la famille contient les relevés de chaque téléphone et les alertes de chaque enfant.
+  Le natif ne donne pas encore l'état de la carte SIM : l'app envoie `unknown`, l'alerte « carte SIM
+  absente » ne peut donc pas encore partir d'un vrai téléphone. **Alerte « silence » inactive pour
+  l'instant** : la veille ne regarde que les téléphones dont le dernier signal porte `background: true`
+  (`child_devices.background_status`) ; l'app JS ne l'envoie pas (faux par défaut), car un téléphone
+  dont l'app passe en arrière-plan cesse ses signaux et déclencherait une fausse alerte au bout d'une
+  heure. Elle s'activera quand le signal natif en arrière-plan de NAR-180 enverra `background: true`.
+  **À faire dans NAR-180 (surveillance native en arrière-plan, nouvelle coque)** : le signal natif
+  doit envoyer `background: true` dans le corps de `POST /api/device/heartbeat` (et les vrais états
+  de la carte SIM) ; sans cela, aucune alerte « silence » ne part jamais.
 - **Traductions malgaches** : à faire relire par une personne de langue maternelle.

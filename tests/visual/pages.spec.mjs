@@ -24,7 +24,7 @@ const PARENT = {
     members: [{ userId: HANTA.id, name: 'Hanta', role: 'owner', isMe: true }, { userId: '6f1c2b1e-0000-4000-8000-000000000002', name: 'Rivo', role: 'manager', isMe: false }]
   },
   'GET /api/children': [
-    { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'yellow', createdAt: '2026-01-10T10:00:00Z', parentCodeSetAt: '2026-01-12T10:00:00Z', remoteUnlockUntil: null, phoneLastSeenAt: null },
+    { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'yellow', createdAt: '2026-01-10T10:00:00Z', parentCodeSetAt: '2026-01-12T10:00:00Z', remoteUnlockUntil: null, phoneLastSeenAt: '2026-01-15T09:58:00Z' },
     { id: '6f1c2b1e-0000-4000-8000-000000000102', firstName: 'Tiana', avatarColor: 'green', createdAt: '2026-01-11T10:00:00Z', parentCodeSetAt: null, remoteUnlockUntil: null, phoneLastSeenAt: null }
   ],
   'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/contacts': {
@@ -54,6 +54,13 @@ const PARENT = {
     ],
     next: null,
     today: { calls: 1, blocked: 1, messages: 1, unlocks: 0 }
+  },
+  // État du téléphone (NAR-147) : relevé d'il y a 2 minutes, batterie faible signalée.
+  'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/status': {
+    devices: [{
+      id: '6f1c2b1e-0000-4000-8000-0000000000d1', model: 'Samsung Galaxy A10', batteryPct: 12, charging: false, network: 'mobile', simState: 'ready',
+      statusAt: '2026-01-15T09:58:00Z', alerts: [{ kind: 'battery_low', openedAt: '2026-01-15T09:50:00Z' }]
+    }]
   },
   'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/devices': [
     { id: '6f1c2b1e-0000-4000-8000-0000000000d1', model: 'Samsung Galaxy A10', osVersion: '11', appVersion: '1.0', createdAt: '2026-01-12T10:00:00Z', lastSeenAt: '2026-01-14T10:00:00Z' }

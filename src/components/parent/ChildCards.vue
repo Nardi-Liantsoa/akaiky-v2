@@ -8,6 +8,7 @@ import { children, loadChildren, selectChild } from '../../store/children'
 import { canManage } from '../../store/family'
 import ChildAvatar from './ChildAvatar.vue'
 import ChildMenu from './ChildMenu.vue'
+import PhoneStatus from './PhoneStatus.vue'
 import TodayLog from './TodayLog.vue'
 
 // Enfants de la famille sur l'accueil (NAR-174) : une carte par enfant, empilées. La carte
@@ -55,6 +56,8 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
         </h2>
         <button v-if="canManage()" type="button" class="more" :aria-label="t.children.actions(c.firstName)" @click="openMenu(c, $event)">⋯</button>
       </div>
+      <!-- Batterie, réseau, carte SIM et alertes du téléphone (NAR-147), sur chaque carte. -->
+      <PhoneStatus v-if="c.phoneLastSeenAt" :child-id="c.id" :name="c.firstName" />
       <TodayLog v-if="c.id === children.selectedId" :id="`today-${c.id}`" :child-id="c.id" bare />
     </li>
     <li v-if="canManage()">
