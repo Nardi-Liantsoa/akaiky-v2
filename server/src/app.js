@@ -1,5 +1,5 @@
 import Fastify from 'fastify'
-import { createHash } from 'node:crypto'
+import { createHash, timingSafeEqual } from 'node:crypto'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join, extname, relative } from 'node:path'
 import { HttpError, SESSION_RULE } from './lib.js'
@@ -83,6 +83,13 @@ const DEVICE_PATH = /^\/api\/device(?:[/?]|$)/
 const BEARER = /^Bearer /
 const bearerOf = (req) => {
   const m = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(req.headers.authorization || '')
+  return m ? m[1] : null
+}
+// Jeton « signal de vie » du natif en arrière-plan (NAR-180, 021_heartbeat_tokens.sql) :
+// schéma à part, accepté sur la seule route du signal. Ailleurs, il n'ouvre rien.
+const HEARTBEAT_PATH = /^\/api\/device\/heartbeat(?:\?|$)/
+const heartbeatOf = (req) => {
+  const m = /^Heartbeat ([A-Za-z0-9_-]{43})$/.exec(req.headers.authorization || '')
   return m ? m[1] : null
 }
 
@@ -180,6 +187,13 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
       }).send()
     }
     if (!app.dbReady) throw new HttpError(503, 'Service en cours de démarrage. Réessayez dans un instant.')
+    // Signal du natif (NAR-180) : envoyé hors WebView, donc sans origine. Un navigateur en
+    // met toujours une sur un POST, et l'en-tête Authorization impose un pré-vol refusé hors
+    // des origines natives : aucune page ne l'atteint. Ni cookie ni contrôle CSRF.
+    if (HEARTBEAT_PATH.test(req.url) && heartbeatOf(req) && (!origin || natives.has(origin))) {
+      req.authTransport = 'heartbeat'
+      return
+    }
     if ((NATIVE_PATH.test(req.url) || DEVICE_PATH.test(req.url)) && !natives.has(origin)) throw new HttpError(403, 'Origine refusée.')
     // Le transport se décide UNE fois, ici, et le hook de session le relit :
     // application native (origine exacte de la WebView, qu'une page web ne peut
@@ -214,8 +228,32 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
     // cookie ni parmi les sessions de compte. Un appareil révoqué n'en a plus.
     // Réciproquement, plus bas, une session de compte n'atteint jamais ces routes.
     if (DEVICE_PATH.test(req.url)) {
+      const route = req.routeOptions
       const token = bearerOf(req)
-      if (token) {
+      const beat = heartbeatOf(req)
+      if (beat && route.config?.heartbeat) {
+        // Jeton « signal de vie » : téléphone non révoqué dont l'empreinte est celle-là, non échu. La
+        // recherche porte sur l'empreinte d'un secret de 256 bits (comme les sessions) ;
+        // comparaison finale à temps constant. Même « vu à » que la session d'appareil.
+        const hash = tokenHash(beat)
+        const { rows } = await db.query(
+          `WITH d AS (
+             SELECT id, family_id, child_id, heartbeat_token_hash FROM child_devices
+              WHERE heartbeat_token_hash = $1 AND heartbeat_token_expires_at > now() AND revoked_at IS NULL
+              FOR SHARE
+           ), seen AS (
+             UPDATE child_devices c SET last_seen_at = now() FROM d
+              WHERE c.id = d.id AND c.last_seen_at < now() - interval '1 minute'
+           ), push_seen AS (
+             UPDATE push_tokens t SET last_seen_at = now() FROM d
+              WHERE t.device_id = d.id AND t.last_seen_at < now() - interval '1 hour'
+           )
+           SELECT id, family_id, child_id, heartbeat_token_hash FROM d`, [hash])
+        const row = rows[0]
+        if (row && row.heartbeat_token_hash.length === hash.length && timingSafeEqual(row.heartbeat_token_hash, hash)) {
+          req.device = { id: row.id, familyId: row.family_id, childId: row.child_id, viaHeartbeatToken: true }
+        }
+      } else if (token) {
         // Une seule requête : session valable d'un appareil non révoqué, et « vu à »
         // de l'appareil rafraîchi au plus une fois par minute.
         const { rows } = await db.query(
@@ -236,7 +274,7 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
            SELECT id, family_id, child_id FROM s`, [tokenHash(token)])
         if (rows[0]) req.device = { id: rows[0].id, familyId: rows[0].family_id, childId: rows[0].child_id }
       }
-      const route = req.routeOptions
+      // Jeton « signal de vie » présenté ailleurs que sur le signal : rien n'est ouvert.
       if (route.url && !route.config?.public && !req.device) throw new HttpError(401, 'Session de l’appareil expirée.')
       return
     }
