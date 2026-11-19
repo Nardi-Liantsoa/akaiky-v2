@@ -39,6 +39,8 @@ export const ICONS = {
   unlock: { shapes: [rect({ x: 5, y: 11, width: 14, height: 10, rx: 2 }), path('M8 11V7a4 4 0 0 1 7.5-2')] },
   // Accueil enfant.
   mail: { shapes: [rect({ x: 3, y: 5, width: 18, height: 14, rx: 2 }), path('M3 7l9 6 9-6')] },
+  // Lien vers un écran (« Mon compte »).
+  'chevron-right': { shapes: [path('M9 6l6 6-6 6')] },
   // Batterie : contour et borne ; le niveau, variable, est passé dans l'emplacement.
   battery: {
     viewBox: '0 0 24 12',

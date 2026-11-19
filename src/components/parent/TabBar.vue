@@ -18,9 +18,14 @@ const TABS = [
   { name: 'famille', key: 'family', icon: 'users' }
 ] as const satisfies readonly { name: string, key: string, icon: IconName }[]
 
+// Écrans rangés sous un onglet hors de son chemin : « Mon compte » (/espace/compte/*,
+// la sécurité) s'ouvre depuis Famille, qui reste signalé (NAR-156).
+const EXTRA: Partial<Record<(typeof TABS)[number]['name'], string[]>> = { famille: ['/espace/compte'] }
+
 // Onglet actif : celui dont le chemin est le plus long préfixe de l'URL, pour
 // qu'un écran imbriqué (ex. /espace/famille/:id) garde son onglet signalé.
-const BY_DEPTH = TABS.map((tab) => ({ name: tab.name, path: router.resolve({ name: tab.name }).path }))
+const BY_DEPTH = TABS.flatMap((tab) => [router.resolve({ name: tab.name }).path, ...(EXTRA[tab.name] ?? [])]
+  .map((path) => ({ name: tab.name, path })))
   .sort((a, b) => b.path.length - a.path.length)
 const active = computed(() =>
   BY_DEPTH.find((tab) => route.path === tab.path || route.path.startsWith(`${tab.path}/`))?.name)

@@ -14,6 +14,7 @@ import { errorText } from '../../lib/errors'
 import { canManage, family, loadFamily, setFamilyName, setNoFamily } from '../../store/family'
 import { notice } from '../../store/notice'
 import AppButton from '../../components/ui/AppButton.vue'
+import AccountSection from '../../components/parent/AccountSection.vue'
 
 const t = useT()
 const router = useRouter()
@@ -108,13 +109,14 @@ async function save() {
           <InviteForm @sent="sent++" />
         </div>
       </template>
-
-      <template v-if="family.data.role === 'owner'">
-        <h2 class="section">{{ t.deletion.zone }}</h2>
-        <DeleteConfirm id="delete-family" :title="t.deletion.familyAction" :lead="t.deletion.familyLead"
-          :items="t.deletion.familyItems" :action="t.deletion.familyAction" :confirm="t.deletion.familyConfirm"
-          :busy="deleting" :error="deleteError" @cancel="deleteError = ''" @confirm="removeFamily" />
-      </template>
+    </template>
+    <!-- Compte de la session, famille lisible ou non (NAR-156) ; la zone sensible reste la dernière. -->
+    <AccountSection class="account" />
+    <template v-if="family.status !== 'error' && family.data?.role === 'owner'">
+      <h2 class="section">{{ t.deletion.zone }}</h2>
+      <DeleteConfirm id="delete-family" :title="t.deletion.familyAction" :lead="t.deletion.familyLead"
+        :items="t.deletion.familyItems" :action="t.deletion.familyAction" :confirm="t.deletion.familyConfirm"
+        :busy="deleting" :error="deleteError" @cancel="deleteError = ''" @confirm="removeFamily" />
     </template>
   </section>
 </template>
@@ -146,6 +148,9 @@ h1 {
   margin: 28px 0 12px;
 }
 .invite {
+  margin-top: 28px;
+}
+.account {
   margin-top: 28px;
 }
 </style>
