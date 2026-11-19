@@ -79,6 +79,25 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   pas se l'accorder ; proposé avant le verrou ou pendant une sortie). Numéro reçu converti
   en E.164 et comparé exactement à la liste (jamais la comparaison souple d'Android, qui
   confond deux numéros aux 7 derniers chiffres égaux). Android 8–9 : NAR-172.
+- **Appels sortants (NAR-169, 19/11/2026)** : tout appel composé sur le téléphone (composeur, « Ajouter
+  un appel », autre app, SOS, `AkaikyCall.call`) passe par `CallPolicy.screenOutgoing` : filtrage inactif
+  (pas appairé, libéré) → tout passe ; urgence → toujours, jamais bloquée ni retardée ; sinon seul un
+  numéro de `IncomingCalls.reachable` (parents seuls pendant une plage), lu en E.164 au pays du réseau
+  (Android 10+ : celui du compte qui appelle, `createForPhoneAccountHandle`) et comparé exactement.
+  Urgence : saisie sans espaces/tirets/parenthèses faite de chiffres seuls (un « + » initial, « +112 », n'en
+  est pas une : décision normale) dans la liste de l'app, ou `TelephonyManager.isEmergencyNumber` ; un `*` ou `#` n'est jamais une urgence.
+  Android 10+ : `CallRedirectionService`, rôle `ROLE_CALL_REDIRECTION` (le Device Owner ne peut pas se
+  l'accorder ; demandé par le même bouton que le filtrage des appels entrants) ; urgence et `voicemail:`
+  (boîte de l'enfant) composés aussitôt, sans lecture ; sinon décision synchrone dans `onPlaceCall`
+  (préférences en mémoire, lectures de `TelephonyManager` avec repli), une seule réponse, toujours pour
+  l'appel en cours ; toute erreur annule l'appel. `sip:` refusé pendant le filtrage. Android 8–9 : récepteur `NEW_OUTGOING_CALL` (priorité 999 ; refus : `resultData` vidé et
+  `abortBroadcast`), `PROCESS_OUTGOING_CALLS` accordée en Device Owner (`setAllowed`, `Kiosk.enforce`) ;
+  récepteur désactivé à partir d'Android 10 (`values-v29/bools.xml`). Trou connu sur 8–9 :
+  `NEW_OUTGOING_CALL` ne voit que les appels `tel:` ; un appel `sip:` (compte SIP configuré dans les
+  réglages du composeur) n'est pas filtré, et aucune restriction `UserManager` du Device Owner n'interdit
+  de configurer un compte SIP (seul `DISALLOW_OUTGOING_CALLS`, qui couperait tout). Documenté seulement. Bandeau de l'écran enfant : état
+  réel lu par `screeningRole().outgoingActive` (rôle détenu sur 10+, récepteur actif et permission
+  accordée sur 8–9). Refus : ligne de log sans numéro, rien au journal.
 - **Plages « école » (NAR-148, 18/11/2026)** : calculées sur le téléphone, hors ligne, dans le
   fuseau de la famille (`families.timezone`, Madagascar par défaut, pas encore modifiable par
   l'API) ; pendant une plage, l'écran ne montre que les contacts liés à un `owner`/`manager`,

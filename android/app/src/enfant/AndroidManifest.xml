@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <!-- Durée des appels sortants pour le journal parent (NAR-166) ; accordée d'office en Device Owner. -->
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <!-- Filtre des appels sortants d'Android 8–9 (NAR-169), accordée d'office en Device Owner. -->
+    <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" />
     <!-- Fin de la sortie temporaire à l'heure, app fermée (NAR-167). USE_EXACT_ALARM : APK
          distribué hors Play Store (aucune règle de store) ; SCHEDULE_EXACT_ALARM pour Android 12. -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
@@ -93,6 +95,29 @@
                 <action android:name="android.telecom.CallScreeningService" />
             </intent-filter>
         </service>
+
+        <!-- Filtre des appels sortants (NAR-169) : Android 10+ avec le rôle ROLE_CALL_REDIRECTION
+             (lié par Telecom seulement), Android 8–9 par NEW_OUTGOING_CALL (diffusion protégée,
+             envoyée par le système seul, exemptée des restrictions d'Android 8). Seuls un contact joignable
+             et un numéro d'urgence sont composés. -->
+        <service
+            android:name="mg.nosytech.akaiky.AkaikyCallRedirectionService"
+            android:permission="android.permission.BIND_CALL_REDIRECTION_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.CallRedirectionService" />
+            </intent-filter>
+        </service>
+        <!-- Récepteur d'Android 8–9 seulement (désactivé à partir d'Android 10 par
+             values-v29/bools.xml). Refus : resultData vidé et diffusion interrompue. -->
+        <receiver
+            android:name="mg.nosytech.akaiky.OutgoingCallReceiver"
+            android:enabled="@bool/outgoing_receiver_enabled"
+            android:exported="true">
+            <intent-filter android:priority="999">
+                <action android:name="android.intent.action.NEW_OUTGOING_CALL" />
+            </intent-filter>
+        </receiver>
 
         <receiver
             android:name="mg.nosytech.akaiky.AkaikyDeviceAdminReceiver"

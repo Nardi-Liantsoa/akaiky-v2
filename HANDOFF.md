@@ -146,8 +146,25 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   sont autorisés dans le verrou, sans quoi l'écran d'appel (décrocher, raccrocher) et le
   composeur d'urgence ne s'affichent pas (vérifié sur émulateur Android 14). Depuis ce
   composeur (bouton « Secours ») ou « Ajouter un appel », l'enfant peut composer un autre
-  numéro. Messages, contacts et réglages restent bloqués. À fermer par un filtre des
-  appels sortants (ticket à créer).
+  numéro. Messages, contacts et réglages restent bloqués. **Fermé par NAR-169** (filtre des
+  appels sortants) : ce numéro n'est composé que s'il est un contact joignable ou un numéro
+  d'urgence, sous les réserves ci-dessous.
+- **Filtre des appels sortants (NAR-169)** : Android 10+, rôle `ROLE_CALL_REDIRECTION` confirmé
+  une fois sur le téléphone avec le filtrage des appels entrants (même bouton, avant le verrou ou
+  pendant une sortie) ; Android 8–9, `NEW_OUTGOING_CALL` avec `PROCESS_OUTGOING_CALLS` accordée en
+  Device Owner (refus : `resultData` vidé et `abortBroadcast`). Le récepteur est désactivé à
+  partir d'Android 10 : sans le rôle, tout numéro peut y être composé tant qu'il n'est pas confirmé
+  (l'écran de l'enfant l'indique pendant une sortie, d'après l'état réel lu sur le téléphone).
+  Urgence et `voicemail:` composés aussitôt ; `*`/`#` jamais pris pour une urgence, ni un « + » initial
+  (« +112 », « +117 » : décision normale) ; `sip:` refusé sur Android 10+. Décision synchrone dans le
+  service, sans délai d'attente : une seule réponse, toute erreur annule l'appel (urgence déjà passée).
+  Android 8–9 : `NEW_OUTGOING_CALL` ne voit que les appels `tel:` ; un appel par un compte SIP configuré
+  dans le composeur échappe au filtre, et aucune restriction du Device Owner n'empêche d'en configurer un
+  (hors `DISALLOW_OUTGOING_CALLS`, qui couperait tout).
+  Numéro national composé lu au pays du réseau du compte qui appelle (puis carte SIM, puis famille) : en itinérance, le
+  format national d'un contact malgache est refusé (le format international passe). Codes USSD et
+  préfixes (`#31#`) vers un numéro hors liste : refusés. Urgences : jamais présentées au filtre par
+  Android, et acceptées par lui de toute façon (liste de l'app et numéros connus du téléphone).
 - **Android 8.x** : `setLockTaskFeatures` n'existe qu'à partir d'Android 9 ; l'affichage
   d'un appel entrant pendant le verrou reste à vérifier sur un vrai Android 8 (l'émulateur
   ARM API 26 n'a pas de WebView).

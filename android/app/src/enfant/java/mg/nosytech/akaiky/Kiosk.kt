@@ -119,6 +119,8 @@ object Kiosk {
             dpm.addPersistentPreferredActivity(admin, homeFilter, home(context))
         }
         safely("paquets") { dpm.setLockTaskPackages(admin, lockTaskPackages(context)) }
+        // Filtre des appels sortants d'Android 8–9 (NAR-169).
+        safely("appels sortants") { OutgoingCalls.grant(context) }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             // Accueil (sans effet : l'accueil, c'est l'app), écran d'appel entrant
             // (porté par les notifications), menu d'arrêt. Ni aperçu des apps, ni infos système.

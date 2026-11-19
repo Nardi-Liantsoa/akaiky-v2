@@ -12,7 +12,8 @@ import { sosPlan } from '../../lib/sos'
 import { buildSosPlan, confirmNativeSos } from '../../lib/sosCascade'
 import { AkaikySos, type SosState } from '../../native/akaikySos'
 import SosSentView from './SosSentView.vue'
-import { AkaikyCall } from '../../native/akaikyCall'
+import { AkaikyCall, type ScreeningState } from '../../native/akaikyCall'
+import { canRequestRedirection, incomingFilterOff, outgoingFilterOff } from '../../lib/callScreening'
 import { AkaikyDevice, type DeviceStatus } from '../../native/akaikyDevice'
 import ChildStatusBar from '../../components/child/ChildStatusBar.vue'
 import ContactTile from '../../components/child/ContactTile.vue'
@@ -249,16 +250,23 @@ function syncJournal() {
 // Rôle de filtrage d'Android 10+ (NAR-145) : le Device Owner ne peut pas se l'accorder,
 // une confirmation système est demandée une fois. Proposée seulement quand cet écran
 // système peut s'afficher : téléphone pas encore verrouillé, ou sortie par le code.
-const screening = ref<{ available: boolean, held: boolean } | null>(null)
+// Appels sortants (NAR-169) : état réel du filtre lu sur le téléphone (rôle de redirection sur
+// Android 10+, demandé au même moment par le même bouton ; récepteur et permission sur 8–9).
+const screening = ref<ScreeningState | null>(null)
 async function readScreening() {
   if (!Capacitor.isNativePlatform()) return
   screening.value = await AkaikyCall.screeningRole().catch(() => null)
 }
-const askScreening = computed(() => state.value.kind === 'paired' && !!screening.value?.available && !screening.value.held
+const incomingOff = computed(() => incomingFilterOff(screening.value))
+const outgoingOff = computed(() => outgoingFilterOff(screening.value))
+const canEnableScreening = computed(() => incomingOff.value || canRequestRedirection(screening.value))
+const askScreening = computed(() => state.value.kind === 'paired' && (incomingOff.value || outgoingOff.value)
   && (!kiosk.status?.armed || isUnlocked()))
 async function enableScreening() {
-  const r = await AkaikyCall.requestScreeningRole().catch(() => null)
-  if (r && screening.value) screening.value = { ...screening.value, held: r.held }
+  if (incomingOff.value) await AkaikyCall.requestScreeningRole().catch(() => null)
+  if (canRequestRedirection(screening.value)) await AkaikyCall.requestRedirectionRole().catch(() => null)
+  // Relu sur le téléphone : le bandeau reflète l'état réel, pas la réponse de la confirmation.
+  await readScreening()
 }
 
 // Appels entrants vus par le filtre natif (NAR-145) : repris dans la file du journal,
@@ -539,8 +547,9 @@ const text = computed(() => {
       </div>
     </section>
     <section v-if="askScreening" class="unlocked" role="status">
-      <p>{{ t.child.screening.off }}</p>
-      <button class="btn" type="button" @click="enableScreening">{{ t.child.screening.enable }}</button>
+      <p v-if="incomingOff">{{ t.child.screening.off }}</p>
+      <p v-if="outgoingOff">{{ t.child.screening.outgoingOff }}</p>
+      <button v-if="canEnableScreening" class="btn" type="button" @click="enableScreening">{{ t.child.screening.enable }}</button>
     </section>
     <p v-if="sosFailed" class="call-error" role="alert">{{ t.child.sos.failed }}</p>
     <p v-else-if="sosInterrupted" class="call-error" role="alert">{{ t.child.sos.interrupted }}</p>
