@@ -1,5 +1,5 @@
-// Plage « école » (NAR-148, C16 partie écran de l'enfant ; le critère reste « (prévu) »
-// jusqu'au filtre des appels entrants pendant la plage, NAR-176).
+// Plage « école » (NAR-148, C16 partie écran de l'enfant). Partie appels (NAR-176) : filtre
+// natif, vérifié sur émulateur (SchoolScheduleTest.kt et procédure de la PR #27).
 // Le parent crée la plage par l'interface ; le téléphone est simulé par l'API d'appareil
 // (origine de la WebView Android) et sa configuration passe par la règle même de l'écran
 // de l'enfant (src/lib/schedule.ts), à heure figée.

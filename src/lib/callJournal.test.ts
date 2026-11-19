@@ -38,6 +38,14 @@ describe('createCallJournal', () => {
     await s.journal.complete()
     expect(lastOutgoing).toHaveBeenCalledWith('+261341234567', 1_000_000 - 2_000, undefined, true)
     expect(s.queue()[2]).toEqual({ id: 'i1', kind: 'call_in', contactId: 'maman', name: 'Maman', phone: '+261341234567', startedAt: new Date(1_000_100).toISOString(), durationS: 30 })
+    // Contact connu bloqué (plage « école », NAR-176) : nom et contact gardés.
+    await s.journal.importScreened([
+      { id: 'b3', kind: 'call_blocked', phone: '+261341234567', startedAt: 1_100_000, school: true },
+      // Même numéro sans la marque (liste native en retard, par exemple) : reste un numéro.
+      { id: 'b4', kind: 'call_blocked', phone: '+261341234567', startedAt: 1_100_500 }
+    ], [{ id: 'maman', name: 'Maman', phone: '+261341234567' }])
+    expect(s.queue().find((e: DeviceEvent) => e.id === 'b3')).toEqual({ id: 'b3', kind: 'call_blocked', phone: '+261341234567', contactId: 'maman', name: 'Maman', startedAt: new Date(1_100_000).toISOString() })
+    expect(s.queue().find((e: DeviceEvent) => e.id === 'b4')).toEqual({ id: 'b4', kind: 'call_blocked', phone: '+261341234567', startedAt: new Date(1_100_500).toISOString() })
     // Rejoué (acquittement natif perdu) : aucun doublon.
     await s.journal.importScreened([{ id: 'b1', kind: 'call_blocked', phone: '+261329876543', startedAt: 999_000 }], [])
     expect(s.queue().filter((e: DeviceEvent) => e.id === 'b1')).toHaveLength(1)

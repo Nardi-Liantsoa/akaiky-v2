@@ -5,6 +5,7 @@ import { useT } from '../../composables/useT'
 import { errorText } from '../../lib/errors'
 import { clock, daysSummary, fromTimeInput, toTimeInput } from '../../lib/schedule'
 import { canManage } from '../../store/family'
+import { contacts } from '../../store/contacts'
 
 // Plages horaires « école » d'un enfant (NAR-148, maquette écran 8). Un gestionnaire les
 // crée, modifie, active ou supprime ; un contact les voit. Le téléphone les applique seul.
@@ -112,6 +113,10 @@ function remove(s: Schedule) {
 }
 const summary = (s: Schedule) => t.value.schedules.summary(daysSummary(s.days, t.value.schedules.days, t.value.schedules.everyDay), clock(s.startMin), clock(s.endMin))
 const sorted = computed(() => [...items.value].sort((a, b) => a.startMin - b.startMin))
+// Aucun contact relié à un parent (owner, manager) : pendant une plage, personne ne
+// pourra appeler l'enfant ni être appelé, hors secours (NAR-176). Dit avant que ça arrive.
+const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.childId === props.childId && contacts.status === 'ready'
+  && !contacts.items.some((c) => c.memberRole === 'owner' || c.memberRole === 'manager'))
 </script>
 
 <template>
@@ -124,6 +129,7 @@ const sorted = computed(() => [...items.value].sort((a, b) => a.startMin - b.sta
     </div>
     <template v-else>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
+      <p v-if="noParent" class="warning" role="status">{{ t.schedules.noParent }}</p>
       <ul v-if="sorted.length" class="list" :aria-busy="status === 'loading'" :class="{ refreshing: status === 'loading' }">
         <li v-for="s in sorted" :key="s.id" class="item" :class="{ off: !s.enabled }">
           <div class="text">
@@ -287,6 +293,13 @@ h3 {
 }
 .link.danger {
   color: var(--danger);
+}
+.warning {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--tint-butter);
+  font-weight: 700;
 }
 .empty {
   margin: 0 0 12px;

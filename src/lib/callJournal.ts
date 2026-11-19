@@ -23,10 +23,12 @@ export interface UnlockEvent { id: string, kind: 'unlock', source: 'code' | 'rem
 // Appel reçu d'un contact (NAR-145) ; contactId absent si le contact a été retiré entre-temps.
 export interface CallInEvent { id: string, kind: 'call_in', contactId?: string, name?: string, phone: string, startedAt: string, durationS: number | null }
 // Appel rejeté sans sonnerie : numéro tel que reçu, absent s'il était masqué.
-export interface BlockedEvent { id: string, kind: 'call_blocked', phone?: string, startedAt: string }
+// contactId, name : contact refusé pendant une plage « école » (NAR-176).
+export interface BlockedEvent { id: string, kind: 'call_blocked', phone?: string, contactId?: string, name?: string, startedAt: string }
 export type DeviceEvent = CallEvent | UnlockEvent | CallInEvent | BlockedEvent
 // Événement noté par le filtre natif (CallPlugin.peekIncoming).
-export interface ScreenedCall { id: string, kind: 'call_in' | 'call_blocked', phone?: string, startedAt: number }
+// school : refusé pendant une plage « école » (contact non parent, NAR-176).
+export interface ScreenedCall { id: string, kind: 'call_in' | 'call_blocked', phone?: string, startedAt: number, school?: boolean }
 export interface CallLogEntry { found: boolean, permission?: boolean, startedAt?: number, durationS?: number }
 
 export interface JournalDeps {
@@ -101,9 +103,17 @@ export function createCallJournal(deps: JournalDeps) {
         const isValid = (c: ScreenedCall) => typeof c?.id === 'string' && typeof c.startedAt === 'number'
           && (c.kind === 'call_in' ? typeof c.phone === 'string' : c.kind === 'call_blocked')
         const valid = calls.filter(isValid)
-        const blocked: DeviceEvent[] = valid.filter((c) => c.kind === 'call_blocked').map((c) => ({
-          id: c.id, kind: 'call_blocked', ...(c.phone ? { phone: c.phone } : {}), startedAt: new Date(c.startedAt).toISOString()
-        }))
+        // Contact refusé pendant une plage « école » (NAR-176, marqué par le natif) : nom et
+        // contact gardés pour que le parent le reconnaisse (et ne se voie pas proposer de
+        // l'« autoriser »). Tout autre refus reste un numéro, même s'il ressemble à un contact.
+        const blocked: DeviceEvent[] = valid.filter((c) => c.kind === 'call_blocked').map((c) => {
+          const contact = c.school === true && c.phone ? contacts.find((k) => k.phone === c.phone) : undefined
+          return {
+            id: c.id, kind: 'call_blocked', ...(c.phone ? { phone: c.phone } : {}),
+            ...(contact ? { contactId: contact.id, name: contact.name } : {}),
+            startedAt: new Date(c.startedAt).toISOString()
+          }
+        })
         const pending = await readList(deps.store, PENDING_KEY, isPending)
         const known = new Set(pending.map((p) => p.id))
         for (const c of valid) {

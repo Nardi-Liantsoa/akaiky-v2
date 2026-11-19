@@ -249,6 +249,7 @@ const fr = {
     invalidLabel: 'Nom : 1 à 30 caractères.',
     noDays: 'Choisissez au moins un jour.',
     invalidTimes: 'Début et fin doivent être deux heures différentes.',
+    noParent: 'Aucun contact n’est relié à un parent : pendant une plage, personne ne pourra appeler l’enfant (sauf les secours). Reliez votre contact à votre compte dans « Contacts autorisés ».',
     loadError: 'Impossible de charger les plages horaires.'
   },
   templates: {
@@ -364,6 +365,8 @@ const fr = {
       blocked: 'Appel bloqué',
       hiddenNumber: 'numéro masqué',
       notRung: 'n’a pas sonné',
+      blockedContact: (name: string) => `Appel de ${name} bloqué`,
+      duringSchedule: 'pendant une plage horaire',
       duration: (min: number, sec: number) => (min ? `${min} min ${sec} s` : `${sec} s`),
       unanswered: 'non décroché',
       unlockCode: 'Téléphone déverrouillé avec le code parent',
@@ -640,6 +643,7 @@ const mg: Messages = {
     invalidLabel: 'Anarana : litera 1 ka hatramin’ny 30.',
     noDays: 'Mifidiana andro iray farafahakeliny.',
     invalidTimes: 'Tsy maintsy samy hafa ny fanombohana sy ny fiafarana.',
+    noParent: 'Tsy misy mpifandray mifamatotra amin’ny ray aman-dreny : mandritra ny fotoana voafetra, tsy hisy afaka hiantso ny zaza (afa-tsy ny vonjy maika). Amatory amin’ny kaontinao ny mpifandraisanao ao amin’ny « Mpifandray nahazo alalana ».',
     loadError: 'Tsy afaka nalaina ny fotoana voafetra.'
   },
   templates: {
@@ -755,6 +759,8 @@ const mg: Messages = {
       blocked: 'Antso voasakana',
       hiddenNumber: 'laharana miafina',
       notRung: 'tsy naneno',
+      blockedContact: (name: string) => `Antso avy amin’i ${name} voasakana`,
+      duringSchedule: 'mandritra ny fotoana voafetra',
       duration: (min: number, sec: number) => (min ? `${min} min ${sec} s` : `${sec} s`),
       unanswered: 'tsy noraisina',
       unlockCode: 'Nosokafana tamin’ny kaody ray aman-dreny ny finday',
@@ -1029,6 +1035,7 @@ const en: Messages = {
     invalidLabel: 'Name: 1 to 30 characters.',
     noDays: 'Choose at least one day.',
     invalidTimes: 'Start and end must be different times.',
+    noParent: 'No contact is linked to a parent: during a slot, nobody will be able to call the child (except emergency services). Link your contact to your account under “Allowed contacts”.',
     loadError: 'Could not load the time slots.'
   },
   templates: {
@@ -1144,6 +1151,8 @@ const en: Messages = {
       blocked: 'Blocked call',
       hiddenNumber: 'hidden number',
       notRung: 'did not ring',
+      blockedContact: (name: string) => `Call from ${name} blocked`,
+      duringSchedule: 'during a time slot',
       duration: (min: number, sec: number) => (min ? `${min} min ${sec} s` : `${sec} s`),
       unanswered: 'not answered',
       unlockCode: 'Phone unlocked with the parent code',

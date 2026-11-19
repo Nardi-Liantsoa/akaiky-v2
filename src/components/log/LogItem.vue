@@ -25,14 +25,19 @@ const view = computed(() => {
   switch (i.kind) {
     case 'call_out': return { tone: 'call', title: log.callOut(i.name ?? (i.phone ? formatPhone(i.phone) : log.unknownContact)), detail: duration(i.durationS) }
     case 'call_in': return { tone: 'call', title: log.callIn(i.name ?? (i.phone ? formatPhone(i.phone) : log.unknownContact)), detail: duration(i.durationS) }
-    case 'call_blocked': return { tone: 'blocked', title: log.blocked, detail: `${i.phone ? formatPhone(i.phone) : log.hiddenNumber} · ${log.notRung}` }
+    // Contact connu (nom) : bloqué pendant une plage « école » (NAR-176).
+    case 'call_blocked': return i.name
+      ? { tone: 'blocked', title: log.blockedContact(i.name), detail: `${log.duringSchedule} · ${log.notRung}` }
+      : { tone: 'blocked', title: log.blocked, detail: `${i.phone ? formatPhone(i.phone) : log.hiddenNumber} · ${log.notRung}` }
     case 'unlock': return { tone: 'unlock', title: i.source === 'remote' ? log.unlockRemote : log.unlockCode, detail: i.durationS ? log.unlockFor(Math.max(1, Math.round(i.durationS / 60))) : '' }
     default: return { tone: 'message', title: quickText(i.slot, t.value.child.quick.texts, i.text), detail: i.readBy.length ? t.value.parent.home.seenBy(i.readBy.map((r) => r.name).join(', ')) : '' }
   }
 })
 // Seul un numéro E.164 complet peut devenir un contact (même règle que le formulaire) ;
 // un numéro masqué ou un numéro court, jamais.
-const allowPhone = computed(() => (props.canAllow && props.item.kind === 'call_blocked' && isE164(props.item.phone) ? props.item.phone : null))
+// « Autoriser » : pas pour un contact encore dans la liste (bloqué pendant une plage) ; de
+// nouveau proposé s'il a été retiré depuis (contactId effacé, nom gardé).
+const allowPhone = computed(() => (props.canAllow && props.item.kind === 'call_blocked' && !props.item.contactId && isE164(props.item.phone) ? props.item.phone : null))
 </script>
 
 <template>
