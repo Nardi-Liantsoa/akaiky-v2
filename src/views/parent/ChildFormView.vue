@@ -5,6 +5,7 @@ import { addChild, removeChild, updateChild } from '../../api/children'
 import { ApiError } from '../../api/http'
 import LoadError from '../../components/family/LoadError.vue'
 import ChildAvatar from '../../components/parent/ChildAvatar.vue'
+import ConsentCheckbox from '../../components/account/ConsentCheckbox.vue'
 import { useT } from '../../composables/useT'
 import { AVATAR_COLORS, type AvatarColor } from '../../lib/avatar'
 import { errorText } from '../../lib/errors'
@@ -22,6 +23,9 @@ const color = ref<AvatarColor | null>(null)
 const busy = ref(false)
 const error = ref('')
 const confirming = ref(false)
+// Ajout seulement (NAR-178) : autorité parentale et journalisation acceptées.
+const consent = ref(false)
+const consentError = ref('')
 
 const valid = computed(() => { const n = [...name.value.trim()].length; return n >= 1 && n <= 40 })
 // Formulaire montré seulement à un gestionnaire, une fois la famille connue.
@@ -37,6 +41,7 @@ function forgetIfGone(e: unknown, childId: string | null) {
 function message(e: unknown): string {
   if (e instanceof ApiError && e.code === 'too_many_children') return t.value.children.tooMany
   if (e instanceof ApiError && e.code === 'child_not_found') return t.value.children.notFound
+  if (e instanceof ApiError && e.code === 'consent_required') return t.value.consent.required
   return errorText(e, t.value)
 }
 
@@ -59,6 +64,8 @@ function reset() {
   color.value = null
   confirming.value = false
   error.value = ''
+  consent.value = false
+  consentError.value = ''
 }
 watch(id, reset)
 watch(existing, (c) => {
@@ -67,6 +74,8 @@ watch(existing, (c) => {
 
 async function save() {
   if (busy.value || !valid.value) return
+  consentError.value = ''
+  if (!id.value && !consent.value) { consentError.value = t.value.consent.required; return }
   busy.value = true
   error.value = ''
   try {
@@ -127,6 +136,7 @@ async function remove() {
           <ChildAvatar :name="name || '?'" :color="c" :size="44" />
         </label>
       </fieldset>
+      <ConsentCheckbox v-if="!id" id="child-consent" v-model="consent" :label="t.consent.child" v-model:error="consentError" />
       <div class="actions">
         <button class="btn" type="submit" :disabled="busy || !valid">{{ t.children.save }}</button>
         <RouterLink class="btn btn-ghost" :to="{ name: 'espace' }">{{ t.children.cancel }}</RouterLink>

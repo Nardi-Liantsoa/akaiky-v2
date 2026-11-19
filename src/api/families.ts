@@ -20,6 +20,8 @@ export const getMyFamily = () => api.get<Family>('/families/me')
 export const createFamily = (name: string) => api.post<Pick<Family, 'id' | 'name' | 'role'>>('/families', { name })
 // Owner seul, mot de passe redemandé ; tout ce qui dépend de la famille est effacé.
 export const deleteFamily = (password: string) => api.del<{ ok: true }>('/families/me', { password })
+// Export RGPD (NAR-178), owner et manager : le fichier JSON tel que le serveur l'a construit.
+export const exportFamily = () => api.get<Record<string, unknown>>('/families/me/export')
 export const renameFamily = (name: string) => api.patch<Pick<Family, 'id' | 'name' | 'role'>>('/families/me', { name })
 
 export type InviteRole = Exclude<FamilyRole, 'owner'>

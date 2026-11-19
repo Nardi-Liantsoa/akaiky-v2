@@ -16,8 +16,9 @@ export interface Child {
 
 export const listChildren = () => api.get<Child[]>('/children')
 // Sans couleur choisie, le serveur applique sa rotation (calculée sous verrou).
+// parentalConsent : autorité parentale et journalisation acceptées (NAR-178), exigé par le serveur.
 export const addChild = (firstName: string, avatarColor?: AvatarColor) =>
-  api.post<Child>('/children', avatarColor ? { firstName, avatarColor } : { firstName })
+  api.post<Child>('/children', avatarColor ? { firstName, avatarColor, parentalConsent: true } : { firstName, parentalConsent: true })
 export const updateChild = (id: string, changes: Partial<Pick<Child, 'firstName' | 'avatarColor'>>) =>
   api.patch<Child>(`/children/${encodeURIComponent(id)}`, changes)
 export const removeChild = (id: string) => api.del<{ ok: true }>(`/children/${encodeURIComponent(id)}`)

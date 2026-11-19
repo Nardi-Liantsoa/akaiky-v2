@@ -10,7 +10,7 @@ const device = (page, method, path, { token, data } = {}) => page.request.fetch(
 test('le parent principal supprime sa famille : le téléphone est déconnecté et la famille n’existe plus @C21 @C90', async ({ page }) => {
   await newClient(page)
   expect((await api(page, 'POST', '/families', { name: 'Famille Recette' })).ok()).toBe(true)
-  const fy = await (await api(page, 'POST', '/children', { firstName: 'Fy' })).json()
+  const fy = await (await api(page, 'POST', '/children', { firstName: 'Fy', parentalConsent: true })).json()
   expect((await api(page, 'POST', `/children/${fy.id}/contacts`, { name: 'Mamie', phone: '034 76 543 21' })).status()).toBe(201)
   const qr = await (await api(page, 'POST', `/children/${fy.id}/pairing`, {})).json()
   const token = qr.provisioning['android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE']['akaiky.pairing']

@@ -9,6 +9,7 @@ test('un parent crée sa famille, ajoute un enfant et obtient un QR d’appairag
   await page.getByRole('button', { name: 'Créer ma famille' }).click()
   await page.getByRole('link', { name: 'Ajouter un enfant' }).click()
   await page.getByLabel('Prénom').fill('Fy')
+  await page.getByRole('checkbox', { name: /autorité parentale sur cet enfant/ }).check()
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page).toHaveURL(/\/espace$/)
   // Menu « ⋯ » de la carte de l'enfant (NAR-174) : « Téléphone ».

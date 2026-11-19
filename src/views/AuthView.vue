@@ -10,6 +10,7 @@ import { errorText } from '../lib/errors'
 import { safeNext } from '../lib/nextPath'
 import { takeNotice } from '../store/notice'
 import PasswordInput from '../components/PasswordInput.vue'
+import ConsentCheckbox from '../components/account/ConsentCheckbox.vue'
 import MfaQr from '../components/MfaQr.vue'
 
 type Mode = 'login' | 'register' | 'forgot' | 'reset' | 'confirm' | 'sent' | 'mfa' | 'enroll' | 'recovery'
@@ -23,6 +24,9 @@ const name = ref('')
 const email = ref('')
 const password = ref('')
 const remember = ref(false)
+// Consentement à l'inscription (NAR-178) : exigé, vérifié aussi par le serveur.
+const consent = ref(false)
+const consentError = ref('')
 const code = ref('')
 const invitation = ref('')
 const enrollment = ref<{ secret: string, account: string, issuer: string } | null>(null)
@@ -73,6 +77,7 @@ function message(e: unknown): string {
     // 403 à la connexion : adresse non confirmée, ou (app native) compte à double authentification.
     if (mode.value === 'login' && e.status === 403) return e.code === 'web_only' ? t.value.auth.webOnly : t.value.auth.confirmFirst
     if ((mode.value === 'mfa' || mode.value === 'enroll') && e.status === 401) return t.value.mfa.invalid
+    if (e.code === 'consent_required') return t.value.consent.required
     if ((mode.value === 'reset' || mode.value === 'confirm') && e.status === 400 && /Lien/.test(e.message)) return t.value.auth.invalidLink
   }
   return errorText(e, t.value)
@@ -91,6 +96,8 @@ const submitLogin = () => run(async () => {
 })
 
 const submitRegister = () => run(async () => {
+  consentError.value = ''
+  if (!consent.value) { consentError.value = t.value.consent.required; return }
   if (password.value.length < 12) { error.value = t.value.auth.tooShort; return }
   const address = email.value.trim()
   await register(name.value.trim(), address, password.value)
@@ -230,6 +237,7 @@ onMounted(async () => {
         <PasswordInput id="password" v-model="password" autocomplete="new-password" />
         <small>{{ t.auth.passwordHint }}</small>
       </div>
+      <ConsentCheckbox id="signup-consent" v-model="consent" :label="t.consent.signup" v-model:error="consentError" />
       <button class="btn" type="submit" :disabled="busy">{{ busy ? t.auth.wait : t.auth.submitRegister }}</button>
       <p class="links"><button type="button" class="link" @click="go('login')">{{ t.auth.toLogin }}</button></p>
     </form>

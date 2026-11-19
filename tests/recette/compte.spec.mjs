@@ -9,6 +9,7 @@ test('inscription, confirmation par email, puis espace @C01 @C90', async ({ page
   await page.locator('#name').fill('Camille Recette')
   await page.locator('#email').fill(email)
   await page.locator('#password').fill(PASSWORD)
+  await page.getByRole('checkbox', { name: /majeur·e et titulaire de l’autorité parentale/ }).check()
   await page.getByRole('button', { name: 'Créer le compte' }).click()
   const mail = await mailFor(email, /Confirmez/)
   await page.goto(linkIn(mail))
