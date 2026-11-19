@@ -45,7 +45,9 @@ test('second facteur demandé puis vérifié', async ({ page }) => {
   await page.fill('#code', '123456')
   await page.getByRole('button', { name: 'Vérifier' }).click()
   await expect(page).toHaveURL(/\/espace$/)
-  await expect(page.getByRole('link', { name: 'Administration' })).toBeVisible()
+  // Administrateur : le back-office s'ouvre depuis « Mon compte » (onglet Famille).
+  await page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link', { name: 'Famille' }).click()
+  await expect(page.getByRole('region', { name: 'Mon compte' }).getByRole('link', { name: 'Administration' })).toBeVisible()
 })
 
 test('lien de réinitialisation : jeton retiré de la barre d’adresse et envoyé au serveur', async ({ page }) => {
@@ -74,8 +76,11 @@ test('redirection après connexion : jamais vers un autre site', async ({ page }
 
 test('route protégée sans session : connexion avec retour prévu', async ({ page }) => {
   await mockApi(page, anonymous)
+  await page.goto('/espace/compte/securite')
+  await expect(page).toHaveURL(/\/connexion\?next=(%2F|\/)espace(%2F|\/)compte(%2F|\/)securite$/)
+  // Ancienne adresse : même garde, après le renvoi dans la coquille parent.
   await page.goto('/securite')
-  await expect(page).toHaveURL(/\/connexion\?next=(%2F|\/)securite$/)
+  await expect(page).toHaveURL(/\/connexion\?next=(%2F|\/)espace(%2F|\/)compte(%2F|\/)securite$/)
 })
 
 test('serveur injoignable : message réseau, pas de déconnexion silencieuse', async ({ page }) => {
