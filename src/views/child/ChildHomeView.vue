@@ -103,10 +103,17 @@ watch(state, async (s) => {
 async function pushAllowed() {
   const config = deviceConfig.config
   if (!Capacitor.isNativePlatform() || !config || state.value.kind !== 'paired') return
-  await AkaikyCall.setAllowed({ numbers: config.contacts.map((c) => c.phone), ...(config.country ? { country: config.country.toUpperCase() } : {}) }).catch(() => {})
+  await AkaikyCall.setAllowed({
+    numbers: config.contacts.map((c) => c.phone),
+    ...(config.country ? { country: config.country.toUpperCase() } : {}),
+    // Plages « école » (NAR-176) : le natif les applique seul, écran éteint compris.
+    parents: config.contacts.filter((c) => c.parent === true).map((c) => c.phone),
+    schedules: (config.schedules ?? []).map(({ days, startMin, endMin }) => ({ days, startMin, endMin })),
+    timezone: safeTimeZone(config.timezone)
+  }).catch(() => {})
 }
-// Contacts ou pays changés : renvoyés au natif (filtre des appels entrants compris).
-watch(() => [deviceConfig.config?.contacts, deviceConfig.config?.country] as const, () => { void pushAllowed() }, { immediate: true })
+// Contacts, pays ou plages changés : renvoyés au natif (filtre des appels entrants compris).
+watch(() => [deviceConfig.config?.contacts, deviceConfig.config?.country, deviceConfig.config?.schedules, deviceConfig.config?.timezone] as const, () => { void pushAllowed() }, { immediate: true })
 
 // Batterie et réseau, relus toutes les minutes tant que l'accueil est affiché.
 const status = ref<DeviceStatus | null>(null)

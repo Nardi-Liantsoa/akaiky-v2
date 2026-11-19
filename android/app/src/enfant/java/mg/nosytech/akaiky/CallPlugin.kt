@@ -42,20 +42,30 @@ class CallPlugin : Plugin() {
     /** Liste des numéros autorisés, reçue avec la configuration (NAR-160). */
     @PluginMethod
     fun setAllowed(call: PluginCall) {
-        val numbers = call.getArray("numbers") ?: JSArray()
-        val allowed = (0 until numbers.length()).mapNotNull { CallPolicy.normalize(numbers.optString(it)) }.filter { it.startsWith("+") }.toSet()
+        val allowed = e164Set(call.getArray("numbers"))
         // Liste reçue : le filtre des appels entrants (NAR-145) s'active, avec le pays des
         // numéros pour lire un appel reçu au format national.
         val country = call.getString("country")?.uppercase()?.takeIf { it.matches(Regex("^[A-Z]{2}$")) }
+        // Parents et plages « école » (NAR-176) : absents d'un écran plus ancien → aucune
+        // plage, comportement inchangé.
+        val parents = e164Set(call.getArray("parents"))
+        val schedules = call.getArray("schedules")?.toString() ?: "[]"
+        val timezone = call.getString("timezone")
         prefs.edit().putStringSet("allowed", allowed).putBoolean("filtering", true)
-            .apply { if (country != null) putString("country", country) }.apply()
+            .putStringSet("parents", parents).putString("schedules", schedules)
+            .apply { if (country != null) putString("country", country) }
+            .apply { if (timezone != null) putString("timezone", timezone) else remove("timezone") }.apply()
         call.resolve()
     }
+
+    /** Numéros E.164 d'une liste reçue de l'écran (le reste est ignoré). */
+    private fun e164Set(a: JSArray?): Set<String> =
+        if (a == null) emptySet() else (0 until a.length()).mapNotNull { CallPolicy.normalize(a.optString(it)) }.filter { it.startsWith("+") }.toSet()
 
     /** Téléphone libéré par le parent : plus aucun appel filtré. */
     @PluginMethod
     fun stopFiltering(call: PluginCall) {
-        prefs.edit().putBoolean("filtering", false).remove("allowed").apply()
+        prefs.edit().putBoolean("filtering", false).remove("allowed").remove("parents").remove("schedules").remove("timezone").apply()
         call.resolve()
     }
 
@@ -111,7 +121,8 @@ class CallPlugin : Plugin() {
     @PluginMethod
     fun call(call: PluginCall) {
         val number = CallPolicy.normalize(call.getString("number"))
-        val allowed = prefs.getStringSet("allowed", emptySet()) ?: emptySet()
+        // Pendant une plage « école » (NAR-176) : les seuls parents, comme à l'écran.
+        val allowed = IncomingCalls.reachable(context)
         if (number == null || !CallPolicy.isAllowed(number, allowed)) {
             call.reject("Numéro non autorisé.", "not_allowed")
             return

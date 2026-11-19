@@ -5,7 +5,9 @@ import type { ScreenedCall } from '../lib/callJournal'
 // Le natif refuse tout numéro absent de la liste transmise par setAllowed.
 export interface AkaikyCallPlugin {
   // Liste des contacts autorisés ; active aussi le filtre des appels entrants (NAR-145).
-  setAllowed(options: { numbers: string[], country?: string }): Promise<void>
+  // parents, schedules, timezone (NAR-176) : pendant une plage « école », le natif ne laisse
+  // sonner et n'appelle que les parents, même écran éteint. Ignorés par une coque plus ancienne.
+  setAllowed(options: { numbers: string[], country?: string, parents?: string[], schedules?: { days: number, startMin: number, endMin: number }[], timezone?: string }): Promise<void>
   stopFiltering(): Promise<void>
   peekIncoming(): Promise<{ events: ScreenedCall[] }>
   ackIncoming(options: { ids: string[] }): Promise<void>

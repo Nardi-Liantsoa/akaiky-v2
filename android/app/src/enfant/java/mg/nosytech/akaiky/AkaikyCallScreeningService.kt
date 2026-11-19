@@ -22,19 +22,23 @@ class AkaikyCallScreeningService : CallScreeningService() {
         val countries = IncomingCalls.countries(this)
         val filtering = IncomingCalls.isFiltering(this)
         val allowedSet = IncomingCalls.allowed(this)
+        // Pendant une plage « école » (NAR-176) : seuls les parents sonnent ; les autres
+        // contacts sont refusés et notés comme bloqués, sous leur numéro de contact.
+        val reachableSet = IncomingCalls.reachable(this, allowedSet)
         // Numéro noté : le contact reconnu s'il y en a un ; null si masqué (moins de 2 chiffres).
         val shown = IncomingCalls.displayNumber(raw, countries, allowedSet)
         // Décision sur TOUTES les lectures du numéro reçu (pas seulement celle notée).
-        val decision = CallPolicy.screenIncoming(if (shown == null) null else raw, filtering, allowedSet) { number, allowed ->
+        val decision = CallPolicy.screenIncoming(if (shown == null) null else raw, filtering, allowedSet, { number, allowed ->
             allowed in IncomingCalls.candidates(number, countries)
-        }
+        }, reachableSet)
         val now = System.currentTimeMillis()
         val response = CallResponse.Builder()
         when (decision) {
             CallPolicy.Incoming.RING -> if (filtering && shown != null) IncomingCalls.record(this, "call_in", shown, now)
-            CallPolicy.Incoming.BLOCK_UNKNOWN, CallPolicy.Incoming.BLOCK_HIDDEN -> {
+            CallPolicy.Incoming.BLOCK_UNKNOWN, CallPolicy.Incoming.BLOCK_HIDDEN, CallPolicy.Incoming.BLOCK_SCHEDULE -> {
                 response.setDisallowCall(true).setRejectCall(true).setSkipNotification(true)
-                IncomingCalls.record(this, "call_blocked", if (decision == CallPolicy.Incoming.BLOCK_HIDDEN) null else shown, now)
+                IncomingCalls.record(this, "call_blocked", if (decision == CallPolicy.Incoming.BLOCK_HIDDEN) null else shown, now,
+                    school = decision == CallPolicy.Incoming.BLOCK_SCHEDULE)
             }
         }
         respondToCall(details, response.build())

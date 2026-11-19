@@ -25,6 +25,15 @@ object IncomingCalls {
     fun isFiltering(context: Context): Boolean = prefs(context).getBoolean("filtering", false)
     fun allowed(context: Context): Set<String> = prefs(context).getStringSet("allowed", emptySet()) ?: emptySet()
     fun country(context: Context): String = prefs(context).getString("country", null) ?: "MG"
+    /** Numéros des parents et plages « école » (NAR-176), reçus avec la liste. */
+    fun parents(context: Context): Set<String> = prefs(context).getStringSet("parents", emptySet()) ?: emptySet()
+    fun inSchool(context: Context, now: Long = System.currentTimeMillis()): Boolean {
+        val p = prefs(context)
+        return SchoolSchedule.isActive(now, SchoolSchedule.parse(p.getString("schedules", null)), SchoolSchedule.zone(p.getString("timezone", null)))
+    }
+    /** Numéros joignables maintenant : la liste, ou ses seuls parents pendant une plage. */
+    fun reachable(context: Context, allowed: Set<String> = allowed(context)): Set<String> =
+        CallPolicy.reachable(allowed, parents(context), inSchool(context))
 
     /** Forme E.164 d'un numéro reçu (national ou international), sinon chiffres bruts. */
     fun toE164(number: String, country: String): String {
@@ -71,13 +80,15 @@ object IncomingCalls {
         return readings.firstOrNull { it in allowed } ?: readings.firstOrNull() ?: n
     }
 
+    /** school : refusé parce qu'une plage « école » était en cours (contact non parent). */
     @Synchronized
-    fun record(context: Context, kind: String, phone: String?, startedAt: Long) {
+    fun record(context: Context, kind: String, phone: String?, startedAt: Long, school: Boolean = false) {
         val list = read(context)
         list.put(JSONObject().apply {
             put("id", UUID.randomUUID().toString())
             put("kind", kind)
             if (phone != null) put("phone", phone)
+            if (school) put("school", true)
             put("startedAt", startedAt)
         })
         val kept = JSONArray()

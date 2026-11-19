@@ -91,3 +91,18 @@ test('tuiles : rien de coupé sur un petit écran (320 px)', async ({ page }) =>
   // Aucun défilement horizontal de la page.
   expect(await page.evaluate(() => document.scrollingElement!.scrollWidth <= document.scrollingElement!.clientWidth)).toBe(true)
 })
+
+test('contact bloqué pendant une plage « école » (NAR-176) : nommé, sans « Autoriser ce numéro »', async ({ page }) => {
+  await page.clock.setFixedTime(NOW)
+  const item = { id: '6f1c2b1e-0000-4000-8000-000000000409', kind: 'call_blocked', at: ago(0.1), contactId: '6f1c2b1e-0000-4000-8000-000000000203', name: 'Mamie', phone: '+261321234567', durationS: null }
+  await mockApi(page, {
+    ...me,
+    'GET /api/families/me': () => ({ body: FAMILY }),
+    'GET /api/children': () => ({ body: [FY] }),
+    [`GET /api/children/${FY.id}/journal`]: () => ({ body: { items: [item], next: null, today: { calls: 0, blocked: 1, messages: 0, unlocks: 0 } } })
+  })
+  await page.goto('/espace/journal')
+  await expect(page.getByText('Appel de Mamie bloqué')).toBeVisible()
+  await expect(page.getByText('pendant une plage horaire · n’a pas sonné')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Autoriser ce numéro' })).toHaveCount(0)
+})

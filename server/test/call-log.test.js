@@ -77,6 +77,23 @@ test('formes refusées : bloqué avec contact ou durée, reçu sans numéro E.16
   const res = await events(fy.device, bad)
   assert.equal(res.statusCode, 200, res.body)
   assert.deepEqual(res.json().rejected.sort(), bad.map((e) => e.id).sort())
+  // Contact connu bloqué pendant une plage « école » (NAR-176) : contact, nom et numéro E.164.
+  const mamie = (await call(ctx.app, 'POST', `/api/children/${fy.kid.id}/contacts`, { cookie: owner.cookie, body: { name: 'Mamie', phone: '032 12 345 67' } })).json()
+  const school = { id: randomUUID(), kind: 'call_blocked', contactId: mamie.id, name: 'Mamie', phone: '+261321234567', startedAt: at(1) }
+  // Numéro qui n'est pas (ou plus) celui du contact, ou contact inconnu : gardé comme un
+  // numéro bloqué ordinaire, sans nom (jamais un numéro quelconque sous le nom de Mamie).
+  const otherNumber = { ...school, id: randomUUID(), phone: '+261331111111' }
+  const unknownContact = { ...school, id: randomUUID(), contactId: randomUUID() }
+  const schoolRes = await events(fy.device, [school, otherNumber, unknownContact,
+    { ...school, id: randomUUID(), phone: undefined },
+    { ...school, id: randomUUID(), name: undefined }])
+  assert.equal(schoolRes.statusCode, 200, schoolRes.body)
+  assert.deepEqual(schoolRes.json().accepted, [school.id, otherNumber.id, unknownContact.id])
+  const blockedList = (await calls(owner, fy.kid.id, '?kind=call_blocked')).json().calls
+  const shape = (id) => { const c = blockedList.find((x) => x.id === id); return [c.contactId, c.name, c.phone] }
+  assert.deepEqual(shape(school.id), [mamie.id, 'Mamie', '+261321234567'])
+  assert.deepEqual(shape(otherNumber.id), [null, null, '+261331111111'])
+  assert.deepEqual(shape(unknownContact.id), [null, null, '+261321234567'])
   // Numéro court reçu tel quel (service, opérateur) : accepté pour un appel bloqué.
   assert.equal((await events(fy.device, [{ id: randomUUID(), kind: 'call_blocked', phone: '321', startedAt: at(1) }])).json().accepted.length, 1)
 })
@@ -93,6 +110,8 @@ test('cloisonnement : le téléphone de X n’écrit pas chez Y ; A/B → 404 ; 
   // Contact d'un autre enfant cité par le téléphone de X : refusé.
   const forged = { id: randomUUID(), kind: 'call_in', contactId: theirs.id, phone: '+261331234567', startedAt: at(1) }
   assert.deepEqual((await events(x.device, [forged])).json().rejected, [forged.id])
+  const forgedBlock = { id: randomUUID(), kind: 'call_blocked', contactId: theirs.id, name: 'Papa', phone: '+261331234567', startedAt: at(1) }
+  assert.deepEqual((await events(x.device, [forgedBlock])).json().rejected, [forgedBlock.id])
   const mine = { id: randomUUID(), kind: 'call_blocked', phone: '+261329876543', startedAt: at(1) }
   await events(x.device, [mine])
   // Même identifiant envoyé par Y : refusé, rien chez Y.

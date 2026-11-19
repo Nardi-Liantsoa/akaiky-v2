@@ -43,8 +43,12 @@ const remaining = (m: number, [a, b]: [number, number]) => (m >= a && m < b ? b 
 // Plage active à cet instant, et l'heure où plus aucune plage ne l'est (plages qui se
 // suivent ou se chevauchent mises bout à bout). until = null : plage sans fin (toute la
 // semaine couverte). Le nom retenu est celui de la plage en cours qui finit le plus tard.
+// Plage valable (comme SchoolSchedule.kt) : jours 1 à 127, minutes 0 à 1439, début ≠ fin.
+const validRule = (r: ScheduleRule) => Number.isInteger(r.days) && r.days >= 1 && r.days <= 127
+  && [r.startMin, r.endMin].every((m) => Number.isInteger(m) && m >= 0 && m <= 1439) && r.startMin !== r.endMin
+
 export function activeWindow(now: Date, rules: readonly ScheduleRule[], timeZone: string): ActiveWindow | null {
-  const all = rules.flatMap((r) => intervals(r).map((iv) => ({ iv, label: r.label })))
+  const all = rules.filter(validRule).flatMap((r) => intervals(r).map((iv) => ({ iv, label: r.label })))
   const start = weekMinute(now, timeZone)
   const current = all.filter(({ iv }) => inside(start, iv))
   if (!current.length) return null

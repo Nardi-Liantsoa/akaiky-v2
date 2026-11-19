@@ -99,3 +99,17 @@ test('un contact de famille voit les plages sans pouvoir les modifier', async ({
   await expect(card.getByRole('switch')).toHaveCount(0)
   await expect(card.getByRole('button')).toHaveCount(0)
 })
+
+test('aucun contact relié à un parent : la carte prévient que personne ne pourra appeler pendant une plage (NAR-176)', async ({ page }) => {
+  const api = schedulesApi([{ id: sid(1), label: 'École', days: 31, startMin: 480, endMin: 960, enabled: true }])
+  const mamie = { id: '6f1c2b1e-0000-4000-8000-000000000203', childId: FY.id, name: 'Mamie', phone: '+261321234567', position: 1, avatarColor: 'violet', memberUserId: null, memberRole: null }
+  await mockApi(page, { ...api.handlers, [`GET /api/children/${FY.id}/contacts`]: () => ({ body: { version: 1, max: 6, country: 'MG', contacts: [mamie] } }) })
+  await page.goto('/espace/reglages')
+  await expect(page.locator('#plages').getByText('Aucun contact n’est relié à un parent')).toBeVisible()
+  // Maman reliée au parent principal : plus d'avertissement.
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
+  await mockApi(page, { ...api.handlers, [`GET /api/children/${FY.id}/contacts`]: () => ({ body: { version: 1, max: 6, country: 'MG', contacts: [{ ...mamie, name: 'Maman', memberUserId: USER.id, memberRole: 'owner' }] } }) })
+  await page.goto('/espace/reglages')
+  await expect(page.locator('#plages').getByText('Lun–Ven · 8:00–16:00 · parents + SOS')).toBeVisible()
+  await expect(page.locator('#plages').getByText('Aucun contact n’est relié à un parent')).toHaveCount(0)
+})
