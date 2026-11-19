@@ -8,7 +8,7 @@ import { useT } from '../../composables/useT'
 import { errorText } from '../../lib/errors'
 import { children, loadChildren } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
-import AppButton from '../../components/ui/AppButton.vue'
+import StatusBlock from '../../components/ui/StatusBlock.vue'
 
 const t = useT()
 onMounted(() => { void loadFamily() })
@@ -21,34 +21,27 @@ watch(() => family.status, (s) => { if (s === 'ready') void loadChildren(true) }
   <!-- Sans famille, l'accueil est l'étape de création (NAR-133). -->
   <CreateFamily v-if="family.status === 'none'" />
   <LoadError v-else-if="family.status === 'error'" />
-  <section v-else-if="family.status === 'ready'">
+  <!-- Un seul bloc de chargement pour la famille puis les enfants : annoncé une fois. -->
+  <section v-else>
     <h1>{{ t.parent.home.title }}</h1>
-    <div v-if="children.status === 'error'" class="error" role="alert">
-      <p>{{ t.children.loadError }} {{ errorText(children.error, t) }}</p>
-      <AppButton variant="ghost" @click="loadChildren(true)">{{ t.errors.retry }}</AppButton>
-    </div>
-    <template v-else-if="children.status === 'ready'">
+    <StatusBlock
+      v-if="family.status === 'ready' && children.status === 'error'" state="error"
+      :text="`${t.children.loadError} ${errorText(children.error, t)}`" @retry="loadChildren(true)"
+    />
+    <template v-else-if="family.status === 'ready' && children.status === 'ready'">
       <ChildCards v-if="children.items.length" />
-      <div v-else class="card empty">
-        <p>{{ canManage() ? t.children.emptyManager : t.children.emptyMember }}</p>
-        <RouterLink v-if="canManage()" class="btn" :to="{ name: 'enfant-nouveau' }">{{ t.children.add }}</RouterLink>
-      </div>
+      <StatusBlock v-else state="empty" card :text="canManage() ? t.children.emptyManager : t.children.emptyMember">
+        <template v-if="canManage()" #action>
+          <RouterLink class="btn" :to="{ name: 'enfant-nouveau' }">{{ t.children.add }}</RouterLink>
+        </template>
+      </StatusBlock>
     </template>
-    <p v-else class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
+    <StatusBlock v-else state="loading" fill />
   </section>
-  <p v-else class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
 </template>
 
 <style scoped>
 h1 {
   margin: 8px 0 16px;
-}
-.empty p {
-  margin: 0 0 16px;
-  color: var(--text-soft);
-}
-.loading {
-  min-height: 40vh;
-  margin: 0;
 }
 </style>

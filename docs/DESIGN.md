@@ -61,6 +61,14 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   bibliothèque), par `name`. Décorative par défaut (`aria-hidden`) ; avec `label`, image
   nommée (`role="img"`). `size` fixe la largeur (24 par défaut), la hauteur suit le cadre.
   Une icône nouvelle s'ajoute au jeu, jamais en `<svg>` local.
+- **`StatusBlock`** (NAR-183) — tout état de chargement, d'erreur de chargement ou de liste
+  vide. `state` : `loading` (anneau `--accent` sur `--surface-muted` et texte visibles, zone
+  `role="status"` lue une fois ; anneau immobile sous `prefers-reduced-motion`), `error`
+  (bandeau `.error`, `role="alert"`, « Réessayer » en `AppButton` ghost, événement `retry`),
+  `empty` (texte `--text-soft`, emplacement `action` facultatif). `fill` réserve la hauteur
+  d'une zone de page, `card` le présente en carte. Un écran garde **un seul** bloc de
+  chargement du début à la fin (famille puis enfants) pour n'être annoncé qu'une fois ; les
+  relectures qui laissent le contenu affiché gardent leur estompage (`aria-busy`).
 
 Tout autre contrôle sans règle de focus propre reçoit l'anneau par une règle globale de
 spécificité nulle (`:where(button, a, …):focus-visible`).

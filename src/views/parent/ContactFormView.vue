@@ -13,6 +13,7 @@ import { children, loadChildren, selectChild } from '../../store/children'
 import { contacts, loadContacts } from '../../store/contacts'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
+import StatusBlock from '../../components/ui/StatusBlock.vue'
 
 const t = useT()
 const route = useRoute()
@@ -121,11 +122,12 @@ async function remove() {
     <h1>{{ !id ? t.contacts.addTitle : existing ? t.contacts.editTitle(existing.name) : t.contacts.title }}</h1>
     <LoadError v-if="family.status === 'error'" />
     <p v-else-if="allowed && childGone" class="error" role="alert">{{ t.children.notFound }}</p>
-    <div v-else-if="allowed && (children.status === 'error' || contacts.status === 'error')" class="error" role="alert">
-      <p>{{ t.contacts.loadError }} {{ contacts.status === 'error' ? contactErrorText(contacts.error, t) : '' }}</p>
-      <AppButton variant="ghost" @click="loadChildren(true); loadContacts(childId, true)">{{ t.errors.retry }}</AppButton>
-    </div>
-    <p v-else-if="!allowed || !ready" class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
+    <StatusBlock
+      v-else-if="allowed && (children.status === 'error' || contacts.status === 'error')" state="error"
+      :text="`${t.contacts.loadError} ${contacts.status === 'error' ? contactErrorText(contacts.error, t) : ''}`"
+      @retry="loadChildren(true); loadContacts(childId, true)"
+    />
+    <StatusBlock v-else-if="!allowed || !ready" state="loading" fill />
     <p v-else-if="!child" class="error" role="alert">{{ t.children.notFound }}</p>
     <p v-else-if="id && !existing" class="error" role="alert">{{ t.contacts.notFound }}</p>
     <template v-else>
@@ -220,9 +222,5 @@ h1 {
 }
 .danger-zone {
   margin-top: 28px;
-}
-.loading {
-  min-height: 30vh;
-  margin: 0;
 }
 </style>

@@ -9,6 +9,7 @@ import { forgetInviteToken, takeInviteToken } from '../lib/inviteToken'
 import { auth } from '../store/auth'
 import { loadFamily } from '../store/family'
 import AppButton from '../components/ui/AppButton.vue'
+import StatusBlock from '../components/ui/StatusBlock.vue'
 
 type State = 'loading' | 'missing' | 'signedOut' | 'ready' | 'other' | 'failed'
 
@@ -67,7 +68,7 @@ async function accept() {
   <main class="page">
     <section class="card invite">
       <h1>{{ t.invite.title }}</h1>
-      <p v-if="state === 'loading'" role="status">{{ t.family.loading }}</p>
+      <StatusBlock v-if="state === 'loading'" state="loading" />
       <p v-else-if="state === 'missing'">{{ t.invite.missing }}</p>
       <template v-else-if="state === 'signedOut'">
         <p>{{ t.invite.signedOut }}</p>

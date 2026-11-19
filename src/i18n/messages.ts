@@ -24,6 +24,8 @@ const fr = {
     generic: 'Une erreur est survenue. Réessayez.',
     retry: 'Réessayer'
   },
+  // Bloc d'état commun (NAR-183).
+  status: { loading: 'Chargement…' },
   auth: {
     loginTitle: 'Connexion',
     registerTitle: 'Créer un compte',
@@ -100,7 +102,6 @@ const fr = {
     you: 'vous',
     roles: { owner: 'Parent principal', manager: 'Gestionnaire', member: 'Contact' },
     loadError: 'Impossible de charger votre famille.',
-    loading: 'Chargement de votre famille…',
     inviteTitle: 'Inviter un proche',
     inviteLead: 'Un gestionnaire peut tout régler. Un contact appelle l’enfant et reçoit les SOS, sans rien modifier.',
     emailLabel: 'Adresse e-mail',
@@ -550,6 +551,7 @@ const mg: Messages = {
     generic: 'Nisy olana. Andramo indray.',
     retry: 'Andramo indray'
   },
+  status: { loading: 'Eo am-pakana…' },
   auth: {
     loginTitle: 'Hiditra',
     registerTitle: 'Hamorona kaonty',
@@ -626,7 +628,6 @@ const mg: Messages = {
     you: 'ianao',
     roles: { owner: 'Ray aman-dreny lehibe', manager: 'Mpitantana', member: 'Mpifandray' },
     loadError: 'Tsy azo nalaina ny mombamomba ny fianakavianao.',
-    loading: 'Maka ny mombamomba ny fianakavianao…',
     inviteTitle: 'Hanasa havana',
     inviteLead: 'Afaka mandrindra ny zava-drehetra ny mpitantana. Miantso ny zaza sy mandray ny SOS ny mpifandray, nefa tsy manova na inona na inona.',
     emailLabel: 'Adiresy mailaka',
@@ -1070,6 +1071,7 @@ const en: Messages = {
     generic: 'Something went wrong. Please try again.',
     retry: 'Try again'
   },
+  status: { loading: 'Loading…' },
   auth: {
     loginTitle: 'Sign in',
     registerTitle: 'Create an account',
@@ -1146,7 +1148,6 @@ const en: Messages = {
     you: 'you',
     roles: { owner: 'Main parent', manager: 'Manager', member: 'Contact' },
     loadError: 'Could not load your family.',
-    loading: 'Loading your family…',
     inviteTitle: 'Invite a relative',
     inviteLead: 'A manager can change every setting. A contact calls the child and receives SOS alerts, without changing anything.',
     emailLabel: 'Email address',

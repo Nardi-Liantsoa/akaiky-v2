@@ -6,6 +6,7 @@ import { useT } from '../../composables/useT'
 import { errorText } from '../../lib/errors'
 import { canManage } from '../../store/family'
 import AppButton from '../ui/AppButton.vue'
+import StatusBlock from '../ui/StatusBlock.vue'
 
 // Applications autorisées sur le téléphone de l'enfant (NAR-143, maquette écran 8) : puces
 // « ✓ Appareil photo », « + Ajouter » ouvre la liste des applications envoyée par le
@@ -16,6 +17,9 @@ const t = useT()
 
 const data = ref<ChildApps | null>(null)
 const status = ref<'loading' | 'ready' | 'error'>('loading')
+// Deux erreurs distinctes, jamais affichées ensemble : celle du chargement (avec
+// « Réessayer ») l'emporte sur celle de la dernière action.
+const loadError = ref('')
 const error = ref('')
 const busy = ref(false)
 const picking = ref(false)
@@ -31,7 +35,7 @@ async function load(childId: string) {
     status.value = 'ready'
   } catch (e) {
     if (id !== loadId) return
-    error.value = errorText(e, t.value)
+    loadError.value = errorText(e, t.value)
     status.value = 'error'
   }
 }
@@ -84,12 +88,9 @@ const remove = (pkg: string) => save(allowed.value.map((a) => a.package).filter(
       <span v-if="data" class="count">{{ t.allowedApps.count(allowed.length, max) }}</span>
     </div>
     <p class="hint">{{ t.allowedApps.hint(max) }}</p>
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <div v-if="status === 'error' && !data" class="error" role="alert">
-      <p>{{ t.allowedApps.loadError }}</p>
-      <AppButton variant="ghost" @click="load(childId)">{{ t.errors.retry }}</AppButton>
-    </div>
-    <template v-else-if="data">
+    <StatusBlock v-if="status === 'error'" state="error" :text="`${t.allowedApps.loadError} ${loadError}`" @retry="load(childId)" />
+    <p v-else-if="error" class="error" role="alert">{{ error }}</p>
+    <template v-if="data">
       <ul v-if="allowed.length" class="chips">
         <li v-for="a in allowed" :key="a.package" class="chip" :class="{ blocked: a.blocked }">
           <img v-if="icons.get(a.package)" :src="`data:image/png;base64,${icons.get(a.package)}`" alt="" width="20" height="20">
@@ -101,17 +102,18 @@ const remove = (pkg: string) => save(allowed.value.map((a) => a.package).filter(
           <button class="chip add" type="button" :aria-expanded="picking" aria-controls="apps-picker" :disabled="busy" @click="picking = !picking">{{ t.allowedApps.add }}</button>
         </li>
       </ul>
-      <template v-else>
-        <p class="state">{{ data.inventory.length ? t.allowedApps.none : t.allowedApps.noInventory }}</p>
-        <button v-if="canManage() && data.inventory.length" class="chip add" type="button" :aria-expanded="picking" aria-controls="apps-picker" :disabled="busy" @click="picking = !picking">{{ t.allowedApps.add }}</button>
-      </template>
+      <StatusBlock v-else state="empty" :text="data.inventory.length ? t.allowedApps.none : t.allowedApps.noInventory">
+        <template v-if="canManage() && data.inventory.length" #action>
+          <button class="chip add" type="button" :aria-expanded="picking" aria-controls="apps-picker" :disabled="busy" @click="picking = !picking">{{ t.allowedApps.add }}</button>
+        </template>
+      </StatusBlock>
       <p v-if="canManage() && full" class="state">{{ t.allowedApps.full(max) }}</p>
       <div v-if="picking && canManage() && !full" id="apps-picker" class="picker" role="group" :aria-label="t.allowedApps.pickerTitle">
         <div class="picker-head">
           <h3>{{ t.allowedApps.pickerTitle }}</h3>
           <AppButton variant="ghost" @click="picking = false">{{ t.allowedApps.close }}</AppButton>
         </div>
-        <p v-if="!addable.length" class="state">{{ t.allowedApps.nothingToAdd }}</p>
+        <StatusBlock v-if="!addable.length" state="empty" :text="t.allowedApps.nothingToAdd" />
         <ul v-else class="choices">
           <li v-for="a in addable" :key="a.package">
             <button class="choice" type="button" :disabled="busy" @click="add(a.package)">
@@ -123,7 +125,7 @@ const remove = (pkg: string) => save(allowed.value.map((a) => a.package).filter(
         </ul>
       </div>
     </template>
-    <p v-else class="state" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
+    <StatusBlock v-else-if="status === 'loading'" state="loading" />
   </section>
 </template>
 
