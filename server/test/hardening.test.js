@@ -106,6 +106,11 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     assert.deepEqual(logged.json(), { accepted: [ev.id], rejected: [] })
     await assert.rejects(pool.query('UPDATE device_events SET duration_s = 0'), /permission denied/)
     await assert.rejects(pool.query('DELETE FROM device_events'), /permission denied/)
+    // Purge à échéance (016_retention.sql) : lancée par le rôle restreint, durées fixées dans
+    // la base ; aucun DELETE direct sur les journaux pour autant.
+    await pool.query("SELECT purge_expired()")
+    await assert.rejects(pool.query('DELETE FROM quick_messages'), /permission denied/)
+    await assert.rejects(pool.query("UPDATE job_runs SET started_at = NULL"), /permission denied/)
     assert.equal((await call(app, 'POST', `/api/devices/${phone.json().device.id}/revoke`, { cookie: user.cookie })).statusCode, 200)
     await assert.rejects(pool.query('UPDATE child_devices SET child_id = child_id'), /permission denied/)
     await assert.rejects(pool.query('UPDATE child_devices SET family_id = family_id'), /permission denied/)

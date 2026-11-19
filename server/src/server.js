@@ -2,6 +2,7 @@ import { loadConfig } from './config.js'
 import { createPool, migrate, verifySchema } from './db.js'
 import { createMailer } from './mailer.js'
 import { buildApp } from './app.js'
+import { startJobs } from './jobs.js'
 
 const config = loadConfig()
 const db = createPool(config.databaseUrl)
@@ -24,13 +25,23 @@ const mailLog = { info: (obj, msg) => console.log(JSON.stringify({ level: 30, ti
 const app = await buildApp({ config, db, mailer: createMailer(config, mailLog), dbReady: false })
 // Écoute immédiate : /health répond même si la base n'est pas encore là.
 await app.listen({ port: config.port, host: '0.0.0.0' })
-waitForDb(app.log).then(() => { app.dbReady = true; app.log.info('base prête') })
+// Purge à échéance (NAR-153) : lancée une fois la base prête, arrêtée avec l'API.
+// Rien n'est lancé si l'arrêt a déjà commencé.
+let stopJobs = async () => {}
+let stopping = false
+waitForDb(app.log).then(() => {
+  if (stopping) return
+  app.dbReady = true; app.log.info('base prête'); stopJobs = startJobs(db, app.log)
+})
   .catch((e) => { app.log.fatal({ err: e.message }, 'base injoignable'); process.exit(1) })
 
 // Arrêt propre sur SIGTERM (NosyHost, docker stop) : PID 1 dans le conteneur.
 for (const sig of ['SIGTERM', 'SIGINT']) {
   process.once(sig, async () => {
+    stopping = true
     app.log.info({ sig }, 'arrêt')
-    try { await app.close(); await db.end() } finally { process.exit(0) }
+    // HTTP cesse d'accepter tout de suite, même pendant une purge (jusqu'à 10 min) ;
+    // le pool ne ferme qu'une fois le tour de purge en cours fini.
+    try { await Promise.all([app.close(), stopJobs()]); await db.end() } finally { process.exit(0) }
   })
 }
