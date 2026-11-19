@@ -18,6 +18,9 @@ test('le gestionnaire allume la sirène : l’interrupteur suit la réponse du s
   const siren = page.getByRole('switch', { name: 'Sirène pendant un SOS' })
   await expect(siren).toHaveAttribute('aria-checked', 'false')
   await expect(page.getByText(/sonne très fort pendant 2 minutes au plus/)).toBeVisible()
+  // Interrupteur commun (NAR-186) : décrit par son aide, zone tactile ≥ 48 px.
+  await expect(siren).toHaveAccessibleDescription(/sonne très fort pendant 2 minutes au plus/)
+  expect((await siren.boundingBox())?.height).toBeGreaterThanOrEqual(48)
   await siren.click()
   await expect(siren).toHaveAttribute('aria-checked', 'true')
   expect(calls.filter((r) => r.method() === 'PUT').map((r) => r.postDataJSON())).toEqual([{ enabled: true }])

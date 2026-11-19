@@ -6,6 +6,7 @@ import { useT } from '../../composables/useT'
 import { errorText } from '../../lib/errors'
 import { canManage } from '../../store/family'
 import AppButton from '../ui/AppButton.vue'
+import SectionCard from '../ui/SectionCard.vue'
 import StatusBlock from '../ui/StatusBlock.vue'
 
 // Applications autorisées sur le téléphone de l'enfant (NAR-143, maquette écran 8) : puces
@@ -82,12 +83,10 @@ const remove = (pkg: string) => save(allowed.value.map((a) => a.package).filter(
 </script>
 
 <template>
-  <section id="applications" class="card apps" tabindex="-1">
-    <div class="head">
-      <h2>{{ t.allowedApps.title }}</h2>
-      <span v-if="data" class="count">{{ t.allowedApps.count(allowed.length, max) }}</span>
-    </div>
-    <p class="hint">{{ t.allowedApps.hint(max) }}</p>
+  <SectionCard id="applications" class="apps" tabindex="-1" :title="t.allowedApps.title" :help="t.allowedApps.hint(max)">
+    <template v-if="data" #aside>
+      <span class="count">{{ t.allowedApps.count(allowed.length, max) }}</span>
+    </template>
     <StatusBlock v-if="status === 'error'" state="error" :text="`${t.allowedApps.loadError} ${loadError}`" @retry="load(childId)" />
     <p v-else-if="error" class="error" role="alert">{{ error }}</p>
     <template v-if="data">
@@ -126,21 +125,12 @@ const remove = (pkg: string) => save(allowed.value.map((a) => a.package).filter(
       </div>
     </template>
     <StatusBlock v-else-if="status === 'loading'" state="loading" />
-  </section>
+  </SectionCard>
 </template>
 
 <style scoped>
 .apps {
   margin-top: 16px;
-}
-.head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-h2 {
-  margin: 0 0 8px;
 }
 h3 {
   margin: 0;
@@ -148,12 +138,8 @@ h3 {
   font-weight: 800;
 }
 .count,
-.hint,
 .state {
   color: var(--text-soft);
-}
-.hint {
-  margin: 0 0 12px;
 }
 .state {
   margin: 0 0 8px;

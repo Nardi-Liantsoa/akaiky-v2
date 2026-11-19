@@ -3,7 +3,9 @@ import { ref } from 'vue'
 import { useT } from '../composables/useT'
 
 // Coller autorisé, bouton « afficher », aucune limite de longueur côté
-// navigateur plus stricte que celle du serveur (200 caractères).
+// navigateur plus stricte que celle du serveur (200 caractères). Les autres attributs
+// (aria-describedby, aria-invalid posés par FormField) vont au champ, pas au cadre.
+defineOptions({ inheritAttrs: false })
 defineProps<{ id: string, autocomplete: 'current-password' | 'new-password' }>()
 const model = defineModel<string>({ required: true })
 const t = useT()
@@ -12,7 +14,7 @@ const visible = ref(false)
 
 <template>
   <div class="pw">
-    <input :id="id" v-model="model" class="input" :type="visible ? 'text' : 'password'"
+    <input v-bind="$attrs" :id="id" v-model="model" class="input" :type="visible ? 'text' : 'password'"
       :autocomplete="autocomplete" maxlength="200" required />
     <button type="button" class="toggle" :aria-pressed="visible" @click="visible = !visible">
       {{ visible ? t.auth.hide : t.auth.show }}

@@ -728,12 +728,12 @@ const mg: Messages = {
     paired: 'Mifandray ny finday.',
     unknownModel: 'Finday Android',
     since: (date: string) => `Nampifandraisina ny ${date}`,
-    revoke: 'Esorina',
-    confirmRevoke: 'Hamafiso ny fanesorana',
+    revoke: 'Esory',
+    confirmRevoke: 'Hamarino ny fanesorana',
     revokeTitle: (model: string) => `Hanaisotra ny ${model} ?`,
     revokeItems: ['very avy hatrany ny fidirany ny finday;', 'raha hampiasaina indray, mila ampifandraisina amin’ny QR code vaovao.'],
     revokeHint: 'Very avy hatrany ny fidirany ny finday esorina.',
-    loadError: 'Tsy azo alaina ny finday.',
+    loadError: 'Tsy azo nalaina ny finday.',
     tooMany: 'Tratra ny isa ambony indrindra amin’ny finday ho an’ity zaza ity : esory ny iray alohan’ny handrindrana hafa.'
   },
   children: {
@@ -858,7 +858,7 @@ const mg: Messages = {
     noDays: 'Mifidiana andro iray farafahakeliny.',
     invalidTimes: 'Tsy maintsy samy hafa ny fanombohana sy ny fiafarana.',
     noParent: 'Tsy misy mpifandray mifamatotra amin’ny ray aman-dreny : mandritra ny fotoana voafetra, tsy hisy afaka hiantso ny zaza (afa-tsy ny vonjy maika). Amatory amin’ny kaontinao ny mpifandraisanao ao amin’ny « Mpifandray nahazo alalana ».',
-    loadError: 'Tsy afaka nalaina ny fotoana voafetra.'
+    loadError: 'Tsy azo nalaina ny fotoana voafetra.'
   },
   templates: {
     title: 'Hafatra haingana',
@@ -868,7 +868,7 @@ const mg: Messages = {
     reset: 'Lahatsoratra voalohany',
     saved: 'Voatahiry. Hiseho amin’ny finday rehefa mifandray indray.',
     invalid: 'Litera 1 ka hatramin’ny 40.',
-    loadError: 'Tsy afaka nalaina ny hafatra haingana.'
+    loadError: 'Tsy azo nalaina ny hafatra haingana.'
   },
   parentCode: {
     title: 'Kaody ray aman-dreny',
@@ -902,7 +902,7 @@ const mg: Messages = {
     none: 'Mbola tsy misy fampiharana nahazoan-dalana.',
     noInventory: 'Mbola tsy nandefa ny lisitry ny fampiharana ao aminy ny finday.',
     pickerTitle: 'Fampiharana ao amin’ny finday',
-    close: 'Hidio',
+    close: 'Hidiana',
     nothingToAdd: 'Efa nahazoan-dalana avokoa ny fampiharana rehetra ao amin’ny finday.',
     loadError: 'Tsy azo jerena aloha ireo fampiharana.',
     errors: {
@@ -968,7 +968,7 @@ const mg: Messages = {
       positionUnknown: 'Tsy fantatra ny toerana',
       siren: 'Mandeha ny sirena',
       callEmergency: (n: string) => `Antsoy ny vonjy maika · ${n}`,
-      cancel: 'Foano',
+      cancel: 'Hanafoana',
       close: 'Hidiana',
       cancelled: 'Nofoanana ny SOS',
       failed: 'Tsy nandeha ny SOS ho azy: antsoina mivantana.',
@@ -1042,7 +1042,7 @@ const mg: Messages = {
       unlockRemote: 'Nosokafana lavitra ny finday',
       unlockFor: (min: number) => `${min} min`,
       more: 'Hijery bebe kokoa',
-      loadError: 'Tsy afaka nalaina ny tantara.',
+      loadError: 'Tsy azo nalaina ny tantara.',
       todayTitle: 'Androany',
       allLog: 'Ny tantara rehetra',
       nothingToday: 'Mbola tsy misy androany.'
@@ -1267,7 +1267,7 @@ const en: Messages = {
     revokeTitle: (model: string) => `Remove ${model}?`,
     revokeItems: ['the phone loses its access right away;', 'to use it again, it will have to be set up again with a new QR code.'],
     revokeHint: 'A removed phone loses its access immediately.',
-    loadError: 'Couldn’t load the phones.',
+    loadError: 'Could not load the phones.',
     tooMany: 'This child has reached the maximum number of phones: remove one before setting up another.'
   },
   children: {

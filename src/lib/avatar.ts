@@ -27,10 +27,11 @@ export const accentToken = (c: string) => TOKENS[c as AvatarColor] ?? TOKENS.ora
 // Découpe en caractères visibles, créée une fois (absente des vieilles WebView).
 const graphemes = typeof Intl !== 'undefined' && 'Segmenter' in Intl ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null
 
-// Premier caractère visible (un emoji composé compte pour un), en majuscule.
+// Premier caractère visible (un emoji composé compte pour un), en majuscule. Nom vide :
+// rien (pastille unie, jamais « ? » ; NAR-186).
 export function initial(name: string): string {
   const text = name.trim()
-  if (!text) return '?'
+  if (!text) return ''
   const first = graphemes
     ? graphemes.segment(text)[Symbol.iterator]().next().value?.segment ?? ''
     : [...text][0]

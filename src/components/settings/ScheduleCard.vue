@@ -9,7 +9,10 @@ import { canManage } from '../../store/family'
 import { contacts } from '../../store/contacts'
 import AppButton from '../ui/AppButton.vue'
 import ConfirmSheet from '../ui/ConfirmSheet.vue'
+import FormField from '../ui/FormField.vue'
+import SectionCard from '../ui/SectionCard.vue'
 import StatusBlock from '../ui/StatusBlock.vue'
+import ToggleSwitch from '../ui/ToggleSwitch.vue'
 
 // Plages horaires « école » d'un enfant (NAR-148, maquette écran 8). Un gestionnaire les
 // crée, modifie, active ou supprime ; un contact les voit. Le téléphone les applique seul.
@@ -131,9 +134,7 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
 </script>
 
 <template>
-  <section id="plages" class="card schedules" tabindex="-1">
-    <h2>{{ t.schedules.title }}</h2>
-    <p class="hint">{{ t.schedules.hint }}</p>
+  <SectionCard id="plages" class="schedules" tabindex="-1" :title="t.schedules.title" :help="t.schedules.hint">
     <StatusBlock v-if="status === 'error'" state="error" :text="`${t.schedules.loadError} ${error}`" @retry="load(childId)" />
     <template v-else>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
@@ -145,10 +146,10 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
             <p class="when">{{ summary(s) }}</p>
           </div>
           <template v-if="canManage()">
-            <button
-              type="button" role="switch" class="toggle" :aria-checked="s.enabled" :disabled="busy"
-              :aria-label="t.schedules.toggle(s.label)" @click="toggle(s)"
-            ><span class="knob" /></button>
+            <ToggleSwitch
+              :model-value="s.enabled" :label="t.schedules.toggle(s.label)" hide-label :disabled="busy"
+              @update:model-value="toggle(s)"
+            />
             <div class="row-actions">
               <AppButton variant="link" :disabled="busy" @click="open(s)">{{ t.schedules.edit }}</AppButton>
               <AppButton variant="danger-link" :disabled="busy" @click="confirming.ask(s, $event)">{{ t.schedules.remove }}</AppButton>
@@ -167,10 +168,9 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
       <form v-if="editing" class="form" @submit.prevent="save">
         <h3>{{ editing === 'new' ? t.schedules.add : t.schedules.editTitle }}</h3>
         <p v-if="formError" class="error" role="alert">{{ formError }}</p>
-        <div class="field">
-          <label for="schedule-label">{{ t.schedules.label }}</label>
-          <input id="schedule-label" v-model="label" class="input" type="text" autocomplete="off" />
-        </div>
+        <FormField id="schedule-label" :label="t.schedules.label" v-slot="{ control }">
+          <input v-bind="control" v-model="label" class="input" type="text" autocomplete="off" />
+        </FormField>
         <fieldset class="days">
           <legend>{{ t.schedules.daysLabel }}</legend>
           <button
@@ -179,14 +179,12 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
           >{{ name }}</button>
         </fieldset>
         <div class="times">
-          <div class="field">
-            <label for="schedule-start">{{ t.schedules.start }}</label>
-            <input id="schedule-start" v-model="start" class="input" type="time" required />
-          </div>
-          <div class="field">
-            <label for="schedule-end">{{ t.schedules.end }}</label>
-            <input id="schedule-end" v-model="end" class="input" type="time" required />
-          </div>
+          <FormField id="schedule-start" :label="t.schedules.start" v-slot="{ control }">
+            <input v-bind="control" v-model="start" class="input" type="time" required />
+          </FormField>
+          <FormField id="schedule-end" :label="t.schedules.end" v-slot="{ control }">
+            <input v-bind="control" v-model="end" class="input" type="time" required />
+          </FormField>
         </div>
         <p v-if="crossesMidnight" class="note">{{ t.schedules.overnight }}</p>
         <div class="form-actions">
@@ -196,24 +194,17 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
       </form>
       <AppButton v-else-if="canManage() && status === 'ready'" variant="ghost" @click="open()">+ {{ t.schedules.add }}</AppButton>
     </template>
-  </section>
+  </SectionCard>
 </template>
 
 <style scoped>
 .schedules {
   margin-top: 16px;
 }
-h2 {
-  margin: 0;
-}
 h3 {
   margin: 0 0 8px;
   font-size: 1rem;
   font-weight: 800;
-}
-.hint {
-  margin: 4px 0 12px;
-  color: var(--text-soft);
 }
 .refreshing {
   opacity: 0.55;
@@ -253,41 +244,6 @@ h3 {
   margin: 0;
   font-weight: 700;
 }
-/* Interrupteur : 52 × 32, zone tactile agrandie par le padding. */
-.toggle {
-  position: relative;
-  flex: none;
-  width: 52px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: var(--border-strong);
-  cursor: pointer;
-}
-/* Zone tactile de 48 px de haut, dessin inchangé. */
-.toggle::after {
-  content: '';
-  position: absolute;
-  inset: -8px 0;
-}
-.toggle[aria-checked='true'] {
-  background: var(--accent);
-}
-.knob {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--surface);
-  transition: transform 0.15s;
-}
-.toggle[aria-checked='true'] .knob {
-  transform: translateX(20px);
-}
-.toggle:focus-visible,
 .day:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;

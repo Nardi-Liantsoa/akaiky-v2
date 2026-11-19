@@ -9,6 +9,8 @@ import { parentCodeProblem } from '../../lib/parentCode'
 import { children, upsertChild } from '../../store/children'
 import { canManage } from '../../store/family'
 import AppButton from '../ui/AppButton.vue'
+import FormField from '../ui/FormField.vue'
+import SectionCard from '../ui/SectionCard.vue'
 
 // Code parent de l'enfant (NAR-139). Le code ne revient jamais du serveur : la carte
 // dit seulement s'il est défini et depuis quand. Un contact (member) ne voit que l'état.
@@ -98,9 +100,7 @@ async function unlockNow() {
 </script>
 
 <template>
-  <section id="code-parent" class="card parent-code" tabindex="-1">
-    <h2>{{ t.parentCode.title }}</h2>
-    <p class="hint">{{ t.parentCode.hint }}</p>
+  <SectionCard id="code-parent" class="parent-code" tabindex="-1" :title="t.parentCode.title" :help="t.parentCode.hint">
     <p class="state" :class="{ missing: !child.parentCodeSetAt }">
       {{ child.parentCodeSetAt ? t.parentCode.setOn(formatDay(child.parentCodeSetAt, locale)) : t.parentCode.notSet }}
     </p>
@@ -111,20 +111,18 @@ async function unlockNow() {
       </AppButton>
       <form v-else @submit.prevent="save">
         <p v-if="error" class="error" role="alert">{{ error }}</p>
-        <div class="field">
-          <label for="parent-code">{{ t.parentCode.code }}</label>
+        <FormField id="parent-code" :label="t.parentCode.code" v-slot="{ control }">
           <input
-            id="parent-code" class="input code" type="password" inputmode="numeric" autocomplete="off"
+            v-bind="control" class="input code" type="password" inputmode="numeric" autocomplete="off"
             :value="code" required @input="code = digitsOnly(($event.target as HTMLInputElement).value); ($event.target as HTMLInputElement).value = code"
           />
-        </div>
-        <div class="field">
-          <label for="parent-code-confirm">{{ t.parentCode.confirm }}</label>
+        </FormField>
+        <FormField id="parent-code-confirm" :label="t.parentCode.confirm" v-slot="{ control }">
           <input
-            id="parent-code-confirm" class="input code" type="password" inputmode="numeric" autocomplete="off"
+            v-bind="control" class="input code" type="password" inputmode="numeric" autocomplete="off"
             :value="confirmation" required @input="confirmation = digitsOnly(($event.target as HTMLInputElement).value); ($event.target as HTMLInputElement).value = confirmation"
           />
-        </div>
+        </FormField>
         <div class="actions">
           <AppButton type="submit" :disabled="busy || !complete">{{ t.parentCode.save }}</AppButton>
           <AppButton variant="ghost" :disabled="busy" @click="close">{{ t.parentCode.cancel }}</AppButton>
@@ -135,9 +133,9 @@ async function unlockNow() {
       <p v-if="unlockedUntil" class="state" role="status">{{ t.parentCode.unlockedUntil(formatClock(unlockedUntil)) }}</p>
       <p v-if="unlockError" class="error" role="alert">{{ unlockError }}</p>
       <AppButton v-if="canManage() && !editing" :disabled="unlockBusy" @click="unlockNow">{{ t.parentCode.unlock }}</AppButton>
-      <p v-if="canManage() && !editing" class="hint">{{ t.parentCode.unlockHint }}</p>
+      <p v-if="canManage() && !editing" class="help unlock-help">{{ t.parentCode.unlockHint }}</p>
     </div>
-  </section>
+  </SectionCard>
 </template>
 
 <style scoped>
@@ -149,12 +147,8 @@ async function unlockNow() {
   padding-top: 16px;
   border-top: 1px solid var(--border);
 }
-h2 {
-  margin: 0;
-}
-.hint {
-  margin: 4px 0 8px;
-  color: var(--text-soft);
+.unlock-help {
+  margin-bottom: 0;
 }
 .state {
   margin: 0 0 12px;

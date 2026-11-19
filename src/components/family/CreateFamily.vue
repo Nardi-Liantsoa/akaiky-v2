@@ -8,6 +8,7 @@ import { errorText } from '../../lib/errors'
 import { loadFamily } from '../../store/family'
 import { takeNotice } from '../../store/notice'
 import AppButton from '../ui/AppButton.vue'
+import FormField from '../ui/FormField.vue'
 
 const t = useT()
 const name = ref('')
@@ -40,10 +41,9 @@ async function submit() {
     <p class="lead">{{ t.family.createLead }}</p>
     <form class="card" @submit.prevent="submit">
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <div class="field">
-        <label for="family-name">{{ t.family.nameLabel }}</label>
-        <input id="family-name" v-model="name" class="input" required :placeholder="t.family.namePlaceholder" autocomplete="off" data-selectable />
-      </div>
+      <FormField id="family-name" :label="t.family.nameLabel" v-slot="{ control }">
+        <input v-bind="control" v-model="name" class="input" required :placeholder="t.family.namePlaceholder" autocomplete="off" data-selectable />
+      </FormField>
       <AppButton block type="submit" :disabled="busy || !familyNameValid(name)">{{ t.family.create }}</AppButton>
     </form>
   </section>

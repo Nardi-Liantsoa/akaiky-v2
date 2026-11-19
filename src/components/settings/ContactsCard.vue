@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { ApiError } from '../../api/http'
 import { reorderContacts } from '../../api/contacts'
 import ChildAvatar from '../parent/ChildAvatar.vue'
+import SectionCard from '../ui/SectionCard.vue'
 import StatusBlock from '../ui/StatusBlock.vue'
 import { useT } from '../../composables/useT'
 import { contactErrorText } from '../../lib/contactErrors'
@@ -48,12 +49,10 @@ async function move(index: number, delta: number) {
 </script>
 
 <template>
-  <section class="card contacts" :class="{ stale: !fresh }" :aria-busy="!fresh">
-    <header>
-      <h2>{{ t.contacts.title }}</h2>
+  <SectionCard class="contacts" :class="{ stale: !fresh }" :aria-busy="!fresh" :title="t.contacts.title" :help="t.contacts.orderHint">
+    <template #aside>
       <span class="count">{{ t.contacts.count(shown.length, contacts.max) }}</span>
-    </header>
-    <p class="hint">{{ t.contacts.orderHint }}</p>
+    </template>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     <ol v-if="shown.length" class="list">
       <li v-for="(c, i) in shown" :key="c.id">
@@ -75,7 +74,7 @@ async function move(index: number, delta: number) {
     <RouterLink v-if="canManage() && shown.length < contacts.max" class="add" :to="{ name: 'contact-nouveau', params: { childId } }">
       + {{ t.contacts.add }}
     </RouterLink>
-  </section>
+  </SectionCard>
 </template>
 
 <style scoped>
@@ -84,22 +83,9 @@ async function move(index: number, delta: number) {
   pointer-events: none;
   transition: opacity 0.15s;
 }
-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-h2 {
-  margin: 0;
-}
 .count {
   color: var(--text-soft);
   font-weight: 700;
-}
-.hint {
-  margin: 4px 0 8px;
-  color: var(--text-soft);
 }
 .list {
   list-style: none;

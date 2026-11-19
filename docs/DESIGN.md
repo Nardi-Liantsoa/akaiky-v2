@@ -69,6 +69,17 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   d'une zone de page, `card` le présente en carte. Un écran garde **un seul** bloc de
   chargement du début à la fin (famille puis enfants) pour n'être annoncé qu'une fois ; les
   relectures qui laissent le contenu affiché gardent leur estompage (`aria-busy`).
+- **`SectionCard`** (NAR-186) — carte de section : `title` en `h2` qui nomme la `<section>`,
+  `help` facultatif dessous (classe globale `.help`, `--text-soft`), emplacement `aside` à
+  droite du titre (compteur), contenu en emplacement par défaut.
+- **`ToggleSwitch`** (NAR-186) — interrupteur : `<button role="switch" aria-checked>`, zone
+  ≥ `--tap`, `v-model` contrôlé (l'état affiché reste celui du parent, pas d'affichage
+  anticipé), `disabled`, libellé dans le bouton (`hideLabel` : lu seulement), `description`
+  reliée par `aria-describedby`. Sélectionnable en e2e par `getByRole('switch', { name })`.
+- **`FormField`** (NAR-186) — champ : libellé (`for`/`id`), `help` et `error` reliés par
+  `aria-describedby`, `aria-invalid` sur erreur. Le champ vient de l'emplacement, qui reçoit
+  `control` à poser dessus (`v-bind="control"`) ; id généré si absent. Libellés de champ en
+  casse normale, `--fs-small`, `--text-soft` (≥ 7:1).
 
 Tout autre contrôle sans règle de focus propre reçoit l'anneau par une règle globale de
 spécificité nulle (`:where(button, a, …):focus-visible`).

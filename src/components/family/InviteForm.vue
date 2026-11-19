@@ -4,6 +4,7 @@ import { inviteMember, type InviteRole } from '../../api/families'
 import { useT } from '../../composables/useT'
 import { familyErrorText } from '../../lib/familyErrors'
 import AppButton from '../ui/AppButton.vue'
+import FormField from '../ui/FormField.vue'
 
 const emit = defineEmits<{ sent: [] }>()
 const t = useT()
@@ -37,17 +38,15 @@ async function submit() {
     <p class="lead">{{ t.family.inviteLead }}</p>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     <p v-if="done" class="done" role="status">{{ done }}</p>
-    <div class="field">
-      <label for="invite-email">{{ t.family.emailLabel }}</label>
-      <input id="invite-email" v-model="email" class="input" type="email" autocomplete="off" required data-selectable />
-    </div>
-    <div class="field">
-      <label for="invite-role">{{ t.family.roleLabel }}</label>
-      <select id="invite-role" v-model="role" class="input">
+    <FormField id="invite-email" :label="t.family.emailLabel" v-slot="{ control }">
+      <input v-bind="control" v-model="email" class="input" type="email" autocomplete="off" required data-selectable />
+    </FormField>
+    <FormField id="invite-role" :label="t.family.roleLabel" v-slot="{ control }">
+      <select v-bind="control" v-model="role" class="input">
         <option value="member">{{ t.family.roles.member }}</option>
         <option value="manager">{{ t.family.roles.manager }}</option>
       </select>
-    </div>
+    </FormField>
     <AppButton type="submit" :disabled="busy || !email.trim()">{{ t.family.invite }}</AppButton>
   </form>
 </template>

@@ -59,6 +59,10 @@ test('le gestionnaire ajoute « École » lun–ven 8:00–16:00, la désactive,
 
   const toggle = card.getByRole('switch', { name: 'Plage « École » active' })
   await expect(toggle).toHaveAttribute('aria-checked', 'true')
+  // Interrupteur commun (NAR-186) : zone tactile ≥ 48 × 48 px.
+  const box = await toggle.boundingBox()
+  expect(box?.height).toBeGreaterThanOrEqual(48)
+  expect(box?.width).toBeGreaterThanOrEqual(48)
   await toggle.click()
   await expect(toggle).toHaveAttribute('aria-checked', 'false')
   expect(api.sent[1]).toEqual({ method: 'PUT', body: { label: 'École', days: 31, startMin: 480, endMin: 960, enabled: false } })

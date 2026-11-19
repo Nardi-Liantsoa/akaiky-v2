@@ -7,6 +7,8 @@ import { QUICK_SLOTS, QUICK_TEXT_MAX, QUICK_TINT, textLength, type QuickSlot } f
 import { canManage } from '../../store/family'
 import QuickIcon from '../messages/QuickIcon.vue'
 import AppButton from '../ui/AppButton.vue'
+import FormField from '../ui/FormField.vue'
+import SectionCard from '../ui/SectionCard.vue'
 import StatusBlock from '../ui/StatusBlock.vue'
 
 // Textes des 4 messages rapides d'un enfant (NAR-173). Un gestionnaire les modifie ; un
@@ -82,27 +84,23 @@ function reset(slot: QuickSlot) {
 </script>
 
 <template>
-  <section id="messages-rapides" class="card templates" tabindex="-1">
-    <h2>{{ t.templates.title }}</h2>
-    <p class="hint">{{ t.templates.hint }}</p>
+  <SectionCard id="messages-rapides" class="templates" tabindex="-1" :title="t.templates.title" :help="t.templates.hint">
     <StatusBlock v-if="status === 'error'" state="error" :text="`${t.templates.loadError} ${error}`" @retry="load(childId)" />
     <form v-else :aria-busy="status === 'loading'" :class="{ refreshing: status === 'loading' }" @submit.prevent="save">
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <ul class="slots">
         <li v-for="slot in QUICK_SLOTS" :key="slot" class="slot">
           <span class="icon" :style="{ background: QUICK_TINT[slot] }"><QuickIcon :kind="slot" :size="32" /></span>
-          <div class="field">
-            <label :for="`template-${slot}`">{{ t.templates.label(slot) }}</label>
-            <template v-if="canManage()">
-              <input
-                :id="`template-${slot}`" v-model="draft[slot]" class="input" type="text"
-                :placeholder="defaultText(slot)" autocomplete="off" :disabled="busy || status === 'loading'"
-                :aria-invalid="tooLong(slot)" :aria-describedby="tooLong(slot) ? `template-${slot}-error` : undefined"
-              />
-              <p v-if="tooLong(slot)" :id="`template-${slot}-error`" class="field-error">{{ t.templates.invalid }}</p>
-            </template>
-            <p v-else :id="`template-${slot}`" class="readonly">{{ saved[slot] ?? defaultText(slot) }}</p>
-          </div>
+          <FormField
+            :id="`template-${slot}`" :label="t.templates.label(slot)" :error="canManage() && tooLong(slot) ? t.templates.invalid : ''"
+            v-slot="{ control }"
+          >
+            <input
+              v-if="canManage()" v-bind="control" v-model="draft[slot]" class="input" type="text"
+              :placeholder="defaultText(slot)" autocomplete="off" :disabled="busy || status === 'loading'"
+            />
+            <p v-else :id="control.id" class="readonly">{{ saved[slot] ?? defaultText(slot) }}</p>
+          </FormField>
           <AppButton
             v-if="canManage() && clean(draft[slot])" variant="link" class="reset" :disabled="busy"
             @click="reset(slot)"
@@ -112,20 +110,13 @@ function reset(slot: QuickSlot) {
       <p v-if="done" class="saved" role="status">{{ t.templates.saved }}</p>
       <AppButton v-if="canManage()" type="submit" :disabled="busy || !changed.length || invalid">{{ t.templates.save }}</AppButton>
     </form>
-  </section>
+  </SectionCard>
 </template>
 
 <style scoped>
 /* Même écart entre cartes que « Code parent ». */
 .templates {
   margin-top: 16px;
-}
-h2 {
-  margin: 0;
-}
-.hint {
-  margin: 4px 0 12px;
-  color: var(--text-soft);
 }
 .refreshing {
   opacity: 0.55;
@@ -169,11 +160,6 @@ h2 {
   justify-content: flex-start;
   margin-left: 60px;
   padding: 0;
-}
-.field-error {
-  margin: 4px 0 0;
-  color: var(--danger);
-  font-weight: 700;
 }
 .saved {
   font-weight: 700;
