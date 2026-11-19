@@ -3,9 +3,7 @@ import { onBeforeUnmount, ref } from 'vue'
 import { useT } from '../../composables/useT'
 
 // Bouton SOS toujours visible (maquette écran 1). Maintenu 3 secondes, il émet
-// `trigger`. En attendant l'alerte complète (NAR-149 : SMS, cascade, position),
-// l'accueil appelle le premier contact (premier de l'ordre SOS) : jamais un bouton
-// qui promet de l'aide et ne fait rien.
+// `trigger` : l'accueil lance le SOS hors ligne (NAR-151 : SMS, cascade, sirène).
 const HOLD_MS = 3000
 const emit = defineEmits<{ trigger: [] }>()
 const t = useT()

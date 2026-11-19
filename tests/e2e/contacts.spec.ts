@@ -3,7 +3,7 @@ import { FAMILY, mockApi, USER } from './mock'
 
 type C = { id: string, childId: string, name: string, phone: string, position: number, avatarColor: string, memberUserId: string | null, memberRole: string | null }
 const me = { 'GET /api/auth/me': () => ({ body: { user: USER } }), 'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }) }
-const FY = { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'yellow', createdAt: '2026-11-10T10:00:00Z', parentCodeSetAt: null, remoteUnlockUntil: null, phoneLastSeenAt: null }
+const FY = { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'yellow', createdAt: '2026-11-10T10:00:00Z', parentCodeSetAt: null, remoteUnlockUntil: null, phoneLastSeenAt: null, sosSiren: false }
 const cid = (n: number) => `6f1c2b1e-0000-4000-8000-0000000002${String(n).padStart(2, '0')}`
 
 // API des contacts simulée avec un état (ajout, réorganisation).

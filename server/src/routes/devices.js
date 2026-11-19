@@ -304,7 +304,7 @@ export async function deviceSessionRoutes(app) {
     return withTransaction(db, async (conn) => {
       await conn.query('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
       const { rows: [child] } = await conn.query(
-        `SELECT config_version, parent_code_hash,
+        `SELECT config_version, parent_code_hash, sos_siren,
                 ${REMOTE_UNLOCK_SQL}
            FROM children WHERE id = $1 AND family_id = $2`, [req.device.childId, req.device.familyId])
       if (!child) throw new HttpError(401, 'Session de l’appareil expirée.')
@@ -336,6 +336,8 @@ export async function deviceSessionRoutes(app) {
         // Déverrouillage demandé à distance (NAR-168), tant que l'échéance n'est pas passée ;
         // le téléphone l'applique une fois (l'échéance sert d'identifiant de la demande).
         remoteUnlockUntil: child.remote_unlock_until ?? null,
+        // Sirène pendant un SOS (NAR-151), appliquée hors ligne par le téléphone.
+        sosSiren: child.sos_siren,
         messageTexts,
         timezone: fam.timezone,
         schedules: plan.map((r) => { const s = scheduleOf(config, r); return { label: s.label, days: s.days, startMin: s.startMin, endMin: s.endMin } }),

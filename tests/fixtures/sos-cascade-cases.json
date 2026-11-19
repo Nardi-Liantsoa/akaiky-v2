@@ -1,0 +1,740 @@
+{
+  "_doc": "Cas partagés du SOS hors ligne (NAR-151) : src/lib/sosCascade.test.ts (écran) et SosCascadeTest.kt (service natif) doivent donner les mêmes destinataires de SMS, le même ordre d'appels, les mêmes actions et le même état final. Actions : call:<nom> (coupé après 25 s en ligne), call:<nom>:noTimeout (rappel), endCall, dialEmergency, stopSiren. Événements : ended (connectedS = durée connectée lue dans le journal d'appels, endedByUs = coupé par le délai ; journal d'appels illisible : un appel minuté compte 0 s, donc pas décroché), failed, cancel, incoming (un contact appelle le téléphone), emergency (l'enfant touche « Appeler les secours »). ring (le téléphone sonne : fromContact vrai = numéro joignable reconnu, il prend le relais ; faux = inconnu, ignoré). runs : un SOS en cours (active, pas fini, statut starting/calling/emergency) refuse un nouveau départ (inProgress), sinon un nouveau SOS repart de zéro.",
+  "contacts": {
+    "maman": {
+      "id": "c1",
+      "name": "Maman",
+      "phone": "+261341111111",
+      "position": 1,
+      "parent": true
+    },
+    "mamie": {
+      "id": "c2",
+      "name": "Mamie",
+      "phone": "+261342222222",
+      "position": 2
+    },
+    "papa": {
+      "id": "c3",
+      "name": "Papa",
+      "phone": "+261343333333",
+      "position": 3,
+      "parent": true
+    },
+    "tonton": {
+      "id": "c4",
+      "name": "Tonton",
+      "phone": "+261344444444",
+      "position": 4,
+      "parent": false
+    }
+  },
+  "cases": [
+    {
+      "name": "Maman répond : la cascade s'arrête, la sirène aussi",
+      "contacts": [
+        "mamie",
+        "papa",
+        "maman",
+        "tonton"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman",
+        "Papa"
+      ],
+      "calls": [
+        "Maman",
+        "Papa",
+        "Mamie",
+        "Tonton"
+      ],
+      "events": [
+        {
+          "type": "ended",
+          "connectedS": 42,
+          "endedByUs": false
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "stopSiren"
+      ],
+      "status": "answered"
+    },
+    {
+      "name": "pas de réponse de Maman (coupé à 25 s, 0 s connectée) : Papa est appelé",
+      "contacts": [
+        "maman",
+        "mamie",
+        "papa"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman",
+        "Papa"
+      ],
+      "calls": [
+        "Maman",
+        "Papa",
+        "Mamie"
+      ],
+      "events": [
+        {
+          "type": "ended",
+          "connectedS": 0,
+          "endedByUs": true
+        },
+        {
+          "type": "ended",
+          "connectedS": 12,
+          "endedByUs": false
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "call:Papa",
+        "stopSiren"
+      ],
+      "status": "answered"
+    },
+    {
+      "name": "journal d'appels illisible : appels coupés à 25 s comptés non décrochés (0 s), Papa puis les secours",
+      "contacts": [
+        "maman",
+        "papa"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman",
+        "Papa"
+      ],
+      "calls": [
+        "Maman",
+        "Papa"
+      ],
+      "events": [
+        {
+          "type": "ended",
+          "connectedS": 0,
+          "endedByUs": true
+        },
+        {
+          "type": "ended",
+          "connectedS": 0,
+          "endedByUs": true
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "call:Papa",
+        "dialEmergency"
+      ],
+      "status": "emergency"
+    },
+    {
+      "name": "occupé ou refusé (raccroché aussitôt), puis échec de l'appel : contact suivant",
+      "contacts": [
+        "maman",
+        "mamie",
+        "papa"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman",
+        "Papa"
+      ],
+      "calls": [
+        "Maman",
+        "Papa",
+        "Mamie"
+      ],
+      "events": [
+        {
+          "type": "ended",
+          "connectedS": 0,
+          "endedByUs": false
+        },
+        {
+          "type": "failed"
+        },
+        {
+          "type": "ended",
+          "connectedS": 9,
+          "endedByUs": false
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "call:Papa",
+        "call:Mamie",
+        "stopSiren"
+      ],
+      "status": "answered"
+    },
+    {
+      "name": "connecté moins de 8 s (annonce, messagerie coupée) : pas décroché",
+      "contacts": [
+        "maman",
+        "papa"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman",
+        "Papa"
+      ],
+      "calls": [
+        "Maman",
+        "Papa"
+      ],
+      "events": [
+        {
+          "type": "ended",
+          "connectedS": 7,
+          "endedByUs": false
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "call:Papa"
+      ],
+      "status": "calling"
+    },
+    {
+      "name": "décroché puis coupé par le délai : Maman rappelée une fois, sans délai",
+      "contacts": [
+        "maman",
+        "papa"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman",
+        "Papa"
+      ],
+      "calls": [
+        "Maman",
+        "Papa"
+      ],
+      "events": [
+        {
+          "type": "ended",
+          "connectedS": 14,
+          "endedByUs": true
+        },
+        {
+          "type": "ended",
+          "connectedS": 60,
+          "endedByUs": false
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "call:Maman:noTimeout",
+        "stopSiren"
+      ],
+      "status": "answered"
+    },
+    {
+      "name": "rappel sans réponse : on passe à Papa",
+      "contacts": [
+        "maman",
+        "papa"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman",
+        "Papa"
+      ],
+      "calls": [
+        "Maman",
+        "Papa"
+      ],
+      "events": [
+        {
+          "type": "ended",
+          "connectedS": 14,
+          "endedByUs": true
+        },
+        {
+          "type": "ended",
+          "connectedS": 0,
+          "endedByUs": false
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "call:Maman:noTimeout",
+        "call:Papa"
+      ],
+      "status": "calling"
+    },
+    {
+      "name": "l'enfant annule pendant un appel : appel coupé, sirène arrêtée, plus rien ensuite",
+      "contacts": [
+        "maman",
+        "papa"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman",
+        "Papa"
+      ],
+      "calls": [
+        "Maman",
+        "Papa"
+      ],
+      "events": [
+        {
+          "type": "cancel"
+        },
+        {
+          "type": "ended",
+          "connectedS": 0,
+          "endedByUs": true
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "endCall",
+        "stopSiren"
+      ],
+      "status": "cancelled"
+    },
+    {
+      "name": "liste épuisée : composeur des secours ; annuler arrête encore la sirène",
+      "contacts": [
+        "maman",
+        "tonton"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman"
+      ],
+      "calls": [
+        "Maman",
+        "Tonton"
+      ],
+      "events": [
+        {
+          "type": "ended",
+          "connectedS": 0,
+          "endedByUs": true
+        },
+        {
+          "type": "failed"
+        },
+        {
+          "type": "ended",
+          "connectedS": 30,
+          "endedByUs": false
+        },
+        {
+          "type": "cancel"
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "call:Tonton",
+        "dialEmergency",
+        "stopSiren"
+      ],
+      "status": "cancelled"
+    },
+    {
+      "name": "plage « école » : seuls les parents (SMS et appels), puis les secours",
+      "contacts": [
+        "mamie",
+        "papa",
+        "tonton",
+        "maman"
+      ],
+      "inSchool": true,
+      "sms": [
+        "Maman",
+        "Papa"
+      ],
+      "calls": [
+        "Maman",
+        "Papa"
+      ],
+      "events": [
+        {
+          "type": "ended",
+          "connectedS": 0,
+          "endedByUs": true
+        },
+        {
+          "type": "ended",
+          "connectedS": 0,
+          "endedByUs": true
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "call:Papa",
+        "dialEmergency"
+      ],
+      "status": "emergency"
+    },
+    {
+      "name": "plage « école » sans parent : SMS à tous (un SMS n'est pas un appel), aucun appel, directement les secours",
+      "contacts": [
+        "mamie",
+        "tonton"
+      ],
+      "inSchool": true,
+      "sms": [
+        "Mamie",
+        "Tonton"
+      ],
+      "calls": [],
+      "events": [],
+      "trace": [
+        "dialEmergency"
+      ],
+      "status": "emergency"
+    },
+    {
+      "name": "aucun parent hors plage : SMS et appels à tous, dans l'ordre",
+      "contacts": [
+        "tonton",
+        "mamie"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Mamie",
+        "Tonton"
+      ],
+      "calls": [
+        "Mamie",
+        "Tonton"
+      ],
+      "events": [
+        {
+          "type": "ended",
+          "connectedS": 0,
+          "endedByUs": true
+        },
+        {
+          "type": "ended",
+          "connectedS": 20,
+          "endedByUs": false
+        }
+      ],
+      "trace": [
+        "call:Mamie",
+        "call:Tonton",
+        "stopSiren"
+      ],
+      "status": "answered"
+    },
+    {
+      "name": "aucun contact : directement les secours",
+      "contacts": [],
+      "inSchool": false,
+      "sms": [],
+      "calls": [],
+      "events": [
+        {
+          "type": "failed"
+        }
+      ],
+      "trace": [
+        "dialEmergency"
+      ],
+      "status": "emergency"
+    },
+    {
+      "name": "un parent appelle pendant la cascade : il prend le relais",
+      "contacts": [
+        "maman",
+        "papa"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman",
+        "Papa"
+      ],
+      "calls": [
+        "Maman",
+        "Papa"
+      ],
+      "events": [
+        {
+          "type": "ended",
+          "connectedS": 0,
+          "endedByUs": true
+        },
+        {
+          "type": "incoming"
+        },
+        {
+          "type": "ended",
+          "connectedS": 0,
+          "endedByUs": true
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "call:Papa",
+        "stopSiren"
+      ],
+      "status": "answered"
+    },
+    {
+      "name": "l'enfant choisit les secours pendant un appel : appel coupé, composeur des secours, sirène maintenue",
+      "contacts": [
+        "maman",
+        "papa"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman",
+        "Papa"
+      ],
+      "calls": [
+        "Maman",
+        "Papa"
+      ],
+      "events": [
+        {
+          "type": "emergency"
+        },
+        {
+          "type": "ended",
+          "connectedS": 0,
+          "endedByUs": true
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "endCall",
+        "dialEmergency"
+      ],
+      "status": "emergency"
+    },
+    {
+      "name": "liste épuisée puis « Appeler les secours » : composeur rouvert",
+      "contacts": [
+        "maman"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman"
+      ],
+      "calls": [
+        "Maman"
+      ],
+      "events": [
+        {
+          "type": "failed"
+        },
+        {
+          "type": "emergency"
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "dialEmergency",
+        "dialEmergency"
+      ],
+      "status": "emergency"
+    },
+    {
+      "name": "déjà répondu : « Appeler les secours » ne relance rien dans la cascade",
+      "contacts": [
+        "maman"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman"
+      ],
+      "calls": [
+        "Maman"
+      ],
+      "events": [
+        {
+          "type": "ended",
+          "connectedS": 30,
+          "endedByUs": false
+        },
+        {
+          "type": "emergency"
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "stopSiren"
+      ],
+      "status": "answered"
+    },
+    {
+      "name": "un parent appelle quand la liste est épuisée : il prend le relais, la sirène s'arrête",
+      "contacts": [
+        "maman"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman"
+      ],
+      "calls": [
+        "Maman"
+      ],
+      "events": [
+        {
+          "type": "failed"
+        },
+        {
+          "type": "incoming"
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "dialEmergency",
+        "stopSiren"
+      ],
+      "status": "answered"
+    },
+    {
+      "name": "un inconnu sonne pendant la cascade : ignoré, la cascade continue",
+      "contacts": [
+        "maman",
+        "papa"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman",
+        "Papa"
+      ],
+      "calls": [
+        "Maman",
+        "Papa"
+      ],
+      "events": [
+        {
+          "type": "ring",
+          "fromContact": false
+        },
+        {
+          "type": "ended",
+          "connectedS": 0,
+          "endedByUs": true
+        },
+        {
+          "type": "ring",
+          "fromContact": false
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "call:Papa"
+      ],
+      "status": "calling"
+    },
+    {
+      "name": "un contact reconnu sonne pendant la cascade : il prend le relais",
+      "contacts": [
+        "maman",
+        "papa"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman",
+        "Papa"
+      ],
+      "calls": [
+        "Maman",
+        "Papa"
+      ],
+      "events": [
+        {
+          "type": "ended",
+          "connectedS": 0,
+          "endedByUs": true
+        },
+        {
+          "type": "ring",
+          "fromContact": true
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "call:Papa",
+        "stopSiren"
+      ],
+      "status": "answered"
+    },
+    {
+      "name": "un inconnu sonne quand la liste est épuisée : sirène maintenue",
+      "contacts": [
+        "maman"
+      ],
+      "inSchool": false,
+      "sms": [
+        "Maman"
+      ],
+      "calls": [
+        "Maman"
+      ],
+      "events": [
+        {
+          "type": "failed"
+        },
+        {
+          "type": "ring",
+          "fromContact": false
+        }
+      ],
+      "trace": [
+        "call:Maman",
+        "dialEmergency"
+      ],
+      "status": "emergency"
+    }
+  ],
+  "runs": [
+    {
+      "name": "position et SMS en cours : refusé",
+      "active": true,
+      "status": "starting",
+      "inProgress": true
+    },
+    {
+      "name": "appels en cours : refusé",
+      "active": true,
+      "status": "calling",
+      "inProgress": true
+    },
+    {
+      "name": "secours, sirène en marche : refusé",
+      "active": true,
+      "status": "emergency",
+      "inProgress": true
+    },
+    {
+      "name": "répondu (SMS encore attendus) : nouveau SOS",
+      "active": true,
+      "status": "answered",
+      "inProgress": false
+    },
+    {
+      "name": "annulé : nouveau SOS",
+      "active": true,
+      "status": "cancelled",
+      "inProgress": false
+    },
+    {
+      "name": "déjà fini (service encore là) : nouveau SOS",
+      "active": true,
+      "finished": true,
+      "status": "emergency",
+      "inProgress": false
+    },
+    {
+      "name": "aucun service : nouveau SOS",
+      "active": false,
+      "status": "calling",
+      "inProgress": false
+    }
+  ]
+}

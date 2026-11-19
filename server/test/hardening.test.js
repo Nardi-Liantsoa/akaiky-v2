@@ -81,6 +81,8 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     await assert.rejects(pool.query('UPDATE children SET config_version = 0'), /permission denied/)
     // Déverrouillage à distance (010_unlocks.sql) sous le rôle restreint.
     assert.equal((await call(app, 'POST', `/api/children/${child.json().id}/unlock`, { cookie: user.cookie })).statusCode, 200)
+    // Sirène pendant un SOS (022_sos_siren.sql) sous le rôle restreint.
+    assert.equal((await call(app, 'PUT', `/api/children/${child.json().id}/sos-siren`, { cookie: user.cookie, body: { enabled: true } })).statusCode, 200)
     assert.equal((await call(app, 'DELETE', `/api/children/${child.json().id}`, { cookie: user.cookie })).statusCode, 200)
     await assert.rejects(pool.query('UPDATE children SET family_id = family_id'), /permission denied/)
     // Contacts autorisés sous le rôle restreint (GRANT de 006_allowed_contacts.sql).

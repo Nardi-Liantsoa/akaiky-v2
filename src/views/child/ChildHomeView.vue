@@ -9,6 +9,9 @@ import { callJournal, childIdentity, configSync, deviceSession as session, paren
 import { deviceConfig, pause, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
 import { emergencyNumber } from '../../lib/emergency'
 import { sosPlan } from '../../lib/sos'
+import { buildSosPlan, confirmNativeSos } from '../../lib/sosCascade'
+import { AkaikySos, type SosState } from '../../native/akaikySos'
+import SosSentView from './SosSentView.vue'
 import { AkaikyCall } from '../../native/akaikyCall'
 import { AkaikyDevice, type DeviceStatus } from '../../native/akaikyDevice'
 import ChildStatusBar from '../../components/child/ChildStatusBar.vue'
@@ -70,17 +73,23 @@ onMounted(start)
 // (premier lancement ou réappairage) repart d'un relevé neuf.
 let unmounted = false
 let lifecycle: PluginListenerHandle | undefined
+let sosListener: PluginListenerHandle | undefined
 let foreground = false
 onMounted(async () => {
   if (!Capacitor.isNativePlatform()) return
   const handle = await App.addListener('appStateChange', ({ isActive }) => {
     foreground = isActive
     if (isActive) startClock(); else stopClock()
-    if (isActive) { void refreshKiosk().catch(() => {}).then(() => applyRemoteUnlock()); void readScreening() }
+    if (isActive) { void refreshKiosk().catch(() => {}).then(() => applyRemoteUnlock()); void readScreening(); void readSos() }
     if (isActive && state.value.kind === 'paired') { resume(); startStatus(); syncJournal(); void backgroundStatus.ensure() } else { pause(); stopStatus(); clearTimeout(journalRetry) }
   })
-  if (unmounted) { void handle.remove(); return }
+  // SOS en cours (NAR-151) : état poussé par le service natif quand la WebView est éveillée,
+  // relu à chaque reprise (écran rallumé pendant la cascade).
+  const sosHandle = await AkaikySos.addListener('sosUpdate', onSosState).catch(() => undefined)
+  if (unmounted) { void handle.remove(); void sosHandle?.remove(); return }
   lifecycle = handle
+  sosListener = sosHandle
+  void readSos()
   // État réel au moment de l'écoute : lancée en arrière-plan, l'app ne relève rien.
   foreground = (await App.getState()).isActive
   if (!foreground) stopClock()
@@ -246,11 +255,77 @@ async function placeCall(phone: string, contact: { id: string, name: string }) {
   }
 }
 
-// SOS maintenu 3 s : en attendant l'alerte complète (NAR-149), premier contact puis,
-// si l'appel ne part pas, le numéro d'urgence. Jamais bloqué par un appel en cours.
+// SOS maintenu 3 s (NAR-151) : service natif hors ligne (SMS aux parents avec la position,
+// cascade d'appels, sirène si un parent l'a activée), qui continue écran éteint.
+// Textes traduits ici (langue de l'app) ; le natif ne remplit que la position.
+const sosState = ref<SosState | null>(null)
+const sosOpen = ref(false)
+// SOS natif impossible (appel direct) ou arrêté avant sa fin (à refaire) : toujours dit à l'enfant.
+const sosFailed = ref(false)
+const sosInterrupted = ref(false)
+// Un seul SOS à la fois depuis cet écran (lancement, attente de confirmation, repli).
+let sosBusy = false
+function onSosState(s: SosState) {
+  // Interrompu : rien ne tourne, jamais montré en cours ; l'enfant peut le relancer.
+  if (s.interrupted === true || s.status === 'interrupted') {
+    sosInterrupted.value = true
+    sosOpen.value = false
+    sosState.value = null
+    return
+  }
+  sosState.value = s
+  if (s.active) sosOpen.value = true
+  if (s.status === 'failed') sosFailed.value = true
+}
+// SOS affiché en cours : état relu toutes les 15 s (un SOS perdu sans événement passe à « interrompu »).
+const sosWatch = setInterval(() => { if (sosOpen.value && sosState.value?.active && !sosBusy) void readSos() }, 15_000)
+async function readSos() {
+  if (!Capacitor.isNativePlatform()) return
+  const s = await AkaikySos.state().catch(() => null)
+  if (s) onSosState(s)
+}
+// Ordre prévu, affiché avant le premier état du natif (même règle que lui).
+const plannedCalls = computed(() => buildSosPlan(contacts.value, emergency.value, !!school.value).calls.map((c) => c.name))
 async function sos() {
+  if (sosBusy) return
+  sosBusy = true
+  try { await runSos() } finally { sosBusy = false }
+}
+async function runSos() {
   callError.value = false
+  sosFailed.value = false
+  sosInterrupted.value = false
   await pushAllowed()
+  if (Capacitor.isNativePlatform() && state.value.kind === 'paired') {
+    const s = t.value.child.sos
+    const name = state.value.firstName
+    sosState.value = null
+    const outcome = await confirmNativeSos<SosState>({
+      start: () => AkaikySos.start({
+        contacts: contacts.value.map(({ id, name, phone, position, parent }) => ({ id, name, phone, position, parent: parent === true })),
+        emergency: emergency.value,
+        siren: deviceConfig.config?.sosSiren === true,
+        smsWith: s.smsWith(name),
+        smsWithout: s.smsWithout(name),
+        notifyTitle: s.notifyTitle,
+        notifyText: s.notifyText,
+        timezone: familyZone.value
+      }),
+      state: () => AkaikySos.state(),
+      // Repli : le service lâche d'abord ce SOS (1,5 s d'attente au plus), puis l'appel direct.
+      cancel: (o) => AkaikySos.cancel(o),
+      onState: onSosState,
+      now: () => Date.now(),
+      sleep: (ms) => new Promise((r) => setTimeout(r, ms))
+    })
+    if (outcome === 'running') { sosOpen.value = true; void readSos(); return }
+    // Rien ne tourne : erreur visible et ancien SOS (appel direct) ci-dessous.
+    sosFailed.value = true
+    sosOpen.value = false
+    sosState.value = null
+  }
+  // Coque plus ancienne, sans service SOS : premier contact puis, si l'appel ne part pas,
+  // le numéro d'urgence. Jamais bloqué par un appel en cours.
   // Pendant une plage « école » : les seuls parents (ceux que l'écran montre), sinon
   // directement les secours.
   const order = school.value ? shown.value : contacts.value
@@ -265,6 +340,24 @@ async function sos() {
     }
   }
   callError.value = true
+}
+async function cancelSos() {
+  await AkaikySos.cancel().catch(() => {})
+  void readSos()
+}
+// « Appeler les secours » de l'écran rouge : pendant le SOS, le service arrête la cascade
+// (appel en cours coupé) puis ouvre le composeur ; sinon, composeur ouvert directement.
+async function sosEmergency() {
+  const status = sosState.value?.status
+  if (sosState.value?.active && status !== 'answered' && status !== 'cancelled') {
+    const res = await AkaikySos.emergency().catch(() => ({ handled: false }))
+    if (res.handled) return
+  }
+  await callEmergency()
+}
+function closeSos() {
+  sosOpen.value = false
+  sosState.value = null
 }
 async function callEmergency() {
   callError.value = false
@@ -369,7 +462,7 @@ async function openPhoneSettings() {
 
 // Téléphone retiré pendant l'usage : l'écran le dit.
 watch(() => deviceConfig.status, (s) => { if (s === 'lost') state.value = { kind: 'revoked' } })
-onBeforeUnmount(() => { unmounted = true; stopClock(); pause(); stopStatus(); clearTimeout(journalRetry); void lifecycle?.remove() })
+onBeforeUnmount(() => { unmounted = true; clearInterval(sosWatch); stopClock(); pause(); stopStatus(); clearTimeout(journalRetry); void lifecycle?.remove(); void sosListener?.remove() })
 
 const text = computed(() => {
   const c = t.value.child
@@ -404,6 +497,8 @@ const text = computed(() => {
       <p>{{ t.child.screening.off }}</p>
       <button class="btn" type="button" @click="enableScreening">{{ t.child.screening.enable }}</button>
     </section>
+    <p v-if="sosFailed" class="call-error" role="alert">{{ t.child.sos.failed }}</p>
+    <p v-else-if="sosInterrupted" class="call-error" role="alert">{{ t.child.sos.interrupted }}</p>
     <p v-if="callError" class="call-error" role="alert">{{ t.child.callFailed }}</p>
     <section v-if="shown.length" class="grid" :class="{ single: shown.length === 1 }">
       <ContactTile v-for="c in shown" :key="c.id" :name="c.name" :color="c.avatarColor" :busy="calling" @call="call(c.phone, c)" />
@@ -426,6 +521,7 @@ const text = computed(() => {
       <button v-if="canUnlock" class="parent-code" type="button" @click="unlocking = true">{{ t.child.lock.open }}</button>
     </footer>
     <UnlockPanel v-if="unlocking" :hash="parentHash" @close="unlocking = false" @unlocked="onUnlocked" />
+    <SosSentView v-if="sosOpen" :state="sosState" :planned-calls="plannedCalls" :emergency="emergency" @cancel="cancelSos" @close="closeSos" @emergency="sosEmergency" />
   </main>
   <main v-else class="child">
     <h1>Akaiky</h1>

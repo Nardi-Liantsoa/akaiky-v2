@@ -12,7 +12,24 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
     <!-- Surveillance en arrière-plan (NAR-180) : tâche WorkManager et écoute reposées au redémarrage. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- SOS hors ligne (NAR-151) : SMS aux parents avec la position, cascade d'appels (état de
+         l'appel, fin d'un appel sans réponse), sirène. Permissions d'exécution accordées d'office
+         en Device Owner (SosPlugin.grantAll). Service au premier plan « appel » et « position »
+         (Android 14 : type et permission FOREGROUND_SERVICE_* ; MANAGE_OWN_CALLS est le
+         prérequis du type phoneCall pour une app qui n'est pas le composeur par défaut). -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <application>
         <!-- Lanceur du téléphone de l'enfant (NAR-167) : l'accueil et le redémarrage
              ramènent à l'app ; Kiosk la désigne lanceur par défaut une fois armée. -->
@@ -25,6 +42,12 @@
         </activity>
 
         <receiver android:name="mg.nosytech.akaiky.RelockReceiver" android:exported="false" />
+
+        <!-- SOS hors ligne (NAR-151) : survit à l'écran éteint ; lancé par l'écran seulement. -->
+        <service
+            android:name="mg.nosytech.akaiky.SosService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall|location" />
 
         <!-- Signal de vie en arrière-plan (NAR-180) : seules les diffusions exemptées des
              restrictions d'Android 8 (batterie et SIM_STATE_CHANGED : écoute à l'exécution,

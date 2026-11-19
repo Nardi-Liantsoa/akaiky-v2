@@ -39,6 +39,17 @@
   l'app native (la WebView ignore le téléchargement par lien) : bouton masqué, renvoi vers la
   version web ; un export natif (Filesystem/Share) demanderait une nouvelle coque.
 
+- SOS hors ligne, tranche 1 (NAR-151, 19/11/2026) : SMS avec position, cascade d'appels, sirène réglable
+  (`children.sos_siren`, migration `022`, carte « SOS » des Réglages), écran rouge de l'enfant. Nouvelle coque enfant
+  (service, permissions). C11 et C12 restent « (prévu) » : procédures filmées sur de vrais téléphones à faire.
+  Vérifié sur l'émulateur `kiosk34` (Android 14) : SmsManager appelé, `PendingIntent` d'envoi OK ; service au premier plan
+  (types appel et position) ; sirène lancée puis arrêtée au décroché et à l'annulation ; appel en échec → contact
+  suivant → composeur des secours ; « Appeler les secours » coupe l'appel en cours. Le simulateur de modem de l'émulateur
+  refuse tout numéro en « + » et décroche seul les autres après 2 s (`adb emu gsm accept/cancel` sans effet) : coupure à
+  25 s, durée lue au journal (23 s) et rappel sans coupure vérifiés avec une construction de test temporaire (numéro
+  composé en « 00 », non gardée). « Pas de réponse → contact suivant » au vrai sens reste à voir sur téléphone réel.
+  Suite (NAR-181) : arrêt par prise en charge d'un parent, journal du SOS au serveur.
+
 ## Décisions datées
 
 - 17/11/2026 — nouveau projet séparé du premier `~/labo2026/akaiky` (laissé intact),
@@ -110,6 +121,19 @@ Développement : la version debug garde le débogage USB. Pour réinstaller, app
 ## Limites résiduelles assumées
 
 Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une limite tue est une faille.
+
+- **SOS hors ligne (NAR-151)** : décroché d'un appel sortant deviné (au moins 8 s connectées au journal d'appels ;
+  coupure à 25 s, puis un rappel sans coupure du même contact si le journal montre qu'il avait décroché) : une
+  messagerie qui répond compte comme un décroché ; un parent qui répond après 20 s est coupé puis rappelé. Journal
+  d'appels illisible : l'appel compte comme non décroché, la cascade passe au suivant puis aux secours. Android 8 ne
+  sait pas raccrocher : l'appel sans réponse finit par le réseau, la cascade attend sa fin (état des appels, sinon
+  son entrée au journal, 30 min au plus) avant le suivant ; sans état des appels NI journal lisibles, un appel non
+  coupé fait attendre 30 min. Un appel entrant ne prend le relais que d'un numéro
+  joignable. Secours : composeur prérempli, l'enfant appuie sur « Appeler ». Processus tué : reprise par
+  `START_REDELIVER_INTENT`, avancement gardé sans numéro ni position ; sans service ni signe de vie depuis 2 min
+  (ou après un redémarrage du téléphone), le SOS est déclaré « interrompu » à l'écran et jamais rejoué. SMS et journal d'appels sont des permissions
+  « restreintes » : accordées sur l'émulateur (installé par adb, exempté) ; à vérifier sur un téléphone provisionné
+  par QR (installation par le provisionnement).
 
 - **Avis picomatch GHSA-fc5q-39xc-vjpf (ReDoS), sans correction publiée** : exception
   datée dans `audit-exceptions.json`, **échéance 18/12/2026**. `picomatch` ne sert qu'à
