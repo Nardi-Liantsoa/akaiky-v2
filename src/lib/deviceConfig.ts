@@ -1,5 +1,6 @@
 import { DeviceError, type DeviceSession, type SecretStore } from './deviceSession'
 import type { ScheduleRule } from './schedule'
+import { validApk, type ApkInfo } from './apkUpdate'
 
 // Configuration du téléphone de l'enfant (NAR-160) : contacts autorisés, version.
 // Relevée avec ETag (304 si inchangée) et gardée pour fonctionner hors ligne.
@@ -20,10 +21,11 @@ export interface DeviceContact { id: string, name: string, phone: string, positi
 // sosSiren : sirène pendant un SOS (NAR-151), choisie par un parent ; absente = coupée.
 // allowedApps : applications autorisées (NAR-143), dans l'ordre du parent ; absente d'une config
 // mise en cache avant ce champ : aucune (la première autorisée fait avancer la version).
+// apk : dernière version de l'app enfant (NAR-170) ; null ou absente = rien à installer.
 export interface AllowedApp { package: string, label: string, position: number }
 export interface DeviceConfig {
   version: number, country?: string, parentCode?: string | null, remoteUnlockUntil?: string | null,
-  messageTexts?: Record<string, string>, schedules?: ScheduleRule[], timezone?: string, sosSiren?: boolean, allowedApps?: AllowedApp[], contacts: DeviceContact[]
+  messageTexts?: Record<string, string>, schedules?: ScheduleRule[], timezone?: string, sosSiren?: boolean, allowedApps?: AllowedApp[], apk?: ApkInfo | null, contacts: DeviceContact[]
 }
 export const CONFIG_KEY = 'device-config'
 
@@ -38,6 +40,8 @@ function clean<T extends Cached>(v: T): T {
   if (Array.isArray(v.config.schedules)) v.config.schedules = v.config.schedules.filter(validRule)
   // Sirène mal formée : coupée (jamais un refus de toute la configuration).
   if (v.config.sosSiren !== undefined && typeof v.config.sosSiren !== 'boolean') delete v.config.sosSiren
+  // Version annoncée mal formée : ignorée (jamais un refus de toute la configuration).
+  if (v.config.apk !== undefined && v.config.apk !== null && !validApk(v.config.apk)) v.config.apk = null
   // Applications mal formées écartées une à une, comme les plages.
   if (v.config.allowedApps !== undefined) {
     v.config.allowedApps = Array.isArray(v.config.allowedApps)

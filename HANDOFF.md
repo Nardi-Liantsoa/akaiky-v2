@@ -288,4 +288,18 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   (droit du shell) lance l'appel : le composeur est dans le lock task par conception, le filtrage des appels sortants est
   NAR-169. Non essayé depuis l'application autorisée elle-même (pas d'outil pour l'y faire lancer) : le lock task juge le
   paquet visé, pas l'appelant.
+- **Mise à jour de l'APK enfant (NAR-170)** : Android ne permet pas au Device Owner de lever
+  `DISALLOW_INSTALL_APPS` pour un seul paquet. La restriction est levée **juste avant la création de la session
+  d'installation** (Android 14 refuse déjà `createSession` sous la restriction, vu sur `kiosk34`), donc pendant la
+  copie d'un fichier local déjà vérifié et l'installation elle-même : **environ 5 à 7 s** vues sur l'émulateur. Pendant
+  ce temps une autre installation serait possible ; elle demanderait une autre application d'installation, que le lock
+  task ne laisse pas ouvrir (adb : coupé dans l'APK distribué). Avant d'ouvrir la fenêtre, aucune autre session
+  d'installation active n'est admise ; pendant, toute nouvelle session d'un autre installateur la referme aussitôt.
+  Reposée par le résultat de l'installation, l'alarme de 5 min, le démarrage du processus (`EnfantApplication`),
+  `Kiosk.enforce`, `BOOT_COMPLETED` et `MY_PACKAGE_REPLACED` (vérifié : app tuée la fenêtre ouverte → reposée 2 s
+  plus tard par le processus relancé). Refus vérifiés sur `kiosk34` : autre certificat, version égale, autre version
+  que l'annoncée, empreinte différente, APK tronqué. Non vérifié : échec du système **après** la remise (résultat
+  `STATUS_FAILURE`, même chemin de fermeture), Android 8–9 (`GET_SIGNATURES`), téléphone provisionné par QR.
+  Aucun écran de progression : l'enfant voit l'app redémarrer. Téléphones déjà configurés avant NAR-170 : coque à
+  installer une fois par une autre voie (`docs/MOBILE.md`).
 - **Traductions malgaches** : à faire relire par une personne de langue maternelle.

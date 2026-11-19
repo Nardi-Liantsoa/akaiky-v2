@@ -183,6 +183,35 @@ Sur Google Play, publier ne suffit pas : après l'envoi du bundle, la release
 doit être **explicitement envoyée pour examen**, sinon elle reste indéfiniment
 en brouillon sans que rien ne le signale.
 
+## Mettre à jour l'app enfant sur les téléphones verrouillés (NAR-170)
+
+L'app enfant (Device Owner, hors Play Store) se met à jour elle-même : `/api/device/config`
+annonce `apk: { versionCode, url, sha256 }`, l'écran (`src/lib/apkUpdate.ts`) demande
+l'installation quand la version est plus récente, aucun SOS en cours, au plus une tentative
+toutes les 6 heures (tout réseau) ; le natif (`ApkUpdate.kt`) refuse pendant un appel, télécharge
+dans le cache privé (150 Mo au plus), compare le SHA-256 du fichier, puis exige même paquet,
+versionCode annoncé et strictement supérieur, et **exactement** le certificat de l'app installée
+(rotation de clé acceptée seulement dans le sens qu'Android accepte). Installation sans
+confirmation par `PackageInstaller` ; l'app redémarre seule dans sa nouvelle version, en lock task.
+
+Publier une version :
+
+1. Monter `versionCode` (et `versionName`) du bloc `enfant { }` de `android/app/build.gradle`.
+2. `npm run android:enfant:release` (keystore hors dépôt, `NOSYHOST.md` § 6) : écrit
+   `downloads/akaiky-enfant.apk`, son empreinte de certificat et `akaiky-enfant.version-code`,
+   et affiche `DEVICE_APK_VERSION_CODE`.
+3. Régler `DEVICE_APK_VERSION_CODE` sur cette valeur, construire l'image avec
+   `--build-arg REQUIRE_APK=1` et livrer. Le serveur calcule le SHA-256 du fichier embarqué
+   et n'annonce rien si la version configurée diffère de celle de l'APK (journal d'erreur).
+
+**Premier passage** : les téléphones déjà configurés avec une coque antérieure à NAR-170 n'ont
+pas ce mécanisme ; ils reçoivent cette coque par une autre voie (reprovisionnement par QR, ou
+`adb install -r` pendant une sortie sur un téléphone de développement). Ensuite, tout passe par là.
+
+Test en développement : la version debug accepte aussi `http://127.0.0.1:<port>/`
+(`src/debug/res/xml/network_security_config.xml`, avec `adb reverse`) ; l'APK distribué reste
+en https seul.
+
 ## Mises à jour OTA
 
 `@capgo/capacitor-updater` est installé et configuré avec `autoUpdate: false` :

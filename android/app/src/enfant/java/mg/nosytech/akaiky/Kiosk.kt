@@ -109,7 +109,14 @@ object Kiosk {
         val admin = admin(context)
         // Chaque politique isolément : un refus d'un constructeur (exception) n'empêche
         // jamais les suivantes, et surtout pas le verrou d'écran en fin de fonction.
-        for (r in restrictions()) safely("restriction $r") { dpm.addUserRestriction(admin, r) }
+        // Mise à jour de l'app (NAR-170) : une fenêtre d'installation abandonnée est refermée ;
+        // celle que ce processus tient pour une installation en cours n'est pas reposée ici.
+        safely("mise à jour") { ApkUpdate.restoreIfNeeded(context) }
+        val installing = try { ApkUpdate.installAllowedNow(context) } catch (e: Exception) { false }
+        for (r in restrictions()) {
+            if (installing && r == UserManager.DISALLOW_INSTALL_APPS) continue
+            safely("restriction $r") { dpm.addUserRestriction(admin, r) }
+        }
         // Lanceur par défaut : le bouton d'accueil et le redémarrage ramènent ici (C06).
         safely("lanceur") {
             val homeFilter = IntentFilter(Intent.ACTION_MAIN).apply {
