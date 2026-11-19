@@ -12,7 +12,7 @@ export interface DeviceInfo {
   deviceOwner: boolean
 }
 
-// simState : pas encore fourni par le natif (NAR-180) ; absent, le signal envoie 'unknown'.
+// simState : TelephonyManager.getSimState (NAR-180) ; absent (coque plus ancienne), le signal envoie 'unknown'.
 export interface DeviceStatus { battery?: number, charging?: boolean, network: 'wifi' | 'cellular' | 'other' | 'none', simState?: 'ready' | 'absent' | 'locked' | 'unknown' }
 
 export interface AkaikyDevicePlugin {

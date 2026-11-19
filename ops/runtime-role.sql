@@ -70,5 +70,7 @@ GRANT UPDATE (status, attempts, next_attempt_at, last_error, sent_at) ON push_ou
 GRANT UPDATE (battery_pct, charging, network, sim_state, status_at, background_status) ON child_devices TO app_runtime;
 GRANT INSERT ON device_alerts TO app_runtime;
 GRANT UPDATE (closed_at) ON device_alerts TO app_runtime;
+-- Jeton « signal de vie » du natif (021_heartbeat_tokens.sql) : émis (30 jours), remplacé, effacé à la révocation et au rejeu.
+GRANT UPDATE (heartbeat_token_hash, heartbeat_token_expires_at) ON child_devices TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;

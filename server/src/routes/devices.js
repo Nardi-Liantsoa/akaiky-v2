@@ -199,7 +199,8 @@ export async function devicesRoutes(app) {
     await withTransaction(db, async (conn) => {
       const own = await lockOwnFamily(conn, req, MANAGERS)
       const { rows: [device] } = await conn.query(
-        'UPDATE child_devices SET revoked_at = now() WHERE id = $1 AND family_id = $2 AND revoked_at IS NULL RETURNING id',
+        // Jeton « signal de vie » (NAR-180) effacé avec : revoked_at suffit déjà à le refuser.
+        'UPDATE child_devices SET revoked_at = now(), heartbeat_token_hash = NULL, heartbeat_token_expires_at = NULL WHERE id = $1 AND family_id = $2 AND revoked_at IS NULL RETURNING id',
         [req.params.id, own.familyId])
       if (!device) throw deviceNotFound()
       // Ses sessions tombent tout de suite : la requête suivante du téléphone reçoit 401.
@@ -275,6 +276,8 @@ export async function deviceSessionRoutes(app) {
     // Successeur écarté présenté : deux détenteurs pour une session. Fermée, signalée.
     const replayed = (await db.query('DELETE FROM device_sessions WHERE discarded_refresh_hash = $1 RETURNING device_id', [hash])).rows[0]
     if (replayed) {
+      // Le jeton « signal de vie » a pu être émis par le détenteur illégitime : effacé aussi.
+      await db.query('UPDATE child_devices SET heartbeat_token_hash = NULL, heartbeat_token_expires_at = NULL WHERE id = $1', [replayed.device_id])
       await audit(db, req, 'device_refresh_replay', replayed.device_id)
       await securityAlert(db, 'device_refresh_replay')
     }

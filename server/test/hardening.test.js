@@ -155,7 +155,16 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     await assert.rejects(pool.query('DELETE FROM device_alerts'), /permission denied/)
     await assert.rejects(pool.query('UPDATE device_alerts SET kind = kind'), /permission denied/)
     await assert.rejects(pool.query('UPDATE device_alerts SET opened_at = now()'), /permission denied/)
+    // Jeton « signal de vie » du natif (021_heartbeat_tokens.sql) : émis, remplacé, utilisé sans origine.
+    const hbToken = async () => (await native(app, 'POST', '/api/device/heartbeat-token', { token: renewedPhone.json().accessToken, body: {} })).json().token
+    const oldHb = await hbToken(), hb = await hbToken()
+    const hbBeat = (t) => app.inject({ method: 'POST', url: '/api/device/heartbeat', headers: { authorization: `Heartbeat ${t}` },
+      payload: { batteryPct: 31, charging: true, network: 'wifi', simState: 'ready', background: true } })
+    assert.equal((await hbBeat(hb)).statusCode, 200)
+    assert.equal((await hbBeat(oldHb)).statusCode, 401)
     assert.equal((await call(app, 'POST', `/api/devices/${phone.json().device.id}/revoke`, { cookie: user.cookie })).statusCode, 200)
+    assert.equal((await hbBeat(hb)).statusCode, 401, 'révoqué : jeton « signal de vie » refusé')
+    assert.equal((await admin.db.query('SELECT heartbeat_token_hash FROM child_devices WHERE id = $1', [phone.json().device.id])).rows[0].heartbeat_token_hash, null)
     assert.equal((await pool.query('SELECT count(*)::int AS n FROM push_tokens WHERE device_id IS NOT NULL')).rows[0].n, 0, 'révoqué : jeton du téléphone supprimé')
     await assert.rejects(pool.query('UPDATE child_devices SET child_id = child_id'), /permission denied/)
     await assert.rejects(pool.query('UPDATE child_devices SET family_id = family_id'), /permission denied/)

@@ -133,7 +133,35 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   repasse jamais à faux par un signal ; seul un réappairage, nouvelle ligne, repart à faux) sont surveillés ; l'app JS au premier plan ne l'envoie pas (faux), pour éviter une fausse alerte à
   chaque fois que l'enfant quitte l'app. Elle s'active quand le signal natif en arrière-plan de NAR-180
   envoie `background: true`. Surveillance en arrière-plan et état réel de la carte SIM : natif, NAR-180
-  (nouvelle coque).
+  (nouvelle coque), livrés.
+- **Signal en arrière-plan (NAR-180, 19/11/2026)** : natif (`BackgroundStatus.kt`), écran éteint et WebView
+  endormie : WorkManager périodique de 15 min (minimum Android, réseau exigé, survit au redémarrage) ; tâche
+  unique immédiate quand la batterie passe sous 15 % ou que la carte SIM change (règles de
+  `src/lib/heartbeat.ts`, `BackgroundStatusPolicy.kt` ; marge de 2 min sur la période, envoi dû dès
+  13 min ; carte SIM « unknown » jamais comparée ; même changement de carte SIM répété en moins de
+  2 min sans envoi immédiat) ; cœur testable sur la JVM (`StatusRunner.kt` : envoi sous verrou,
+  `isEnabled` relu avant l'envoi et avant d'en noter le succès, arrêt qui attend l'envoi en cours) ; hors ligne, une seule place en attente, le dernier
+  relevé (`StatusQueue.kt`). `BATTERY_LOW`/`BATTERY_CHANGED` et `SIM_STATE_CHANGED` ne sont pas exemptées
+  des restrictions d'Android 8 : écoutées à l'exécution sur le contexte de l'application (le processus du
+  lanceur en lock task vit) ; manifeste : `BOOT_COMPLETED`, `MY_PACKAGE_REPLACED`, `CARRIER_CONFIG_CHANGED`
+  (exemptées). Carte SIM : `TelephonyManager.getSimState`, aussi dans `AkaikyDevice.getStatus` (signal de
+  premier plan). Lancé par l'écran à chaque état « appairé » (`src/lib/backgroundStatus.ts` →
+  `AkaikyBackground.startBackgroundStatus({ apiBase, token })`, adresse `API_BASE`, https seulement),
+  arrêté à l'état sans session (attente, expiré, retiré) et à la libération ; un jeton refusé (401)
+  l'arrête aussi. Pas de GPS.
+- **Authentification du natif (NAR-180, revue du 19/11/2026)** : **jeton « signal de vie » dédié**, jamais la
+  session d'appareil. Partager le jeton de renouvellement entre l'écran et le natif (verrou, rotation) a été
+  écarté : deux renouvellements croisés font voir un rejeu au serveur, qui ferme la session, ou font
+  oublier à l'écran une session valable. `child_devices.heartbeat_token_hash` (SHA-256, 256 bits, un par
+  téléphone, `021_heartbeat_tokens.sql`) ; `POST /api/device/heartbeat-token` (session d'appareil, 10 par
+  heure et par téléphone, audité `device_heartbeat_token`) en émet un nouveau, rendu une fois, qui remplace
+  le précédent. Il n'ouvre **que** `POST /api/device/heartbeat` (`Authorization: Heartbeat <jeton>`, route
+  marquée `config.heartbeat`, téléphone non révoqué, accepté sans origine car envoyé hors WebView, jamais
+  avec une origine non native) ; refusé partout ailleurs, y compris en `Bearer`. Révocation : `revoked_at`
+  suffit, l'empreinte est aussi effacée. Natif : jeton chiffré au repos par une clé Keystore AES-GCM propre
+  (alias `akaiky-heartbeat-token`, `HeartbeatToken.kt`), aucune dépendance de plus. 401 → arrêt et
+  `needsToken` ; jeton absent ou illisible → rien n'est envoyé, nouvel essai à la période suivante,
+  `needsToken` ; l'écran en émet un autre une fois par lancement ou quand `status()` le demande.
 - **Domaine** : inconnu. Provisoire `akaiky.a-definir.invalid` (`.env.example`,
   `NOSYHOST.md`, `server/src/config.js`, `src/api/transport-native.ts`, `docs/MOBILE.md`).
 - **Noms techniques** : image, paquet npm et client NosyHost s'appellent `akaiky-v2` /
@@ -150,7 +178,7 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
 | `allowed_contacts` (nom et numéro E.164 chiffrés, index aveugle HMAC du numéro ; 6 par enfant, ordonnés) | `family_id` + `child_id` (clé étrangère composite vers l'enfant de la même famille ; membre lié aussi de la même famille) | membres | `owner`, `manager` (enfant verrouillé : plafond et ordre justes ; numéro unique par enfant) | `owner`, `manager` (nom, numéro, couleur, membre lié, ordre ; jamais l'enfant ni la famille) | `owner`, `manager` (positions recomptées) ; cascade depuis l'enfant ; lien au membre effacé s'il quitte la famille |
 | `invitations` (jeton haché, adresse invitée, rôle `manager`/`member`, 7 jours) | `family_id` (lu sur l'adhésion de la session) | `owner`, `manager` (en attente et encore acceptables, avec adresse) | `owner`, `manager` (10 en attente par famille ; une par adresse : la nouvelle remplace l'ancienne une fois son courriel parti ; enregistrée, puis envoyée hors transaction, supprimée si l'envoi échoue) | acceptation par le seul compte de l'adresse invitée, invitant encore gestionnaire, jeton consommé une fois (`UPDATE (used_at)` seul) | `owner`, `manager` (annulation) ; invitations d'un gestionnaire retiré ou rétrogradé ; cascade depuis `families` |
 | `pairing_tokens` (jeton d'appairage haché, 15 min, usage unique ; porté par le QR) | `family_id` + `child_id` (clé étrangère composite vers l'enfant ; famille lue sur l'adhésion de la session) | — (jamais relu par l'API, sinon pour l'échange) | `owner`, `manager` (un seul valable par enfant : le nouveau remplace les précédents) | échange par le téléphone : `used_at` posé atomiquement, une seule fois (`UPDATE (used_at)` seul) | remplacement par un nouveau QR ; cascade depuis l'enfant |
-| `child_devices` (téléphone appairé : modèle, versions ; 3 actifs par enfant ; derniers relevés batterie, réseau, carte SIM, NAR-147) | `family_id` + `child_id` (clé étrangère composite) | membres (`GET /api/children/:id/devices` ; relevés par `GET /api/children/:id/status`) ; le téléphone lui-même (`/api/device/me`) | échange d'un jeton d'appairage valable (`POST /api/device/pair`, enfant verrouillé) | `owner`, `manager` : révocation (`revoked_at`, sessions et jetons push effacés, alertes fermées) ; le téléphone : `last_seen_at` (toute requête, au plus une fois par minute) et ses relevés `battery_pct`, `charging`, `network`, `sim_state`, `background_status` (signal natif en arrière-plan, NAR-180), `status_at` (dernier signal, `POST /api/device/heartbeat`, 5 par 5 min ; NULL tant qu'aucun signal ; NAR-147) | cascade depuis l'enfant ; aucun DELETE accordé au rôle applicatif |
+| `child_devices` (téléphone appairé : modèle, versions ; 3 actifs par enfant ; derniers relevés batterie, réseau, carte SIM, NAR-147) | `family_id` + `child_id` (clé étrangère composite) | membres (`GET /api/children/:id/devices` ; relevés par `GET /api/children/:id/status`) ; le téléphone lui-même (`/api/device/me`) | échange d'un jeton d'appairage valable (`POST /api/device/pair`, enfant verrouillé) | `owner`, `manager` : révocation (`revoked_at`, sessions et jetons push effacés, alertes fermées) ; le téléphone : `last_seen_at` (toute requête, au plus une fois par minute) et ses relevés `battery_pct`, `charging`, `network`, `sim_state`, `background_status` (signal natif en arrière-plan, NAR-180), `status_at` (dernier signal, `POST /api/device/heartbeat`, 5 par 5 min ; NULL tant qu'aucun signal ; NAR-147) ; `heartbeat_token_hash` (jeton « signal de vie » du natif, NAR-180 : émis et remplacé par `POST /api/device/heartbeat-token`, session d'appareil, 10/h ; n'ouvre que le signal ; effacé à la révocation ; `UPDATE (heartbeat_token_hash)` seul) | cascade depuis l'enfant ; aucun DELETE accordé au rôle applicatif |
 | `device_alerts` (alertes du téléphone : `battery_low`, `sim_absent`, `silent` ; ouverte puis fermée, une seule ouverte par téléphone et par type ; NAR-147) | `family_id` + `child_id` (clé étrangère composite) + `device_id` (lus sur la session d'appareil ou la ligne du téléphone) | membres, alertes ouvertes des téléphones actifs (`GET /api/children/:id/status`, autre famille → 404) ; jamais l'admin | le signal du téléphone (batterie < 15 % hors charge, carte SIM absente) ; la veille « silence » de `jobs.js` (signal vieux de 60 min d'un téléphone surveillé en arrière-plan, `background_status`, sous verrou consultatif) ; famille prévenue une fois, à l'ouverture (`notifyFamily`) | fermeture seule (`UPDATE (closed_at)`) : batterie ≥ 20 % (la charge seule ne ferme pas ; pas de réouverture batterie dans les 60 min), carte SIM prête, tout signal (silence) ; révocation du téléphone | purge 90 jours après la fermeture (`purge_expired()`, 020 ; aucun DELETE accordé) ; cascade depuis le téléphone et l'enfant |
 | `device_sessions` (sessions du téléphone : accès court, renouvellement tourné, rejeu détecté) | `device_id` | le hook de session des seules routes `/api/device/*` | appairage | renouvellement (`/api/device/refresh`), jamais l'appareil d'une session | révocation de l'appareil ; rejeu ; cascade ; purge 30 jours après la fin du renouvellement (`purge_expired()`, NAR-153) |
 | `device_events` (journal du téléphone : appels sortants et reçus, nom et numéro du contact chiffrés, durée ; appels bloqués, numéro d'un tiers chiffré et index aveugle, absent si masqué, ou contact non parent pendant une plage « école » avec son nom, si le numéro est bien le sien (NAR-176) ; déverrouillages, origine `code` ou `remote` et durée ; 90 jours, purge NAR-153) | `family_id` + `child_id` (lus sur la session d'appareil, jamais envoyés par le téléphone) | membres (`GET /api/children/:id/calls`, pages de 50 par curseur ; journal parent, NAR-152) ; jamais l'admin | le téléphone (`POST /api/device/events`, 60 lots/min) : contact d'un autre enfant refusé, contact retiré accepté avec l'instantané (nom, numéro composé), identifiant choisi par le téléphone (idempotence) | — (ajout seul : aucun UPDATE accordé) | purge à 90 jours (`purge_expired()`, NAR-153 ; aucun DELETE accordé) ; cascade depuis l'enfant ; contact retiré → `contact_id` effacé, instantané gardé |
@@ -173,7 +201,9 @@ hachage ; il ne vit que dans le stockage sécurisé d'un téléphone en Device O
 Sessions d'appareil (NAR-138) : `server/src/app.js` cherche un jeton Bearer des routes `/api/device/*`
 parmi les seules `device_sessions` (appareil non révoqué), jamais par cookie ni parmi les sessions de
 compte ; une session de compte n'atteint jamais ces routes, une session d'appareil aucune autre.
-Tests : `server/test/devices.test.js`.
+Jeton « signal de vie » (NAR-180) : schéma `Heartbeat`, cherché dans `child_devices.heartbeat_token_hash`
+pour la seule route `config.heartbeat` (`POST /api/device/heartbeat`). Tests : `server/test/devices.test.js`,
+`server/test/heartbeat-token.test.js`.
 
 Garde : `server/src/families.js` — `requireFamilyRole(db, req, familyId, roles)` (pas membre → 404,
 rôle insuffisant → 403) avec la famille lue sur la ligne de la ressource, ou `requireOwnFamily`

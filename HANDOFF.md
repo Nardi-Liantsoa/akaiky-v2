@@ -195,13 +195,30 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   pas de nouvelle alerte batterie dans les 60 min qui suivent une fermeture ; carte SIM absente ;
   silence de 60 min, veille de `jobs.js` toutes les 5 min) avec une notification à l'ouverture.
   L'export de la famille contient les relevés de chaque téléphone et les alertes de chaque enfant.
-  Le natif ne donne pas encore l'état de la carte SIM : l'app envoie `unknown`, l'alerte « carte SIM
-  absente » ne peut donc pas encore partir d'un vrai téléphone. **Alerte « silence » inactive pour
-  l'instant** : la veille ne regarde que les téléphones dont le dernier signal porte `background: true`
-  (`child_devices.background_status`) ; l'app JS ne l'envoie pas (faux par défaut), car un téléphone
-  dont l'app passe en arrière-plan cesse ses signaux et déclencherait une fausse alerte au bout d'une
-  heure. Elle s'activera quand le signal natif en arrière-plan de NAR-180 enverra `background: true`.
-  **À faire dans NAR-180 (surveillance native en arrière-plan, nouvelle coque)** : le signal natif
-  doit envoyer `background: true` dans le corps de `POST /api/device/heartbeat` (et les vrais états
-  de la carte SIM) ; sans cela, aucune alerte « silence » ne part jamais.
+  Depuis NAR-180, l'état réel de la carte SIM est lu par le natif et le signal en arrière-plan porte
+  `background: true` : l'alerte « silence » est active pour tout téléphone qui a cette coque.
+- **Signal de vie en arrière-plan (NAR-180, nouvelle coque enfant)** : WorkManager, toutes les 15 min
+  (le minimum d'Android), réseau exigé, et tout de suite (tâche unique) quand la batterie passe sous
+  15 % ou que la carte SIM change ; hors ligne, seul le dernier relevé attend et part au retour du
+  réseau. Limites : **Doze et les économiseurs de batterie des constructeurs (Xiaomi, Tecno, Itel,
+  Infinix, Samsung…) peuvent retarder la tâche bien au-delà de 15 min**, écran éteint longtemps :
+  fenêtres de maintenance espacées jusqu'à plusieurs heures. Une alerte « silence » peut donc partir
+  à tort sur un téléphone simplement endormi. **À vérifier sur de vrais téléphones d'entrée de gamme**
+  (écran éteint 2 h, `adb shell dumpsys jobscheduler | grep akaiky`, journaux `AkaikyStatus`) avant
+  la recette ; si le retard est fréquent, élargir le seuil « silence » côté serveur ou demander
+  l'exemption d'optimisation de batterie à l'installation. Les événements batterie et carte SIM
+  (diffusions non déclarables dans le manifeste depuis Android 8) ne sont écoutés que tant que le
+  processus vit (lanceur en lock task : normalement toujours) ; sinon la tâche des 15 min les voit.
+  Carte SIM retirée processus arrêté : `CARRIER_CONFIG_CHANGED` (manifeste) en filet. Vérifié sur
+  émulateur (AVD `kiosk34`, Android 14) : tâches planifiées, conservées au redémarrage, événement
+  batterie écran éteint, file hors ligne ; **pas d'envoi réussi vérifié** (aucun serveur joignable
+  en https depuis l'émulateur), et le passage au jeton « signal de vie » n'a pas été revérifié sur
+  émulateur (tests JVM et API seulement).
+  Authentification : jeton « signal de vie » dédié (voir CLAUDE.md, « Décisions »), émis par l'écran
+  via sa session d'appareil et confié au natif ; le natif ne touche plus jamais la session. Il faut
+  donc que l'app ait été ouverte appairée au moins une fois avec un réseau après l'installation de
+  cette coque (et après un 401 ou une clé Keystore perdue) pour que le signal reparte : sinon rien
+  ne part en arrière-plan et l'alerte « silence » ne peut pas s'ouvrir pour ce téléphone.
+  Migration `021_heartbeat_tokens.sql` (additive) et `GRANT UPDATE (heartbeat_token_hash)` de
+  `ops/runtime-role.sql` à appliquer avant de livrer la coque.
 - **Traductions malgaches** : à faire relire par une personne de langue maternelle.

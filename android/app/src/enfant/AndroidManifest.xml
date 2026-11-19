@@ -10,6 +10,8 @@
          distribué hors Play Store (aucune règle de store) ; SCHEDULE_EXACT_ALARM pour Android 12. -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" />
+    <!-- Surveillance en arrière-plan (NAR-180) : tâche WorkManager et écoute reposées au redémarrage. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <application>
         <!-- Lanceur du téléphone de l'enfant (NAR-167) : l'accueil et le redémarrage
@@ -23,6 +25,18 @@
         </activity>
 
         <receiver android:name="mg.nosytech.akaiky.RelockReceiver" android:exported="false" />
+
+        <!-- Signal de vie en arrière-plan (NAR-180) : seules les diffusions exemptées des
+             restrictions d'Android 8 (batterie et SIM_STATE_CHANGED : écoute à l'exécution,
+             BackgroundStatus.kt). Exporté pour les recevoir du système ; l'intention n'est
+             jamais lue, l'état réel est relu. -->
+        <receiver android:name="mg.nosytech.akaiky.BackgroundStatusReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.telephony.action.CARRIER_CONFIG_CHANGED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Filtre des appels entrants (NAR-145), Android 10+ avec le rôle ROLE_CALL_SCREENING :
              seuls les contacts autorisés sonnent. Lié par Telecom seulement (permission). -->

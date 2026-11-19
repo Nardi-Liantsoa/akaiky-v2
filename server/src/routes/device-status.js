@@ -6,27 +6,56 @@
 //                    accepté). `background` : vrai si envoyé par la surveillance native en
 //                    arrière-plan (NAR-180), seule à déclencher l'alerte « silence » ;
 //                    gardé ensuite (absent ou faux ne le remet jamais à faux).
+//                    Accepte la session d'appareil OU le jeton « signal de vie »
+//                    (`Authorization: Heartbeat <jeton>`, NAR-180), qui n'ouvre que cette route.
+//   POST /heartbeat-token  session d'appareil seule : nouveau jeton « signal de vie »
+//                    (256 bits), rendu une fois ; l'empreinte remplace la précédente (l'ancien
+//                    jeton est refusé aussitôt). Pour le natif en arrière-plan, qui ne touche
+//                    jamais à la session (pas de renouvellement croisé avec l'écran).
 // Parent (session de compte, préfixe /api) :
 //   GET  /children/:id/status  membres : téléphones actifs de l'enfant, relevés et alertes
 //                              ouvertes ; autre famille → 404.
-import { HttpError, isUuid } from '../lib.js'
+import { HttpError, audit, isUuid } from '../lib.js'
 import { ROLES, requireOwnFamily } from '../families.js'
-import { createLimiter } from '../security.js'
+import { createLimiter, newToken } from '../security.js'
 import { applyHeartbeat, parseHeartbeat } from '../device-status.js'
 
 // Un signal toutes les 15 minutes, plus un tout de suite à chaque changement (batterie qui
 // passe sous 15 %, carte SIM) : 5 par tranche de 5 minutes, environ un par minute.
 export const HEARTBEAT_MAX = 5
 export const HEARTBEAT_WINDOW_MS = 5 * 60_000
+// Jeton « signal de vie » : un par démarrage de l'app appairée, ou quand le natif l'a perdu.
+export const HEARTBEAT_TOKEN_MAX = 10
+export const HEARTBEAT_TOKEN_WINDOW_MS = 60 * 60_000
+// Validité du jeton : l'app le réémet à chaque démarrage, un téléphone utilisé le renouvelle.
+export const HEARTBEAT_TOKEN_DAYS = 30
 
 export async function deviceStatusRoutes(app) {
   const { db } = app
   const limit = createLimiter({ max: HEARTBEAT_MAX, windowMs: HEARTBEAT_WINDOW_MS })
-  app.post('/heartbeat', { config: { device: true } }, async (req) => {
+  const tokenLimit = createLimiter({ max: HEARTBEAT_TOKEN_MAX, windowMs: HEARTBEAT_TOKEN_WINDOW_MS })
+  // `heartbeat: true` : seule route où app.js accepte le jeton « signal de vie ».
+  app.post('/heartbeat', { config: { device: true, heartbeat: true } }, async (req) => {
     const status = parseHeartbeat(req.body)
     if (!limit(`device:${req.device.id}`)) throw new HttpError(429, 'Trop d’envois. Réessayez dans une minute.')
     await applyHeartbeat(db, req.device, status)
     return { ok: true }
+  })
+
+  app.post('/heartbeat-token', { config: { device: true } }, async (req) => {
+    if (req.body !== undefined && req.body !== null && (typeof req.body !== 'object' || Object.keys(req.body).length)) {
+      throw new HttpError(400, 'Requête invalide.')
+    }
+    if (!tokenLimit(`device:${req.device.id}`)) throw new HttpError(429, 'Trop de demandes. Réessayez plus tard.')
+    const { token, hash } = newToken()
+    // Téléphone toujours actif : une révocation concurrente (ligne verrouillée) passe avant,
+    // et la condition relue n'émet alors rien.
+    const { rows: [device] } = await db.query(
+      `UPDATE child_devices SET heartbeat_token_hash = $2, heartbeat_token_expires_at = now() + make_interval(days => $3)
+        WHERE id = $1 AND revoked_at IS NULL RETURNING id`, [req.device.id, hash, HEARTBEAT_TOKEN_DAYS])
+    if (!device) throw new HttpError(401, 'Session de l’appareil expirée.')
+    await audit(db, req, 'device_heartbeat_token', device.id)
+    return { token }
   })
 }
 

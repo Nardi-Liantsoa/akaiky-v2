@@ -3,7 +3,7 @@ import type { DeviceStatus } from '../native/akaikyDevice'
 // Signal de vie du téléphone de l'enfant (NAR-147) : batterie, réseau, carte SIM, envoyés
 // à POST /api/device/heartbeat tant que l'app est au premier plan. Le serveur en tire les
 // alertes (batterie < 15 %, carte SIM absente, silence de 60 minutes). La surveillance en
-// arrière-plan vient avec le natif (NAR-180).
+// arrière-plan, écran éteint, est native (NAR-180, BackgroundStatus.kt) : mêmes règles.
 //
 // Envoi au démarrage, puis au plus tard toutes les 15 minutes ; tout de suite quand la
 // batterie passe sous 15 % ou que l'état de la carte SIM change. Hors ligne : rien n'est
@@ -11,7 +11,7 @@ import type { DeviceStatus } from '../native/akaikyDevice'
 // quand même (batterie et charge inconnues, carte SIM et réseau 'unknown', réseau 'none'
 // si le navigateur se sait hors ligne) : le téléphone est vivant, c'est l'essentiel.
 // `background` n'est jamais envoyé ici (le serveur garde la valeur déjà posée) : seule la surveillance native
-// en arrière-plan (NAR-180) l'enverra à vrai et activera l'alerte « silence ».
+// en arrière-plan (NAR-180) l'envoie à vrai et active l'alerte « silence ».
 export const HEARTBEAT_EVERY_MS = 15 * 60_000
 // Envoi sans réponse au-delà : abandonné (compté comme un échec), pour qu'un envoi bloqué
 // ne fige jamais le verrou « un envoi à la fois ».

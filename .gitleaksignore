@@ -2,3 +2,5 @@
 # 'akaiky-v2.child' : nom de clé localStorage (préférence d'affichage), pas un secret.
 # La règle generic-api-key se déclenche sur le nom de constante KEY (NAR-135).
 25871b4ca8eb2ce36ad5a609b49d3039e18107f9:src/store/children.ts:generic-api-key:9
+# Jeton factice de test (SealedTokenTest.kt, NAR-180), remplacé depuis par une valeur générée.
+ea3877dbd0e6485af45f1f9f9aaf33999d0a3923:android/app/src/testEnfant/java/mg/nosytech/akaiky/SealedTokenTest.kt:generic-api-key:11

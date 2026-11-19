@@ -97,6 +97,8 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // Signal de vie en arrière-plan de l'app enfant (NAR-180) : absent de l'app parent.
+    enfantImplementation "androidx.work:work-runtime:2.10.5"
     testImplementation "junit:junit:$junitVersion"
     // Tests JVM seulement : vrai org.json (celui d'Android n'y est qu'un bouchon), pour lire
     // les plages et les cas partagés avec l'écran (NAR-176). Absent de l'APK.
