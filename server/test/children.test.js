@@ -116,7 +116,7 @@ test('famille supprimée : ses enfants aussi (cascade)', async () => {
 })
 
 test('configuration : clé des données exigée en production, distincte de celle de la MFA', () => {
-  const base = { NODE_ENV: 'production', DATABASE_URL: 'postgres://x', APP_ORIGIN: 'https://a.example', TRUST_PROXY: '10.0.0.0/8', SMTP_HOST: 'smtp', MAIL_FROM: 'A <a@a.example>', MFA_ENCRYPTION_KEY: 'ab'.repeat(32) }
+  const base = { NODE_ENV: 'production', PUSH_PROVIDER: 'none', DATABASE_URL: 'postgres://x', APP_ORIGIN: 'https://a.example', TRUST_PROXY: '10.0.0.0/8', SMTP_HOST: 'smtp', MAIL_FROM: 'A <a@a.example>', MFA_ENCRYPTION_KEY: 'ab'.repeat(32) }
   assert.throws(() => loadConfig(base), /DATA_ENCRYPTION_KEY/)
   assert.throws(() => loadConfig({ ...base, DATA_ENCRYPTION_KEY: 'court' }), /DATA_ENCRYPTION_KEY/)
   assert.throws(() => loadConfig({ ...base, DATA_ENCRYPTION_KEY: 'AB'.repeat(32) }), /différer/)

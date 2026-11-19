@@ -6,6 +6,7 @@ import { createLimiter, hashPassword, rateLimitKey } from '../src/security.js'
 import { createPool, verifySchema } from '../src/db.js'
 import { loadConfig } from '../src/config.js'
 import { buildApp } from '../src/app.js'
+import { createFakeProvider, runPushWorker } from '../src/push.js'
 
 test('limiteur : saturation sans blocage global ni éviction des compteurs', () => {
   const limit = createLimiter({ max: 2, windowMs: 60000, maxKeys: 2 })
@@ -111,7 +112,31 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     await pool.query("SELECT purge_expired()")
     await assert.rejects(pool.query('DELETE FROM quick_messages'), /permission denied/)
     await assert.rejects(pool.query("UPDATE job_runs SET started_at = NULL"), /permission denied/)
+    // Notifications push sous le rôle restreint (019_push.sql) : jetons du parent et du téléphone,
+    // message rapide mis en file, worker (réservation, envoi, issue, jeton mort supprimé).
+    const pushToken = `fcm-parent-${crypto.randomUUID()}`
+    assert.equal((await call(app, 'PUT', '/api/push/token', { cookie: user.cookie, body: { token: pushToken, platform: 'android', lang: 'fr' } })).statusCode, 200)
+    assert.equal((await call(app, 'PUT', '/api/push/token', { cookie: user.cookie, body: { token: pushToken, platform: 'android', lang: 'en' } })).statusCode, 200)
+    assert.equal((await native(app, 'PUT', '/api/device/push/token', { token: renewedPhone.json().accessToken, body: { token: `fcm-phone-${crypto.randomUUID()}`, platform: 'android' } })).statusCode, 200)
+    const quick = await native(app, 'POST', '/api/device/messages', { token: renewedPhone.json().accessToken, body: { id: crypto.randomUUID(), slot: 1, sentAt: new Date().toISOString() } })
+    assert.equal(quick.statusCode, 200, quick.body)
+    const pushes = createFakeProvider(), quiet = { info() {}, error() {} }
+    assert.equal((await runPushWorker(pool, pushes, config, quiet)).sent, 1)
+    assert.equal(pushes.sent[0].message.notification.title, 'Tiana sent a message')
+    assert.equal((await call(app, 'POST', '/api/push/test', { cookie: user.cookie })).statusCode, 200)
+    pushes.failNext('retry')
+    assert.equal((await runPushWorker(pool, pushes, config, quiet)).retried, 1)
+    await assert.rejects(pool.query('UPDATE push_tokens SET session_id = session_id'), /permission denied/)
+    await assert.rejects(pool.query('UPDATE push_tokens SET device_id = device_id'), /permission denied/)
+    await assert.rejects(pool.query('UPDATE push_tokens SET token_enc = token_enc'), /permission denied/)
+    await assert.rejects(pool.query('UPDATE push_outbox SET token_id = token_id'), /permission denied/)
+    await assert.rejects(pool.query('DELETE FROM push_outbox'), /permission denied/)
+    await admin.db.query("UPDATE push_outbox SET next_attempt_at = now() WHERE status = 'pending'")
+    pushes.failNext('unregistered')
+    assert.equal((await runPushWorker(pool, pushes, config, quiet)).removedTokens, 1)
+    assert.equal((await call(app, 'DELETE', '/api/push/token', { cookie: user.cookie, body: { token: pushToken } })).statusCode, 404, 'jeton mort supprimé')
     assert.equal((await call(app, 'POST', `/api/devices/${phone.json().device.id}/revoke`, { cookie: user.cookie })).statusCode, 200)
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM push_tokens WHERE device_id IS NOT NULL')).rows[0].n, 0, 'révoqué : jeton du téléphone supprimé')
     await assert.rejects(pool.query('UPDATE child_devices SET child_id = child_id'), /permission denied/)
     await assert.rejects(pool.query('UPDATE child_devices SET family_id = family_id'), /permission denied/)
     await assert.rejects(pool.query('UPDATE device_sessions SET device_id = device_id'), /permission denied/)

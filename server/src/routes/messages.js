@@ -17,6 +17,7 @@ import { MANAGERS, ROLES, lockOwnFamily, requireOwnFamily } from '../families.js
 import { createLimiter } from '../security.js'
 import { openField, sealField } from '../crypto-fields.js'
 import { contactAad } from './contacts.js'
+import { notifyFamily } from '../push.js'
 
 const SEND = {
   type: 'object',
@@ -83,7 +84,12 @@ export async function deviceMessagesRoutes(app) {
         `INSERT INTO quick_messages(id, family_id, child_id, device_id, slot, sent_at, text_enc)
          VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING`,
         [id, req.device.familyId, req.device.childId, req.device.id, slot, when, textEnc])
-      if (!rowCount) {
+      if (rowCount) {
+        // Premier enregistrement seulement (un rejeu ne notifie pas deux fois) : une
+        // notification par jeton des membres, sans le texte du message (push-texts.js).
+        const { targets, queued } = await notifyFamily(conn, req.device.familyId, 'message', id)
+        if (queued < targets) req.log.warn({ skipped: targets - queued }, 'notifications push au-delà du plafond horaire')
+      } else {
         // Même message arrivé en même temps (renvoi après un délai dépassé) : accepté ;
         // identifiant pris par un autre enfant : refusé.
         const { rowCount: mine } = await conn.query('SELECT 1 FROM quick_messages WHERE id = $1 AND child_id = $2', [id, req.device.childId])
