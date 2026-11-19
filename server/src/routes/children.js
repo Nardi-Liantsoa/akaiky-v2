@@ -22,13 +22,14 @@ const CREATE = {
   type: 'object',
   additionalProperties: false,
   required: ['firstName'],
-  properties: { firstName: { type: 'string', maxLength: 200 }, avatarColor: { type: 'string', enum: AVATAR_COLORS } }
+  // parentalConsent : exigé à true (NAR-178), vérifié après le rôle pour un refus précis.
+  properties: { firstName: { type: 'string', maxLength: 200 }, avatarColor: { type: 'string', enum: AVATAR_COLORS }, parentalConsent: { type: 'boolean' } }
 }
 const UPDATE = {
   type: 'object',
   additionalProperties: false,
   minProperties: 1,
-  properties: CREATE.properties
+  properties: { firstName: CREATE.properties.firstName, avatarColor: CREATE.properties.avatarColor }
 }
 // Corps du code parent : la forme exacte est vérifiée ensuite, pour un refus précis.
 const PARENT_CODE = {
@@ -75,6 +76,8 @@ export default async function childrenRoutes(app) {
     const name = firstName(req.body.firstName)
     const row = await withTransaction(db, async (conn) => {
       const own = await lockOwnFamily(conn, req, MANAGERS)
+      // Autorité parentale et journalisation acceptées (NAR-178) : date et auteur gardés.
+      if (req.body.parentalConsent !== true) throw new HttpError(400, 'Confirmez votre autorité parentale sur cet enfant.', 'consent_required')
       // Plafond sous verrou : deux ajouts simultanés ne le dépassent pas.
       await conn.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`children:${own.familyId}`])
       const { rows: used } = await conn.query('SELECT avatar_color FROM children WHERE family_id = $1', [own.familyId])
@@ -82,8 +85,8 @@ export default async function childrenRoutes(app) {
       const id = randomUUID()
       const color = req.body.avatarColor ?? leastUsedColor(used.map((r) => r.avatar_color))
       const { rows: [created] } = await conn.query(
-        `INSERT INTO children(id, family_id, first_name_enc, avatar_color) VALUES ($1, $2, $3, $4)
-         RETURNING ${COLUMNS}`, [id, own.familyId, seal(id, name), color])
+        `INSERT INTO children(id, family_id, first_name_enc, avatar_color, consent_at, consent_by) VALUES ($1, $2, $3, $4, now(), $5)
+         RETURNING ${COLUMNS}`, [id, own.familyId, seal(id, name), color, req.user.id])
       await audit(conn, req, 'child_added', id)
       return created
     })

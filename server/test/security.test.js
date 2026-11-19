@@ -60,19 +60,19 @@ test('administration : liste des comptes et journal pour un admin avec MFA', asy
 })
 
 test('inscription : mot de passe faible refusé, aucune énumération des comptes', async () => {
-  const weak = await call(ctx.app, 'POST', '/api/auth/register', { body: { name: 'A', email: 'faible@exemple.fr', password: 'court' } })
+  const weak = await call(ctx.app, 'POST', '/api/auth/register', { body: { consent: true, name: 'A', email: 'faible@exemple.fr', password: 'court' } })
   assert.equal(weak.statusCode, 400)
   const u = await newUser(ctx)
-  const again = await call(ctx.app, 'POST', '/api/auth/register', { body: { name: 'Autre', email: u.email, password: 'un autre mot de passe long' } })
+  const again = await call(ctx.app, 'POST', '/api/auth/register', { body: { consent: true, name: 'Autre', email: u.email, password: 'un autre mot de passe long' } })
   assert.equal(again.statusCode, 202)
   assert.match(ctx.sent.at(-1).subject, /déjà un compte/)
-  const fresh = await call(ctx.app, 'POST', '/api/auth/register', { body: { name: 'N', email: `neuf${process.pid}@exemple.fr`, password: 'un mot de passe très long' } })
+  const fresh = await call(ctx.app, 'POST', '/api/auth/register', { body: { consent: true, name: 'N', email: `neuf${process.pid}@exemple.fr`, password: 'un mot de passe très long' } })
   assert.equal(JSON.stringify(again.json()), JSON.stringify(fresh.json()), 'réponse identique')
 })
 
 test('connexion : confirmation exigée, cookie HttpOnly SameSite=Strict, erreurs identiques', async () => {
   const email = `attente${process.pid}@exemple.fr`, password = 'mot de passe pas encore confirmé'
-  await call(ctx.app, 'POST', '/api/auth/register', { body: { name: 'Attente', email, password } })
+  await call(ctx.app, 'POST', '/api/auth/register', { body: { consent: true, name: 'Attente', email, password } })
   assert.equal((await call(ctx.app, 'POST', '/api/auth/login', { body: { email, password } })).statusCode, 403)
   await call(ctx.app, 'POST', '/api/auth/confirm', { body: { token: tokenIn(ctx.sent.findLast((m) => m.to === email), 'confirm') } })
   const ok = await call(ctx.app, 'POST', '/api/auth/login', { body: { email, password } })

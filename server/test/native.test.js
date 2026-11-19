@@ -66,7 +66,7 @@ test('un transport ne remplace pas l’autre', async () => {
 
 test('depuis l’app : inscription et mot de passe oublié sans en-tête web, cookie jamais lu', async () => {
   const email = `app${process.pid}@exemple.fr`
-  const reg = await native(ctx.app, 'POST', '/api/auth/register', { body: { name: 'App', email, password: 'phrase de passe assez longue' } })
+  const reg = await native(ctx.app, 'POST', '/api/auth/register', { body: { consent: true, name: 'App', email, password: 'phrase de passe assez longue' } })
   assert.equal(reg.statusCode, 202, reg.body)
   assert.equal((await native(ctx.app, 'POST', '/api/auth/forgot-password', { body: { email } })).statusCode, 202)
   // Un cookie de session envoyé avec l'origine native est ignoré.

@@ -25,7 +25,7 @@ async function join(owner, role) {
   return guest
 }
 async function pairedChild(owner, firstName) {
-  const kid = (await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { firstName } })).json()
+  const kid = (await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { parentalConsent: true, firstName } })).json()
   const qr = await call(ctx.app, 'POST', `/api/children/${kid.id}/pairing`, { cookie: owner.cookie })
   const res = await native(ctx.app, 'POST', '/api/device/pair', { body: { token: qr.json().provisioning[BUNDLE]['akaiky.pairing'], model: 'Pixel 3a', osVersion: '14', appVersion: '1.0' } })
   assert.equal(res.statusCode, 201, res.body)
@@ -93,7 +93,7 @@ test('droits et validation : contact 403 quoi qu’il envoie, autre famille 404,
   const owner = await newUser(ctx)
   await family(owner)
   const member = await join(owner, 'member')
-  const kid = (await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { firstName: 'Fy' } })).json()
+  const kid = (await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { parentalConsent: true, firstName: 'Fy' } })).json()
   for (const body of [SCHOOL, {}, { ...SCHOOL, days: 0 }]) assert.equal((await create(member, kid.id, body)).statusCode, 403)
   const s = (await create(owner, kid.id, SCHOOL)).json()
   assert.equal((await update(member, kid.id, s.id, { ...SCHOOL, enabled: true })).statusCode, 403)
@@ -101,7 +101,7 @@ test('droits et validation : contact 403 quoi qu’il envoie, autre famille 404,
 
   const stranger = await newUser(ctx)
   await family(stranger)
-  const theirs = (await call(ctx.app, 'POST', '/api/children', { cookie: stranger.cookie, body: { firstName: 'Hery' } })).json()
+  const theirs = (await call(ctx.app, 'POST', '/api/children', { cookie: stranger.cookie, body: { parentalConsent: true, firstName: 'Hery' } })).json()
   assert.equal((await list(stranger, kid.id)).statusCode, 404)
   assert.equal((await create(stranger, kid.id, SCHOOL)).statusCode, 404)
   assert.equal((await update(stranger, kid.id, s.id, { ...SCHOOL, enabled: true })).statusCode, 404)

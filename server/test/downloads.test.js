@@ -57,7 +57,7 @@ test('QR vers ce serveur sans l’APK attendu (absent ou autre certificat) : 503
   const pairingStatus = async (ctx) => {
     const owner = await newUser(ctx)
     await call(ctx.app, 'POST', '/api/families', { cookie: owner.cookie, body: { name: 'F' } })
-    const kid = (await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { firstName: 'Fy' } })).json()
+    const kid = (await call(ctx.app, 'POST', '/api/children', { cookie: owner.cookie, body: { parentalConsent: true, firstName: 'Fy' } })).json()
     return (await call(ctx.app, 'POST', `/api/children/${kid.id}/pairing`, { cookie: owner.cookie })).statusCode
   }
   const apps = []

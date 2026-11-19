@@ -71,7 +71,7 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     assert.equal((await call(app, 'PATCH', `/api/families/me/members/${guest.id}`, { cookie: user.cookie, body: { role: 'manager' } })).statusCode, 200)
     assert.equal((await call(app, 'DELETE', `/api/families/me/members/${guest.id}`, { cookie: guest.cookie })).statusCode, 200)
     // Enfants sous le rôle restreint (GRANT de 005_children.sql).
-    const child = await call(app, 'POST', '/api/children', { cookie: user.cookie, body: { firstName: 'Fy' } })
+    const child = await call(app, 'POST', '/api/children', { cookie: user.cookie, body: { parentalConsent: true, firstName: 'Fy' } })
     assert.equal(child.statusCode, 201, child.body)
     assert.equal((await call(app, 'PATCH', `/api/children/${child.json().id}`, { cookie: user.cookie, body: { firstName: 'Fyfy' } })).statusCode, 200)
     // Code parent (009_parent_code.sql) : écrit, et config_version avance sans droit sur elle.
@@ -82,7 +82,7 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     assert.equal((await call(app, 'DELETE', `/api/children/${child.json().id}`, { cookie: user.cookie })).statusCode, 200)
     await assert.rejects(pool.query('UPDATE children SET family_id = family_id'), /permission denied/)
     // Contacts autorisés sous le rôle restreint (GRANT de 006_allowed_contacts.sql).
-    const kid = (await call(app, 'POST', '/api/children', { cookie: user.cookie, body: { firstName: 'Tiana' } })).json()
+    const kid = (await call(app, 'POST', '/api/children', { cookie: user.cookie, body: { parentalConsent: true, firstName: 'Tiana' } })).json()
     const contact = await call(app, 'POST', `/api/children/${kid.id}/contacts`, { cookie: user.cookie, body: { name: 'Maman', phone: '034 12 345 67' } })
     assert.equal(contact.statusCode, 201, contact.body)
     assert.equal((await call(app, 'PATCH', `/api/contacts/${contact.json().id}`, { cookie: user.cookie, body: { name: 'Mama' } })).statusCode, 200)

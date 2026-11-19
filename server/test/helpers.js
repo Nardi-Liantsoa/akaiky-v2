@@ -74,7 +74,7 @@ let n = 0
 export async function newUser(ctx, { admin = false } = {}) {
   const email = `user${++n}.${process.pid}@exemple.fr`
   const password = 'cheval batterie agrafe correcte'
-  const r = await call(ctx.app, 'POST', '/api/auth/register', { body: { name: `Utilisateur ${n}`, email, password } })
+  const r = await call(ctx.app, 'POST', '/api/auth/register', { body: { consent: true, name: `Utilisateur ${n}`, email, password } })
   if (r.statusCode !== 202) throw new Error(r.body)
   const mail = ctx.sent.findLast((m) => m.to === email)
   await call(ctx.app, 'POST', '/api/auth/confirm', { body: { token: tokenIn(mail, 'confirm') } })

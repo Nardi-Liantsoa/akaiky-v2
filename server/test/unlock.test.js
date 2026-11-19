@@ -10,7 +10,7 @@ after(async () => { await ctx.close(); dbh.stop() })
 
 const BUNDLE = 'android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE'
 const family = (u) => call(ctx.app, 'POST', '/api/families', { cookie: u.cookie, body: { name: 'Famille' } })
-const child = async (u, firstName = 'Fy') => (await call(ctx.app, 'POST', '/api/children', { cookie: u.cookie, body: { firstName } })).json()
+const child = async (u, firstName = 'Fy') => (await call(ctx.app, 'POST', '/api/children', { cookie: u.cookie, body: { parentalConsent: true, firstName } })).json()
 const setCode = (u, id) => call(ctx.app, 'PUT', `/api/children/${id}/parent-code`, { cookie: u.cookie, body: { code: '482915' } })
 const unlock = (u, id) => call(ctx.app, 'POST', `/api/children/${id}/unlock`, { cookie: u.cookie })
 const config = (device, etag) => native(ctx.app, 'GET', '/api/device/config', { token: device.accessToken, headers: etag ? { 'if-none-match': etag } : {} })

@@ -7,7 +7,7 @@ before(async () => { dbh = await startDb(); ctx = await startApp(dbh.url, { API_
 after(async () => { await ctx.close(); dbh.stop() })
 
 const family = async (u, name = 'Famille') => (await call(ctx.app, 'POST', '/api/families', { cookie: u.cookie, body: { name } })).json()
-const child = async (u, firstName = 'Fy') => (await call(ctx.app, 'POST', '/api/children', { cookie: u.cookie, body: { firstName } })).json()
+const child = async (u, firstName = 'Fy') => (await call(ctx.app, 'POST', '/api/children', { cookie: u.cookie, body: { parentalConsent: true, firstName } })).json()
 const list = (u, childId) => call(ctx.app, 'GET', `/api/children/${childId}/contacts`, { cookie: u.cookie })
 const add = (u, childId, name, phone, extra = {}) => call(ctx.app, 'POST', `/api/children/${childId}/contacts`, { cookie: u.cookie, body: { name, phone, ...extra } })
 const patch = (u, id, body) => call(ctx.app, 'PATCH', `/api/contacts/${id}`, { cookie: u.cookie, body })
