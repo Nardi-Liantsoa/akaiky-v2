@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import PasswordInput from '../PasswordInput.vue'
 import { useT } from '../../composables/useT'
+import AppButton from '../ui/AppButton.vue'
 
 // Carte de suppression définitive : bouton, puis confirmation en place avec le
 // mot de passe du compte. Le parent fait l'appel et renvoie l'erreur à afficher.
@@ -26,7 +27,7 @@ function submit() {
   <section class="card danger-zone" :aria-labelledby="`${id}-title`">
     <h2 :id="`${id}-title`">{{ title }}</h2>
     <p class="lead">{{ lead }}</p>
-    <button v-if="!open" class="btn btn-danger" type="button" @click="open = true">{{ action }}</button>
+    <AppButton v-if="!open" variant="danger" @click="open = true">{{ action }}</AppButton>
     <form v-else @submit.prevent="submit">
       <ul v-if="items?.length" class="items">
         <li v-for="item in items" :key="item">{{ item }}</li>
@@ -39,8 +40,8 @@ function submit() {
         <PasswordInput :id="`${id}-password`" v-model="password" autocomplete="current-password" />
       </div>
       <div class="actions">
-        <button class="btn btn-danger" type="submit" :disabled="busy || !password">{{ confirm }}</button>
-        <button class="btn btn-ghost" type="button" :disabled="busy" @click="cancel">{{ t.deletion.cancel }}</button>
+        <AppButton variant="danger" type="submit" :disabled="busy || !password">{{ confirm }}</AppButton>
+        <AppButton variant="ghost" :disabled="busy" @click="cancel">{{ t.deletion.cancel }}</AppButton>
       </div>
     </form>
   </section>
@@ -52,7 +53,6 @@ function submit() {
 }
 h2 {
   margin: 0 0 8px;
-  font-size: 1.15rem;
   color: var(--danger);
 }
 .lead,
@@ -71,13 +71,5 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-.btn-danger {
-  background: var(--danger);
-  color: var(--on-color);
-}
-.btn:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
 }
 </style>

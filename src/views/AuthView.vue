@@ -12,6 +12,7 @@ import { takeNotice } from '../store/notice'
 import PasswordInput from '../components/PasswordInput.vue'
 import ConsentCheckbox from '../components/account/ConsentCheckbox.vue'
 import MfaQr from '../components/MfaQr.vue'
+import AppButton from '../components/ui/AppButton.vue'
 
 type Mode = 'login' | 'register' | 'forgot' | 'reset' | 'confirm' | 'sent' | 'mfa' | 'enroll' | 'recovery'
 
@@ -199,7 +200,7 @@ onMounted(async () => {
     <p v-if="shownNotice" class="notice" role="status">{{ shownNotice }}</p>
     <div v-if="auth.offline" class="notice" role="status">
       {{ auth.offline === 'network' ? t.errors.network : t.errors.busy }}
-      <button type="button" class="link" :disabled="busy" @click="retryOffline">{{ t.errors.retry }}</button>
+      <AppButton variant="link" :disabled="busy" @click="retryOffline">{{ t.errors.retry }}</AppButton>
     </div>
 
     <form v-if="mode === 'login'" class="card" @submit.prevent="submitLogin">
@@ -214,10 +215,10 @@ onMounted(async () => {
         <PasswordInput id="password" v-model="password" autocomplete="current-password" />
       </div>
       <label v-if="!native" class="check"><input v-model="remember" type="checkbox" /> {{ t.auth.rememberDevice }}</label>
-      <button class="btn" type="submit" :disabled="busy">{{ busy ? t.auth.wait : t.auth.submitLogin }}</button>
+      <AppButton block type="submit" :disabled="busy">{{ busy ? t.auth.wait : t.auth.submitLogin }}</AppButton>
       <p class="links">
-        <button type="button" class="link" @click="go('forgot')">{{ t.auth.toForgot }}</button>
-        <button type="button" class="link" @click="go('register')">{{ t.auth.toRegister }}</button>
+        <AppButton variant="link" @click="go('forgot')">{{ t.auth.toForgot }}</AppButton>
+        <AppButton variant="link" @click="go('register')">{{ t.auth.toRegister }}</AppButton>
       </p>
     </form>
 
@@ -238,16 +239,16 @@ onMounted(async () => {
         <small>{{ t.auth.passwordHint }}</small>
       </div>
       <ConsentCheckbox id="signup-consent" v-model="consent" :label="t.consent.signup" v-model:error="consentError" />
-      <button class="btn" type="submit" :disabled="busy">{{ busy ? t.auth.wait : t.auth.submitRegister }}</button>
-      <p class="links"><button type="button" class="link" @click="go('login')">{{ t.auth.toLogin }}</button></p>
+      <AppButton block type="submit" :disabled="busy">{{ busy ? t.auth.wait : t.auth.submitRegister }}</AppButton>
+      <p class="links"><AppButton variant="link" @click="go('login')">{{ t.auth.toLogin }}</AppButton></p>
     </form>
 
     <div v-else-if="mode === 'sent'" class="card">
       <h1>{{ t.auth.confirmTitle }}</h1>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <p>{{ t.auth.checkMail(email) }}</p>
-      <button class="btn btn-ghost" type="button" :disabled="busy" @click="resend">{{ t.auth.resend }}</button>
-      <p class="links"><button type="button" class="link" @click="go('login')">{{ t.auth.toLogin }}</button></p>
+      <AppButton block variant="ghost" :disabled="busy" @click="resend">{{ t.auth.resend }}</AppButton>
+      <p class="links"><AppButton variant="link" @click="go('login')">{{ t.auth.toLogin }}</AppButton></p>
     </div>
 
     <form v-else-if="mode === 'forgot'" class="card" @submit.prevent="submitForgot">
@@ -257,8 +258,8 @@ onMounted(async () => {
         <label for="email">{{ t.auth.email }}</label>
         <input id="email" v-model="email" class="input" type="email" autocomplete="email" required />
       </div>
-      <button class="btn" type="submit" :disabled="busy">{{ busy ? t.auth.wait : t.auth.submitForgot }}</button>
-      <p class="links"><button type="button" class="link" @click="go('login')">{{ t.auth.toLogin }}</button></p>
+      <AppButton block type="submit" :disabled="busy">{{ busy ? t.auth.wait : t.auth.submitForgot }}</AppButton>
+      <p class="links"><AppButton variant="link" @click="go('login')">{{ t.auth.toLogin }}</AppButton></p>
     </form>
 
     <form v-else-if="mode === 'reset'" class="card" @submit.prevent="submitReset">
@@ -269,14 +270,14 @@ onMounted(async () => {
         <PasswordInput id="password" v-model="password" autocomplete="new-password" />
         <small>{{ t.auth.passwordHint }}</small>
       </div>
-      <button class="btn" type="submit" :disabled="busy">{{ busy ? t.auth.wait : t.auth.submitReset }}</button>
+      <AppButton block type="submit" :disabled="busy">{{ busy ? t.auth.wait : t.auth.submitReset }}</AppButton>
     </form>
 
     <div v-else-if="mode === 'confirm'" class="card">
       <h1>{{ t.auth.confirmTitle }}</h1>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <!-- Un clic, pas un simple chargement : les antivirus de messagerie ouvrent les liens. -->
-      <button class="btn" type="button" :disabled="busy" @click="submitConfirm">{{ t.auth.confirmButton }}</button>
+      <AppButton block :disabled="busy" @click="submitConfirm">{{ t.auth.confirmButton }}</AppButton>
     </div>
 
     <form v-else-if="mode === 'enroll' && !enrollment" class="card" @submit.prevent="submitInvitation">
@@ -287,8 +288,8 @@ onMounted(async () => {
         <label for="invitation">{{ t.mfa.invitation }}</label>
         <input id="invitation" v-model="invitation" class="input" autocomplete="off" required />
       </div>
-      <button class="btn" type="submit" :disabled="busy">{{ t.mfa.continue }}</button>
-      <p class="links"><button type="button" class="link" @click="cancelMfa">{{ t.mfa.cancel }}</button></p>
+      <AppButton block type="submit" :disabled="busy">{{ t.mfa.continue }}</AppButton>
+      <p class="links"><AppButton variant="link" @click="cancelMfa">{{ t.mfa.cancel }}</AppButton></p>
     </form>
 
     <form v-else-if="mode === 'mfa' || mode === 'enroll'" class="card" @submit.prevent="submitCode">
@@ -303,15 +304,15 @@ onMounted(async () => {
         <label for="code">{{ t.mfa.codeLabel }}</label>
         <input id="code" v-model="code" class="input" autocomplete="one-time-code" inputmode="text" required />
       </div>
-      <button class="btn" type="submit" :disabled="busy">{{ t.mfa.verify }}</button>
-      <p class="links"><button type="button" class="link" @click="cancelMfa">{{ t.mfa.cancel }}</button></p>
+      <AppButton block type="submit" :disabled="busy">{{ t.mfa.verify }}</AppButton>
+      <p class="links"><AppButton variant="link" @click="cancelMfa">{{ t.mfa.cancel }}</AppButton></p>
     </form>
 
     <div v-else-if="mode === 'recovery'" class="card">
       <h1>{{ t.mfa.recoveryTitle }}</h1>
       <p>{{ t.mfa.recoveryLead }}</p>
       <ul class="codes"><li v-for="c in recoveryCodes" :key="c">{{ c }}</li></ul>
-      <button class="btn" type="button" @click="finish">{{ t.mfa.recoverySaved }}</button>
+      <AppButton block @click="finish">{{ t.mfa.recoverySaved }}</AppButton>
     </div>
   </main>
 </template>
@@ -322,9 +323,6 @@ onMounted(async () => {
 }
 h1 {
   font-size: 1.6rem;
-}
-.btn {
-  width: 100%;
 }
 .check {
   display: flex;
@@ -339,19 +337,11 @@ small {
 }
 .links {
   display: flex;
+  font-size: var(--fs-small);
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px;
   margin: 14px 0 0;
-}
-.link {
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  font-size: 0.9rem;
-  color: var(--accent);
-  cursor: pointer;
 }
 .notice {
   padding: 11px 14px;

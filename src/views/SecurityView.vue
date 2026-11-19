@@ -10,6 +10,7 @@ import { useT, locale } from '../composables/useT'
 import { errorText } from '../lib/errors'
 import { exportFamily } from '../api/families'
 import { canManage, family, loadFamily } from '../store/family'
+import AppButton from '../components/ui/AppButton.vue'
 
 interface Device { id: string, label: string | null, last_used_at?: string, last_seen_at?: string, current: boolean }
 interface Security { devices: Device[], mfaEnabled: boolean, recoveryCodesRemaining: number }
@@ -121,7 +122,7 @@ onMounted(() => { load(); void loadFamily() })
           <p class="hint">{{ t.security.regenerateLead }}</p>
           <div class="row">
             <input v-model="code" class="input" autocomplete="one-time-code" :aria-label="t.mfa.codeLabel" required />
-            <button class="btn" type="submit" :disabled="busy">{{ t.security.regenerate }}</button>
+            <AppButton type="submit" :disabled="busy">{{ t.security.regenerate }}</AppButton>
           </div>
         </form>
         <template v-if="codes.length">
@@ -137,10 +138,10 @@ onMounted(() => { load(); void loadFamily() })
       <ul class="devices">
         <li v-for="d in state.devices" :key="d.id">
           <span>{{ d.label }}<em v-if="d.current"> · {{ t.security.current }}</em><br /><small>{{ t.security.lastUsed(date(d.last_used_at)) }}</small></span>
-          <button class="btn btn-ghost" type="button" :disabled="busy" @click="revokeDevice(d.id)">{{ t.security.revoke }}</button>
+          <AppButton variant="ghost" :disabled="busy" @click="revokeDevice(d.id)">{{ t.security.revoke }}</AppButton>
         </li>
       </ul>
-      <button v-if="state.devices.length > 1" class="btn btn-ghost" type="button" :disabled="busy" @click="revokeDevice('all')">{{ t.security.revokeAll }}</button>
+      <AppButton v-if="state.devices.length > 1" variant="ghost" :disabled="busy" @click="revokeDevice('all')">{{ t.security.revokeAll }}</AppButton>
     </section>
 
     <section v-if="state" class="card">
@@ -149,7 +150,7 @@ onMounted(() => { load(); void loadFamily() })
       <ul class="devices">
         <li v-for="d in apps" :key="d.id">
           <span>{{ d.label || '—' }}<em v-if="d.current"> · {{ t.security.current }}</em><br /><small>{{ t.security.lastUsed(date(d.last_seen_at)) }}</small></span>
-          <button class="btn btn-ghost" type="button" :disabled="busy" @click="revokeApp(d.id)">{{ t.security.revoke }}</button>
+          <AppButton variant="ghost" :disabled="busy" @click="revokeApp(d.id)">{{ t.security.revoke }}</AppButton>
         </li>
       </ul>
     </section>
@@ -161,7 +162,7 @@ onMounted(() => { load(); void loadFamily() })
         <p v-if="nativeApp" class="hint">{{ t.dataExport.nativeHint }}</p>
         <template v-else>
           <p v-if="exportError" class="error" role="alert">{{ exportError }}</p>
-          <button class="btn btn-ghost" type="button" :disabled="exporting" @click="downloadExport">{{ exporting ? t.dataExport.busy : t.dataExport.action }}</button>
+          <AppButton variant="ghost" :disabled="exporting" @click="downloadExport">{{ exporting ? t.dataExport.busy : t.dataExport.action }}</AppButton>
         </template>
       </template>
       <p v-else class="hint">{{ t.dataExport.memberHint }}</p>
@@ -187,7 +188,6 @@ onMounted(() => { load(); void loadFamily() })
 }
 h2 {
   margin: 0 0 8px;
-  font-size: 1.15rem;
 }
 .hint,
 small {

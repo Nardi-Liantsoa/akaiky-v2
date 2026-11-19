@@ -21,7 +21,4 @@ const t = useT()
   max-width: 60ch;
   margin: 0 0 24px;
 }
-.btn:hover {
-  text-decoration: none;
-}
 </style>

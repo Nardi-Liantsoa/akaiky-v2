@@ -130,8 +130,8 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
 }
 .more {
   flex: none;
-  width: 44px;
-  height: 44px;
+  width: var(--tap);
+  height: var(--tap);
   border: 1px solid var(--border-strong);
   border-radius: 50%;
   background: var(--surface);

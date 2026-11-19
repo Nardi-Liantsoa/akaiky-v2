@@ -3,6 +3,7 @@ import { RouterLink, RouterView, useRouter } from 'vue-router'
 import { auth, isAdmin, logout } from './store/auth'
 import { useT, locale, LOCALE_LIST } from './composables/useT'
 import { currentKind } from './lib/appKind'
+import AppButton from './components/ui/AppButton.vue'
 
 const t = useT()
 const router = useRouter()
@@ -23,7 +24,7 @@ async function onLogout() {
         <RouterLink :to="{ name: 'espace' }">{{ t.nav.space }}</RouterLink>
         <RouterLink :to="{ name: 'securite' }">{{ t.nav.security }}</RouterLink>
         <RouterLink v-if="isAdmin()" :to="{ name: 'admin' }">{{ t.nav.admin }}</RouterLink>
-        <button class="link" type="button" @click="onLogout">{{ t.nav.logout }}</button>
+        <AppButton variant="link" class="logout" @click="onLogout">{{ t.nav.logout }}</AppButton>
       </template>
       <RouterLink v-else :to="{ name: 'connexion' }">{{ t.nav.login }}</RouterLink>
       <select v-model="locale" class="lang" :aria-label="t.lang.label">
@@ -58,13 +59,9 @@ nav {
   gap: 8px 18px;
   font-size: 0.92rem;
 }
-.link {
-  background: none;
-  border: none;
-  padding: 0;
-  font: inherit;
-  color: var(--accent);
-  cursor: pointer;
+/* Zone tactile de 48 px sans grandir l'en-tête : la rangée garde la hauteur d'une ligne. */
+.logout {
+  margin-block: calc((1.5em - var(--tap)) / 2);
 }
 .lang {
   padding: 4px 8px;

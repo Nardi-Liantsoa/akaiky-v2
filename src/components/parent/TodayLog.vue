@@ -97,8 +97,6 @@ header {
 }
 h2 {
   margin: 0 0 4px;
-  font-size: 1.15rem;
-  font-weight: 800;
 }
 .all {
   color: var(--accent);

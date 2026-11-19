@@ -32,6 +32,7 @@ import { createApkUpdater } from '../../lib/apkUpdate'
 import { AkaikyUpdate } from '../../native/akaikyUpdate'
 import { formatClock } from '../../lib/format'
 import { activeWindow, safeTimeZone, visibleContacts } from '../../lib/schedule'
+import AppButton from '../../components/ui/AppButton.vue'
 
 // Écran de l'app enfant : échange du jeton reçu au provisionnement (NAR-164), puis
 // accueil (NAR-142, maquette écran 1) : heure, contacts à appeler en un appui, SOS.
@@ -552,14 +553,14 @@ const text = computed(() => {
     <section v-if="unlockedUntil !== undefined" class="unlocked" role="status">
       <p>{{ t.child.lock.unlockedUntil(formatClock(new Date(unlockedUntil))) }}</p>
       <div class="unlocked-actions">
-        <button class="btn btn-ghost" type="button" @click="openPhoneSettings">{{ t.child.lock.settings }}</button>
-        <button class="btn" type="button" @click="lockNow().catch(() => {})">{{ t.child.lock.relock }}</button>
+        <AppButton variant="ghost" @click="openPhoneSettings">{{ t.child.lock.settings }}</AppButton>
+        <AppButton @click="lockNow().catch(() => {})">{{ t.child.lock.relock }}</AppButton>
       </div>
     </section>
     <section v-if="askScreening" class="unlocked" role="status">
       <p v-if="incomingOff">{{ t.child.screening.off }}</p>
       <p v-if="outgoingOff">{{ t.child.screening.outgoingOff }}</p>
-      <button v-if="canEnableScreening" class="btn" type="button" @click="enableScreening">{{ t.child.screening.enable }}</button>
+      <AppButton v-if="canEnableScreening" @click="enableScreening">{{ t.child.screening.enable }}</AppButton>
     </section>
     <p v-if="sosFailed" class="call-error" role="alert">{{ t.child.sos.failed }}</p>
     <p v-else-if="sosInterrupted" class="call-error" role="alert">{{ t.child.sos.interrupted }}</p>
@@ -592,15 +593,15 @@ const text = computed(() => {
     <h1>Akaiky</h1>
     <p class="waiting" role="status">{{ text.title }}</p>
     <p v-if="text.hint" class="hint">{{ text.hint }}</p>
-    <button v-if="state.kind === 'offline' || state.kind === 'tooMany' || state.kind === 'failed'" class="btn retry" type="button" :disabled="busy" @click="start">{{ t.child.retry }}</button>
+    <AppButton v-if="state.kind === 'offline' || state.kind === 'tooMany' || state.kind === 'failed'" class="retry" :disabled="busy" @click="start">{{ t.child.retry }}</AppButton>
     <!-- Verrouillé sur un écran d'attente ou d'erreur : secours et sortie parent restent là. -->
     <template v-if="kiosk.status?.armed">
       <button class="emergency" type="button" @click="callEmergency">{{ t.child.emergency(emergency) }}</button>
       <button v-if="canUnlock" class="parent-code" type="button" @click="unlocking = true">{{ t.child.lock.open }}</button>
       <template v-if="unlockedUntil !== undefined">
         <p class="hint">{{ t.child.lock.unlockedUntil(formatClock(new Date(unlockedUntil))) }}</p>
-        <button v-if="canRelease" class="btn" type="button" @click="release">{{ t.child.lock.release }}</button>
-        <button class="btn btn-ghost" type="button" @click="lockNow().catch(() => {})">{{ t.child.lock.relock }}</button>
+        <AppButton v-if="canRelease" @click="release">{{ t.child.lock.release }}</AppButton>
+        <AppButton variant="ghost" @click="lockNow().catch(() => {})">{{ t.child.lock.relock }}</AppButton>
       </template>
       <UnlockPanel v-if="unlocking" :hash="parentHash" @close="unlocking = false" @unlocked="onUnlocked" />
     </template>
@@ -651,7 +652,7 @@ h1 {
   padding: 14px 18px;
   border-radius: 20px;
   background: var(--navy);
-  color: #fff;
+  color: var(--on-color);
   text-align: center;
   font-weight: 800;
 }

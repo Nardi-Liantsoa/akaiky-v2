@@ -32,7 +32,8 @@ const visible = ref(false)
   top: 50%;
   right: 8px;
   transform: translateY(-50%);
-  padding: 4px 8px;
+  min-height: var(--tap);
+  padding: 0 8px;
   border: none;
   background: none;
   color: var(--accent);

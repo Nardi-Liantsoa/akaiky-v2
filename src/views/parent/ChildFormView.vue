@@ -11,6 +11,7 @@ import { AVATAR_COLORS, type AvatarColor } from '../../lib/avatar'
 import { errorText } from '../../lib/errors'
 import { children, dropChild, loadChildren, selectChild, upsertChild } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
+import AppButton from '../../components/ui/AppButton.vue'
 
 const t = useT()
 const route = useRoute()
@@ -119,7 +120,7 @@ async function remove() {
     <p v-else-if="!allowed" class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
     <div v-else-if="id && children.status === 'error'" class="error" role="alert">
       <p>{{ t.children.loadError }}</p>
-      <button class="btn btn-ghost" type="button" @click="loadChildren(true)">{{ t.errors.retry }}</button>
+      <AppButton variant="ghost" @click="loadChildren(true)">{{ t.errors.retry }}</AppButton>
     </div>
     <p v-else-if="id && children.status !== 'ready'" class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
     <p v-else-if="id && !existing" class="error" role="alert">{{ t.children.notFound }}</p>
@@ -138,7 +139,7 @@ async function remove() {
       </fieldset>
       <ConsentCheckbox v-if="!id" id="child-consent" v-model="consent" :label="t.consent.child" v-model:error="consentError" />
       <div class="actions">
-        <button class="btn" type="submit" :disabled="busy || !valid">{{ t.children.save }}</button>
+        <AppButton type="submit" :disabled="busy || !valid">{{ t.children.save }}</AppButton>
         <RouterLink class="btn btn-ghost" :to="{ name: 'espace' }">{{ t.children.cancel }}</RouterLink>
       </div>
     </form>
@@ -149,15 +150,14 @@ async function remove() {
 
     <div v-if="existing && allowed" class="danger-zone">
       <p class="hint">{{ t.children.removeHint }}</p>
-      <button v-if="!confirming" class="btn btn-ghost" type="button" :disabled="busy" @click="confirming = true">{{ t.children.remove }}</button>
-      <button v-else class="btn danger" type="button" :disabled="busy" @click="remove">{{ t.children.confirmRemove }}</button>
+      <AppButton v-if="!confirming" variant="ghost" :disabled="busy" @click="confirming = true">{{ t.children.remove }}</AppButton>
+      <AppButton v-else variant="danger" :disabled="busy" @click="remove">{{ t.children.confirmRemove }}</AppButton>
     </div>
   </section>
 </template>
 
 <style scoped>
 h1 {
-  font-size: 2rem;
   margin: 8px 0 20px;
 }
 .colors {
@@ -215,9 +215,5 @@ h1 {
 .loading {
   min-height: 30vh;
   margin: 0;
-}
-.danger {
-  background: var(--danger);
-  color: var(--accent-ink);
 }
 </style>

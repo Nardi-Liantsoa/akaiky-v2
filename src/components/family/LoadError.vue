@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useT } from '../../composables/useT'
 import { errorText } from '../../lib/errors'
 import { family, loadFamily } from '../../store/family'
+import AppButton from '../ui/AppButton.vue'
 
 const t = useT()
 const detail = computed(() => errorText(family.error, t.value))
@@ -11,7 +12,7 @@ const detail = computed(() => errorText(family.error, t.value))
 <template>
   <div class="error" role="alert">
     <p>{{ t.family.loadError }} {{ detail }}</p>
-    <button class="btn btn-ghost" type="button" @click="loadFamily(true)">{{ t.errors.retry }}</button>
+    <AppButton variant="ghost" @click="loadFamily(true)">{{ t.errors.retry }}</AppButton>
   </div>
 </template>
 

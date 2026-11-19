@@ -6,6 +6,7 @@ import { errorText } from '../../lib/errors'
 import { QUICK_SLOTS, QUICK_TEXT_MAX, QUICK_TINT, textLength, type QuickSlot } from '../../lib/quickMessages'
 import { canManage } from '../../store/family'
 import QuickIcon from '../messages/QuickIcon.vue'
+import AppButton from '../ui/AppButton.vue'
 
 // Textes des 4 messages rapides d'un enfant (NAR-173). Un gestionnaire les modifie ; un
 // contact les voit. Un champ vide ou « Texte par défaut » remet le texte traduit.
@@ -85,7 +86,7 @@ function reset(slot: QuickSlot) {
     <p class="hint">{{ t.templates.hint }}</p>
     <div v-if="status === 'error'" class="error" role="alert">
       <p>{{ t.templates.loadError }} {{ error }}</p>
-      <button class="btn btn-ghost" type="button" @click="load(childId)">{{ t.errors.retry }}</button>
+      <AppButton variant="ghost" @click="load(childId)">{{ t.errors.retry }}</AppButton>
     </div>
     <form v-else :aria-busy="status === 'loading'" :class="{ refreshing: status === 'loading' }" @submit.prevent="save">
       <p v-if="error" class="error" role="alert">{{ error }}</p>
@@ -104,14 +105,14 @@ function reset(slot: QuickSlot) {
             </template>
             <p v-else :id="`template-${slot}`" class="readonly">{{ saved[slot] ?? defaultText(slot) }}</p>
           </div>
-          <button
-            v-if="canManage() && clean(draft[slot])" type="button" class="reset" :disabled="busy"
+          <AppButton
+            v-if="canManage() && clean(draft[slot])" variant="link" class="reset" :disabled="busy"
             @click="reset(slot)"
-          >{{ t.templates.reset }}</button>
+          >{{ t.templates.reset }}</AppButton>
         </li>
       </ul>
       <p v-if="done" class="saved" role="status">{{ t.templates.saved }}</p>
-      <button v-if="canManage()" class="btn" type="submit" :disabled="busy || !changed.length || invalid">{{ t.templates.save }}</button>
+      <AppButton v-if="canManage()" type="submit" :disabled="busy || !changed.length || invalid">{{ t.templates.save }}</AppButton>
     </form>
   </section>
 </template>
@@ -123,8 +124,6 @@ function reset(slot: QuickSlot) {
 }
 h2 {
   margin: 0;
-  font-size: 1.15rem;
-  font-weight: 800;
 }
 .hint {
   margin: 4px 0 12px;
@@ -169,20 +168,9 @@ h2 {
 .reset {
   flex: 1 0 100%;
   /* Aligné sous le champ : icône (48) + écart (12). */
+  justify-content: flex-start;
   margin-left: 60px;
-  padding: 4px 0;
-  border: 0;
-  background: none;
-  color: var(--accent);
-  font: inherit;
-  font-weight: 800;
-  text-align: left;
-  text-decoration: underline;
-  cursor: pointer;
-}
-.reset:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
+  padding: 0;
 }
 .field-error {
   margin: 4px 0 0;

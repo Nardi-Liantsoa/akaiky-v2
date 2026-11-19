@@ -64,7 +64,7 @@ const sim = (d: DeviceStatusInfo) => t.value.phoneState.sims[d.simState ?? 'unkn
   >
     <p v-if="status === 'error'" class="unavailable">{{ t.phoneState.loadError }}</p>
     <ul v-if="alerts.length" class="alerts">
-      <li v-for="a in alerts" :key="`${a.deviceId}-${a.kind}`" class="banner" :class="a.kind === 'battery_low' ? 'warn' : 'danger'" role="alert">
+      <li v-for="a in alerts" :key="`${a.deviceId}-${a.kind}`" class="banner" :class="a.kind === 'battery_low' ? 'warn' : 'alert'" role="alert">
         <strong>{{ t.phoneState.alerts[a.kind](name) }}</strong>
         <span class="since">{{ t.phoneState.since(ago(a.openedAt)) }}</span>
       </li>
@@ -121,7 +121,7 @@ const sim = (d: DeviceStatusInfo) => t.value.phoneState.sims[d.simState ?? 'unkn
   border-radius: var(--radius-sm);
   color: var(--ink);
 }
-.banner.danger {
+.banner.alert {
   background: color-mix(in srgb, var(--sos) 14%, var(--surface-card));
   box-shadow: inset 4px 0 0 var(--sos);
 }
