@@ -18,6 +18,7 @@ import { journalRoutes } from './routes/journal.js'
 import { schedulesRoutes } from './routes/schedules.js'
 import { devicesRoutes, deviceSessionRoutes } from './routes/devices.js'
 import { devicePushRoutes, pushRoutes } from './routes/push.js'
+import { childStatusRoutes, deviceStatusRoutes } from './routes/device-status.js'
 
 // Politique de contenu : tout vient de la même origine, aucun script en ligne,
 // aucun tiers (polices hébergées sur place).
@@ -320,6 +321,8 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   await app.register(deviceMessagesRoutes, { prefix: '/api/device' })
   await app.register(pushRoutes, { prefix: '/api' })
   await app.register(devicePushRoutes, { prefix: '/api/device' })
+  await app.register(childStatusRoutes, { prefix: '/api' })
+  await app.register(deviceStatusRoutes, { prefix: '/api/device' })
 
   // APK de l'app enfant (NAR-165) : lu une fois au démarrage, servi tel quel, sans
   // session (Android le télécharge pendant le provisionnement par QR). L'intégrité

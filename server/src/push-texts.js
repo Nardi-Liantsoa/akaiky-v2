@@ -13,6 +13,22 @@ const TEXTS = {
     fr: (n) => ({ title: `${n} a envoyé un message`, body: 'Ouvrez Akaiky pour le lire.' }),
     en: (n) => ({ title: `${n} sent a message`, body: 'Open Akaiky to read it.' })
   },
+  // État du téléphone (NAR-147) : `id` = l'enfant ; l'app ouvre son accueil.
+  battery_low: {
+    mg: (n) => ({ title: `Efa ho lany ny bateria-n’ny findain’i ${n}`, body: 'Sokafy ny Akaiky hijerena ny toetry ny findainy.' }),
+    fr: (n) => ({ title: `Batterie faible : téléphone de ${n}`, body: 'Ouvrez Akaiky pour voir son état.' }),
+    en: (n) => ({ title: `${n}’s phone battery is low`, body: 'Open Akaiky to check it.' })
+  },
+  sim_absent: {
+    mg: (n) => ({ title: `Tsy misy karatra SIM ny findain’i ${n}`, body: 'Sokafy ny Akaiky hijerena ny toetry ny findainy.' }),
+    fr: (n) => ({ title: `Carte SIM absente : téléphone de ${n}`, body: 'Ouvrez Akaiky pour voir son état.' }),
+    en: (n) => ({ title: `No SIM card in ${n}’s phone`, body: 'Open Akaiky to check it.' })
+  },
+  silent: {
+    mg: (n) => ({ title: `Tsy mamaly intsony ny findain’i ${n}`, body: 'Tsy nisy famantarana nandritra ny adiny iray mahery.' }),
+    fr: (n) => ({ title: `Le téléphone de ${n} ne répond plus`, body: 'Aucun signal depuis plus d’une heure.' }),
+    en: (n) => ({ title: `${n}’s phone is not responding`, body: 'No signal for more than an hour.' })
+  },
   test: {
     mg: () => ({ title: 'Fampandrenesana andrana', body: 'Mandeha amin’ity finday ity ny fampandrenesana.' }),
     fr: () => ({ title: 'Notification de test', body: 'Les notifications fonctionnent sur ce téléphone.' }),
@@ -21,6 +37,8 @@ const TEXTS = {
 }
 // Événements silencieux (réveil du téléphone de l'enfant) : aucune partie `notification`.
 const DATA_EVENTS = new Set(['config'])
+// Événements dont `ref` est l'enfant (prénom lu sur l'enfant, NAR-147).
+export const CHILD_EVENTS = new Set(['battery_low', 'sim_absent', 'silent'])
 export const EVENTS = new Set([...Object.keys(TEXTS), ...DATA_EVENTS])
 export const kindOf = (event) => DATA_EVENTS.has(event) ? 'data' : 'notification'
 

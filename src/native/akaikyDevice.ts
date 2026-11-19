@@ -12,7 +12,8 @@ export interface DeviceInfo {
   deviceOwner: boolean
 }
 
-export interface DeviceStatus { battery?: number, charging?: boolean, network: 'wifi' | 'cellular' | 'other' | 'none' }
+// simState : pas encore fourni par le natif (NAR-180) ; absent, le signal envoie 'unknown'.
+export interface DeviceStatus { battery?: number, charging?: boolean, network: 'wifi' | 'cellular' | 'other' | 'none', simState?: 'ready' | 'absent' | 'locked' | 'unknown' }
 
 export interface AkaikyDevicePlugin {
   getStatus(): Promise<DeviceStatus>

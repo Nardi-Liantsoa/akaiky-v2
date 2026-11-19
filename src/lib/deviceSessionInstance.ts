@@ -4,6 +4,7 @@ import { createConfigSync } from './deviceConfig'
 import { createUnlockGuard } from './unlockGuard'
 import { createMessageOutbox, type OutgoingMessage } from './messageOutbox'
 import { createCallJournal, type DeviceEvent } from './callJournal'
+import { createHeartbeat, type HeartbeatBody } from './heartbeat'
 import { uuidV4 } from './uuid'
 import { AkaikyCall } from '../native/akaikyCall'
 import { createDeviceSession, type SecretStore } from './deviceSession'
@@ -21,7 +22,9 @@ export const secureStore: SecretStore = {
 // Session perdue ou remplacée : la configuration gardée (contacts) est effacée.
 export const deviceSession = createDeviceSession({
   base: API_BASE, store: secureStore, fetch: (...args) => fetch(...args),
-  onReset: async () => { await configSync.clear(); await childIdentity.clear(); await callJournal.clear(); await messageOutbox.clear() }
+  // heartbeat.reset() d'abord, sans attendre : un signal parti pendant les effacements ne
+  // compterait pas pour la nouvelle session.
+  onReset: async () => { heartbeat.reset(); await configSync.clear(); await childIdentity.clear(); await callJournal.clear(); await messageOutbox.clear() }
 })
 export const configSync = createConfigSync({ session: deviceSession, store: secureStore })
 
@@ -102,5 +105,11 @@ export const messageOutbox = createMessageOutbox({
   store: secureStore,
   post: (m: OutgoingMessage) => deviceSession.post('/device/messages', m),
   uuid: uuidV4,
+  now: () => Date.now()
+})
+
+// Signal de vie (NAR-147) : batterie, réseau, carte SIM, au premier plan seulement.
+export const heartbeat = createHeartbeat({
+  post: (body: HeartbeatBody) => deviceSession.post('/device/heartbeat', body),
   now: () => Date.now()
 })

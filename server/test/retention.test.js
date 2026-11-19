@@ -124,7 +124,7 @@ test('tâche planifiée : lancée au démarrage, arrêtée proprement ; un éche
     }),
   })
   const slow = async () => { await new Promise((r) => setTimeout(r, 30)); purgeDone++; return { rows: [{ result: null }] } }
-  const stop = startJobs(fakeDb(slow), silent, { everyMs: 20 })
+  const stop = startJobs(fakeDb(slow), silent, { everyMs: 20, watch: false })
   await new Promise((r) => setTimeout(r, 75))
   await stop()
   assert.ok(purgeDone >= 2, `au démarrage puis à intervalle (${purgeDone})`)

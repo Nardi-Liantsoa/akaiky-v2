@@ -5,7 +5,7 @@ import { App } from '@capacitor/app'
 import { useT } from '../../composables/useT'
 import { appKind } from '../../lib/appKind'
 import { startChild, type ChildState } from '../../lib/childStartup'
-import { callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore, remoteUnlockSeen, messageOutbox } from '../../lib/deviceSessionInstance'
+import { callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore, remoteUnlockSeen, messageOutbox, heartbeat } from '../../lib/deviceSessionInstance'
 import { deviceConfig, pause, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
 import { emergencyNumber } from '../../lib/emergency'
 import { sosPlan } from '../../lib/sos'
@@ -115,11 +115,14 @@ async function pushAllowed() {
 // Contacts, pays ou plages changés : renvoyés au natif (filtre des appels entrants compris).
 watch(() => [deviceConfig.config?.contacts, deviceConfig.config?.country, deviceConfig.config?.schedules, deviceConfig.config?.timezone] as const, () => { void pushAllowed() }, { immediate: true })
 
-// Batterie et réseau, relus toutes les minutes tant que l'accueil est affiché.
+// Batterie et réseau, relus toutes les minutes tant que l'accueil est affiché. Signal de vie
+// envoyé au serveur (NAR-147) au premier relevé, puis toutes les 15 minutes, ou tout de suite
+// si la batterie passe sous 15 % ou si la carte SIM change (règle dans lib/heartbeat.ts).
 const status = ref<DeviceStatus | null>(null)
 let statusTimer: ReturnType<typeof setInterval> | undefined
 async function readStatus() {
   status.value = await AkaikyDevice.getStatus().catch(() => null)
+  if (state.value.kind === 'paired') void heartbeat.tick(status.value)
 }
 function stopStatus() { clearInterval(statusTimer); statusTimer = undefined }
 function startStatus() {

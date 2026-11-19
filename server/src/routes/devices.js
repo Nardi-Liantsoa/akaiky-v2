@@ -207,6 +207,8 @@ export async function devicesRoutes(app) {
       // Ses jetons push aussi : plus aucune notification vers ce téléphone (la ligne de
       // l'appareil reste, la cascade ne joue donc pas).
       await conn.query('DELETE FROM push_tokens WHERE device_id = $1', [device.id])
+      // Ses alertes ouvertes (NAR-147) se ferment : un téléphone retiré n'est plus suivi.
+      await conn.query('UPDATE device_alerts SET closed_at = now() WHERE device_id = $1 AND closed_at IS NULL', [device.id])
       await audit(conn, req, 'device_revoked', device.id)
     })
     return { ok: true }

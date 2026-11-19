@@ -20,7 +20,10 @@ export async function mockApi(page: Page, handlers: Record<string, Handler>) {
     const get = route.request().method() === 'GET'
     const fallback = get && url.pathname.endsWith('/message-templates')
       ? { body: [1, 2, 3, 4].map((slot) => ({ slot, text: null })) }
-      : get && url.pathname.endsWith('/schedules') ? { body: [] } : { status: 404, body: { error: 'Introuvable.' } }
+      : get && url.pathname.endsWith('/schedules') ? { body: [] }
+        // État du téléphone (NAR-147), sur l'accueil : aucun relevé par défaut.
+        : get && /^\/api\/children\/[^/]+\/status$/.test(url.pathname) ? { body: { devices: [] } }
+          : { status: 404, body: { error: 'Introuvable.' } }
     const res = handlers[key]?.(route.request()) ?? fallback
     return route.fulfill({ status: res.status ?? 200, contentType: 'application/json', body: JSON.stringify(res.body ?? {}) })
   })

@@ -88,6 +88,11 @@ test('export : toutes les données de la famille déchiffrées, seule l’adress
   const msgId = randomUUID()
   await native(ctx.app, 'POST', '/api/device/messages', { token: device.accessToken, body: { id: msgId, slot: 2, sentAt: new Date().toISOString() } })
   await call(ctx.app, 'POST', `/api/messages/${msgId}/read`, { cookie: member.cookie })
+  // État du téléphone (NAR-147) : un relevé, une alerte batterie fermée, une carte SIM absente.
+  const beat = (body) => native(ctx.app, 'POST', '/api/device/heartbeat', { token: device.accessToken, body })
+  assert.equal((await beat({ batteryPct: 10, charging: false, network: 'wifi', simState: 'ready' })).statusCode, 200)
+  assert.equal((await beat({ batteryPct: 30, charging: false, network: 'wifi', simState: 'ready' })).statusCode, 200)
+  assert.equal((await beat({ batteryPct: 42, charging: true, network: 'mobile', simState: 'absent' })).statusCode, 200)
 
   const res = await exportOf(manager)
   assert.equal(res.statusCode, 200, res.body)
@@ -119,6 +124,14 @@ test('export : toutes les données de la famille déchiffrées, seule l’adress
   assert.deepEqual(child.contacts.map((c) => [c.name, c.phone, c.position, c.linkedMember]), [['Maman', '+261341234567', 1, data.members.find((m) => m.isMe).name]])
   assert.deepEqual(child.devices.map((d) => [d.model, d.osVersion, d.appVersion, d.revokedAt]), [['Pixel 3a', '14', '1.0', null]])
   assert.ok(child.devices[0].pairedAt && child.devices[0].lastSeenAt)
+  assert.deepEqual(Object.keys(child.devices[0]).sort(),
+    ['appVersion', 'batteryPct', 'charging', 'lastSeenAt', 'model', 'network', 'osVersion', 'pairedAt', 'revokedAt', 'simState', 'statusAt'])
+  assert.deepEqual(child.devices.map((d) => [d.batteryPct, d.charging, d.network, d.simState]), [[42, true, 'mobile', 'absent']])
+  assert.ok(Math.abs(Date.parse(child.devices[0].statusAt) - Date.now()) < 60_000)
+  // Alertes : type et dates, champ par champ (ni téléphone, ni famille, ni enfant).
+  assert.deepEqual(child.deviceAlerts.map((a) => Object.keys(a).sort()), [['closedAt', 'kind', 'openedAt'], ['closedAt', 'kind', 'openedAt']])
+  assert.deepEqual(child.deviceAlerts.map((a) => [a.kind, a.closedAt === null]), [['battery_low', false], ['sim_absent', true]])
+  assert.ok(child.deviceAlerts.every((a) => a.openedAt))
   assert.deepEqual(child.schedules, [{ label: 'École', days: 31, startMin: 480, endMin: 720, enabled: true }])
   assert.deepEqual(child.messageTexts, { 2: 'Viens me chercher' })
   assert.equal(child.quickMessages.length, 1)
@@ -132,7 +145,7 @@ test('export : toutes les données de la famille déchiffrées, seule l’adress
 
   // Rien de secret : ni hachage, ni jeton, ni identifiant de compte, ni index aveugle.
   const raw = res.body
-  for (const id of [owner.id, manager.id, member.id, kid.id, maman.id, msgId]) assert.ok(!raw.includes(id), `identifiant ${id} absent`)
+  for (const id of [owner.id, manager.id, member.id, kid.id, maman.id, msgId, device.device.id]) assert.ok(!raw.includes(id), `identifiant ${id} absent`)
   for (const s of ['pbkdf2', 'password', 'hash', 'token', 'index', 'scrypt', '"ip"', 'secret', owner.email, member.email, pendingEmail]) assert.ok(!raw.includes(s), `${s} absent`)
   // La seule adresse du fichier est celle du demandeur.
   assert.deepEqual([...new Set(raw.match(/[\w.+-]+@[\w.-]+/g))], [manager.email])

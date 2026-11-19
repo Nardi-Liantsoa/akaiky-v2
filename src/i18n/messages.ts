@@ -216,6 +216,34 @@ const fr = {
     notFound: 'Cet enfant n’existe plus.',
     loadError: 'Impossible de charger les enfants.'
   },
+  // État du téléphone de l'enfant sur l'accueil parent (NAR-147, maquette écran 6).
+  phoneState: {
+    label: (name: string) => `État du téléphone de ${name}`,
+    battery: 'Batterie',
+    network: 'Réseau',
+    sim: 'Carte SIM',
+    percent: (n: number) => `${n} %`,
+    charging: 'en charge',
+    unknown: 'Inconnu',
+    networks: { wifi: 'Wi-Fi', mobile: 'Mobile', none: 'Aucun' },
+    sims: { ready: 'Présente', absent: 'Absente', locked: 'Verrouillée', unknown: 'Inconnue' },
+    seen: (when: string) => `Vu ${when}`,
+    noSignal: 'Pas encore de nouvelles du téléphone',
+    alerts: {
+      battery_low: (name: string) => `Batterie faible sur le téléphone de ${name}`,
+      sim_absent: (name: string) => `Carte SIM absente du téléphone de ${name}`,
+      silent: (name: string) => `Le téléphone de ${name} ne répond plus`
+    },
+    since: (when: string) => `Signalé ${when}`,
+    loadError: 'État du téléphone indisponible pour le moment.'
+  },
+  // Durées relatives (« il y a 2 minutes ») : repli quand Intl.RelativeTimeFormat manque.
+  relative: {
+    justNow: 'à l’instant',
+    minutes: (n: number) => `il y a ${n} minute${n > 1 ? 's' : ''}`,
+    hours: (n: number) => `il y a ${n} heure${n > 1 ? 's' : ''}`,
+    days: (n: number) => `il y a ${n} jour${n > 1 ? 's' : ''}`
+  },
   contacts: {
     phoneOf: (name: string) => `Téléphone de ${name}`,
     title: 'Contacts autorisés',
@@ -650,6 +678,33 @@ const mg: Messages = {
     notFound: 'Tsy misy intsony io zaza io.',
     loadError: 'Tsy azo nalaina ny lisitry ny ankizy.'
   },
+  phoneState: {
+    label: (name: string) => `Toetry ny findain’i ${name}`,
+    battery: 'Bateria',
+    network: 'Tambajotra',
+    sim: 'Karatra SIM',
+    percent: (n: number) => `${n} %`,
+    charging: 'am-pamenoana',
+    unknown: 'Tsy fantatra',
+    networks: { wifi: 'Wi-Fi', mobile: 'Finday', none: 'Tsy misy' },
+    sims: { ready: 'Misy', absent: 'Tsy misy', locked: 'Mihidy', unknown: 'Tsy fantatra' },
+    seen: (when: string) => `Hita ${when}`,
+    noSignal: 'Mbola tsy nisy vaovao avy amin’ny finday',
+    alerts: {
+      battery_low: (name: string) => `Efa ho lany ny bateria-n’ny findain’i ${name}`,
+      sim_absent: (name: string) => `Tsy misy karatra SIM ny findain’i ${name}`,
+      silent: (name: string) => `Tsy mamaly intsony ny findain’i ${name}`
+    },
+    since: (when: string) => `Voamarika ${when}`,
+    loadError: 'Tsy azo jerena amin’izao ny toetry ny finday.'
+  },
+  // Tsy manana fiteny malagasy ny Intl.RelativeTimeFormat : ireto no ampiasaina.
+  relative: {
+    justNow: 'vao izao',
+    minutes: (n: number) => `${n} minitra lasa izay`,
+    hours: (n: number) => `${n} ora lasa izay`,
+    days: (n: number) => `${n} andro lasa izay`
+  },
   contacts: {
     phoneOf: (name: string) => `Findain’i ${name}`,
     title: 'Mpifandray nahazo alalana',
@@ -1081,6 +1136,32 @@ const en: Messages = {
     tooMany: 'Maximum number of children reached.',
     notFound: 'This child no longer exists.',
     loadError: 'Could not load the children.'
+  },
+  phoneState: {
+    label: (name: string) => `${name}’s phone status`,
+    battery: 'Battery',
+    network: 'Network',
+    sim: 'SIM card',
+    percent: (n: number) => `${n}%`,
+    charging: 'charging',
+    unknown: 'Unknown',
+    networks: { wifi: 'Wi-Fi', mobile: 'Mobile', none: 'None' },
+    sims: { ready: 'Inserted', absent: 'Missing', locked: 'Locked', unknown: 'Unknown' },
+    seen: (when: string) => `Seen ${when}`,
+    noSignal: 'No news from the phone yet',
+    alerts: {
+      battery_low: (name: string) => `Low battery on ${name}’s phone`,
+      sim_absent: (name: string) => `No SIM card in ${name}’s phone`,
+      silent: (name: string) => `${name}’s phone is not responding`
+    },
+    since: (when: string) => `Reported ${when}`,
+    loadError: 'Phone status unavailable right now.'
+  },
+  relative: {
+    justNow: 'just now',
+    minutes: (n: number) => `${n} minute${n > 1 ? 's' : ''} ago`,
+    hours: (n: number) => `${n} hour${n > 1 ? 's' : ''} ago`,
+    days: (n: number) => `${n} day${n > 1 ? 's' : ''} ago`
   },
   contacts: {
     phoneOf: (name: string) => `${name}’s phone`,
