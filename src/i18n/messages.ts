@@ -442,7 +442,8 @@ const fr = {
     },
     screening: {
       off: 'Filtrage des appels inactif : n’importe quel numéro peut appeler ce téléphone.',
-      enable: 'Activer le filtrage des appels'
+      enable: 'Activer le filtrage des appels',
+      outgoingOff: 'Filtrage des appels sortants inactif : n’importe quel numéro peut être appelé depuis ce téléphone.'
     },
     lock: {
       open: 'Code parent',
@@ -963,7 +964,8 @@ const mg: Messages = {
     },
     screening: {
       off: 'Tsy mandeha ny sivana antso : afaka miantso ity finday ity ny laharana rehetra.',
-      enable: 'Hampandeha ny sivana antso'
+      enable: 'Hampandeha ny sivana antso',
+      outgoingOff: 'Tsy mandeha ny sivana antso mivoaka : azo antsoina avy amin’ity finday ity ny laharana rehetra.'
     },
     lock: {
       open: 'Kaody ray aman-dreny',
@@ -1481,7 +1483,8 @@ const en: Messages = {
     },
     screening: {
       off: 'Call filtering is off: any number can call this phone.',
-      enable: 'Turn on call filtering'
+      enable: 'Turn on call filtering',
+      outgoingOff: 'Outgoing call filtering is off: any number can be called from this phone.'
     },
     lock: {
       open: 'Parent code',

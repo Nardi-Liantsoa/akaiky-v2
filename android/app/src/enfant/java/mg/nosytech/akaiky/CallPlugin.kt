@@ -57,6 +57,8 @@ class CallPlugin : Plugin() {
             .apply { if (timezone != null) putString("timezone", timezone) else remove("timezone") }.apply()
         // Plages reçues (NAR-143) : liste du lock task relue, apps autorisées retirées si une
         // plage est déjà active, rendues sinon.
+        // Filtre des appels sortants d'Android 8–9 (NAR-169) : permission accordée d'office.
+        OutgoingCalls.grant(context)
         Kiosk.enforceOnMain(context, activity)
         call.resolve()
     }
@@ -93,8 +95,40 @@ class CallPlugin : Plugin() {
     @PluginMethod
     fun screeningRole(call: PluginCall) {
         val available = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-        val held = available && (context.getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_CALL_SCREENING) == true)
-        call.resolve(JSObject().put("available", available).put("held", held))
+        val roles = if (available) context.getSystemService(RoleManager::class.java) else null
+        val held = roles?.isRoleHeld(RoleManager.ROLE_CALL_SCREENING) == true
+        // Filtre des appels sortants (NAR-169) : rôle de redirection, même confirmation unique.
+        val redirectionAvailable = roles?.isRoleAvailable(RoleManager.ROLE_CALL_REDIRECTION) == true
+        val redirectionHeld = roles?.isRoleHeld(RoleManager.ROLE_CALL_REDIRECTION) == true
+        // outgoingActive : état réel du filtre des appels sortants (rôle détenu sur Android 10+,
+        // récepteur actif avec PROCESS_OUTGOING_CALLS accordée sur Android 8–9).
+        call.resolve(JSObject().put("available", available).put("held", held)
+            .put("redirectionAvailable", redirectionAvailable).put("redirectionHeld", redirectionHeld)
+            .put("outgoingActive", OutgoingCalls.filterActive(context)))
+    }
+
+    /** Rôle de redirection des appels (Android 10+, NAR-169) : demandé comme celui du filtrage. */
+    @PluginMethod
+    fun requestRedirectionRole(call: PluginCall) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            call.resolve(JSObject().put("held", false))
+            return
+        }
+        val roles = context.getSystemService(RoleManager::class.java)
+        if (roles == null || !roles.isRoleAvailable(RoleManager.ROLE_CALL_REDIRECTION)) {
+            call.resolve(JSObject().put("held", false))
+            return
+        }
+        if (roles.isRoleHeld(RoleManager.ROLE_CALL_REDIRECTION)) {
+            call.resolve(JSObject().put("held", true))
+            return
+        }
+        startActivityForResult(call, roles.createRequestRoleIntent(RoleManager.ROLE_CALL_REDIRECTION), "onRedirectionRole")
+    }
+
+    @ActivityCallback
+    private fun onRedirectionRole(call: PluginCall, result: ActivityResult) {
+        call.resolve(JSObject().put("held", OutgoingCalls.redirectionHeld(context)))
     }
 
     @PluginMethod
