@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { createSchedule, deleteSchedule, getSchedules, updateSchedule, type Schedule, type ScheduleInput } from '../../api/schedules'
+import { useConfirm } from '../../composables/useConfirm'
 import { useT } from '../../composables/useT'
 import { errorText } from '../../lib/errors'
 import { clock, daysSummary, fromTimeInput, toTimeInput } from '../../lib/schedule'
 import { canManage } from '../../store/family'
 import { contacts } from '../../store/contacts'
 import AppButton from '../ui/AppButton.vue'
+import ConfirmSheet from '../ui/ConfirmSheet.vue'
 import StatusBlock from '../ui/StatusBlock.vue'
 
 // Plages horaires « école » d'un enfant (NAR-148, maquette écran 8). Un gestionnaire les
@@ -45,8 +47,10 @@ async function load(childId: string) {
     status.value = 'error'
   }
 }
-// Autre enfant : formulaire refermé, liste rechargée.
-watch(() => props.childId, (id) => { close(); void load(id) }, { immediate: true })
+// Retrait confirmé par la feuille commune (NAR-184) : rien ne part avant « Confirmer ».
+const confirming = useConfirm<Schedule>()
+// Autre enfant : formulaire et confirmation refermés, liste rechargée.
+watch(() => props.childId, (id) => { close(); confirming.close(); void load(id) }, { immediate: true })
 
 function open(s?: Schedule) {
   editing.value = s?.id ?? 'new'
@@ -106,12 +110,17 @@ function toggle(s: Schedule) {
     if (childId === props.childId) items.value = items.value.map((x) => (x.id === saved.id ? saved : x))
   })
 }
-function remove(s: Schedule) {
+async function remove() {
+  const s = confirming.target.value
+  if (!s) return
   const childId = props.childId
-  void run(childId, async () => {
+  await run(childId, async () => {
     await deleteSchedule(childId, s.id)
     if (childId === props.childId) items.value = items.value.filter((x) => x.id !== s.id)
   })
+  // Erreur montrée dans la carte, feuille refermée (sauf si une autre a été ouverte
+  // entre-temps, pour un autre enfant).
+  if (confirming.target.value === s) confirming.close()
 }
 const summary = (s: Schedule) => t.value.schedules.summary(daysSummary(s.days, t.value.schedules.days, t.value.schedules.everyDay), clock(s.startMin), clock(s.endMin))
 const sorted = computed(() => [...items.value].sort((a, b) => a.startMin - b.startMin))
@@ -142,13 +151,18 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
             ><span class="knob" /></button>
             <div class="row-actions">
               <AppButton variant="link" :disabled="busy" @click="open(s)">{{ t.schedules.edit }}</AppButton>
-              <AppButton variant="danger-link" :disabled="busy" @click="remove(s)">{{ t.schedules.remove }}</AppButton>
+              <AppButton variant="danger-link" :disabled="busy" @click="confirming.ask(s, $event)">{{ t.schedules.remove }}</AppButton>
             </div>
           </template>
           <p v-else class="state">{{ s.enabled ? t.schedules.on : t.schedules.off }}</p>
         </li>
       </ul>
       <StatusBlock v-else-if="status === 'ready'" state="empty" :text="t.schedules.empty" />
+      <ConfirmSheet
+        v-if="confirming.target.value" id="schedule-remove" :title="t.schedules.removeTitle(confirming.target.value.label)"
+        :items="t.schedules.removeItems" :confirm="t.schedules.confirmRemove" :busy="busy" :opener="confirming.opener.value"
+        @close="confirming.close()" @confirm="remove"
+      />
 
       <form v-if="editing" class="form" @submit.prevent="save">
         <h3>{{ editing === 'new' ? t.schedules.add : t.schedules.editTitle }}</h3>

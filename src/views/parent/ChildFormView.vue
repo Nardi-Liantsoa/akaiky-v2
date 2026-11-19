@@ -6,12 +6,14 @@ import { ApiError } from '../../api/http'
 import LoadError from '../../components/family/LoadError.vue'
 import ChildAvatar from '../../components/parent/ChildAvatar.vue'
 import ConsentCheckbox from '../../components/account/ConsentCheckbox.vue'
+import { useConfirm } from '../../composables/useConfirm'
 import { useT } from '../../composables/useT'
 import { AVATAR_COLORS, type AvatarColor } from '../../lib/avatar'
 import { errorText } from '../../lib/errors'
 import { children, dropChild, loadChildren, selectChild, upsertChild } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
+import ConfirmSheet from '../../components/ui/ConfirmSheet.vue'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
 
 const t = useT()
@@ -24,7 +26,8 @@ const name = ref('')
 const color = ref<AvatarColor | null>(null)
 const busy = ref(false)
 const error = ref('')
-const confirming = ref(false)
+// Retrait confirmé par la feuille commune (NAR-184) : rien ne part avant « Confirmer ».
+const confirming = useConfirm<string>()
 // Ajout seulement (NAR-178) : autorité parentale et journalisation acceptées.
 const consent = ref(false)
 const consentError = ref('')
@@ -64,7 +67,7 @@ function reset() {
   filledFor = null
   name.value = ''
   color.value = null
-  confirming.value = false
+  confirming.close()
   error.value = ''
   consent.value = false
   consentError.value = ''
@@ -97,7 +100,7 @@ async function save() {
 }
 
 async function remove() {
-  const target = existing.value?.id
+  const target = confirming.target.value
   if (!target || busy.value) return
   busy.value = true
   error.value = ''
@@ -110,6 +113,8 @@ async function remove() {
     forgetIfGone(e, target)
   } finally {
     busy.value = false
+    // Erreur montrée sur la page (comme pour l'enregistrement), feuille refermée.
+    confirming.close()
   }
 }
 </script>
@@ -148,9 +153,13 @@ async function remove() {
 
     <div v-if="existing && allowed" class="danger-zone">
       <p class="hint">{{ t.children.removeHint }}</p>
-      <AppButton v-if="!confirming" variant="ghost" :disabled="busy" @click="confirming = true">{{ t.children.remove }}</AppButton>
-      <AppButton v-else variant="danger" :disabled="busy" @click="remove">{{ t.children.confirmRemove }}</AppButton>
+      <AppButton variant="ghost" :disabled="busy" @click="confirming.ask(existing.id, $event)">{{ t.children.remove }}</AppButton>
     </div>
+    <ConfirmSheet
+      v-if="existing && confirming.target.value === existing.id" id="child-remove" :title="t.children.removeTitle(existing.firstName)"
+      :items="t.children.removeItems" :confirm="t.children.confirmRemove" :busy="busy" :opener="confirming.opener.value"
+      @close="confirming.close()" @confirm="remove"
+    />
   </section>
 </template>
 

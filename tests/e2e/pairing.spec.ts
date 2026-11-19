@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { cancelEveryWay, confirmSheet } from './confirm'
 import { FAMILY, mockApi, USER } from './mock'
 
 const me = { 'GET /api/auth/me': () => ({ body: { user: USER } }), 'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }) }
@@ -9,7 +10,7 @@ const provisioning = {
   'android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE': { 'akaiky.pairing': 'x'.repeat(43), 'akaiky.api': 'https://akaiky.test' }
 }
 
-test('gestionnaire : QR 15 minutes, le téléphone apparaît, le QR disparaît, retrait en deux temps', async ({ page }) => {
+test('gestionnaire : QR 15 minutes, le téléphone apparaît, le QR disparaît, retrait confirmé par la feuille', async ({ page }) => {
   let phones: typeof PHONE[] = []
   const calls = await mockApi(page, {
     ...me,
@@ -36,9 +37,16 @@ test('gestionnaire : QR 15 minutes, le téléphone apparaît, le QR disparaît, 
   await expect(page.getByRole('img', { name: 'QR code de configuration du téléphone' })).toHaveCount(0)
   await expect(page.getByText('Pixel 3a')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Retirer' }).click()
-  await page.getByRole('button', { name: 'Confirmer le retrait' }).click()
+  const isRevoke = (r: import('@playwright/test').Request) => r.method() === 'POST' && r.url().endsWith('/revoke')
+  const remove = page.getByRole('button', { name: 'Retirer' })
+  await cancelEveryWay(page, remove, calls, isRevoke)
+  await expect(page.getByText('Pixel 3a')).toBeVisible()
+  await remove.click()
+  const sheet = confirmSheet(page, 'Retirer Pixel 3a ?')
+  await expect(sheet.getByRole('listitem').first()).toHaveText('le téléphone perd son accès tout de suite ;')
+  await sheet.getByRole('button', { name: 'Confirmer le retrait' }).click()
   await expect(page.getByText('Aucun téléphone appairé pour l’instant.')).toBeVisible()
+  await expect(confirmSheet(page)).toHaveCount(0)
   expect(calls.filter((r) => r.method() === 'POST' && r.url().endsWith('/revoke'))).toHaveLength(1)
 })
 

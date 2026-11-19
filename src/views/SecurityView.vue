@@ -169,7 +169,7 @@ onMounted(() => { load(); void loadFamily() })
     </section>
 
     <DeleteConfirm v-if="state" id="delete-account" :title="t.deletion.accountTitle" :lead="t.deletion.accountLead"
-      :action="t.deletion.accountAction" :confirm="t.deletion.accountConfirm" :busy="deleting" :error="deleteError"
+      :items="t.deletion.accountItems" :action="t.deletion.accountAction" :confirm="t.deletion.accountConfirm" :busy="deleting" :error="deleteError"
       @cancel="resetDelete" @confirm="removeAccount">
       <div v-if="mustTransfer" class="error" role="alert">
         <p>{{ t.deletion.ownerMustTransfer }}</p>

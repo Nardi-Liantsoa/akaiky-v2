@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { cancelEveryWay, confirmSheet } from './confirm'
 import { FAMILY, mockApi, USER } from './mock'
 
 const me = { 'GET /api/auth/me': () => ({ body: { user: USER } }) }
@@ -113,4 +114,43 @@ test('session révoquée découverte au chargement de la famille : connexion, pu
   await page.getByRole('button', { name: 'Se connecter' }).click()
   await expect(page).toHaveURL(/\/espace\/journal$/)
   await expect(page.getByRole('heading', { name: 'Journal' })).toBeVisible()
+})
+
+test('owner : retirer un membre passe par la feuille ; Annuler, Échap et fond ne retirent rien', async ({ page }) => {
+  const rivo = { userId: '6f1c2b1e-0000-4000-8000-000000000002', name: 'Rivo', role: 'member', isMe: false }
+  let members = [FAMILY.members[0], rivo]
+  const calls = await mockApi(page, {
+    ...me,
+    'GET /api/families/me': () => ({ body: { ...FAMILY, members } }),
+    'GET /api/families/me/invitations': () => ({ body: [] }),
+    [`DELETE /api/families/me/members/${rivo.userId}`]: () => { members = [members[0]]; return { body: { ok: true } } }
+  })
+  const isDelete = (r: import('@playwright/test').Request) => r.method() === 'DELETE'
+  await page.goto('/espace/famille')
+  const remove = page.getByRole('button', { name: 'Retirer', exact: true })
+  await cancelEveryWay(page, remove, calls, isDelete)
+  await expect(page.getByRole('listitem').filter({ hasText: 'Rivo' })).toHaveCount(1)
+
+  await remove.click()
+  const sheet = confirmSheet(page, 'Retirer Rivo de la famille ?')
+  await expect(sheet.getByRole('listitem')).toHaveText([/coupé tout de suite/, 'son compte est conservé.'])
+  expect(calls.filter(isDelete)).toHaveLength(0)
+  await sheet.getByRole('button', { name: 'Confirmer le retrait' }).click()
+  await expect(confirmSheet(page)).toHaveCount(0)
+  await expect(page.getByText('Rivo')).toHaveCount(0)
+  expect(calls.filter(isDelete)).toHaveLength(1)
+})
+
+test('quitter la famille : titre et conséquences propres au départ', async ({ page }) => {
+  const asMember = { ...FAMILY, role: 'member', members: [{ ...FAMILY.members[0], isMe: false, name: 'Hanta' }, { userId: USER.id, name: USER.name, role: 'member', isMe: true }] }
+  const calls = await mockApi(page, { ...me, 'GET /api/families/me': () => ({ body: asMember }) })
+  await page.goto('/espace/famille')
+  await page.getByRole('button', { name: 'Quitter la famille' }).click()
+  const sheet = confirmSheet(page, 'Quitter la famille ?')
+  await expect(sheet.getByRole('listitem').first()).toHaveText('vous n’aurez plus accès aux enfants de la famille ;')
+  await expect(sheet.getByRole('button', { name: 'Confirmer : quitter la famille' })).toBeEnabled()
+  await page.keyboard.press('Escape')
+  await expect(confirmSheet(page)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Quitter la famille' })).toBeFocused()
+  expect(calls.some((r) => r.method() === 'DELETE')).toBe(false)
 })

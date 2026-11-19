@@ -5,6 +5,7 @@ import { addContact, removeContact, updateContact, type ContactInput } from '../
 import { ApiError } from '../../api/http'
 import LoadError from '../../components/family/LoadError.vue'
 import ChildAvatar from '../../components/parent/ChildAvatar.vue'
+import { useConfirm } from '../../composables/useConfirm'
 import { useT } from '../../composables/useT'
 import { AVATAR_COLORS, type AvatarColor } from '../../lib/avatar'
 import { contactErrorText } from '../../lib/contactErrors'
@@ -13,6 +14,7 @@ import { children, loadChildren, selectChild } from '../../store/children'
 import { contacts, loadContacts } from '../../store/contacts'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
+import ConfirmSheet from '../../components/ui/ConfirmSheet.vue'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
 
 const t = useT()
@@ -28,7 +30,8 @@ const color = ref<AvatarColor | null>(null)
 const memberUserId = ref<string | null>(null)
 const busy = ref(false)
 const error = ref('')
-const confirming = ref(false)
+// Retrait confirmé par la feuille commune (NAR-184) : rien ne part avant « Confirmer ».
+const confirming = useConfirm<string>()
 
 const allowed = computed(() => family.status === 'ready' && canManage())
 const ready = computed(() => children.status === 'ready' && contacts.status === 'ready' && contacts.childId === childId.value)
@@ -52,7 +55,7 @@ const prefilled = () => {
   const q = route.query.phone
   return !id.value && isE164(q) ? q : ''
 }
-watch([childId, id], () => { filledFor = null; name.value = ''; phone.value = prefilled(); color.value = null; memberUserId.value = null; confirming.value = false; error.value = '' }, { immediate: true })
+watch([childId, id], () => { filledFor = null; name.value = ''; phone.value = prefilled(); color.value = null; memberUserId.value = null; confirming.close(); error.value = '' }, { immediate: true })
 watch(existing, (c) => {
   if (c && c.id !== filledFor) {
     filledFor = c.id
@@ -100,7 +103,7 @@ async function save() {
 }
 
 async function remove() {
-  const target = existing.value?.id
+  const target = confirming.target.value
   if (!target || busy.value) return
   busy.value = true
   error.value = ''
@@ -112,6 +115,8 @@ async function remove() {
     void loadContacts(childId.value, true)
   } finally {
     busy.value = false
+    // Erreur montrée sur la page (comme pour l'enregistrement), feuille refermée.
+    confirming.close()
   }
 }
 </script>
@@ -161,9 +166,13 @@ async function remove() {
         </div>
       </form>
       <div v-if="existing" class="danger-zone">
-        <AppButton v-if="!confirming" variant="ghost" :disabled="busy" @click="confirming = true">{{ t.contacts.remove }}</AppButton>
-        <AppButton v-else variant="danger" :disabled="busy" @click="remove">{{ t.contacts.confirmRemove }}</AppButton>
+        <AppButton variant="ghost" :disabled="busy" @click="confirming.ask(existing.id, $event)">{{ t.contacts.remove }}</AppButton>
       </div>
+      <ConfirmSheet
+        v-if="existing && confirming.target.value === existing.id" id="contact-remove" :title="t.contacts.removeTitle(existing.name)"
+        :items="t.contacts.removeItems" :confirm="t.contacts.confirmRemove" :busy="busy" :opener="confirming.opener.value"
+        @close="confirming.close()" @confirm="remove"
+      />
     </template>
   </section>
 </template>

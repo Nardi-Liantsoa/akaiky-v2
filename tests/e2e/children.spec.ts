@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { cancelEveryWay, confirmSheet } from './confirm'
 import { FAMILY, mockApi, USER } from './mock'
 
 type Kid = { id: string, firstName: string, avatarColor: string, createdAt: string, parentCodeSetAt: string | null, remoteUnlockUntil: string | null, phoneLastSeenAt: string | null, sosSiren: boolean }
@@ -64,10 +65,10 @@ test('owner sans enfant : ajouter deux enfants, cartes empilées, sélection gar
   await expect(cardButton(page, 'Tiana')).toHaveAttribute('aria-current', 'true')
 })
 
-test('renommer puis retirer un enfant par le menu « ⋯ » (retrait en deux temps)', async ({ page }) => {
+test('renommer puis retirer un enfant par le menu « ⋯ » (feuille de confirmation)', async ({ page }) => {
   const api = childrenApi([kid(1, 'Fy'), kid(2, 'Tiana', 'blue')])
   const fy = api.items()[0]
-  await mockApi(page, {
+  const calls = await mockApi(page, {
     ...me,
     'GET /api/families/me': () => ({ body: FAMILY }),
     ...api.handlers,
@@ -91,10 +92,19 @@ test('renommer puis retirer un enfant par le menu « ⋯ » (retrait en deux tem
 
   await page.getByRole('button', { name: 'Actions pour Fyfy' }).click()
   await page.getByRole('link', { name: 'Modifier' }).click()
-  await page.getByRole('button', { name: 'Retirer cet enfant' }).click()
-  await page.getByRole('button', { name: 'Confirmer : retirer cet enfant' }).click()
+  const isDelete = (r: import('@playwright/test').Request) => r.method() === 'DELETE'
+  // Annuler, Échap, fond : rien n'est retiré, le focus revient sur « Retirer cet enfant ».
+  const remove = page.getByRole('button', { name: 'Retirer cet enfant' })
+  await cancelEveryWay(page, remove, calls, isDelete)
+  await remove.click()
+  const sheet = confirmSheet(page, 'Retirer Fyfy ?')
+  await expect(sheet.getByRole('listitem')).toHaveText([/contacts autorisés/, /téléphones, aussitôt déconnectés/, /journal de ses appels/])
+  expect(calls.filter(isDelete)).toHaveLength(0)
+  await sheet.getByRole('button', { name: 'Confirmer : retirer cet enfant' }).click()
   await expect(page).toHaveURL(/\/espace$/)
   await expect(cardNames(page)).toHaveText(['Tiana'])
+  await expect(confirmSheet(page)).toHaveCount(0)
+  expect(calls.filter(isDelete)).toHaveLength(1)
 })
 
 test('contact : voit les enfants, ni ajout ni menu', async ({ page }) => {
