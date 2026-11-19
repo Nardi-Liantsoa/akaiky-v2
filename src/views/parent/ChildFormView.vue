@@ -12,6 +12,7 @@ import { errorText } from '../../lib/errors'
 import { children, dropChild, loadChildren, selectChild, upsertChild } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
+import StatusBlock from '../../components/ui/StatusBlock.vue'
 
 const t = useT()
 const route = useRoute()
@@ -117,12 +118,9 @@ async function remove() {
   <section>
     <h1>{{ !id ? t.children.addTitle : existing ? t.children.editTitle(existing.firstName) : t.children.edit }}</h1>
     <LoadError v-if="family.status === 'error'" />
-    <p v-else-if="!allowed" class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
-    <div v-else-if="id && children.status === 'error'" class="error" role="alert">
-      <p>{{ t.children.loadError }}</p>
-      <AppButton variant="ghost" @click="loadChildren(true)">{{ t.errors.retry }}</AppButton>
-    </div>
-    <p v-else-if="id && children.status !== 'ready'" class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
+    <StatusBlock v-else-if="allowed && id && children.status === 'error'" state="error" :text="t.children.loadError" @retry="loadChildren(true)" />
+    <!-- Un seul bloc pour la famille puis la liste des enfants : annoncé une fois. -->
+    <StatusBlock v-else-if="!allowed || (id && children.status !== 'ready')" state="loading" fill />
     <p v-else-if="id && !existing" class="error" role="alert">{{ t.children.notFound }}</p>
     <form v-else class="card" @submit.prevent="save">
       <p v-if="error" class="error" role="alert">{{ error }}</p>
@@ -211,9 +209,5 @@ h1 {
 }
 .hint {
   color: var(--text-soft);
-}
-.loading {
-  min-height: 30vh;
-  margin: 0;
 }
 </style>

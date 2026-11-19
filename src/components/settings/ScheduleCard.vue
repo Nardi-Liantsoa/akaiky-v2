@@ -7,6 +7,7 @@ import { clock, daysSummary, fromTimeInput, toTimeInput } from '../../lib/schedu
 import { canManage } from '../../store/family'
 import { contacts } from '../../store/contacts'
 import AppButton from '../ui/AppButton.vue'
+import StatusBlock from '../ui/StatusBlock.vue'
 
 // Plages horaires « école » d'un enfant (NAR-148, maquette écran 8). Un gestionnaire les
 // crée, modifie, active ou supprime ; un contact les voit. Le téléphone les applique seul.
@@ -124,10 +125,7 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
   <section id="plages" class="card schedules" tabindex="-1">
     <h2>{{ t.schedules.title }}</h2>
     <p class="hint">{{ t.schedules.hint }}</p>
-    <div v-if="status === 'error'" class="error" role="alert">
-      <p>{{ t.schedules.loadError }} {{ error }}</p>
-      <AppButton variant="ghost" @click="load(childId)">{{ t.errors.retry }}</AppButton>
-    </div>
+    <StatusBlock v-if="status === 'error'" state="error" :text="`${t.schedules.loadError} ${error}`" @retry="load(childId)" />
     <template v-else>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <p v-if="noParent" class="warning" role="status">{{ t.schedules.noParent }}</p>
@@ -150,7 +148,7 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
           <p v-else class="state">{{ s.enabled ? t.schedules.on : t.schedules.off }}</p>
         </li>
       </ul>
-      <p v-else-if="status === 'ready'" class="empty">{{ t.schedules.empty }}</p>
+      <StatusBlock v-else-if="status === 'ready'" state="empty" :text="t.schedules.empty" />
 
       <form v-if="editing" class="form" @submit.prevent="save">
         <h3>{{ editing === 'new' ? t.schedules.add : t.schedules.editTitle }}</h3>
@@ -291,10 +289,6 @@ h3 {
   border-radius: 14px;
   background: var(--tint-butter);
   font-weight: 700;
-}
-.empty {
-  margin: 0 0 12px;
-  color: var(--text-soft);
 }
 .form {
   margin-top: 8px;

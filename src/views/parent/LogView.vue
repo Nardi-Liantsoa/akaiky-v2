@@ -6,13 +6,13 @@ import LoadError from '../../components/family/LoadError.vue'
 import LogSummary from '../../components/log/LogSummary.vue'
 import LogItem from '../../components/log/LogItem.vue'
 import ChildSwitcher from '../../components/parent/ChildSwitcher.vue'
-import EmptyState from '../../components/parent/EmptyState.vue'
 import { locale, useT } from '../../composables/useT'
 import { formatLongDate } from '../../lib/format'
 import { groupByDay } from '../../lib/groupByDay'
 import { children, loadChildren, selectedChild } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
+import StatusBlock from '../../components/ui/StatusBlock.vue'
 
 // Journal de l'enfant (NAR-152, maquette écran 9) : appels, appels bloqués, déverrouillages
 // et messages, groupés par jour, filtrables, par pages. Messages affichés = vus.
@@ -27,6 +27,12 @@ const status = ref<'loading' | 'ready' | 'error'>('loading')
 const loadingMore = ref(false)
 const refreshing = ref(false)
 let generation = 0
+// Liste des enfants connue (famille et enfants chargés).
+const listed = computed(() => family.status === 'ready' && children.status === 'ready')
+// Chargement de la famille, des enfants ou de la première page du journal.
+const loading = computed(() => family.status !== 'ready'
+  || (children.status !== 'ready' && children.status !== 'error')
+  || (listed.value && !!current.value && status.value === 'loading'))
 
 onMounted(() => { void loadFamily() })
 watch(() => family.status, (s) => { if (s === 'ready') void loadChildren(true) }, { immediate: true })
@@ -96,9 +102,10 @@ const dayLabel = (g: { when: string, date: Date }) =>
 
 <template>
   <LoadError v-if="family.status === 'error'" />
-  <section v-else-if="family.status === 'ready'">
+  <!-- Un seul bloc de chargement (famille, enfants puis journal) : annoncé une fois. -->
+  <section v-else>
     <h1>{{ t.parent.log.title }}</h1>
-    <template v-if="children.status === 'ready' && current">
+    <template v-if="listed && current">
       <ChildSwitcher v-if="children.items.length > 1" />
       <LogSummary v-model="filter" :today="today" />
       <!-- Zone annoncée toujours présente (une zone insérée déjà remplie n'est pas lue) ;
@@ -107,10 +114,13 @@ const dayLabel = (g: { when: string, date: Date }) =>
         <p role="status" class="filter-status">{{ filter !== 'all' ? t.parent.log.activeFilter(t.parent.log.summary[filter]) : '' }}</p>
         <AppButton v-if="filter !== 'all'" variant="link" @click="filter = 'all'">{{ t.parent.log.showAll }}</AppButton>
       </div>
-      <p v-if="status === 'error'" class="error" role="alert">{{ t.parent.log.loadError }}</p>
-      <div v-else-if="status === 'ready' && !items.length" class="card"><p class="empty">{{ t.parent.log.empty }}</p></div>
+    </template>
+    <StatusBlock v-if="loading" state="loading" fill />
+    <template v-else-if="listed && current">
+      <StatusBlock v-if="status === 'error'" state="error" :text="t.parent.log.loadError" @retry="load" />
+      <StatusBlock v-else-if="!items.length" state="empty" card :text="t.parent.log.empty" />
       <!-- Une carte par jour, sous un titre bien visible (NAR-175). -->
-      <div v-else-if="status === 'ready'" class="days" :class="{ refreshing }" :aria-busy="refreshing">
+      <div v-else class="days" :class="{ refreshing }" :aria-busy="refreshing">
         <section v-for="g in groups" :key="g.key" class="day">
           <h2>{{ dayLabel(g) }}</h2>
           <ul class="card list">
@@ -119,12 +129,10 @@ const dayLabel = (g: { when: string, date: Date }) =>
         </section>
         <AppButton v-if="next" variant="ghost" class="more" :disabled="loadingMore || refreshing" @click="more">{{ t.parent.log.more }}</AppButton>
       </div>
-      <p v-else class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
     </template>
-    <EmptyState v-else-if="children.status === 'ready'" :title="t.parent.log.title" :text="t.parent.log.empty" />
-    <p v-else class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
+    <StatusBlock v-else-if="children.status === 'error'" state="error" :text="t.children.loadError" @retry="loadChildren(true)" />
+    <StatusBlock v-else state="empty" card :text="t.parent.log.empty" />
   </section>
-  <p v-else class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
 </template>
 
 <style scoped>
@@ -165,13 +173,5 @@ h1 {
 }
 .more {
   margin-top: 12px;
-}
-.empty {
-  margin: 0;
-  color: var(--text-soft);
-}
-.loading {
-  min-height: 30vh;
-  margin: 0;
 }
 </style>

@@ -7,6 +7,7 @@ import { useT } from '../../composables/useT'
 import { groupByDay } from '../../lib/groupByDay'
 import { canManage } from '../../store/family'
 import LogItem from '../log/LogItem.vue'
+import StatusBlock from '../ui/StatusBlock.vue'
 
 // « Aujourd'hui » sur l'accueil parent (NAR-152, maquette écran 6) : les 3 derniers
 // événements du jour, puis « Tout le journal ». Messages affichés = vus (NAR-150). Relu
@@ -63,11 +64,11 @@ onBeforeUnmount(() => { clearInterval(timer); generation++ })
       <h2>{{ t.parent.log.todayTitle }}</h2>
       <RouterLink class="all" :to="{ name: 'journal' }">{{ t.parent.log.allLog }}</RouterLink>
     </header>
-    <p v-if="status === 'error'" class="error" role="alert">{{ t.parent.log.loadError }}</p>
+    <StatusBlock v-if="status === 'error'" state="error" :text="t.parent.log.loadError" @retry="load" />
     <ul v-else-if="items.length" class="list">
       <LogItem v-for="i in items" :key="i.id" :item="i" :child-id="childId" :can-allow="canManage()" />
     </ul>
-    <p v-else-if="status === 'ready'" class="empty">{{ t.parent.log.nothingToday }}</p>
+    <StatusBlock v-else-if="status === 'ready'" state="empty" :text="t.parent.log.nothingToday" />
   </section>
 </template>
 
@@ -111,9 +112,5 @@ h2 {
   list-style: none;
   margin: 0;
   padding: 0;
-}
-.empty {
-  margin: 4px 0 0;
-  color: var(--text-soft);
 }
 </style>

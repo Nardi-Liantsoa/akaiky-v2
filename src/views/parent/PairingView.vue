@@ -12,6 +12,7 @@ import { formatDay } from '../../lib/format'
 import { children, dropChild, loadChildren } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
+import StatusBlock from '../../components/ui/StatusBlock.vue'
 
 // Écran 10 de la maquette : appairage du téléphone de l'enfant par QR de
 // provisionnement Android. Réservé aux gestionnaires (le serveur le vérifie aussi).
@@ -147,13 +148,8 @@ watch(childId, () => {
 <template>
   <section>
     <LoadError v-if="family.status === 'error'" />
-    <div v-else-if="children.status === 'error'" class="error" role="alert">
-      <p>{{ t.children.loadError }}</p>
-      <AppButton variant="ghost" @click="loadChildren(true)">{{ t.errors.retry }}</AppButton>
-    </div>
-    <p v-else-if="family.status !== 'ready' || children.status !== 'ready'" class="loading" role="status">
-      <span class="visually-hidden">{{ t.family.loading }}</span>
-    </p>
+    <StatusBlock v-else-if="children.status === 'error'" state="error" :text="t.children.loadError" @retry="loadChildren(true)" />
+    <StatusBlock v-else-if="family.status !== 'ready' || children.status !== 'ready'" state="loading" fill />
     <p v-else-if="!child" class="error" role="alert">{{ t.children.notFound }}</p>
     <template v-else>
       <h1>{{ t.pairing.title(child.firstName) }}</h1>
@@ -183,10 +179,7 @@ watch(childId, () => {
       <p class="warning">{{ t.pairing.warning }}</p>
 
       <h2>{{ t.pairing.devices }}</h2>
-      <div v-if="devicesStatus === 'error'" class="error" role="alert">
-        <p>{{ t.pairing.loadError }}</p>
-        <AppButton variant="ghost" @click="refreshDevices()">{{ t.errors.retry }}</AppButton>
-      </div>
+      <StatusBlock v-if="devicesStatus === 'error'" state="error" :text="t.pairing.loadError" @retry="refreshDevices()" />
       <p v-else-if="devicesStatus === 'ready' && !devices.length" class="hint">{{ t.pairing.none }}</p>
       <ul v-else-if="devicesStatus === 'ready'" class="devices">
         <li v-for="d in devices" :key="d.id" class="card device">
@@ -290,9 +283,5 @@ h2 {
 }
 .back {
   margin-top: 24px;
-}
-.loading {
-  min-height: 30vh;
-  margin: 0;
 }
 </style>

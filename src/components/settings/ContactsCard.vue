@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { ApiError } from '../../api/http'
 import { reorderContacts } from '../../api/contacts'
 import ChildAvatar from '../parent/ChildAvatar.vue'
+import StatusBlock from '../ui/StatusBlock.vue'
 import { useT } from '../../composables/useT'
 import { contactErrorText } from '../../lib/contactErrors'
 import { formatPhone } from '../../lib/phone'
@@ -70,7 +71,7 @@ async function move(index: number, delta: number) {
         </span>
       </li>
     </ol>
-    <p v-else class="empty">{{ t.contacts.empty }}</p>
+    <StatusBlock v-else state="empty" :text="t.contacts.empty" />
     <RouterLink v-if="canManage() && shown.length < contacts.max" class="add" :to="{ name: 'contact-nouveau', params: { childId } }">
       + {{ t.contacts.add }}
     </RouterLink>
@@ -96,8 +97,7 @@ h2 {
   color: var(--text-soft);
   font-weight: 700;
 }
-.hint,
-.empty {
+.hint {
   margin: 4px 0 8px;
   color: var(--text-soft);
 }

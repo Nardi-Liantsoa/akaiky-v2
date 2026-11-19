@@ -7,6 +7,7 @@ import { QUICK_SLOTS, QUICK_TEXT_MAX, QUICK_TINT, textLength, type QuickSlot } f
 import { canManage } from '../../store/family'
 import QuickIcon from '../messages/QuickIcon.vue'
 import AppButton from '../ui/AppButton.vue'
+import StatusBlock from '../ui/StatusBlock.vue'
 
 // Textes des 4 messages rapides d'un enfant (NAR-173). Un gestionnaire les modifie ; un
 // contact les voit. Un champ vide ou « Texte par défaut » remet le texte traduit.
@@ -84,10 +85,7 @@ function reset(slot: QuickSlot) {
   <section id="messages-rapides" class="card templates" tabindex="-1">
     <h2>{{ t.templates.title }}</h2>
     <p class="hint">{{ t.templates.hint }}</p>
-    <div v-if="status === 'error'" class="error" role="alert">
-      <p>{{ t.templates.loadError }} {{ error }}</p>
-      <AppButton variant="ghost" @click="load(childId)">{{ t.errors.retry }}</AppButton>
-    </div>
+    <StatusBlock v-if="status === 'error'" state="error" :text="`${t.templates.loadError} ${error}`" @retry="load(childId)" />
     <form v-else :aria-busy="status === 'loading'" :class="{ refreshing: status === 'loading' }" @submit.prevent="save">
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <ul class="slots">

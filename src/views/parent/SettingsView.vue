@@ -15,7 +15,7 @@ import { contactErrorText } from '../../lib/contactErrors'
 import { children, loadChildren, selectedChild } from '../../store/children'
 import { contacts, loadContacts } from '../../store/contacts'
 import { canManage, family, loadFamily } from '../../store/family'
-import AppButton from '../../components/ui/AppButton.vue'
+import StatusBlock from '../../components/ui/StatusBlock.vue'
 
 const t = useT()
 const current = computed(selectedChild)
@@ -36,31 +36,30 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
 
 <template>
   <LoadError v-if="family.status === 'error'" />
-  <section v-else-if="family.status === 'ready'">
+  <!-- Un seul bloc de chargement pour la famille puis les enfants : annoncé une fois. -->
+  <section v-else>
     <p v-if="current" class="over">{{ t.contacts.phoneOf(current.firstName) }}</p>
     <h1>{{ t.parent.settings.title }}</h1>
-    <div v-if="children.status === 'error'" class="error" role="alert">
-      <p>{{ t.children.loadError }}</p>
-      <AppButton variant="ghost" @click="loadChildren(true)">{{ t.errors.retry }}</AppButton>
-    </div>
-    <template v-else-if="children.status === 'ready'">
-      <div v-if="!children.items.length" class="card empty">
-        <p>{{ t.contacts.noChild }}</p>
-        <RouterLink v-if="canManage()" class="btn" :to="{ name: 'enfant-nouveau' }">{{ t.children.add }}</RouterLink>
-      </div>
+    <StatusBlock v-if="family.status === 'ready' && children.status === 'error'" state="error" :text="t.children.loadError" @retry="loadChildren(true)" />
+    <template v-else-if="family.status === 'ready' && children.status === 'ready'">
+      <StatusBlock v-if="!children.items.length" state="empty" card :text="t.contacts.noChild">
+        <template v-if="canManage()" #action>
+          <RouterLink class="btn" :to="{ name: 'enfant-nouveau' }">{{ t.children.add }}</RouterLink>
+        </template>
+      </StatusBlock>
       <template v-else-if="current">
         <ChildSwitcher v-if="children.items.length > 1" />
-        <div v-if="contacts.status === 'error'" class="error" role="alert">
-          <p>{{ t.contacts.loadError }} {{ contactErrorText(contacts.error, t) }}</p>
-          <AppButton variant="ghost" @click="loadContacts(current.id, true)">{{ t.errors.retry }}</AppButton>
-        </div>
+        <StatusBlock
+          v-if="contacts.status === 'error'" state="error"
+          :text="`${t.contacts.loadError} ${contactErrorText(contacts.error, t)}`" @retry="loadContacts(current.id, true)"
+        />
         <!-- Liste de cet enfant, ou celle d'avant estompée pendant le chargement (pas de clignement). -->
         <template v-else>
           <!-- Relecture en échec : la liste affichée peut être périmée, on le dit. -->
-          <div v-if="contacts.error && contacts.childId === current.id" class="error" role="alert">
-            <p>{{ t.contacts.loadError }} {{ contactErrorText(contacts.error, t) }}</p>
-            <AppButton variant="ghost" @click="loadContacts(current.id, true)">{{ t.errors.retry }}</AppButton>
-          </div>
+          <StatusBlock
+            v-if="contacts.error && contacts.childId === current.id" state="error"
+            :text="`${t.contacts.loadError} ${contactErrorText(contacts.error, t)}`" @retry="loadContacts(current.id, true)"
+          />
           <ContactsCard :child-id="current.id" />
         </template>
         <AllowedAppsCard :child-id="current.id" />
@@ -70,9 +69,8 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
         <MessageTemplatesCard :child-id="current.id" />
       </template>
     </template>
-    <p v-else class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
+    <StatusBlock v-else state="loading" fill />
   </section>
-  <p v-else class="loading" role="status"><span class="visually-hidden">{{ t.family.loading }}</span></p>
 </template>
 
 <style scoped>
@@ -83,13 +81,5 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
 }
 h1 {
   margin: 0 0 16px;
-}
-.empty p {
-  margin: 0 0 16px;
-  color: var(--text-soft);
-}
-.loading {
-  min-height: 30vh;
-  margin: 0;
 }
 </style>
