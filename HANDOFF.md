@@ -176,4 +176,16 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   les invitations reçues à son adresse, acceptées comprises, sont effacées. Les sauvegardes gardent ces données jusqu'à leur rotation (durée à
   écrire dans la politique de confidentialité, NAR-178) ; le journal d'audit ne garde que
   l'action et des comptes, sans donnée personnelle.
+- **Avant le prochain déploiement : PUSH_PROVIDER=none en préprod et en prod (tant que le projet
+  Firebase n'existe pas)** — sans cette variable, l'application refuse de démarrer en production.
+- **Notifications push (NAR-141, serveur)** : `PUSH_PROVIDER=none` tant que le projet Firebase
+  (au nom du client, sur ordre) n'existe pas ; puis `PUSH_PROVIDER=fcm` et `FCM_SERVICE_ACCOUNT`
+  (fichier monté hors image ou JSON ; vérifié au démarrage, `NOSYHOST.md` § 3). `fake` est refusé
+  en production. Jetons morts (`UNREGISTERED`, `INVALID_ARGUMENT` sur le jeton) supprimés à l'envoi ;
+  `SENDER_ID_MISMATCH`, 404 ou 401/403 : erreur de configuration Firebase, jeton gardé, alarme
+  « configuration FCM refusée » dans `make logs` ; plafond de 30 par heure et par compte ; non vus depuis
+  60 jours, purgés ; file abandonnée après 5 tentatives (`SELECT status, count(*) FROM push_outbox
+  GROUP BY 1`). Téléphones sans services Google (Huawei récents) : aucun push ; toute information
+  reste visible dans l'app (messages rapides dans l'écran de l'enfant). Clé API Firebase à
+  restreindre dans la console Google Cloud. Côté app : NAR-179 (nouvelle coque).
 - **Traductions malgaches** : à faire relire par une personne de langue maternelle.
