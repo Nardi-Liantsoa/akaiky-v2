@@ -10,7 +10,9 @@ import AppButton from '../ui/AppButton.vue'
 // boucle dans la feuille) et revient au bouton qui l'a ouverte à la fermeture.
 // opener : bouton qui a ouvert la feuille (le focus y revient ; sur iOS, un bouton
 // touché ne prend pas le focus, d'où le passage explicite).
-const props = defineProps<{ title: string, opener?: HTMLElement | null }>()
+// alert : feuille de confirmation (NAR-184, ConfirmSheet), annoncée comme alertdialog ;
+// son emplacement « actions » remplace le bouton « Fermer ».
+const props = defineProps<{ title: string, opener?: HTMLElement | null, alert?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 const t = useT()
 const sheet = ref<HTMLElement | null>(null)
@@ -40,10 +42,12 @@ function trap(e: KeyboardEvent) {
 <template>
   <Teleport to="body">
     <div class="backdrop" @click.self="emit('close')">
-      <div ref="sheet" class="sheet" role="dialog" aria-modal="true" :aria-label="title" tabindex="-1" @keydown.tab="trap">
+      <div ref="sheet" class="sheet" :role="alert ? 'alertdialog' : 'dialog'" aria-modal="true" :aria-label="title" tabindex="-1" @keydown.tab="trap">
         <h2>{{ title }}</h2>
         <slot />
-        <AppButton variant="ghost" class="close" @click="emit('close')">{{ t.children.close }}</AppButton>
+        <slot name="actions">
+          <AppButton variant="ghost" class="close" @click="emit('close')">{{ t.children.close }}</AppButton>
+        </slot>
       </div>
     </div>
   </Teleport>
