@@ -18,9 +18,12 @@ export interface DeviceContact { id: string, name: string, phone: string, positi
 // d'une config mise en cache avant ces champs : aucune plage (la première plage créée fait
 // avancer la version, donc un relevé complet, contacts « parent » compris).
 // sosSiren : sirène pendant un SOS (NAR-151), choisie par un parent ; absente = coupée.
+// allowedApps : applications autorisées (NAR-143), dans l'ordre du parent ; absente d'une config
+// mise en cache avant ce champ : aucune (la première autorisée fait avancer la version).
+export interface AllowedApp { package: string, label: string, position: number }
 export interface DeviceConfig {
   version: number, country?: string, parentCode?: string | null, remoteUnlockUntil?: string | null,
-  messageTexts?: Record<string, string>, schedules?: ScheduleRule[], timezone?: string, sosSiren?: boolean, contacts: DeviceContact[]
+  messageTexts?: Record<string, string>, schedules?: ScheduleRule[], timezone?: string, sosSiren?: boolean, allowedApps?: AllowedApp[], contacts: DeviceContact[]
 }
 export const CONFIG_KEY = 'device-config'
 
@@ -35,6 +38,12 @@ function clean<T extends Cached>(v: T): T {
   if (Array.isArray(v.config.schedules)) v.config.schedules = v.config.schedules.filter(validRule)
   // Sirène mal formée : coupée (jamais un refus de toute la configuration).
   if (v.config.sosSiren !== undefined && typeof v.config.sosSiren !== 'boolean') delete v.config.sosSiren
+  // Applications mal formées écartées une à une, comme les plages.
+  if (v.config.allowedApps !== undefined) {
+    v.config.allowedApps = Array.isArray(v.config.allowedApps)
+      ? v.config.allowedApps.filter((a) => typeof a?.package === 'string' && typeof a.label === 'string' && Number.isInteger(a.position))
+      : []
+  }
   return v
 }
 const valid = (v: unknown): v is Cached => {

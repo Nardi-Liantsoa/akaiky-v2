@@ -121,4 +121,18 @@ describe('createConfigSync', () => {
       expect(config?.contacts).toEqual([MAMAN])
     }
   })
+
+  it('applications autorisées (NAR-143) : entrées mal formées écartées une à une, le reste gardé', async () => {
+    const good = { package: 'com.android.calculator2', label: 'Calculatrice', position: 1 }
+    const store = memoryStore()
+    const getIfChanged = vi.fn(async () => ({ data: { version: 7, allowedApps: [good, { package: 3, label: 'x', position: 2 }, null, { package: 'a.b', position: 1 }], contacts: [MAMAN] }, etag: '"fy.7"' }))
+    const sync = createConfigSync({ session: session(getIfChanged), store })
+    await sync.load('fy')
+    const config = await sync.refresh()
+    expect(config?.allowedApps).toEqual([good])
+    expect(config?.contacts).toEqual([MAMAN])
+    const other = createConfigSync({ session: session(vi.fn(async () => ({ data: { version: 8, allowedApps: 'x', contacts: [] }, etag: '"fy.8"' }))), store: memoryStore() })
+    await other.load('fy')
+    expect((await other.refresh())?.allowedApps).toEqual([])
+  })
 })

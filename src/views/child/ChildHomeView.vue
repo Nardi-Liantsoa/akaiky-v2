@@ -5,7 +5,7 @@ import { App } from '@capacitor/app'
 import { useT } from '../../composables/useT'
 import { appKind } from '../../lib/appKind'
 import { startChild, type ChildState } from '../../lib/childStartup'
-import { callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore, remoteUnlockSeen, messageOutbox, heartbeat } from '../../lib/deviceSessionInstance'
+import { appInventory, callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore, remoteUnlockSeen, messageOutbox, heartbeat } from '../../lib/deviceSessionInstance'
 import { deviceConfig, pause, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
 import { emergencyNumber } from '../../lib/emergency'
 import { sosPlan } from '../../lib/sos'
@@ -19,8 +19,11 @@ import ContactTile from '../../components/child/ContactTile.vue'
 import SosButton from '../../components/child/SosButton.vue'
 import UnlockPanel from '../../components/child/UnlockPanel.vue'
 import QuickMessagesPanel from '../../components/child/QuickMessagesPanel.vue'
+import AppsRow from '../../components/child/AppsRow.vue'
+import { appsRow } from '../../lib/appInventory'
+import { createSchoolFront } from '../../lib/schoolFront'
 import { armKiosk, disarmKiosk, isUnlocked, kiosk, lockNow, refreshKiosk, unlockKiosk, useKioskPlugin } from '../../composables/useKiosk'
-import { AkaikyKiosk, UNLOCK_MINUTES } from '../../native/kiosk'
+import { AkaikyKiosk, UNLOCK_MINUTES, type LaunchableApp } from '../../native/kiosk'
 import { AkaikyBackground } from '../../native/akaikyBackground'
 import { API_BASE } from '../../api/base'
 import { createBackgroundStatus } from '../../lib/backgroundStatus'
@@ -81,7 +84,7 @@ onMounted(async () => {
     foreground = isActive
     if (isActive) startClock(); else stopClock()
     if (isActive) { void refreshKiosk().catch(() => {}).then(() => applyRemoteUnlock()); void readScreening(); void readSos() }
-    if (isActive && state.value.kind === 'paired') { resume(); startStatus(); syncJournal(); void backgroundStatus.ensure() } else { pause(); stopStatus(); clearTimeout(journalRetry) }
+    if (isActive && state.value.kind === 'paired') { resume(); startStatus(); syncJournal(); void backgroundStatus.ensure(); void syncApps() } else { pause(); stopStatus(); clearTimeout(journalRetry) }
   })
   // SOS en cours (NAR-151) : état poussé par le service natif quand la WebView est éveillée,
   // relu à chaque reprise (écran rallumé pendant la cascade).
@@ -115,6 +118,7 @@ watch(state, async (s) => {
   void backgroundStatus.ensure()
   await startDeviceConfig(configSync, s.childId)
   syncJournal()
+  void syncApps()
   if (!unmounted && foreground && state.value === s) resume()
 })
 // Liste blanche du natif : il refuse tout numéro qui n'y est pas, quoi que demande l'écran.
@@ -136,6 +140,33 @@ async function pushAllowed() {
 }
 // Contacts, pays ou plages changés : renvoyés au natif (filtre des appels entrants compris).
 watch(() => [deviceConfig.config?.contacts, deviceConfig.config?.country, deviceConfig.config?.schedules, deviceConfig.config?.timezone] as const, () => { void pushAllowed() }, { immediate: true })
+
+// Applications autorisées (NAR-143). Inventaire du téléphone relu au passage à « appairé » et
+// à chaque reprise, envoyé au serveur seulement s'il a changé (empreinte). Liste du parent
+// transmise au natif à chaque changement et quand le verrou s'arme : il cache les autres
+// applications et n'ouvre que celles-là dans le lock task. Coque plus ancienne sans ces
+// méthodes : rejet ignoré, la rangée reste vide.
+const localApps = ref<LaunchableApp[]>([])
+async function syncApps() {
+  if (!Capacitor.isNativePlatform() || state.value.kind !== 'paired') return
+  const childId = state.value.childId
+  const listed = await AkaikyKiosk.listLaunchableApps().catch(() => null)
+  if (!listed || state.value.kind !== 'paired' || state.value.childId !== childId) return
+  localApps.value = listed.apps
+  await appInventory.sync(childId, listed.apps).catch(() => {})
+}
+const allowedPackages = computed(() => [...(deviceConfig.config?.allowedApps ?? [])].sort((a, b) => a.position - b.position).map((a) => a.package))
+async function pushApps() {
+  // Jamais avant le chargement de la configuration : une liste vide cacherait tout par erreur.
+  if (!Capacitor.isNativePlatform() || !deviceConfig.config || state.value.kind !== 'paired') return
+  await AkaikyKiosk.applyAllowedApps({ packages: allowedPackages.value }).catch(() => {})
+}
+watch(() => [allowedPackages.value.join(), !!deviceConfig.config, kiosk.status?.armed] as const, () => { void pushApps() }, { immediate: true })
+const launchError = ref(false)
+async function launch(pkg: string) {
+  launchError.value = false
+  await AkaikyKiosk.launchApp({ package: pkg }).catch(() => { launchError.value = true })
+}
 
 // Batterie et réseau, relus toutes les minutes tant que l'accueil est affiché. Signal de vie
 // envoyé au serveur (NAR-147) au premier relevé, puis toutes les 15 minutes, ou tout de suite
@@ -179,7 +210,21 @@ const school = computed(() => activeWindow(new Date(now.value), deviceConfig.con
 const schoolEnd = computed(() => (school.value?.until ? formatClock(school.value.until, familyZone.value) : null))
 // Pendant une plage : les seuls contacts parents (owner, manager), le SOS et les secours.
 const shown = computed(() => visibleContacts(contacts.value, school.value))
+// Pendant une plage « école » : pas de rangée d'applications (seuls les parents et le SOS).
+const tiles = computed(() => appsRow(deviceConfig.config?.allowedApps, localApps.value, !!school.value))
 watch(() => !!school.value, (on) => { if (on) messaging.value = false })
+// Plage « école » et applications autorisées (NAR-143) : au début et à la fin de la plage,
+// verrou réappliqué (lock task sans, puis avec, les applications autorisées) ; pendant la
+// plage, l'app est redemandée au premier plan à chaque tour tant qu'elle n'est pas devant
+// (le natif refuse déjà d'en ouvrir une). Minuteur de 60 s à part de l'horloge, qui s'arrête
+// en arrière-plan ; ce minuteur-ci n'est pas arrêté, mais Android peut suspendre la WebView en
+// arrière-plan : rien ne garantit son tour avant la reprise (limites : HANDOFF.md).
+const schoolFront = createSchoolFront({ bring: () => AkaikyKiosk.bringToFront(), refresh: () => AkaikyKiosk.refresh() })
+function watchSchool() {
+  const on = !!activeWindow(new Date(), deviceConfig.config?.schedules ?? [], familyZone.value)
+  schoolFront({ school: on, foreground, active: Capacitor.isNativePlatform() && state.value.kind === 'paired' })
+}
+const schoolWatch = setInterval(watchSchool, 60_000)
 const emergency = computed(() => emergencyNumber(deviceConfig.config?.country ?? lastCountry.value ?? undefined))
 const calling = ref(false)
 const callError = ref(false)
@@ -462,7 +507,7 @@ async function openPhoneSettings() {
 
 // Téléphone retiré pendant l'usage : l'écran le dit.
 watch(() => deviceConfig.status, (s) => { if (s === 'lost') state.value = { kind: 'revoked' } })
-onBeforeUnmount(() => { unmounted = true; clearInterval(sosWatch); stopClock(); pause(); stopStatus(); clearTimeout(journalRetry); void lifecycle?.remove(); void sosListener?.remove() })
+onBeforeUnmount(() => { unmounted = true; clearInterval(sosWatch); clearInterval(schoolWatch); stopClock(); pause(); stopStatus(); clearTimeout(journalRetry); void lifecycle?.remove(); void sosListener?.remove() })
 
 const text = computed(() => {
   const c = t.value.child
@@ -512,7 +557,8 @@ const text = computed(() => {
     </section>
     <p v-if="schoolEnd" class="school-rest">{{ t.child.school.rest(schoolEnd) }}</p>
     <template v-if="!school">
-      <button class="messages" type="button" @click="messaging = true">{{ t.child.quick.open }}</button>
+      <AppsRow :apps="tiles" @messages="messaging = true" @launch="launch" />
+      <p v-if="launchError" class="call-error" role="alert">{{ t.child.apps.failed }}</p>
       <QuickMessagesPanel v-if="messaging" @close="messaging = false" />
     </template>
     <footer class="actions">
@@ -630,16 +676,6 @@ h1 {
   background: transparent;
   color: var(--sos);
   font: inherit;
-  font-weight: 900;
-}
-.messages {
-  min-height: 64px;
-  border: 0;
-  border-radius: 20px;
-  background: var(--tint-butter);
-  color: var(--text);
-  font: inherit;
-  font-size: 1.2rem;
   font-weight: 900;
 }
 .unlocked {

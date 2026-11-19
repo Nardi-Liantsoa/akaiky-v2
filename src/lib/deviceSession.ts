@@ -119,6 +119,13 @@ export function createDeviceSession({ base, store, fetch: doFetch, onReset }: { 
       return res.json() as Promise<T>
     },
 
+    // PUT authentifié (inventaire des applications, NAR-143).
+    async put<T>(path: string, body: unknown): Promise<T> {
+      const res = await authorized(path, { 'Content-Type': 'application/json' }, { method: 'PUT', body: JSON.stringify(body) })
+      if (!res.ok) throw await failure(res)
+      return res.json() as Promise<T>
+    },
+
     // GET conditionnel (ETag) : `null` si rien n'a changé depuis `etag` (304).
     async getIfChanged<T>(path: string, etag: string | null): Promise<{ data: T, etag: string | null } | null> {
       const res = await authorized(path, etag ? { 'If-None-Match': etag } : {})

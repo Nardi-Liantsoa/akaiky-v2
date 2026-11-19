@@ -245,4 +245,30 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   ne part en arrière-plan et l'alerte « silence » ne peut pas s'ouvrir pour ce téléphone.
   Migration `021_heartbeat_tokens.sql` (additive) et `GRANT UPDATE (heartbeat_token_hash)` de
   `ops/runtime-role.sql` à appliquer avant de livrer la coque.
+- **Applications autorisées (NAR-143, nouvelle coque enfant)** : vérifié sur l'émulateur `kiosk34` (Device Owner,
+  Android 14) : liste des applications lançables (Camera, Clock, Calendar…, sans Chrome, Réglages, Téléphone ni Messages),
+  applications non autorisées cachées (encore listées), Chrome caché et aucun lien http(s) ne s'ouvre, application autorisée
+  lancée dans le lock task, application cachée impossible à démarrer par `am start`, tout rendu à la libération. **Non
+  vérifié** : un vrai téléphone (constructeur qui refuse `setApplicationHidden`, lanceur ou navigateur absent de la liste
+  protégée : à compléter dans `server/src/protected-apps.json` et `AppsPolicy.kt`), Android 8/9 (Chrome fournisseur du
+  WebView, jamais caché, donc pas bloqué hors lock task). Une application cachée n'est découverte qu'au choix d'une liste
+  ou à l'armement, pas à chaque reprise. Inventaire envoyé au passage à « appairé » et à chaque reprise si son empreinte
+  change (6 par heure côté serveur ; un relevé pendant un envoi part juste après, avec les derniers arguments).
+  **Plage « école »** : rangée masquée, `launchApp` refusé par le natif (`school`), applications autorisées retirées de la
+  liste du lock task pendant la plage (rendues à sa fin), et l'app redemandée devant à chaque tour du minuteur tant
+  qu'elle n'y est pas (`bringToFront`, vérifié sur `kiosk34` dans sa version « début de plage » seulement ; retrait du
+  lock task et redemande à chaque tour **non vérifiés sur un téléphone**). Limites : l'application déjà ouverte garde
+  l'écran jusqu'au tour suivant du minuteur (60 s au plus). **Ce minuteur (`setInterval` de l'écran) n'est pas arrêté en
+  arrière-plan, mais il tourne dans la WebView** : quand une autre application est devant, Android peut ralentir ou
+  suspendre la WebView (selon la version et le constructeur), le tour peut donc arriver en retard ou pas du tout avant
+  la prochaine reprise ; WebView tuée, rien ne la ramène. Le retrait du lock task se fait alors à la reprise suivante,
+  à la réception des plages (`setAllowed`) ou au prochain lancement refusé ; aucune alarme native au début ni à la fin
+  d'une plage (piste : `AlarmManager` sur les bornes de `SchoolSchedule`). Les applications ne sont pas recachées
+  pendant la plage. Fin de plage sans tour du minuteur : les autorisées reviennent au lock task à la prochaine reprise.
+  **Lock task vérifié sur `kiosk34` (19/11/2026, horloge autorisée au premier plan, `am start` par adb)** : Réglages
+  (`android.settings.SETTINGS` et activité directe) et Messages (`APP_MESSAGING`, activité directe, `SENDTO sms:`)
+  bloqués par le lock task ; lien https : aucun navigateur (Chrome caché) ; `VIEW tel:` ouvre le composeur et `CALL tel:`
+  (droit du shell) lance l'appel : le composeur est dans le lock task par conception, le filtrage des appels sortants est
+  NAR-169. Non essayé depuis l'application autorisée elle-même (pas d'outil pour l'y faire lancer) : le lock task juge le
+  paquet visé, pas l'appelant.
 - **Traductions malgaches** : à faire relire par une personne de langue maternelle.

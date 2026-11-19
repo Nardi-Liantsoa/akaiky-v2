@@ -1,12 +1,15 @@
 import { SecureStorage } from '@aparajita/capacitor-secure-storage'
+import { Capacitor } from '@capacitor/core'
 import { API_BASE } from '../api/base'
 import { createConfigSync } from './deviceConfig'
 import { createUnlockGuard } from './unlockGuard'
 import { createMessageOutbox, type OutgoingMessage } from './messageOutbox'
 import { createCallJournal, type DeviceEvent } from './callJournal'
 import { createHeartbeat, type HeartbeatBody } from './heartbeat'
+import { createInventorySync } from './appInventory'
 import { uuidV4 } from './uuid'
 import { AkaikyCall } from '../native/akaikyCall'
+import { AkaikyKiosk } from '../native/kiosk'
 import { createDeviceSession, type SecretStore } from './deviceSession'
 import type { ChildIdentity } from './childStartup'
 
@@ -19,12 +22,17 @@ export const secureStore: SecretStore = {
 
 // Une seule session d'appareil pour toute l'app : le verrou de renouvellement et le
 // jeton d'accès en mémoire sont partagés, quel que soit le nombre d'écrans montés.
-// Session perdue ou remplacée : la configuration gardée (contacts) est effacée.
+// Session perdue ou remplacée : la configuration gardée (contacts) est effacée, et la liste
+// d'applications autorisées vidée dans le natif (aucune app du précédent enfant ne reste ouverte
+// à l'écran ni dans le lock task ; téléphone armé : elles sont recachées).
+export const clearNativeAllowedApps = async () => {
+  if (Capacitor.isNativePlatform()) await AkaikyKiosk.applyAllowedApps({ packages: [] }).catch(() => {})
+}
 export const deviceSession = createDeviceSession({
   base: API_BASE, store: secureStore, fetch: (...args) => fetch(...args),
   // heartbeat.reset() d'abord, sans attendre : un signal parti pendant les effacements ne
   // compterait pas pour la nouvelle session.
-  onReset: async () => { heartbeat.reset(); await configSync.clear(); await childIdentity.clear(); await callJournal.clear(); await messageOutbox.clear() }
+  onReset: async () => { heartbeat.reset(); await configSync.clear(); await childIdentity.clear(); await callJournal.clear(); await messageOutbox.clear(); await appInventory.clear(); await clearNativeAllowedApps() }
 })
 export const configSync = createConfigSync({ session: deviceSession, store: secureStore })
 
@@ -112,4 +120,10 @@ export const messageOutbox = createMessageOutbox({
 export const heartbeat = createHeartbeat({
   post: (body: HeartbeatBody) => deviceSession.post('/device/heartbeat', body),
   now: () => Date.now()
+})
+
+// Inventaire des applications (NAR-143) : envoyé quand il change, pour le choix du parent.
+export const appInventory = createInventorySync({
+  store: secureStore,
+  put: (body) => deviceSession.put('/device/apps', body)
 })

@@ -36,7 +36,7 @@ leur moyen de preuve est à fixer avec le ticket qui les construit.
 - [C12] (prévu) Pendant un SOS, si le parent 1 ne décroche pas, le téléphone appelle le parent 2. (CdC C10, natif)
 - [C13] (prévu) Un parent qui marque le SOS « pris en charge » est visible comme tel par les autres parents. (CdC C11)
 - [C14] Un message rapide envoyé par l'enfant arrive chez les parents. (CdC C12)
-- [C15] (prévu) Une modification des contacts ou des applications autorisées faite par le parent s'applique sur le téléphone de l'enfant en moins d'une minute, s'il est connecté. (CdC C13)
+- [C15] Une modification des contacts ou des applications autorisées faite par le parent s'applique sur le téléphone de l'enfant en moins d'une minute, s'il est connecté. (CdC C13)
 - [C16] Pendant une plage horaire « école », seuls les parents et le SOS restent utilisables. (CdC C14)
 - [C17] Le parent reçoit une alerte quand la batterie de l'enfant passe sous 15 %. (CdC C15)
 - [C18] (prévu) Un proche invité avec le rôle « contact » appelle l'enfant et reçoit les SOS, mais ne peut modifier aucun réglage. (CdC C16)

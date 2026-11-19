@@ -23,6 +23,8 @@ export async function mockApi(page: Page, handlers: Record<string, Handler>) {
       : get && url.pathname.endsWith('/schedules') ? { body: [] }
         // État du téléphone (NAR-147), sur l'accueil : aucun relevé par défaut.
         : get && /^\/api\/children\/[^/]+\/status$/.test(url.pathname) ? { body: { devices: [] } }
+          // Applications autorisées (NAR-143), sur Réglages : inventaire vide par défaut.
+          : get && /^\/api\/children\/[^/]+\/apps$/.test(url.pathname) ? { body: { max: 4, inventory: [], allowed: [] } }
           : { status: 404, body: { error: 'Introuvable.' } }
     const res = handlers[key]?.(route.request()) ?? fallback
     return route.fulfill({ status: res.status ?? 200, contentType: 'application/json', body: JSON.stringify(res.body ?? {}) })

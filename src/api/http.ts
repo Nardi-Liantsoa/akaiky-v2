@@ -6,7 +6,8 @@ import { send } from './transport'
 // `code` : identifiant stable renvoyé par le serveur pour les cas que le front
 // doit distinguer (ex. 'web_only') ; le message, lui, peut changer.
 export class ApiError extends Error {
-  constructor(public status: number, message: string, public code?: string) { super(message) }
+  // pkg : paquet en cause nommé par le serveur (`package`, ex. application protégée refusée).
+  constructor(public status: number, message: string, public code?: string, public pkg?: string) { super(message) }
 }
 
 export async function json<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
@@ -20,7 +21,7 @@ export async function json<T = unknown>(path: string, init: RequestInit = {}): P
     throw new ApiError(0, 'network')
   }
   const data = res.headers.get('content-type')?.includes('application/json') ? await res.json() : null
-  if (!res.ok) throw new ApiError(res.status, data?.error || '', typeof data?.code === 'string' ? data.code : undefined)
+  if (!res.ok) throw new ApiError(res.status, data?.error || '', typeof data?.code === 'string' ? data.code : undefined, typeof data?.package === 'string' ? data.package : undefined)
   return data as T
 }
 

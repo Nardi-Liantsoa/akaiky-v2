@@ -1,5 +1,5 @@
-// Contacts autorisés vus par le téléphone de l'enfant (NAR-160, C15 partie contacts ;
-// le critère reste « (prévu) » jusqu'aux applications autorisées, NAR-143).
+// C15 : contacts (NAR-160) et applications autorisées (NAR-143) changés par le parent, vus
+// par le téléphone de l'enfant à son relevé suivant (toutes les 30 s).
 // Le parent passe par l'interface ; le téléphone est simulé par l'API d'appareil,
 // avec l'origine de la WebView Android, comme l'app enfant.
 import { test, expect, newClient, api } from './support.mjs'
@@ -35,4 +35,37 @@ test('un contact ajouté par le parent est vu par le téléphone au relevé suiv
   const after = await device(page, 'GET', '/config', { token: accessToken, headers: { 'if-none-match': etag } })
   expect(after.status()).toBe(200)
   expect((await after.json()).contacts.map((c) => [c.name, c.phone])).toEqual([['Maman', '+261341234567']])
+})
+
+test('une application autorisée par le parent est vue par le téléphone au relevé suivant (< 1 min) @C15 @C90', async ({ page }) => {
+  await newClient(page)
+  expect((await api(page, 'POST', '/families', { name: 'Famille Recette' })).ok()).toBe(true)
+  const fy = await (await api(page, 'POST', '/children', { firstName: 'Fy', parentalConsent: true })).json()
+  const qr = await (await api(page, 'POST', `/children/${fy.id}/pairing`, {})).json()
+  const token = qr.provisioning['android.app.extra.PROVISIONING_ADMIN_EXTRAS_BUNDLE']['akaiky.pairing']
+  const { accessToken } = await (await device(page, 'POST', '/pair', { data: { token, model: 'Recette' } })).json()
+
+  // Le téléphone envoie la liste de ses applications.
+  const apps = [
+    { package: 'com.android.camera2', label: 'Appareil photo' },
+    { package: 'com.android.calculator2', label: 'Calculatrice' },
+    { package: 'com.android.chrome', label: 'Chrome' }
+  ]
+  expect((await device(page, 'PUT', '/apps', { token: accessToken, data: { apps } })).status()).toBe(200)
+  const before = await device(page, 'GET', '/config', { token: accessToken })
+  expect((await before.json()).allowedApps).toEqual([])
+  const etag = before.headers().etag
+
+  // Le parent autorise l'appareil photo par l'interface ; le navigateur n'est pas proposé.
+  await page.goto('/espace/reglages')
+  const card = page.locator('#applications')
+  await card.getByRole('button', { name: '+ Ajouter' }).click()
+  await expect(card.getByRole('button', { name: 'Chrome' })).toHaveCount(0)
+  await card.getByRole('button', { name: 'Appareil photo' }).click()
+  await expect(card.getByText('✓ Appareil photo')).toBeVisible()
+
+  // Relevé suivant du téléphone : nouvelle version, avec l'application.
+  const after = await device(page, 'GET', '/config', { token: accessToken, headers: { 'if-none-match': etag } })
+  expect(after.status()).toBe(200)
+  expect((await after.json()).allowedApps).toEqual([{ package: 'com.android.camera2', label: 'Appareil photo', position: 1 }])
 })
