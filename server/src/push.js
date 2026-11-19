@@ -20,7 +20,7 @@ import pg from 'pg'
 import { blindIndex, openField, sealField } from './crypto-fields.js'
 import { withTransaction } from './db.js'
 import { SESSION_RULE } from './lib.js'
-import { buildPayload, kindOf } from './push-texts.js'
+import { CHILD_EVENTS, buildPayload, kindOf } from './push-texts.js'
 
 export const PUSH_EVERY_MS = 10_000
 export const MAX_ATTEMPTS = 5
@@ -334,6 +334,11 @@ export async function runPushWorker(db, provider, config, log, { batch = 50, con
     `SELECT q.id, q.family_id, c.id AS child_id, c.first_name_enc FROM quick_messages q
        JOIN children c ON c.id = q.child_id AND c.family_id = q.family_id WHERE q.id = ANY($1::uuid[])`, [refs]) : { rows: [] }
   const messageById = new Map(messages.map((m) => [m.id, m]))
+  // État du téléphone (NAR-147) : la ressource est l'enfant lui-même.
+  const childRefs = claimed.filter((c) => CHILD_EVENTS.has(c.event) && c.ref).map((c) => c.ref)
+  const { rows: kids } = childRefs.length ? await db.query(
+    'SELECT id AS child_id, family_id, first_name_enc FROM children WHERE id = ANY($1::uuid[])', [childRefs]) : { rows: [] }
+  const childById = new Map(kids.map((k) => [k.child_id, k]))
   const userIds = [...new Set(tokens.map((t) => t.user_id).filter(Boolean))]
   const { rows: members } = userIds.length ? await db.query('SELECT user_id, family_id FROM memberships WHERE user_id = ANY($1::uuid[])', [userIds]) : { rows: [] }
   const isMember = (userId, familyId) => members.some((m) => m.user_id === userId && m.family_id === familyId)
@@ -354,8 +359,8 @@ export async function runPushWorker(db, provider, config, log, { batch = 50, con
     // tour : abandon, rien ne part.
     if (!t || deadTokens.has(t.id)) return finish(row, 'failed', 'token_gone')
     let name = null
-    if (row.event === 'message') {
-      const m = messageById.get(row.ref)
+    if (row.event === 'message' || CHILD_EVENTS.has(row.event)) {
+      const m = row.event === 'message' ? messageById.get(row.ref) : childById.get(row.ref)
       if (!m) return finish(row, 'failed', 'ref_missing')
       // Le destinataire doit être encore membre de la famille du message (départ entre-temps).
       if (t.session_id ? !isMember(t.user_id, m.family_id) : t.family_id !== m.family_id) return finish(row, 'failed', 'not_member')

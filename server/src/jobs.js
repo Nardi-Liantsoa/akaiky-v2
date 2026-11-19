@@ -1,4 +1,5 @@
 import { PUSH_EVERY_MS, runPushWorker } from './push.js'
+import { SILENT_EVERY_MS, runSilentWatch } from './device-status.js'
 
 // Tâches planifiées (NAR-153). La purge à échéance tourne au démarrage puis toutes les
 // heures ; la fonction SQL purge_expired() (016_retention.sql) décide si un tour est dû
@@ -40,6 +41,19 @@ export async function runPush(db, provider, config, log) {
   }
 }
 
+// Téléphones silencieux (NAR-147) : toutes les 5 minutes, une alerte par téléphone sans
+// signal depuis 60 minutes (une instance à la fois, verrou consultatif dans runSilentWatch).
+export async function runSilent(db, log) {
+  try {
+    const opened = await runSilentWatch(db)
+    if (opened) log.info({ silent: opened }, 'téléphones silencieux')
+    return opened
+  } catch (e) {
+    log.error({ err: e.message }, 'veille des téléphones en échec')
+    return null
+  }
+}
+
 function every(ms, run) {
   let running = null
   const tick = () => {
@@ -57,9 +71,10 @@ function every(ms, run) {
 
 // Démarre les tâches ; renvoie la fonction d'arrêt (SIGTERM), qui attend la fin des tours en
 // cours. Les minuteurs ne retiennent pas le processus. `push` : { provider, config } ; absent,
-// la file n'est pas traitée.
-export function startJobs(db, log, { everyMs = RETENTION_EVERY_MS, push = null, pushEveryMs = PUSH_EVERY_MS } = {}) {
+// la file n'est pas traitée. `watch` : veille des téléphones silencieux (NAR-147).
+export function startJobs(db, log, { everyMs = RETENTION_EVERY_MS, push = null, pushEveryMs = PUSH_EVERY_MS, silentEveryMs = SILENT_EVERY_MS, watch = true } = {}) {
   const stops = [every(everyMs, () => runRetention(db, log))]
+  if (watch) stops.push(every(silentEveryMs, () => runSilent(db, log)))
   if (push) stops.push(every(pushEveryMs, () => runPush(db, push.provider, push.config, log)))
   return async () => { await Promise.all(stops.map((stop) => stop())) }
 }

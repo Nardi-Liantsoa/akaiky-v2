@@ -7,6 +7,7 @@ import { createPool, verifySchema } from '../src/db.js'
 import { loadConfig } from '../src/config.js'
 import { buildApp } from '../src/app.js'
 import { createFakeProvider, runPushWorker } from '../src/push.js'
+import { runSilentWatch } from '../src/device-status.js'
 
 test('limiteur : saturation sans blocage global ni éviction des compteurs', () => {
   const limit = createLimiter({ max: 2, windowMs: 60000, maxKeys: 2 })
@@ -135,6 +136,25 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     pushes.failNext('unregistered')
     assert.equal((await runPushWorker(pool, pushes, config, quiet)).removedTokens, 1)
     assert.equal((await call(app, 'DELETE', '/api/push/token', { cookie: user.cookie, body: { token: pushToken } })).statusCode, 404, 'jeton mort supprimé')
+    // État du téléphone sous le rôle restreint (020_device_status.sql) : signal, alerte et push,
+    // veille « silence », fermeture ; ni DELETE ni autre colonne des alertes.
+    assert.equal((await call(app, 'PUT', '/api/push/token', { cookie: user.cookie, body: { token: `fcm-parent-${crypto.randomUUID()}`, platform: 'android', lang: 'fr' } })).statusCode, 200)
+    const beat = (body) => native(app, 'POST', '/api/device/heartbeat', { token: renewedPhone.json().accessToken, body })
+    // background : vrai (signal natif en arrière-plan, NAR-180), seul surveillé pour le silence.
+    const low = await beat({ batteryPct: 9, charging: false, network: 'mobile', simState: 'ready', background: true })
+    assert.equal(low.statusCode, 200, low.body)
+    const state = await call(app, 'GET', `/api/children/${kid.id}/status`, { cookie: user.cookie })
+    assert.deepEqual(state.json().devices[0].alerts.map((a) => a.kind), ['battery_low'])
+    assert.equal((await runPushWorker(pool, pushes, config, quiet)).sent, 1)
+    assert.equal(pushes.sent.at(-1).message.notification.title, 'Batterie faible : téléphone de Tiana')
+    await admin.db.query("UPDATE child_devices SET status_at = now() - interval '61 minutes' WHERE id = $1", [phone.json().device.id])
+    assert.equal(await runSilentWatch(pool), 1)
+    assert.equal(await runSilentWatch(pool), 0)
+    assert.equal((await beat({ batteryPct: 30, charging: true, network: 'wifi', simState: 'ready' })).statusCode, 200)
+    assert.equal((await pool.query('SELECT count(*)::int AS n FROM device_alerts WHERE closed_at IS NULL')).rows[0].n, 0)
+    await assert.rejects(pool.query('DELETE FROM device_alerts'), /permission denied/)
+    await assert.rejects(pool.query('UPDATE device_alerts SET kind = kind'), /permission denied/)
+    await assert.rejects(pool.query('UPDATE device_alerts SET opened_at = now()'), /permission denied/)
     assert.equal((await call(app, 'POST', `/api/devices/${phone.json().device.id}/revoke`, { cookie: user.cookie })).statusCode, 200)
     assert.equal((await pool.query('SELECT count(*)::int AS n FROM push_tokens WHERE device_id IS NOT NULL')).rows[0].n, 0, 'révoqué : jeton du téléphone supprimé')
     await assert.rejects(pool.query('UPDATE child_devices SET child_id = child_id'), /permission denied/)

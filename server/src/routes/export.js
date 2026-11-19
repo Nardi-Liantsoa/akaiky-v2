@@ -75,7 +75,12 @@ export async function exportRoutes(app) {
     const contacts = byChild(await q(
       'SELECT id, child_id, name_enc, phone_enc, position, member_user_id FROM allowed_contacts WHERE family_id = $1 ORDER BY child_id, position'))
     const devices = byChild(await q(
-      'SELECT child_id, model, os_version, app_version, created_at, last_seen_at, revoked_at FROM child_devices WHERE family_id = $1 ORDER BY child_id, created_at'))
+      `SELECT child_id, model, os_version, app_version, created_at, last_seen_at, revoked_at,
+              battery_pct, charging, network, sim_state, status_at
+         FROM child_devices WHERE family_id = $1 ORDER BY child_id, created_at`))
+    // Alertes du téléphone (NAR-147) : type et dates seulement, sans identifiant.
+    const alerts = byChild(await q(
+      'SELECT child_id, kind, opened_at, closed_at FROM device_alerts WHERE family_id = $1 ORDER BY child_id, opened_at, kind'))
     const schedules = byChild(await q(
       'SELECT id, child_id, label_enc, days_mask, start_min, end_min, enabled FROM schedules WHERE family_id = $1 ORDER BY child_id, start_min, created_at, id'))
     const templates = byChild(await q(
@@ -129,8 +134,11 @@ export async function exportRoutes(app) {
         })),
         devices: (devices.get(c.id) ?? []).map((r) => ({
           model: r.model, osVersion: r.os_version, appVersion: r.app_version,
-          pairedAt: r.created_at, lastSeenAt: r.last_seen_at, revokedAt: r.revoked_at ?? null
+          pairedAt: r.created_at, lastSeenAt: r.last_seen_at, revokedAt: r.revoked_at ?? null,
+          batteryPct: r.battery_pct ?? null, charging: r.charging ?? null, network: r.network ?? null,
+          simState: r.sim_state ?? null, statusAt: r.status_at ?? null
         })),
+        deviceAlerts: (alerts.get(c.id) ?? []).map((r) => ({ kind: r.kind, openedAt: r.opened_at, closedAt: r.closed_at ?? null })),
         schedules: (schedules.get(c.id) ?? []).map((r) => ({
           label: open(r.label_enc, scheduleAad(r.id), 'schedules', r.id), days: r.days_mask, startMin: r.start_min, endMin: r.end_min, enabled: r.enabled
         })),

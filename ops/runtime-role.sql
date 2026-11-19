@@ -65,5 +65,10 @@ GRANT INSERT, DELETE ON push_tokens TO app_runtime;
 GRANT UPDATE (platform, lang, last_seen_at) ON push_tokens TO app_runtime;
 GRANT INSERT ON push_outbox TO app_runtime;
 GRANT UPDATE (status, attempts, next_attempt_at, last_error, sent_at) ON push_outbox TO app_runtime;
+-- État du téléphone (020_device_status.sql) : relevés du téléphone, alertes ouvertes puis
+-- fermées (aucun DELETE : purge par purge_expired()).
+GRANT UPDATE (battery_pct, charging, network, sim_state, status_at, background_status) ON child_devices TO app_runtime;
+GRANT INSERT ON device_alerts TO app_runtime;
+GRANT UPDATE (closed_at) ON device_alerts TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;
