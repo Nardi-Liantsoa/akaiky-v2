@@ -545,42 +545,45 @@ const text = computed(() => {
 
 <template>
   <main v-if="state.kind === 'paired'" class="home" :class="{ school }">
-    <ChildStatusBar :status="status" />
-    <section v-if="school" class="school-banner" role="status">
-      <p class="school-title">{{ t.child.school.title(school.label) }}</p>
-      <p>{{ schoolEnd ? t.child.school.until(schoolEnd) : t.child.school.noEnd }}</p>
-    </section>
-    <section v-if="unlockedUntil !== undefined" class="unlocked" role="status">
-      <p>{{ t.child.lock.unlockedUntil(formatClock(new Date(unlockedUntil))) }}</p>
-      <div class="unlocked-actions">
-        <AppButton variant="ghost" @click="openPhoneSettings">{{ t.child.lock.settings }}</AppButton>
-        <AppButton @click="lockNow().catch(() => {})">{{ t.child.lock.relock }}</AppButton>
-      </div>
-    </section>
-    <section v-if="askScreening" class="unlocked" role="status">
-      <p v-if="incomingOff">{{ t.child.screening.off }}</p>
-      <p v-if="outgoingOff">{{ t.child.screening.outgoingOff }}</p>
-      <AppButton v-if="canEnableScreening" @click="enableScreening">{{ t.child.screening.enable }}</AppButton>
-    </section>
-    <p v-if="sosFailed" class="call-error" role="alert">{{ t.child.sos.failed }}</p>
-    <p v-else-if="sosInterrupted" class="call-error" role="alert">{{ t.child.sos.interrupted }}</p>
-    <p v-if="callError" class="call-error" role="alert">{{ t.child.callFailed }}</p>
-    <section v-if="shown.length" class="grid" :class="{ single: shown.length === 1 }">
-      <ContactTile v-for="c in shown" :key="c.id" :name="c.name" :color="c.avatarColor" :busy="calling" @call="call(c.phone, c)" />
-    </section>
-    <section v-else-if="school" class="empty">
-      <p class="waiting">{{ t.child.school.noParents }}</p>
-    </section>
-    <section v-else class="empty">
-      <p class="waiting">{{ t.child.noContacts }}</p>
-      <p class="hint">{{ t.child.noContactsHint }}</p>
-    </section>
-    <p v-if="schoolEnd" class="school-rest">{{ t.child.school.rest(schoolEnd) }}</p>
-    <template v-if="!school">
-      <AppsRow :apps="tiles" @messages="messaging = true" @launch="launch" />
-      <p v-if="launchError" class="call-error" role="alert">{{ t.child.apps.failed }}</p>
-      <QuickMessagesPanel v-if="messaging" @close="messaging = false" />
-    </template>
+    <!-- Contenu défilant au-dessus du pied fixe : SOS et secours toujours visibles (NAR-187). -->
+    <div class="content">
+      <ChildStatusBar :status="status" />
+      <section v-if="school" class="school-banner" role="status">
+        <p class="school-title">{{ t.child.school.title(school.label) }}</p>
+        <p>{{ schoolEnd ? t.child.school.until(schoolEnd) : t.child.school.noEnd }}</p>
+      </section>
+      <section v-if="unlockedUntil !== undefined" class="unlocked" role="status">
+        <p>{{ t.child.lock.unlockedUntil(formatClock(new Date(unlockedUntil))) }}</p>
+        <div class="unlocked-actions">
+          <AppButton variant="ghost" @click="openPhoneSettings">{{ t.child.lock.settings }}</AppButton>
+          <AppButton @click="lockNow().catch(() => {})">{{ t.child.lock.relock }}</AppButton>
+        </div>
+      </section>
+      <section v-if="askScreening" class="unlocked" role="status">
+        <p v-if="incomingOff">{{ t.child.screening.off }}</p>
+        <p v-if="outgoingOff">{{ t.child.screening.outgoingOff }}</p>
+        <AppButton v-if="canEnableScreening" @click="enableScreening">{{ t.child.screening.enable }}</AppButton>
+      </section>
+      <p v-if="sosFailed" class="call-error" role="alert">{{ t.child.sos.failed }}</p>
+      <p v-else-if="sosInterrupted" class="call-error" role="alert">{{ t.child.sos.interrupted }}</p>
+      <p v-if="callError" class="call-error" role="alert">{{ t.child.callFailed }}</p>
+      <section v-if="shown.length" class="grid" :class="{ single: shown.length === 1 }">
+        <ContactTile v-for="c in shown" :key="c.id" :name="c.name" :color="c.avatarColor" :busy="calling" @call="call(c.phone, c)" />
+      </section>
+      <section v-else-if="school" class="empty">
+        <p class="waiting">{{ t.child.school.noParents }}</p>
+      </section>
+      <section v-else class="empty">
+        <p class="waiting">{{ t.child.noContacts }}</p>
+        <p class="hint">{{ t.child.noContactsHint }}</p>
+      </section>
+      <p v-if="schoolEnd" class="school-rest">{{ t.child.school.rest(schoolEnd) }}</p>
+      <template v-if="!school">
+        <AppsRow :apps="tiles" @messages="messaging = true" @launch="launch" />
+        <p v-if="launchError" class="call-error" role="alert">{{ t.child.apps.failed }}</p>
+        <QuickMessagesPanel v-if="messaging" @close="messaging = false" />
+      </template>
+    </div>
     <footer class="actions">
       <SosButton @trigger="sos" />
       <button class="emergency" type="button" @click="callEmergency">{{ t.child.emergency(emergency) }}</button>
@@ -635,14 +638,27 @@ h1 {
   max-width: 28em;
   color: var(--text-soft);
 }
+/* Écran tenu à la hauteur de la fenêtre (NAR-187) : le contenu défile, le pied (SOS,
+ * secours, code parent) reste en bas, au-dessus de la barre système, sans jamais
+ * recouvrir une vignette : il occupe sa propre place dans la colonne. */
 .home {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  min-height: 100vh;
-  padding: calc(var(--safe-top) + 12px) calc(var(--gutter) + var(--safe-right)) calc(var(--safe-bottom) + 16px) calc(var(--gutter) + var(--safe-left));
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: var(--bg-child);
   box-sizing: border-box;
+}
+.content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: calc(var(--safe-top) + var(--space-3)) calc(var(--gutter) + var(--safe-right)) var(--space-4) calc(var(--gutter) + var(--safe-left));
 }
 /* Plage « école » (maquette écran 5) : fond bleuté, bandeau marine. */
 .home.school {
@@ -682,17 +698,38 @@ h1 {
   text-align: center;
 }
 .actions {
+  flex: none;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  margin-top: auto;
+  gap: var(--space-2);
+  padding: var(--space-3) calc(var(--gutter) + var(--safe-right)) calc(var(--safe-bottom) + var(--space-3)) calc(var(--gutter) + var(--safe-left));
+  border-top: 1px solid var(--border);
+  background: inherit;
+}
+/* Écran couché ou très court : pied sur une ligne, pour laisser au contenu la hauteur
+ * d'une vignette entière (sinon le pied en colonne en prend les trois quarts). */
+@media (max-height: 480px) {
+  .actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .actions .sos {
+    flex: 1 1 200px;
+    width: auto;
+  }
+}
+/* Zones tactiles de l'app enfant : ≥ --tap-child (64 px, CdC §7.3), boutons communs compris. */
+.home .btn,
+.child .btn {
+  min-height: var(--tap-child);
 }
 .emergency {
-  min-height: 64px;
-  padding: 0 24px;
+  min-height: var(--tap-child);
+  padding: 0 var(--space-5);
   border: 2px solid var(--sos);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--sos);
   font: inherit;
@@ -712,12 +749,12 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-2);
 }
 /* Discret : réservé aux parents, protégé par le code. */
 .parent-code {
-  min-height: 48px;
-  padding: 0 16px;
+  min-height: var(--tap-child);
+  padding: 0 var(--space-4);
   border: 0;
   background: transparent;
   color: var(--text-soft);
@@ -732,8 +769,7 @@ h1 {
   color: var(--sos);
 }
 .retry {
-  margin-top: 16px;
-  min-height: 64px;
-  padding: 0 32px;
+  margin-top: var(--space-4);
+  padding: 0 var(--space-6);
 }
 </style>

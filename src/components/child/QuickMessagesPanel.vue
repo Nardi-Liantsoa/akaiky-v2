@@ -129,8 +129,8 @@ h2 {
 }
 .tile:focus-visible,
 .close:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 .toast {
   min-height: 3em;
@@ -140,10 +140,10 @@ h2 {
 }
 .close {
   align-self: center;
-  min-height: 64px;
+  min-height: var(--tap-child);
   min-width: 180px;
   border: 2px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--surface);
   color: var(--text);
   font: inherit;

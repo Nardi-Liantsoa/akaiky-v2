@@ -118,8 +118,8 @@ h1 {
 }
 .call-emergency,
 .cancel {
-  min-height: 64px;
-  border-radius: 999px;
+  min-height: var(--tap-child);
+  border-radius: var(--radius-pill);
   font: inherit;
   font-size: 1.15rem;
   font-weight: 900;
