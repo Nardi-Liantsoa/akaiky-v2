@@ -9,8 +9,15 @@
 // colonne chiffrée (`*_enc`), un hachage, un jeton ni le nom libre d'une famille
 // (texte choisi par la famille, qui peut contenir le prénom d'un enfant : la
 // famille est désignée par son identifiant). Test : server/test/admin.test.js.
-import { HttpError, isUuid } from '../lib.js'
+//
+// Tranche 2 (NAR-199) : désactiver ou réactiver un compte, révoquer un téléphone. Chaque
+// écriture est auditée, refuse tout paramètre ou champ de corps et ne rend que { ok }.
+// Tests : server/test/admin-actions.test.js.
+import { HttpError, audit, body, isUuid } from '../lib.js'
 import { SILENT_MINUTES } from '../device-status.js'
+import { withTransaction } from '../db.js'
+import { isLastAdmin, lockAdmins } from '../admins.js'
+import { revokeDevice } from './devices.js'
 
 const ADMIN = { config: { admin: true } }
 export const ADMIN_PAGE_MAX = 100
@@ -57,6 +64,10 @@ const noQuery = (query) => {
   const keys = Object.keys(query ?? {})
   if (keys.length) throw new HttpError(400, `Paramètre non accepté : ${keys.join(', ')}`)
 }
+// Écritures de l'équipe : aucun champ attendu. Corps absent ou `{}` ; tout champ est un 400
+// (jamais ignoré en silence), un corps qui n'est pas un objet aussi.
+const noBody = (req) => { if (req.body !== undefined && req.body !== null) body(req, []) }
+const userNotFound = () => new HttpError(404, 'Compte introuvable.', 'user_not_found')
 
 // État d'un téléphone vu par l'équipe : révoqué ; silencieux (surveillé en arrière-plan,
 // dernier signal plus vieux que le seuil de l'alerte « silence », même règle que jobs.js) ;
@@ -75,9 +86,70 @@ export default async function adminRoutes(app) {
               -- Compte à numéro (NAR-136) : le numéro ne sort jamais vers l'équipe (aucune clé « phone »
               -- dans une réponse admin) ; seulement le type d'identifiant et la confirmation.
               u.email IS NULL AS sms_account, (u.email_verified_at IS NOT NULL OR u.phone_verified_at IS NOT NULL) AS verified,
+              u.disabled_at,
               EXISTS (SELECT 1 FROM mfa_factors f WHERE f.user_id = u.id) AS mfa
          FROM users u ORDER BY u.created_at DESC LIMIT 500`)
     return rows
+  })
+
+  // Désactivation d'un compte (NAR-199) : plus aucune session (SESSION_RULE refuse cookie,
+  // Bearer et renouvellement natif d'un compte désactivé), sessions effacées tout de suite
+  // (jetons push par cascade), défis MFA en cours aussi ; la connexion répond le 401 d'un
+  // mauvais mot de passe. Jamais son propre compte (409 self_disable), jamais le dernier
+  // administrateur actif (409 last_admin, même verrou que la suppression d'un compte).
+  // Déjà désactivé : rien d'écrit ni d'audité.
+  app.post('/users/:id/disable', ADMIN, async (req) => {
+    const admin = app.requireAdmin(req)
+    noQuery(req.query)
+    noBody(req)
+    if (!isUuid(req.params.id)) throw userNotFound()
+    if (req.params.id.toLowerCase() === admin.id) throw new HttpError(409, 'Vous ne pouvez pas désactiver votre propre compte.', 'self_disable')
+    await withTransaction(db, async (conn) => {
+      // Ordre des verrous de la suppression d'un compte : la ligne du compte, puis le verrou
+      // des administrateurs (jamais l'inverse : interblocage avec une suppression simultanée).
+      const { rows: [user] } = await conn.query('SELECT id, is_admin, disabled_at FROM users WHERE id = $1 FOR UPDATE', [req.params.id])
+      if (!user) throw userNotFound()
+      if (user.disabled_at) return
+      if (user.is_admin) {
+        await lockAdmins(conn)
+        if (await isLastAdmin(conn, user.id)) throw new HttpError(409, 'Dernier administrateur actif : il ne peut pas être désactivé.', 'last_admin')
+      }
+      await conn.query('UPDATE users SET disabled_at = now() WHERE id = $1', [user.id])
+      await conn.query('DELETE FROM sessions WHERE user_id = $1', [user.id])
+      await conn.query('DELETE FROM mfa_challenges WHERE user_id = $1', [user.id])
+      await audit(conn, req, 'account_disabled', user.id)
+    })
+    return { ok: true }
+  })
+
+  // Réactivation : le compte peut se reconnecter (aucune session rendue). Déjà actif : rien
+  // d'écrit ni d'audité.
+  app.post('/users/:id/enable', ADMIN, async (req) => {
+    app.requireAdmin(req)
+    noQuery(req.query)
+    noBody(req)
+    if (!isUuid(req.params.id)) throw userNotFound()
+    await withTransaction(db, async (conn) => {
+      const { rows: [user] } = await conn.query('SELECT id, disabled_at FROM users WHERE id = $1 FOR UPDATE', [req.params.id])
+      if (!user) throw userNotFound()
+      if (!user.disabled_at) return
+      await conn.query('UPDATE users SET disabled_at = NULL WHERE id = $1', [user.id])
+      await audit(conn, req, 'account_enabled', user.id)
+    })
+    return { ok: true }
+  })
+
+  // Révocation d'un téléphone par l'équipe (NAR-199) : la même que celle d'un gestionnaire
+  // (revokeDevice, routes/devices.js), sans condition de famille. Sessions d'appareil, jeton
+  // « signal de vie », jetons push et inventaire effacés, alertes fermées. Inconnu ou déjà
+  // révoqué → 404.
+  app.post('/devices/:id/revoke', ADMIN, async (req) => {
+    app.requireAdmin(req)
+    noQuery(req.query)
+    noBody(req)
+    if (!isUuid(req.params.id)) throw new HttpError(404, 'Téléphone introuvable.', 'device_not_found')
+    await withTransaction(db, (conn) => revokeDevice(conn, req, req.params.id, { details: { by: 'admin' } }))
+    return { ok: true }
   })
 
   app.get('/audit', ADMIN, async (req) => {

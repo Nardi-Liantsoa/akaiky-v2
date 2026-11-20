@@ -92,5 +92,7 @@ GRANT INSERT, DELETE ON phone_codes TO app_runtime;
 GRANT UPDATE (code_hash, attempts, expires_at, created_at) ON phone_codes TO app_runtime;
 GRANT INSERT ON phone_send_limits TO app_runtime;
 GRANT UPDATE (sends, window_expires_at, last_sent_at) ON phone_send_limits TO app_runtime;
+-- Désactivation d'un compte par l'équipe (028_account_disable.sql) : la date seule.
+GRANT UPDATE (disabled_at) ON users TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;

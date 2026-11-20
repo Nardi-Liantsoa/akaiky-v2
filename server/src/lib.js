@@ -56,7 +56,9 @@ export function body(req, allowed) {
 // admin ou un compte qui en a un. Une seule définition, pour le hook de session
 // et le renouvellement natif.
 // Compte à numéro (NAR-136) : numéro confirmé à la place de l'adresse.
+// Compte désactivé par l'équipe (NAR-199) : aucune session, quel que soit le transport.
 export const SESSION_RULE = `(u.email_verified_at IS NOT NULL OR u.phone_verified_at IS NOT NULL)
+  AND u.disabled_at IS NULL
   AND (s.mfa_verified_at IS NOT NULL OR (NOT u.is_admin AND NOT EXISTS (SELECT 1 FROM mfa_factors f WHERE f.user_id = u.id)))`
 
 // Ce que le navigateur reçoit d'un compte : champ par champ, jamais la ligne entière.

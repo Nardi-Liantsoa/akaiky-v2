@@ -5,7 +5,8 @@
 //                                 la charge utile du QR de provisionnement Android ;
 //   GET  /children/:id/devices   membres : téléphones appairés actifs ;
 //   GET  /children/:id/calls     membres : appels de l'enfant (sortants, reçus, bloqués), NAR-145 ;
-//   POST /devices/:id/revoke     owner, manager : révocation immédiate.
+//   POST /devices/:id/revoke     owner, manager : révocation immédiate (revokeDevice, aussi
+//                                 appelée par l'équipe : POST /api/admin/devices/:id/revoke).
 // Côté téléphone (session d'appareil, préfixe /api/device) :
 //   POST /pair     public : jeton d'appairage → identifiants d'appareil ;
 //   POST /refresh  public : renouvellement tourné (mécanique de native.js) ;
@@ -203,24 +204,33 @@ export async function devicesRoutes(app) {
     if (!isUuid(req.params.id)) throw deviceNotFound()
     await withTransaction(db, async (conn) => {
       const own = await lockOwnFamily(conn, req, MANAGERS)
-      const { rows: [device] } = await conn.query(
-        // Jeton « signal de vie » (NAR-180) effacé avec : revoked_at suffit déjà à le refuser.
-        'UPDATE child_devices SET revoked_at = now(), heartbeat_token_hash = NULL, heartbeat_token_expires_at = NULL WHERE id = $1 AND family_id = $2 AND revoked_at IS NULL RETURNING id',
-        [req.params.id, own.familyId])
-      if (!device) throw deviceNotFound()
-      // Ses sessions tombent tout de suite : la requête suivante du téléphone reçoit 401.
-      await conn.query('DELETE FROM device_sessions WHERE device_id = $1', [device.id])
-      // Ses jetons push aussi : plus aucune notification vers ce téléphone (la ligne de
-      // l'appareil reste, la cascade ne joue donc pas).
-      await conn.query('DELETE FROM push_tokens WHERE device_id = $1', [device.id])
-      // Ses alertes ouvertes (NAR-147) se ferment : un téléphone retiré n'est plus suivi.
-      await conn.query('UPDATE device_alerts SET closed_at = now() WHERE device_id = $1 AND closed_at IS NULL', [device.id])
-      // Son inventaire d'applications (NAR-143) : plus rien de ce téléphone n'est gardé ni montré.
-      await conn.query('DELETE FROM device_apps WHERE device_id = $1', [device.id])
-      await audit(conn, req, 'device_revoked', device.id)
+      await revokeDevice(conn, req, req.params.id, { familyId: own.familyId })
     })
     return { ok: true }
   })
+}
+
+// Révocation d'un téléphone, dans la transaction de l'appelant : par un gestionnaire de sa
+// famille (`familyId` : la ligne doit lui appartenir) ou par l'équipe (`familyId` null,
+// POST /api/admin/devices/:id/revoke, NAR-199). Téléphone inconnu, d'une autre famille ou
+// déjà révoqué → 404, rien d'écrit. `details` : complément de la ligne d'audit.
+export async function revokeDevice(conn, req, deviceId, { familyId = null, details = null } = {}) {
+  const { rows: [device] } = await conn.query(
+    // Jeton « signal de vie » (NAR-180) effacé avec : revoked_at suffit déjà à le refuser.
+    `UPDATE child_devices SET revoked_at = now(), heartbeat_token_hash = NULL, heartbeat_token_expires_at = NULL
+      WHERE id = $1 AND ($2::uuid IS NULL OR family_id = $2) AND revoked_at IS NULL RETURNING id`,
+    [deviceId, familyId])
+  if (!device) throw deviceNotFound()
+  // Ses sessions tombent tout de suite : la requête suivante du téléphone reçoit 401.
+  await conn.query('DELETE FROM device_sessions WHERE device_id = $1', [device.id])
+  // Ses jetons push aussi : plus aucune notification vers ce téléphone (la ligne de
+  // l'appareil reste, la cascade ne joue donc pas).
+  await conn.query('DELETE FROM push_tokens WHERE device_id = $1', [device.id])
+  // Ses alertes ouvertes (NAR-147) se ferment : un téléphone retiré n'est plus suivi.
+  await conn.query('UPDATE device_alerts SET closed_at = now() WHERE device_id = $1 AND closed_at IS NULL', [device.id])
+  // Son inventaire d'applications (NAR-143) : plus rien de ce téléphone n'est gardé ni montré.
+  await conn.query('DELETE FROM device_apps WHERE device_id = $1', [device.id])
+  await audit(conn, req, 'device_revoked', device.id, details)
 }
 
 // Routes du téléphone (préfixe /api/device).

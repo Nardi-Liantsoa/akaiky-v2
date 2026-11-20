@@ -11,6 +11,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { passwordOf } from '../password-confirm.js'
 import { normalizePhone, loginColumn } from '../phone.js'
 import { phoneRoutes } from '../phone-auth.js'
+import { isLastAdmin, lockAdmins } from '../admins.js'
 
 // Réponse identique que l'adresse existe ou non : l'API ne révèle jamais
 // quels emails ont un compte.
@@ -92,11 +93,14 @@ export default async function authRoutes(app) {
     const byPhone = column === 'phone'
     if (typeof b.password !== 'string' || b.password.length > 200) throw new HttpError(400, 'Mot de passe requis.')
     return guardLogin(e, async (conn, guard) => {
-      const u = (await conn.query(`SELECT id, email, phone, name, is_admin, password_hash, email_verified_at, phone_verified_at
+      const u = (await conn.query(`SELECT id, email, phone, name, is_admin, password_hash, email_verified_at, phone_verified_at, disabled_at
         FROM users WHERE ${column}=$1`, [e])).rows[0]
       // Email inconnu : on vérifie quand même un hachage, pour que la durée ne trahisse rien.
       const valid = u ? await verifyPassword(b.password, u.password_hash) : (await burnPasswordTime(b.password), false)
-      if (!valid) {
+      // Compte désactivé par l'équipe (NAR-199) : exactement un mauvais mot de passe (même
+      // 401, même compteur de la garde, même durée), avant toute autre réponse : le bon mot
+      // de passe d'un compte désactivé ne révèle rien, pas même que le compte existe.
+      if (!valid || u.disabled_at) {
         const failures = await guard.failed()
         if (u) {
           if (failures >= 10) await securityAlert(conn, 'login_attack')
@@ -113,6 +117,8 @@ export default async function authRoutes(app) {
         // Une réinitialisation ou promotion concurrente invalide l'ancien résultat.
         const current = (await conn.query('SELECT * FROM users WHERE id=$1 FOR UPDATE', [u.id])).rows[0]
         if (!current || current.password_hash !== u.password_hash) throw new HttpError(401, 'Recommencez la connexion.')
+        // Désactivé entre la vérification et le verrou : même refus générique.
+        if (current.disabled_at) throw new HttpError(401, byPhone ? 'Numéro ou mot de passe incorrect.' : 'Email ou mot de passe incorrect.')
         const needsMfa = current.is_admin || !!(await conn.query('SELECT user_id FROM mfa_factors WHERE user_id=$1', [u.id])).rows[0]
         const result = await accepted(conn, current, needsMfa)
         await conn.query('COMMIT')
@@ -132,9 +138,6 @@ export default async function authRoutes(app) {
   // supprimées : l'adresse est une donnée personnelle et une invitation utilisée n'est plus lue.
   const ownerMustTransfer = () => new HttpError(409, 'Cédez d’abord le rôle de parent principal ou supprimez la famille.', 'owner_must_transfer_or_delete')
   const lastAdmin = () => new HttpError(409, 'Dernier administrateur : nommez-en un autre avant de supprimer ce compte.', 'last_admin')
-  const isLastAdmin = async (conn, userId) => (await conn.query(
-    `SELECT 1 FROM users u WHERE u.id = $1 AND u.is_admin
-        AND NOT EXISTS (SELECT 1 FROM users o WHERE o.is_admin AND o.id <> u.id)`, [userId])).rows.length > 0
   app.delete('/me', async (req, reply) => {
     const user = app.requireUser(req)
     const ownerCheck = await db.query("SELECT 1 FROM memberships WHERE user_id = $1 AND role = 'owner'", [user.id])
@@ -156,7 +159,7 @@ export default async function authRoutes(app) {
       // transaction), le second relit la base après la validation du premier et est refusé.
       const { rows: [admin] } = await conn.query('SELECT is_admin FROM users WHERE id = $1', [user.id])
       if (admin?.is_admin) {
-        await conn.query("SELECT pg_advisory_xact_lock(hashtext('akaiky:last_admin'))")
+        await lockAdmins(conn)
         if (await isLastAdmin(conn, user.id)) throw lastAdmin()
       }
       await conn.query('DELETE FROM invitations WHERE invited_by = $1 AND used_at IS NULL', [user.id])

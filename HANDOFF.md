@@ -100,6 +100,11 @@
   téléphone par l'admin (même chemin que la famille, extrait de `routes/devices.js`) ; tranche 3, réinitialisation
   du code parent (voir « Limites résiduelles », back-office). La page `admin` de la comparaison visuelle diffère de
   `main` par construction (nouvelle page).
+- Back-office, tranche 2 (NAR-199, 20/11/2026) : désactivation et réactivation d'un compte, retrait d'un téléphone
+  par l'équipe, confirmés par la feuille commune (réactivation immédiate : elle ne retire rien). Migration
+  **028** (`users.disabled_at`, la 027 étant prise par la connexion par téléphone), droit aussi dans
+  `ops/runtime-role.sql`. La page `admin` de la comparaison visuelle diffère de `main` (colonnes « État » et
+  « Action », boutons). Suite : tranche 3, réinitialisation du code parent.
 
 ## Migrations figées
 
@@ -455,8 +460,10 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   installer une fois par une autre voie (`docs/MOBILE.md`).
 - **Back-office (NAR-144, tranche 1)** : l'équipe voit des identifiants, pas des noms ; pour retrouver une
   famille au téléphone, elle part de l'adresse du compte (liste des comptes) — le lien compte → famille n'est pas
-  encore affiché. Les lectures de l'équipe ne sont pas inscrites au journal d'audit (seules les actions le seront,
-  tranches 2 et 3). Pages de 50 sans recherche ni filtre. **Code parent, tranche 3 (décision proposée)** : le
+  encore affiché. Les lectures de l'équipe ne sont pas inscrites au journal d'audit (seules ses actions le sont :
+  `account_disabled`, `account_enabled`, `device_revoked` avec `{ by: 'admin' }`). Un compte désactivé peut encore
+  réinitialiser son mot de passe par courriel : elle aboutit (aucune session ouverte), la connexion reste refusée ;
+  toute session qu'ouvrirait une future voie (SMS, NAR-201) serait refusée par `SESSION_RULE`. Pages de 50 sans recherche ni filtre. **Code parent, tranche 3 (décision proposée)** : le
   téléphone de l'enfant ignore un `parentCode` nul (`ChildHomeView.vue` garde le hachage enregistré et reste
   armé), donc effacer le hachage ne déverrouille rien mais casse le déverrouillage à distance (409
   `no_parent_code`) et fait croire au parent qu'il n'y a pas de code ; un hachage impossible enfermerait un
