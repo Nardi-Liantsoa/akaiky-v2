@@ -28,13 +28,16 @@ test('la batterie de l’enfant passe sous 15 % : le parent voit l’alerte et r
   await page.goto('/espace')
   const state = page.getByRole('region', { name: 'État du téléphone de Fy' })
   await expect(state.getByRole('definition')).toHaveText(['60 %', 'Mobile', 'Présente'])
-  await expect(state.getByText(/^Vu (à l’instant|il y a 1 minute)$/)).toBeVisible()
+  // Ligne d'état de la carte (NAR-192) : pastille « Tout va bien » et dernier passage.
+  const card = page.getByRole('button', { name: /^Fy / })
+  await expect(card).toContainText(/Tout va bien\s*vu à \d\d:\d\d$/)
   await expect(page.getByRole('alert')).toHaveCount(0)
 
   // 12 % hors charge : alerte sur l'accueil.
   expect((await device(page, 'POST', '/heartbeat', { token: accessToken, data: { batteryPct: 12, charging: false, network: 'mobile', simState: 'ready' } })).ok()).toBe(true)
   await page.reload()
-  await expect(page.getByRole('alert')).toContainText('Batterie faible sur le téléphone de Fy')
+  await expect(page.getByRole('alert')).toContainText('Batterie faible')
+  await expect(card).toContainText(/À vérifier\s*vu à \d\d:\d\d$/)
   await expect(state.getByRole('definition').first()).toHaveText('12 %')
 
   // Une notification, une seule, partie vers le jeton du parent (file traitée toutes les 10 s).
