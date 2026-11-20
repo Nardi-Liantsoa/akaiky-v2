@@ -126,6 +126,29 @@ effacer le journal d'audit.
 4. Migrations suivantes : conteneur ponctuel `node server/bin/migrate.js` avec
    le compte propriétaire, **avant** de déployer l'image qui en a besoin.
 
+**Empreintes des migrations (NAR-198).** `schema_migrations.checksum` garde le SHA-256 de
+chaque migration appliquée (fins de ligne normalisées en LF avant le calcul : une copie
+Windows a la même empreinte). La colonne est posée par le runner lui-même
+(`ALTER TABLE … ADD COLUMN IF NOT EXISTS`, `server/src/db.js`), pas par une migration
+numérotée : la table appartient au runner, et l'empreinte doit exister avant d'enregistrer
+la première migration en attente.
+
+- **Confiance au premier usage** : sur une base antérieure, le premier `migrate.js` (ou
+  démarrage en `DB_MIGRATIONS=auto`) prend les fichiers présents pour référence et le dit
+  (« Empreintes enregistrées comme référence (n) »). Il ne voit donc pas une modification
+  faite avant ce passage. Une ligne écrite plus tard par une image antérieure (retour
+  arrière) sans empreinte est complétée de même au passage suivant.
+- **Fichier modifié après application** : `migrate.js` sort en erreur (code 1) sans rien
+  appliquer, et l'application en `verify` refuse de démarrer sans nouvel essai ; le message
+  nomme le fichier. Remettre le fichier tel qu'appliqué, écrire une nouvelle migration.
+- **`verify` ne fait que lire** (`app_runtime` n'a que `SELECT` sur `schema_migrations`,
+  colonne ajoutée après `runtime-role.sql` comprise) : une empreinte absente est acceptée,
+  avec un avertissement « migrations sans empreinte : lancer server/bin/migrate.js » ; seul
+  le compte propriétaire l'enregistre. **Au premier déploiement de NAR-198 : lancer
+  `node server/bin/migrate.js` une fois** (aucune migration en attente, empreintes enregistrées).
+- Une ligne sans fichier (image plus ancienne que la base) est ignorée : le retour arrière
+  reste possible.
+
 ⚠️ Les sauvegardes PostgreSQL ne contiennent pas les rôles du cluster : sur un
 serveur neuf, **recréer `app_runtime` avant de restaurer** (procédure Deploy4000 :
 `nosyhost/docs/DURCISSEMENT-DEPLOY4000-20261001.md`).
@@ -199,6 +222,8 @@ Une fois par app et par canal ; procédure et choix de la coque minimale : `docs
   vérifié et le retour arrière automatique.
 - **Migrations additives** : la version précédente de l'image doit tourner
   sur le nouveau schéma, sinon le retour arrière casse.
+- **Migrations figées** : un fichier de `server/src/migrations/` publié ne se modifie,
+  ne se renomme ni ne se supprime ; la correction est une nouvelle migration (NAR-198).
 - **Aucun fichier écrit dans le conteneur** : il est jeté à chaque déploiement.
 - **`MFA_ENCRYPTION_KEY` sauvegardée avec la base** : sans elle, aucun admin
   ne peut plus se connecter après une restauration.

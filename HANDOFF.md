@@ -86,6 +86,40 @@
   vérifier sur un vrai téléphone parent (Android et iOS)** que le composeur s'ouvre. Le numéro n'est pas envoyé au
   téléphone de l'enfant. Exemple du champ au pays des contacts déjà chargés (Madagascar sinon).
 
+- Migrations figées (NAR-198, 20/11/2026) : empreinte SHA-256 de chaque migration appliquée dans
+  `schema_migrations.checksum` (colonne posée par le runner, fins de ligne normalisées), contrôlée par
+  `migrate.js` et `DB_MIGRATIONS=verify` ; confiance au premier usage pour les bases existantes ; job CI
+  `migrations-frozen` (une PR n'ajoute que des migrations). Détail : `NOSYHOST.md` § 5, section suivante.
+  **Prochain déploiement : lancer `node server/bin/migrate.js` une fois** (enregistre les empreintes).
+
+## Migrations figées
+
+Une migration publiée ne se modifie jamais : la correction est une nouvelle migration numérotée.
+Origine : `023_allowed_apps.sql` a reçu `device_apps.browser` (980a5b7) après avoir été appliquée sur la
+base de développement, qui n'a jamais eu la colonne (le runner saute une migration par son nom).
+
+**Base de développement (19/11) : à corriger à la main**, l'empreinte ne peut pas voir une modification
+antérieure à son premier enregistrement. Au choix :
+
+1. Ajouter la colonne telle que 023 la définit, avant de relancer l'API :
+   ```bash
+   docker compose -f compose.dev.yml exec db psql -U app -d akaiky_v2 \
+     -c "ALTER TABLE device_apps ADD COLUMN IF NOT EXISTS browser boolean NOT NULL DEFAULT false;"
+   ```
+   puis `npm run dev:api` (ou `dev:seed`) : le premier passage enregistre l'empreinte de 023 actuelle,
+   désormais conforme à la base.
+2. Ou recréer la base (données de test perdues) :
+   ```bash
+   docker compose -f compose.dev.yml down -v && npm run dev:db && npm run dev:seed
+   ```
+
+**Plus tard, « Migration NNN modifiée après application »** : remettre le fichier tel qu'il est sur
+`main` (`git checkout origin/main -- server/src/migrations/<fichier>`) et écrire la correction dans une
+nouvelle migration. Sur une base de développement seulement, si l'édition est voulue (migration jamais
+publiée) : appliquer l'écart à la main, puis
+`UPDATE schema_migrations SET checksum = NULL WHERE name = '<fichier>';` (le prochain `migrate`
+reprend l'empreinte du fichier), ou recréer la base comme ci-dessus.
+
 ## Décisions datées
 
 - 17/11/2026 — nouveau projet séparé du premier `~/labo2026/akaiky` (laissé intact),
