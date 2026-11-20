@@ -92,14 +92,18 @@ onBeforeUnmount(() => { clearInterval(timer); generation++ })
 }
 header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
 h2 {
   margin: 0 0 4px;
 }
+/* Cible tactile ≥ 48 px (NAR-192). */
 .all {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
   color: var(--accent);
   font-weight: 800;
   text-decoration: none;

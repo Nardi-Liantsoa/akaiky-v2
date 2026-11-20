@@ -201,6 +201,10 @@ const fr = {
     seenToday: (time: string) => `Téléphone vu à ${time}`,
     seenOn: (day: string, time: string) => `Téléphone vu le ${day} à ${time}`,
     noPhone: 'Aucun téléphone relié',
+    // Ligne d'état de la carte de l'accueil (NAR-192) : pastille, puis le dernier passage.
+    seenAt: (time: string) => `vu à ${time}`,
+    seenAtOn: (day: string, time: string) => `vu le ${day} à ${time}`,
+    levels: { ok: 'Tout va bien', warn: 'À vérifier', alert: 'Ne répond plus', none: 'Aucun téléphone' },
     actions: (name: string) => `Actions pour ${name}`,
     phone: 'Téléphone',
     parentCode: 'Code parent',
@@ -237,12 +241,12 @@ const fr = {
     unknown: 'Inconnu',
     networks: { wifi: 'Wi-Fi', mobile: 'Mobile', none: 'Aucun' },
     sims: { ready: 'Présente', absent: 'Absente', locked: 'Verrouillée', unknown: 'Inconnue' },
-    seen: (when: string) => `Vu ${when}`,
     noSignal: 'Pas encore de nouvelles du téléphone',
     alerts: {
-      battery_low: (name: string) => `Batterie faible sur le téléphone de ${name}`,
-      sim_absent: (name: string) => `Carte SIM absente du téléphone de ${name}`,
-      silent: (name: string) => `Le téléphone de ${name} ne répond plus`
+      // Sans le prénom, déjà en tête de la carte (NAR-192).
+      battery_low: 'Batterie faible',
+      sim_absent: 'Pas de carte SIM',
+      silent: 'Le téléphone ne répond plus'
     },
     since: (when: string) => `Signalé ${when}`,
     loadError: 'État du téléphone indisponible pour le moment.'
@@ -764,6 +768,9 @@ const mg: Messages = {
     seenToday: (time: string) => `Hita tamin’ny ${time} ny finday`,
     seenOn: (day: string, time: string) => `Hita ny ${day} tamin’ny ${time} ny finday`,
     noPhone: 'Tsy misy finday mifandray',
+    seenAt: (time: string) => `hita tamin’ny ${time}`,
+    seenAtOn: (day: string, time: string) => `hita ny ${day}, ${time}`,
+    levels: { ok: 'Milamina', warn: 'Mila jerena', alert: 'Tsy mamaly', none: 'Tsy misy finday' },
     actions: (name: string) => `Asa ho an’i ${name}`,
     phone: 'Finday',
     parentCode: 'Kaody ray aman-dreny',
@@ -799,12 +806,11 @@ const mg: Messages = {
     unknown: 'Tsy fantatra',
     networks: { wifi: 'Wi-Fi', mobile: 'Finday', none: 'Tsy misy' },
     sims: { ready: 'Misy', absent: 'Tsy misy', locked: 'Mihidy', unknown: 'Tsy fantatra' },
-    seen: (when: string) => `Hita ${when}`,
     noSignal: 'Mbola tsy nisy vaovao avy amin’ny finday',
     alerts: {
-      battery_low: (name: string) => `Efa ho lany ny bateria-n’ny findain’i ${name}`,
-      sim_absent: (name: string) => `Tsy misy karatra SIM ny findain’i ${name}`,
-      silent: (name: string) => `Tsy mamaly intsony ny findain’i ${name}`
+      battery_low: 'Efa ho lany ny bateria',
+      sim_absent: 'Tsy misy karatra SIM',
+      silent: 'Tsy mamaly intsony ny finday'
     },
     since: (when: string) => `Voamarika ${when}`,
     loadError: 'Tsy azo jerena amin’izao ny toetry ny finday.'
@@ -1321,6 +1327,9 @@ const en: Messages = {
     seenToday: (time: string) => `Phone seen at ${time}`,
     seenOn: (day: string, time: string) => `Phone seen on ${day} at ${time}`,
     noPhone: 'No phone linked',
+    seenAt: (time: string) => `seen at ${time}`,
+    seenAtOn: (day: string, time: string) => `seen on ${day} at ${time}`,
+    levels: { ok: 'All good', warn: 'Check phone', alert: 'Not responding', none: 'No phone' },
     actions: (name: string) => `Actions for ${name}`,
     phone: 'Phone',
     parentCode: 'Parent code',
@@ -1356,12 +1365,11 @@ const en: Messages = {
     unknown: 'Unknown',
     networks: { wifi: 'Wi-Fi', mobile: 'Mobile', none: 'None' },
     sims: { ready: 'Inserted', absent: 'Missing', locked: 'Locked', unknown: 'Unknown' },
-    seen: (when: string) => `Seen ${when}`,
     noSignal: 'No news from the phone yet',
     alerts: {
-      battery_low: (name: string) => `Low battery on ${name}’s phone`,
-      sim_absent: (name: string) => `No SIM card in ${name}’s phone`,
-      silent: (name: string) => `${name}’s phone is not responding`
+      battery_low: 'Low battery',
+      sim_absent: 'No SIM card',
+      silent: 'Phone not responding'
     },
     since: (when: string) => `Reported ${when}`,
     loadError: 'Phone status unavailable right now.'

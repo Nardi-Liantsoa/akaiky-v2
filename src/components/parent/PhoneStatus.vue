@@ -3,12 +3,21 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { getChildStatus, type AlertKind, type DeviceStatusInfo } from '../../api/devices'
 import { locale, useT } from '../../composables/useT'
 import { relativeTime } from '../../lib/relativeTime'
+import AppIcon from '../ui/AppIcon.vue'
+import type { IconName } from '../ui/icons'
 
 // État du téléphone sur la carte de l'enfant (NAR-147, maquette écran 6) : bandeau par
-// alerte ouverte, tuiles Batterie · Réseau · Carte SIM, « Vu il y a 2 minutes ». Relu chaque
-// minute et au retour au premier plan ; pendant une relecture, le contenu connu reste
-// affiché (estompé seulement s'il appartient à un autre enfant), jamais de clignotement.
+// alerte ouverte, tuiles Batterie · Réseau · Carte SIM. Relu chaque minute et au retour au
+// premier plan ; pendant une relecture, le contenu connu reste affiché (estompé seulement
+// s'il appartient à un autre enfant), jamais de clignotement.
+// NAR-192 : chaque bandeau et chaque tuile en défaut portent une icône (jamais la couleur
+// seule) ; le dernier passage est dans la ligne d'état de la carte, qui reçoit les alertes
+// lues ici (`alerts`) pour sa pastille, sans second chargement : `null` tant que l'état
+// n'est pas lu, après un échec (jamais un « Tout va bien » périmé) et sans aucun relevé
+// (« Pas encore de nouvelles » ne vaut pas « Tout va bien »). Pendant le premier
+// chargement, la hauteur des tuiles est réservée : la carte ne saute pas.
 const props = defineProps<{ childId: string, name: string }>()
+const emit = defineEmits<{ alerts: [kinds: AlertKind[] | null] }>()
 const t = useT()
 const devices = ref<DeviceStatusInfo[]>([])
 const status = ref<'loading' | 'ready' | 'error'>('loading')
@@ -26,8 +35,10 @@ async function load() {
     devices.value = res.devices
     loadedFor.value = childId
     status.value = 'ready'
+    emit('alerts', res.devices.some((d) => d.statusAt) ? res.devices.flatMap((d) => d.alerts.map((a) => a.kind)) : null)
   } catch {
     if (mine !== generation) return
+    emit('alerts', null)
     // Relevés d'un autre enfant : jamais affichés. Sinon les derniers connus restent.
     if (loadedFor.value !== childId) { devices.value = []; status.value = 'error' }
   } finally {
@@ -36,6 +47,8 @@ async function load() {
   }
 }
 watch(() => props.childId, () => {
+  // Montage ou autre enfant : les alertes connues (ancien téléphone, autre enfant) ne valent plus.
+  emit('alerts', null)
   reloading.value = true
   void load()
 }, { immediate: true })
@@ -46,6 +59,12 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
 
 // Les plus graves d'abord : silence, carte SIM, batterie.
 const ORDER: AlertKind[] = ['silent', 'sim_absent', 'battery_low']
+// Rouge : le téléphone ne répond plus ; jaune : batterie faible, carte SIM absente.
+const BANNER: Record<AlertKind, { icon: IconName, tone: 'alert' | 'warn' }> = {
+  silent: { icon: 'cross', tone: 'alert' },
+  sim_absent: { icon: 'sim', tone: 'warn' },
+  battery_low: { icon: 'warning', tone: 'warn' }
+}
 const alerts = computed(() => devices.value
   .flatMap((d) => d.alerts.map((a) => ({ ...a, deviceId: d.id })))
   .filter((a) => ORDER.includes(a.kind))
@@ -55,38 +74,50 @@ const ago = (iso: string | null) => relativeTime(iso, t.value, locale.value, now
 const battery = (d: DeviceStatusInfo) => d.batteryPct === null ? t.value.phoneState.unknown : t.value.phoneState.percent(d.batteryPct)
 const network = (d: DeviceStatusInfo) => d.network && d.network !== 'unknown' ? t.value.phoneState.networks[d.network] : t.value.phoneState.unknown
 const sim = (d: DeviceStatusInfo) => t.value.phoneState.sims[d.simState ?? 'unknown']
+const lowBattery = (d: DeviceStatusInfo) => d.batteryPct !== null && d.batteryPct < 15 && !d.charging
 </script>
 
 <template>
+  <!-- Premier chargement : tuiles vides de même gabarit, cachées aux lecteurs d'écran. -->
+  <div v-if="status === 'loading'" class="phone-state" aria-hidden="true">
+    <dl class="tiles placeholder">
+      <div v-for="i in 3" :key="i" class="tile">
+        <dt>&nbsp;</dt>
+        <dd>&nbsp;</dd>
+      </div>
+    </dl>
+  </div>
   <section
-    v-if="devices.length || status === 'error'" class="phone-state" :class="{ stale }" :aria-busy="reloading"
+    v-else-if="devices.length || status === 'error'" class="phone-state" :class="{ stale }" :aria-busy="reloading"
     :aria-label="t.phoneState.label(name)"
   >
     <p v-if="status === 'error'" class="unavailable">{{ t.phoneState.loadError }}</p>
     <ul v-if="alerts.length" class="alerts">
-      <li v-for="a in alerts" :key="`${a.deviceId}-${a.kind}`" class="banner" :class="a.kind === 'battery_low' ? 'warn' : 'alert'" role="alert">
-        <strong>{{ t.phoneState.alerts[a.kind](name) }}</strong>
-        <span class="since">{{ t.phoneState.since(ago(a.openedAt)) }}</span>
+      <li v-for="a in alerts" :key="`${a.deviceId}-${a.kind}`" class="banner" :class="BANNER[a.kind].tone" role="alert">
+        <AppIcon :name="BANNER[a.kind].icon" :size="22" class="icon" />
+        <span class="text">
+          <strong>{{ t.phoneState.alerts[a.kind] }}</strong>
+          <span class="since">{{ t.phoneState.since(ago(a.openedAt)) }}</span>
+        </span>
       </li>
     </ul>
     <div v-for="d in devices" :key="d.id" class="device">
       <p v-if="devices.length > 1 && d.model" class="model">{{ d.model }}</p>
       <template v-if="d.statusAt">
         <dl class="tiles">
-          <div class="tile" :class="{ low: d.batteryPct !== null && d.batteryPct < 15 && !d.charging }">
+          <div class="tile" :class="{ low: lowBattery(d) }">
             <dt>{{ t.phoneState.battery }}</dt>
-            <dd>{{ battery(d) }}<span v-if="d.charging" class="extra"> · {{ t.phoneState.charging }}</span></dd>
+            <dd><AppIcon v-if="lowBattery(d)" name="warning" :size="16" class="icon" />{{ battery(d) }}<span v-if="d.charging" class="extra"> · {{ t.phoneState.charging }}</span></dd>
           </div>
           <div class="tile" :class="{ low: d.network === 'none' }">
             <dt>{{ t.phoneState.network }}</dt>
-            <dd>{{ network(d) }}</dd>
+            <dd><AppIcon v-if="d.network === 'none'" name="warning" :size="16" class="icon" />{{ network(d) }}</dd>
           </div>
           <div class="tile" :class="{ low: d.simState === 'absent' }">
             <dt>{{ t.phoneState.sim }}</dt>
-            <dd>{{ sim(d) }}</dd>
+            <dd><AppIcon v-if="d.simState === 'absent'" name="warning" :size="16" class="icon" />{{ sim(d) }}</dd>
           </div>
         </dl>
-        <p class="seen">{{ t.phoneState.seen(ago(d.statusAt)) }}</p>
       </template>
       <p v-else class="seen">{{ t.phoneState.noSignal }}</p>
     </div>
@@ -115,11 +146,27 @@ const sim = (d: DeviceStatusInfo) => t.value.phoneState.sims[d.simState ?? 'unkn
 }
 .banner {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: flex-start;
+  gap: 10px;
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   color: var(--ink);
+}
+.banner .text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.banner .icon {
+  flex: none;
+  margin-top: 1px;
+}
+.banner.alert .icon {
+  color: var(--sos);
+}
+.banner.warn .icon {
+  color: var(--warning-ink);
 }
 .banner.alert {
   background: color-mix(in srgb, var(--sos) 14%, var(--surface-card));
@@ -172,6 +219,10 @@ const sim = (d: DeviceStatusInfo) => t.value.phoneState.sims[d.simState ?? 'unkn
 }
 .tile.low dd {
   color: var(--sos);
+}
+.tile dd .icon {
+  margin-right: 4px;
+  vertical-align: -2px;
 }
 .extra {
   font-weight: 700;

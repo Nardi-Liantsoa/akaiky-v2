@@ -1,20 +1,27 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { Child } from '../../api/children'
+import type { AlertKind } from '../../api/devices'
 import { locale, useT } from '../../composables/useT'
-import { phoneStatus } from '../../lib/childStatus'
+import { lastSeen, LEVEL_ICON, statusLevel } from '../../lib/childStatus'
 import { children, loadChildren, selectChild } from '../../store/children'
 import { canManage } from '../../store/family'
 import ChildAvatar from './ChildAvatar.vue'
 import ChildMenu from './ChildMenu.vue'
 import PhoneStatus from './PhoneStatus.vue'
 import TodayLog from './TodayLog.vue'
+import AppIcon from '../ui/AppIcon.vue'
 
 // Enfants de la famille sur l'accueil (NAR-174) : une carte par enfant, empilées. La carte
 // de l'enfant sélectionné est dépliée (« Aujourd'hui ») ; toucher une autre carte la
 // sélectionne. « ⋯ » (gestionnaires) : modifier, téléphone, code parent.
 const t = useT()
+// Alertes ouvertes lues par PhoneStatus, par enfant (NAR-192) : la pastille en dépend, sans
+// second chargement. Absentes ou null tant que l'état n'est pas lu, après un échec ou sans
+// relevé : niveau inconnu, pastille réservée.
+const alertsFor = reactive<Record<string, AlertKind[] | null>>({})
+const level = (c: Child) => statusLevel(c.phoneLastSeenAt, alertsFor[c.id] ?? null)
 const menuFor = ref<Child | null>(null)
 const menuOpener = ref<HTMLElement | null>(null)
 function openMenu(c: Child, e: MouseEvent) {
@@ -50,14 +57,24 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
             <ChildAvatar :name="c.firstName" :color="c.avatarColor" :size="52" />
             <span class="who">
               <span class="name">{{ c.firstName }}</span>
-              <span class="status" :class="{ none: !c.phoneLastSeenAt }">{{ phoneStatus(c.phoneLastSeenAt, t, locale, now) }}</span>
+              <!-- Ligne d'état (NAR-192) : pastille (couleur, icône, texte), puis « vu à … ». -->
+              <span class="status">
+                <span v-if="level(c)" class="pill" :class="level(c)">
+                  <AppIcon :name="LEVEL_ICON[level(c) ?? 'none']" :size="16" />{{ t.children.levels[level(c) ?? 'none'] }}
+                </span>
+                <!-- Niveau pas encore lu : place de « Tout va bien » gardée, rien n'est annoncé. -->
+                <span v-else class="pill ok pending" aria-hidden="true"><AppIcon name="check" :size="16" />{{ t.children.levels.ok }}</span>
+                <span v-if="c.phoneLastSeenAt" class="seen">{{ lastSeen(c.phoneLastSeenAt, t, locale, now) }}</span>
+              </span>
             </span>
           </button>
         </h2>
-        <button v-if="canManage()" type="button" class="more" :aria-label="t.children.actions(c.firstName)" @click="openMenu(c, $event)">⋯</button>
+        <button v-if="canManage()" type="button" class="more" :aria-label="t.children.actions(c.firstName)" @click="openMenu(c, $event)">
+          <AppIcon name="more" :size="22" />
+        </button>
       </div>
       <!-- Batterie, réseau, carte SIM et alertes du téléphone (NAR-147), sur chaque carte. -->
-      <PhoneStatus v-if="c.phoneLastSeenAt" :child-id="c.id" :name="c.firstName" />
+      <PhoneStatus v-if="c.phoneLastSeenAt" :child-id="c.id" :name="c.firstName" @alerts="alertsFor[c.id] = $event" />
       <TodayLog v-if="c.id === children.selectedId" :id="`today-${c.id}`" :child-id="c.id" bare />
     </li>
     <li v-if="canManage()">
@@ -80,8 +97,9 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
   padding: 12px 12px 12px 16px;
   transition: box-shadow 0.15s;
 }
+/* Carte sélectionnée : bord discret (NAR-192) ; elle se distingue aussi par « Aujourd'hui ». */
 .child.open {
-  box-shadow: 0 0 0 2px var(--ink);
+  box-shadow: 0 0 0 1px var(--border-strong);
 }
 .head {
   display: flex;
@@ -121,12 +139,45 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
   overflow-wrap: anywhere;
 }
 .status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  margin-top: 2px;
   color: var(--text-soft);
   font-weight: 700;
-  font-size: 0.92rem;
+  font-size: var(--fs-small);
 }
-.status.none {
-  color: var(--ink-mute);
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px 2px 6px;
+  border-radius: var(--radius-pill);
+  font-weight: 800;
+  white-space: nowrap;
+}
+.pill.ok {
+  background: var(--tint-mint);
+  color: var(--call);
+}
+.pill.warn {
+  background: var(--warning-bg);
+  color: var(--warning-ink);
+}
+.pill.alert {
+  background: color-mix(in srgb, var(--sos) 14%, var(--surface-card));
+  color: var(--sos-deep);
+}
+.pill.none {
+  background: var(--surface-muted);
+  color: var(--ink-soft);
+}
+.pill.pending {
+  visibility: hidden;
+}
+.seen {
+  white-space: nowrap;
 }
 .more {
   flex: none;
@@ -137,9 +188,10 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
   background: var(--surface);
   color: var(--text);
   font: inherit;
-  font-size: 1.3rem;
-  font-weight: 900;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   cursor: pointer;
 }
 .select:focus-visible,
