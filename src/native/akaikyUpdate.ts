@@ -5,6 +5,9 @@ import { registerPlugin } from '@capacitor/core'
 export interface UpdateStatus {
   // versionCode installé ; lastAttemptAt : dernière tentative (ms), gardée par le natif.
   versionCode: number, lastAttemptAt?: number, lastResult?: string, running: boolean
+  // NAR-191 : SOS en cours (ou gardé) ou appel en cours, illisible compris. Absent d'une coque
+  // antérieure : le runtime OTA le prend pour « occupé » et n'agit pas.
+  busy?: boolean
 }
 
 export interface AkaikyUpdatePlugin {

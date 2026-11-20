@@ -2,6 +2,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import legacy from '@vitejs/plugin-legacy'
+import capacitorConfig from './capacitor.config.ts'
 
 // En développement, /api est relayé vers l'API locale (`npm run dev:api`, port 8787).
 const API = process.env.VITE_API_PROXY || 'http://127.0.0.1:8787'
@@ -19,6 +20,11 @@ export default defineConfig(({ command, mode }) => {
   }
 
   return {
+    // Barrière Capgo du runtime OTA (NAR-191, src/lib/otaUpdate.ts) : l'`updateUrl` que `cap sync`
+    // écrit dans les coques, depuis la même source. Absent (Capgo Cloud par défaut) : aucune requête.
+    define: {
+      __AKAIKY_OTA_UPDATE_URL__: JSON.stringify(capacitorConfig.plugins?.CapacitorUpdater?.updateUrl ?? '')
+    },
     plugins: [
       vue(),
       // Vieux WebView Android (téléphones sans Play Store) : la cible Vite par

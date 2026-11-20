@@ -30,6 +30,7 @@ import { API_BASE } from '../../api/base'
 import { createBackgroundStatus } from '../../lib/backgroundStatus'
 import { createApkUpdater } from '../../lib/apkUpdate'
 import { AkaikyUpdate } from '../../native/akaikyUpdate'
+import { setOtaScreenBusy } from '../../lib/otaRuntime'
 import { formatClock } from '../../lib/format'
 import { activeWindow, safeTimeZone, visibleContacts } from '../../lib/schedule'
 import AppButton from '../../components/ui/AppButton.vue'
@@ -519,6 +520,10 @@ async function openPhoneSettings() {
 // Mise à jour de l'app (NAR-170) : version annoncée par la configuration, installée par le natif
 // (qui revérifie tout et refuse pendant un appel). Jamais pendant un SOS ; au plus un essai par 6 h.
 const apkUpdater = createApkUpdater({ plugin: AkaikyUpdate, busy: () => sosBusy || sosOpen.value || !!sosState.value?.active })
+// Mise à jour OTA (NAR-191) : jamais pendant le démarrage (appairage en cours), un SOS lancé
+// par l'écran, ni la saisie du code parent ; le natif ajoute appel et SOS en cours
+// (src/lib/otaRuntime.ts).
+setOtaScreenBusy(() => busy.value || sosBusy || sosOpen.value || !!sosState.value?.active || unlocking.value)
 function checkUpdate() {
   if (!Capacitor.isNativePlatform() || state.value.kind !== 'paired') return
   void apkUpdater.check(deviceConfig.config?.apk)
@@ -526,7 +531,7 @@ function checkUpdate() {
 watch(() => deviceConfig.config?.apk, checkUpdate)
 // Téléphone retiré pendant l'usage : l'écran le dit.
 watch(() => deviceConfig.status, (s) => { if (s === 'lost') state.value = { kind: 'revoked' } })
-onBeforeUnmount(() => { unmounted = true; clearInterval(sosWatch); clearInterval(schoolWatch); stopClock(); pause(); stopStatus(); clearTimeout(journalRetry); void lifecycle?.remove(); void sosListener?.remove() })
+onBeforeUnmount(() => { setOtaScreenBusy(() => true); unmounted = true; clearInterval(sosWatch); clearInterval(schoolWatch); stopClock(); pause(); stopStatus(); clearTimeout(journalRetry); void lifecycle?.remove(); void sosListener?.remove() })
 
 const text = computed(() => {
   const c = t.value.child

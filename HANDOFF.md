@@ -63,8 +63,20 @@
   dans les coques (encore une coque ; par défaut ils visent Capgo Cloud, appelé seulement si
   le JavaScript le demande, ce qu'aucun code ne fait), et jouer la migration 024 avant
   l'image qui en a besoin ;
-  (3) écrire le runtime (vérifier, `otaVerdict`, télécharger, `set`). Procédure :
-  `docs/MOBILE.md` « Mises à jour OTA ».
+  (3) le runtime est écrit (NAR-191, ci-dessous). Procédure : `docs/MOBILE.md` « Mises à jour OTA ».
+
+- **Runtime OTA (NAR-191, 20/11/2026)** : `src/lib/otaUpdate.ts` (règles) et `src/lib/otaRuntime.ts`
+  (branchement, après `notifyAppReady()`). Au démarrage et au retour au premier plan, au plus une
+  vérification par 6 h, tout réseau ; refus de tout ce qu'`otaVerdict` refuse (cible lue dans `data`,
+  seule forme que le greffon iOS transmet ; le serveur l'ajoute à la réponse) ; SHA-256 passé au greffon ;
+  parent : `next()` (installé par le greffon au prochain passage en arrière-plan) ; enfant : jamais
+  `next()`, `set()` 5 s après un passage en arrière-plan, seulement au repos (`AkaikyUpdate.status().busy`,
+  natif : SOS ou appel) ; version annulée jamais reprise ; bundles dépassés effacés. **Barrière Capgo** :
+  inerte tant que `updateUrl` de `capacitor.config.ts` n'est pas `https://<hôte>/api/ota/latest`
+  (aujourd'hui absent : aucune requête). **Coque** : la coque enfant doit porter `busy` (sinon l'enfant
+  reste « occupé » et ne se met jamais à jour) ; elle part avec celle de NAR-190. **Avant le premier OTA** :
+  NAR-190 (`updateUrl`/`channelUrl` des coques, nouvelle coque parent et enfant), migration 024 jouée,
+  publication à la main (`docs/MOBILE.md`). Limites : `HANDOFF.md` « Limites résiduelles ».
 
 - Numéro de l'enfant (NAR-194, 20/11/2026) : colonne `children.phone_enc` (migration `025`, additive, nullable),
   E.164 chiffré avec les données associées `children:phone:<id>`, sans index aveugle (aucune recherche par numéro).
@@ -145,6 +157,18 @@ Développement : la version debug garde le débogage USB. Pour réinstaller, app
 ## Limites résiduelles assumées
 
 Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une limite tue est une faille.
+
+- **Runtime OTA (NAR-191)** : la barrière Capgo se fie à l'`updateUrl` lu au build dans
+  `capacitor.config.ts`, pas à celui de la coque (le greffon ne l'expose pas) ; ils viennent de la même
+  source et un OTA n'atteint qu'une coque qui vise déjà ce serveur, mais une coque construite à la main
+  avec une autre configuration que celle du bundle échapperait à la vérification. App parent : installation
+  au prochain passage en arrière-plan (pas au prochain démarrage à froid) : un formulaire laissé ouvert en
+  quittant l'app est perdu. App enfant : bundle installé 5 s après un passage en arrière-plan au repos ; un
+  appel qui démarre plus de 5 s après ce passage n'est pas concerné, un appel que Telecom signale en retard
+  peut voir l'écran rechargé derrière lui (l'appel n'est pas touché). Téléphone qui ne passe jamais en
+  arrière-plan au repos : bundle jamais installé. Un faux échec (WebView trop lente à rappeler
+  `notifyAppReady()` à temps : 30 s au premier lancement d'un bundle sur Android, 10 s sur iOS) écarte cette version pour toujours : republier sous une
+  nouvelle version. Téléchargement sur données mobiles (~270 Ko par version).
 
 - **Bundles OTA non signés (NAR-189)** : intégrité par le SHA-256 que le greffon vérifie et par
   le https ; ni chiffrement (`session_key`) ni signature de bundle. Quiconque écrit dans

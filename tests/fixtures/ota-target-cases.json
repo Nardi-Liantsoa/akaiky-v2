@@ -29,5 +29,28 @@
     { "name": "identifiant natif étranger", "shell": { "appId": "com.example.autre", "build": "3" }, "target": { "app": "parent", "channel": "parent", "minNativeBuild": 1 }, "verdict": "unknown-shell" },
     { "name": "identifiant natif vide", "shell": { "appId": "", "build": "3" }, "target": { "app": "parent", "channel": "parent", "minNativeBuild": 1 }, "verdict": "unknown-shell" },
     { "name": "build natif illisible", "shell": { "appId": "mg.nosytech.akaiky", "build": "1.0" }, "target": { "app": "parent", "channel": "parent", "minNativeBuild": 1 }, "verdict": "unknown-shell" }
-  ]
+  ],
+  "_doc_data": "Même cible dans le champ `data` de la réponse OTA (NAR-191) : le greffon iOS 8.54.2 ne transmet au JavaScript que ses champs connus (`target` est perdu), mais garde `data`, un dictionnaire de chaînes (une valeur non textuelle y ferait échouer tout le décodage). Le serveur (server/src/ota.js, targetData) écrit chaque cible de `canonical` exactement sous sa forme `data` ; l'écran (src/lib/otaTarget.ts, targetFromData) relit `data` en cible sur les deux plateformes, et rend null (verdict invalid) pour chaque forme de `refused` : clé absente ou en trop, valeur non textuelle, coque minimale qui n'est pas un entier décimal positif sans zéro de tête (10 chiffres au plus).",
+  "data": {
+    "canonical": [
+      { "target": { "app": "parent", "channel": "parent", "minNativeBuild": 3 }, "data": { "app": "parent", "channel": "parent", "minNativeBuild": "3" } },
+      { "target": { "app": "enfant", "channel": "enfant-test", "minNativeBuild": 2100000000 }, "data": { "app": "enfant", "channel": "enfant-test", "minNativeBuild": "2100000000" } }
+    ],
+    "refused": [
+      null,
+      "parent",
+      [],
+      {},
+      { "app": "parent", "channel": "parent" },
+      { "app": "parent", "channel": "parent", "minNativeBuild": 3 },
+      { "app": "parent", "channel": "parent", "minNativeBuild": "03" },
+      { "app": "parent", "channel": "parent", "minNativeBuild": "0" },
+      { "app": "parent", "channel": "parent", "minNativeBuild": "1.5" },
+      { "app": "parent", "channel": "parent", "minNativeBuild": "-1" },
+      { "app": "parent", "channel": "parent", "minNativeBuild": " 3" },
+      { "app": "parent", "channel": "parent", "minNativeBuild": "99999999999" },
+      { "app": "parent", "channel": "parent", "minNativeBuild": "3", "extra": "x" },
+      { "app": 1, "channel": "parent", "minNativeBuild": "3" }
+    ]
+  }
 }

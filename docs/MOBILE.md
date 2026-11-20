@@ -224,11 +224,11 @@ lancement suivant.
 réseau** : un utilisateur hors connexion verrait sa mise à jour annulée à
 chaque démarrage.
 
-**OTA pas encore activé** : le serveur OTA auto-hébergé existe (NAR-189, ci-dessous), mais
-les coques ne le visent pas encore (`updateUrl` / `channelUrl` absents de
-`capacitor.config.ts`, donc Capgo Cloud par défaut, jamais appelé) et aucun runtime de mise à
-jour (vérifier, `otaVerdict`, télécharger, `set`) n'existe. Tant qu'ils manquent, aucun bundle
-n'est distribué. Capgo Cloud n'est pas utilisé (données de mineurs).
+**OTA pas encore activé** : le serveur (NAR-189) et le runtime (NAR-191, ci-dessous) existent,
+mais les coques ne visent pas encore le serveur (`updateUrl` / `channelUrl` absents de
+`capacitor.config.ts`, donc Capgo Cloud par défaut). Tant que c'est le cas, la barrière du runtime
+ne fait **aucune** requête : aucun bundle n'est distribué. Capgo Cloud n'est pas utilisé (données de
+mineurs).
 
 ### Une app, un canal (NAR-162)
 
@@ -275,7 +275,7 @@ Rien n'est écrit ni journalisé de ce que l'appareil envoie (`device_id` compri
 
 | Route | Appel du greffon | Réponse |
 |---|---|---|
-| `POST /api/ota/latest` | `getLatest()` (`updateUrl`) | `{ version, url, checksum, target }` ; sinon `{ error: 'no_new_version_available', message }` (200) ; coque inconnue (`unknown_shell`) ou canal étranger à l'app (`wrong_channel`) : 400 |
+| `POST /api/ota/latest` | `getLatest()` (`updateUrl`) | `{ version, url, checksum, target, data }` ; sinon `{ error: 'no_new_version_available', message }` (200) ; coque inconnue (`unknown_shell`) ou canal étranger à l'app (`wrong_channel`) : 400 |
 | `PUT /api/ota/channel` | `getChannel()` (`channelUrl`) | `{ channel, status: 'default', allowSet: false }` : le canal demandé s'il appartient à l'app de `app_id`, sinon le canal de cette app ; identifiant étranger : 400, rien de gardé |
 | `GET /api/ota/bundles/:id` | téléchargement de `url` | le zip (`application/zip`, pièce jointe, ETag = SHA-256) |
 
@@ -300,10 +300,69 @@ Rien n'est écrit ni journalisé de ce que l'appareil envoie (`device_id` compri
   temps (503 au-delà) ; la limite de téléchargement est comptée avant la lecture en base.
   L'application n'a que `SELECT`.
 - `target` : le greffon Android le transmet tel quel au JavaScript ; **le greffon iOS 8.54.2 ne
-  le transmet pas** (`AppVersionDec` ne garde que ses champs connus). Le runtime à écrire doit en
-  tenir compte côté iOS (sinon `otaVerdict` y répond `invalid` et rien ne s'installe).
+  le transmet pas** (`AppVersionDec` ne garde que ses champs connus). La réponse porte donc aussi
+  la cible en chaînes dans `data` (`{ app, channel, minNativeBuild: "3" }`, NAR-191), champ libre
+  que les deux greffons transmettent (iOS : dictionnaire de chaînes ; une valeur non textuelle y
+  ferait échouer tout le décodage). Le runtime lit `data` sur les deux plateformes ; sur Android,
+  `target` doit dire exactement la même chose, sinon refus. Cas partagés : `data` de
+  `tests/fixtures/ota-target-cases.json` (`targetData` côté serveur, `targetFromData` à l'écran).
+  `message` n'est pas utilisable : seul, il fait rejeter la réponse par le greffon iOS.
 - Pas de chiffrement ni de signature des bundles (pas de `session_key`) : l'intégrité repose
   sur le SHA-256 vérifié par le greffon et sur le https. Limite : `HANDOFF.md`.
+
+### Runtime de mise à jour (NAR-191)
+
+`src/lib/otaUpdate.ts` (règles, testées avec le greffon simulé : `otaUpdate.test.ts`), branché par
+`src/lib/otaRuntime.ts`, lancé par `main.ts` **après** `notifyAppReady()` et sans être attendu.
+
+- **Barrière Capgo** : `updateUrl` est lu au build dans `capacitor.config.ts`
+  (`vite.config.ts`, constante `__AKAIKY_OTA_UPDATE_URL__`), la même source que la configuration
+  native écrite par `cap sync`. Le greffon n'a aucune méthode pour lire son `updateUrl`
+  (`isAutoUpdateAvailable` ne la regarde pas). Rien n'est demandé au greffon si cette adresse n'est
+  pas `https://<hôte>/api/ota/latest` (jamais `capgo.app`) ou `http://127.0.0.1:<port>/api/ota/latest`
+  (test local par `adb reverse`, que seule la coque debug laisse passer en clair). Aujourd'hui elle
+  est vide : zéro requête vers `capgo.app`. Un bundle OTA ne peut atteindre qu'une coque qui vise
+  déjà ce serveur, donc constante et coque concordent.
+- **Quand** : au démarrage et à chaque retour au premier plan, **au plus une vérification toutes
+  les 6 heures** (comme l'APK enfant) : quatre requêtes par jour et par appareil au plus, un
+  correctif arrive dans la journée, et un lancement répété ne coûte rien. Horloge reculée : pas
+  bloqué. App enfant occupée : la tentative n'est pas consommée.
+- **Refus** : tout ce qu'`otaVerdict` refuse (cible lue dans `data`), une empreinte qui n'est pas
+  un SHA-256 hexadécimal minuscule (le greffon Android compare à l'identique), un zip qui ne vient
+  pas du même serveur (`/api/ota/bundles/`), une version mal formée, déjà active ou déjà annulée
+  une fois. Rien n'est alors téléchargé.
+- **Téléchargement** : `download({ url, version, checksum })`, empreinte passée explicitement : le
+  greffon refuse un zip sans empreinte et efface celui qui ne correspond pas (Android
+  `CapgoUpdater.finishDownload`, iOS `resolveExpectedBundleChecksum`). **Tout réseau**, données
+  mobiles comprises : `@capacitor/network` n'est pas installé (l'ajouter = nouvelle coque), le zip
+  fait ~270 Ko, il n'est téléchargé qu'une fois par version, et le téléphone de l'enfant n'a souvent
+  que des données mobiles (attendre le Wi-Fi = ne jamais se mettre à jour). Le greffon Android
+  attend le zip sans délai maximal : au-delà de 10 min, la vérification est abandonnée (le verrou
+  est rendu) ; un zip arrivé plus tard est repris comme déjà téléchargé.
+- **Installation, sans jamais interrompre** :
+  - app parent (Android, iOS) : `next()`. Le greffon 8.54.2 l'installe au **prochain passage en
+    arrière-plan** (`installNext` d'`appMovedToBackground`, Android et iOS), pas au prochain
+    démarrage à froid : l'utilisateur retrouve l'app rechargée sur la nouvelle version ;
+  - app enfant : **jamais `next()`**, car ce passage en arrière-plan y est un appel (écran d'appel
+    par-dessus) ou un SOS. Le bundle reste téléchargé ; 5 s après un passage en arrière-plan (écran
+    éteint, app autorisée ouverte), si l'app est toujours derrière et au repos, l'écran l'installe
+    par `set()` (« derrière » relu juste avant `set()`, jamais pendant une vérification). Au repos :
+    ni l'écran (démarrage, SOS en cours de lancement, saisie du code parent) ni le natif
+    (`AkaikyUpdate.status().busy` : SOS en cours, gardé ou en lancement, appel en cours ; illisible
+    = occupé) ne disent occupé. Vérification et téléchargement suivent la même règle.
+- **Retour arrière** : un bundle qui n'appelle pas `notifyAppReady()` à temps est annulé par le
+  greffon (bundle précédent, sinon celui de la coque) ; sa version est retenue (`getFailedUpdate`,
+  seule source : un bundle `error` de la liste peut n'être qu'un téléchargement raté, retenté à la
+  vérification suivante) et plus jamais retéléchargée. « À temps » : `appReadyTimeout` (10 s), mais le
+  greffon Android 8.54.2 accorde au moins 30 s au premier lancement d'un bundle
+  (`PENDING_BUNDLE_APP_READY_MIN_TIMEOUT_MS`), et sur les deux plateformes le délai ne court qu'au
+  premier plan (installé en arrière-plan : contrôle reporté au retour devant).
+  Vérifié sur l'émulateur `kiosk34` (coque parent debug visant un serveur local par `adb reverse`) :
+  bundle sans `notifyAppReady()` téléchargé, empreinte vérifiée, `next()`, installé au passage en
+  arrière-plan, annulé 30 s après le retour au premier plan, coque rechargée, bundle effacé ; même
+  bundle annoncé avec une fausse empreinte : « Checksum mismatch », rien de gardé ni d'installé.
+- **Nettoyage** : à chaque vérification, tout bundle téléchargé qui n'est ni l'actuel ni celui qui
+  attend est effacé (le greffon efface déjà le précédent après un succès et les échecs).
 
 ### Publier un OTA (procédure, une fois les coques réglées sur ce serveur)
 

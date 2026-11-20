@@ -3,7 +3,8 @@
 // greffon appelle depuis le natif (OkHttp, URLSession), sans session, sans cookie ni origine.
 // Rien n'est écrit : aucune donnée de l'appareil n'est gardée ni journalisée.
 //
-//   POST /latest        corps d'information du greffon → { version, url, checksum, target }
+//   POST /latest        corps d'information du greffon → { version, url, checksum, target, data }
+//                       (data : la cible en chaînes, seule forme que le greffon iOS transmet)
 //                       ou { error: 'no_new_version_available', message } ;
 //   PUT  /channel       getChannel() du greffon → { channel, status, allowSet: false } :
 //                       toujours un canal de l'app qui demande (le greffon le garde comme
@@ -15,7 +16,7 @@
 // désactivent (allowSetDefaultChannel: false) et rien ne doit pouvoir changer de canal.
 import { HttpError } from '../lib.js'
 import { createLimiter, rateLimitKey } from '../security.js'
-import { kindFromAppId, otaVerdict, ownAppId, readRequest } from '../ota.js'
+import { kindFromAppId, otaVerdict, ownAppId, readRequest, targetData } from '../ota.js'
 
 // Champs que le greffon 8.54.2 envoie (Android createInfoObject, iOS InfoObject). Un champ
 // inconnu est un 400 (aucune mise à jour), pas un champ retiré en silence : la route ne garde
@@ -87,7 +88,7 @@ export default async function otaRoutes(app) {
       return reply.send(noUpdate)
     }
     if (req.body.version_name === row.version) return reply.send(noUpdate)
-    return reply.send({ version: row.version, url: `${config.origin}/api/ota/bundles/${row.id}`, checksum: row.sha256, target })
+    return reply.send({ version: row.version, url: `${config.origin}/api/ota/bundles/${row.id}`, checksum: row.sha256, target, data: targetData(target) })
   })
 
   app.put('/channel', opts(INFO), async (req, reply) => {
