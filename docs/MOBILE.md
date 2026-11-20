@@ -99,6 +99,62 @@ tout redémarrage. Sortie de secours : `HANDOFF.md`.
 un inconnu est rejeté sans sonnerie, un contact sonne. Test local du rôle sans écran :
 `adb shell cmd role add-role-holder android.app.role.CALL_SCREENING mg.nosytech.akaiky.enfant`.
 
+**Filtrage des appels entrants sur Android 8–9 (NAR-172)** : ni `CallScreeningService` ni le rôle
+avant Android 10. Récepteur du manifeste `LegacyIncomingCallReceiver.kt` sur `PHONE_STATE`
+(diffusion protégée, livrée aux récepteurs du manifeste malgré les restrictions d'Android 8 :
+vérifié, processus tué, il est relancé par la diffusion), désactivé à partir d'Android 10
+(`values-v29/bools.xml`, `incoming_receiver_enabled`) et sans effet au-dessus de l'API 28 : jamais
+deux décisions pour un appel. Décision commune `IncomingCalls.screen` (la même que le service
+d'Android 10+ : `CallPolicy.screenIncoming`, plages « école », numéro d'urgence présenté sans
+exception, aucun réseau), règles pures dans `LegacyIncoming.kt`, cas partagés avec le service
+dans `tests/fixtures/incoming-call-cases.json` (`CallPolicyTest`, `LegacyIncomingTest`).
+Refus : raccroché d'abord, noté `call_blocked` ensuite, dans la même file que NAR-145.
+- Raccrocher : Android 9, `TelecomManager.endCall` (`ANSWER_PHONE_CALLS`) ; Android 8.0–8.1,
+  `ITelephony.endCall` par réflexion (`TelephonyManager.getITelephony`, interface cachée sans
+  restriction d'accès avant Android 9, `CALL_PHONE` suffit). `silenceRinger` est réservé au
+  composeur par défaut avant Android 10 : écarté.
+- Numéro : `EXTRA_INCOMING_NUMBER` exige `READ_PHONE_STATE`, et en plus `READ_CALL_LOG` sur
+  Android 9, qui envoie alors RINGING deux fois (avec et sans numéro ; sans aussi pour un numéro
+  masqué). Un RINGING sans numéro est relu par l'état courant du téléphone (`PhoneStateListener`,
+  rappelé aussitôt à l'inscription) ; un seul appel décidé par sonnerie (`LegacyIncoming.Ring`).
+  Sur Android 9, une relecture vide ne conclut pas à un numéro masqué : la copie avec le numéro
+  (retenue par la file des diffusions tant que le récepteur n'a pas fini) décide ; « masqué »
+  seulement après 3 s sans elle, si la même sonnerie dure (`TWIN_GRACE_MS`) : sur Android 9, un
+  numéro masqué sonne donc environ 3 s de plus avant d'être raccroché. Cette attente vit dans le
+  processus (en mémoire) : processus tué pendant ces 3 s, l'appel sonne sans être décidé. Numéro
+  non relu (état des appels illisible, aucune réponse en 2 s) : l'appel sonne, noté dans logcat.
+- Permissions `READ_PHONE_STATE`, `READ_CALL_LOG`, `CALL_PHONE`, `ANSWER_PHONE_CALLS` accordées en
+  Device Owner (`setPermissionGrantState`, par `setAllowed` et `Kiosk.enforce`). L'une manque :
+  le filtre ne fait rien (tout sonne, jamais un parent raccroché faute de numéro lisible) et
+  l'écran le dit (`screeningRole().incomingActive`).
+- **Courte sonnerie inévitable** : `PHONE_STATE` part quand Telecom fait déjà sonner. Mesuré sur
+  émulateur Android 8.1 (journaux Telecom, `setCallState RINGING` → `DISCONNECTED`) : 0,19 s
+  processus vivant, 0,27 s processus relancé par la diffusion, 0,04 s pour un numéro « masqué ».
+  Couper le volume de la sonnerie avant de raccrocher a été essayé puis retiré : refusé par
+  Android (« Not allowed to change Do Not Disturb state », sans accès aux règles de
+  notification), et il ne gagnerait que quelques ms sur le raccrochage, lancé au même instant.
+  L'écran d'appel entrant peut aussi apparaître un instant.
+- Appel en attente (un second appel pendant un appel en ligne) : jamais raccroché, ni noté
+  (`endCall` et `ITelephony` visent l'appel au premier plan : ils couperaient l'appel en ligne).
+  Vérifié aussi par le mode audio (`MODE_IN_CALL`, `MODE_IN_COMMUNICATION`) au moment de décider :
+  l'état gardé en mémoire est perdu si le processus redémarre pendant l'appel ; un appel VoIP en
+  cours (`MODE_IN_COMMUNICATION`) laisse donc aussi sonner un inconnu (noté dans logcat, pas au
+  journal). Un refus qui n'a
+  pas pu raccrocher (réflexion refusée) sonne et n'est pas noté `call_blocked`.
+
+Vérifié sur l'émulateur `nar172-api27` (Android 8.1, Google APIs arm64, Device Owner par `adb`,
+permissions par `pm grant`, liste écrite dans les préférences par `run-as`, appels par
+`adb emu gsm call`) : inconnu raccroché et noté, en ligne et hors ligne (données et Wi-Fi coupés,
+processus tué) ; contact (format national et international) qui sonne et noté `call_in`, hors
+ligne aussi ; numéro d'un chiffre (présentation retenue par le réseau) raccroché, noté sans
+numéro ; appel en attente laissé sonner, appel en ligne gardé. Le poste est un Mac ARM : les images x86_64
+ne démarrent pas ; l'image Android 9 arm64 Google APIs est inutilisable (service Wi-Fi absent,
+`com.android.phone` et l'interface système plantent en boucle) : le chemin Android 9
+(`TelecomManager.endCall`, double diffusion, relecture du numéro) n'est vérifié que par les tests JVM.
+Le simulateur d'appels n'accepte que des chiffres : un vrai numéro masqué (diffusion sans numéro)
+n'a pas pu être simulé. Le disque plein exige une partition de données préparée à la main
+(`mke2fs` de `platform-tools`, fichier creux de 6 Go) : l'émulateur refuse de la créer sous 7,4 Go libres.
+
 Vérification locale (émulateur, sans QR) :
 `adb shell dpm set-device-owner mg.nosytech.akaiky.enfant/mg.nosytech.akaiky.AkaikyDeviceAdminReceiver`
 sur un émulateur neuf (`-wipe-data`, sans compte). Le scan réel (6 touches sur l'écran de

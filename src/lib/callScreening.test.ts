@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canRequestRedirection, incomingFilterOff, outgoingFilterOff } from './callScreening'
+import { canRequestRedirection, canRequestScreening, incomingFilterOff, outgoingFilterOff } from './callScreening'
 
 describe('callScreening', () => {
   it('appels sortants : l’état réel lu par le natif fait foi', () => {
@@ -27,5 +27,21 @@ describe('callScreening', () => {
     expect(incomingFilterOff({ available: true, held: true })).toBe(false)
     expect(incomingFilterOff({ available: false, held: false })).toBe(false)
     expect(incomingFilterOff(null)).toBe(false)
+  })
+
+  it('appels entrants : l’état réel lu par le natif fait foi (NAR-172)', () => {
+    // Android 8–9 : récepteur actif avec ses permissions ; aucun rôle à demander.
+    const legacyOn = { available: false, held: false, incomingActive: true }
+    expect(incomingFilterOff(legacyOn)).toBe(false)
+    expect(canRequestScreening(legacyOn)).toBe(false)
+    // Android 8–9 : permission manquante → inactif, le bandeau le dit, aucun bouton.
+    const legacyOff = { available: false, held: false, incomingActive: false }
+    expect(incomingFilterOff(legacyOff)).toBe(true)
+    expect(canRequestScreening(legacyOff)).toBe(false)
+    // Android 10+ : rôle absent → inactif et demandable ; détenu → actif.
+    expect(incomingFilterOff({ available: true, held: false, incomingActive: false })).toBe(true)
+    expect(canRequestScreening({ available: true, held: false, incomingActive: false })).toBe(true)
+    expect(incomingFilterOff({ available: true, held: true, incomingActive: true })).toBe(false)
+    expect(canRequestScreening({ available: true, held: true })).toBe(false)
   })
 })

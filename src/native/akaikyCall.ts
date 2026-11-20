@@ -9,6 +9,7 @@ export interface ScreeningState {
   redirectionAvailable?: boolean
   redirectionHeld?: boolean
   outgoingActive?: boolean
+  incomingActive?: boolean
 }
 
 export interface AkaikyCallPlugin {
@@ -22,7 +23,8 @@ export interface AkaikyCallPlugin {
   // Rôle de filtrage d'Android 10+ : une confirmation système, une fois.
   // redirection* (NAR-169) : rôle de redirection des appels, filtre des appels sortants ;
   // outgoingActive : état réel de ce filtre (rôle sur Android 10+, récepteur et permission sur
-  // Android 8–9). Absents d'une coque plus ancienne.
+  // Android 8–9). incomingActive (NAR-172) : état réel du filtre des appels entrants (rôle sur
+  // Android 10+, récepteur PHONE_STATE et ses permissions sur Android 8–9). Absents d'une coque plus ancienne.
   screeningRole(): Promise<ScreeningState>
   requestScreeningRole(): Promise<{ held: boolean }>
   requestRedirectionRole(): Promise<{ held: boolean }>

@@ -13,7 +13,7 @@ import { buildSosPlan, confirmNativeSos } from '../../lib/sosCascade'
 import { AkaikySos, type SosState } from '../../native/akaikySos'
 import SosSentView from './SosSentView.vue'
 import { AkaikyCall, type ScreeningState } from '../../native/akaikyCall'
-import { canRequestRedirection, incomingFilterOff, outgoingFilterOff } from '../../lib/callScreening'
+import { canRequestRedirection, canRequestScreening, incomingFilterOff, outgoingFilterOff } from '../../lib/callScreening'
 import { AkaikyDevice, type DeviceStatus } from '../../native/akaikyDevice'
 import ChildStatusBar from '../../components/child/ChildStatusBar.vue'
 import ContactTile from '../../components/child/ContactTile.vue'
@@ -263,11 +263,11 @@ async function readScreening() {
 }
 const incomingOff = computed(() => incomingFilterOff(screening.value))
 const outgoingOff = computed(() => outgoingFilterOff(screening.value))
-const canEnableScreening = computed(() => incomingOff.value || canRequestRedirection(screening.value))
+const canEnableScreening = computed(() => canRequestScreening(screening.value) || canRequestRedirection(screening.value))
 const askScreening = computed(() => state.value.kind === 'paired' && (incomingOff.value || outgoingOff.value)
   && (!kiosk.status?.armed || isUnlocked()))
 async function enableScreening() {
-  if (incomingOff.value) await AkaikyCall.requestScreeningRole().catch(() => null)
+  if (canRequestScreening(screening.value)) await AkaikyCall.requestScreeningRole().catch(() => null)
   if (canRequestRedirection(screening.value)) await AkaikyCall.requestRedirectionRole().catch(() => null)
   // Relu sur le téléphone : le bandeau reflète l'état réel, pas la réponse de la confirmation.
   await readScreening()
