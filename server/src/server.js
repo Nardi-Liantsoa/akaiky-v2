@@ -10,12 +10,24 @@ const db = createPool(config.databaseUrl)
 
 // La base peut démarrer après l'application (et un redémarrage de la base ne
 // doit pas tuer l'API) : on réessaie. En mode `verify`, l'application ne joue
-// aucune migration : elle vérifie qu'elles sont passées et que son rôle SQL
-// n'est pas privilégié (voir ops/runtime-role.sql).
+// aucune migration : elle vérifie qu'elles sont passées, inchangées (empreinte), et
+// que son rôle SQL n'est pas privilégié (voir ops/runtime-role.sql).
 async function waitForDb(log) {
   for (let i = 1; ; i++) {
-    try { await (config.migrations === 'verify' ? verifySchema(db) : migrate(db)); return } catch (e) {
-      if (i >= 30) throw e
+    try {
+      if (config.migrations !== 'verify') {
+        const { backfilled } = await migrate(db)
+        // Confiance au premier usage : fichiers présents pris pour référence, sans contrôle possible.
+        if (backfilled.length) log.warn({ migrations: backfilled }, 'empreintes de migration enregistrées comme référence (premier usage)')
+        return
+      }
+      const { unchecked } = await verifySchema(db)
+      // Empreintes absentes : acceptées, enregistrées au prochain migrate (propriétaire).
+      if (unchecked.length) log.warn({ migrations: unchecked }, 'migrations sans empreinte : lancer server/bin/migrate.js')
+      return
+    } catch (e) {
+      // Migration modifiée après application : aucun nouvel essai n'y changera rien.
+      if (i >= 30 || e.code === 'MIGRATION_DRIFT') throw e
       log.warn({ attempt: i, err: e.message }, 'base indisponible, nouvel essai')
       await new Promise((r) => setTimeout(r, 2000))
     }
