@@ -20,8 +20,9 @@ test('gestionnaire : QR 15 minutes, le téléphone apparaît, le QR disparaît, 
     [`POST /api/children/${FY.id}/pairing`]: () => ({ status: 201, body: { expiresAt: new Date(Date.now() + 15 * 60000).toISOString(), provisioning } }),
     [`POST /api/devices/${PHONE.id}/revoke`]: () => { phones = []; return { body: { ok: true } } }
   })
-  await page.goto(`/espace/enfant/${FY.id}`)
-  await page.getByRole('link', { name: 'Configurer le téléphone' }).click()
+  // Fy n'a pas de téléphone : la carte de l'accueil propose de le relier (NAR-193, NAR-195).
+  await page.goto('/espace')
+  await page.getByRole('button', { name: 'Relier le téléphone' }).click()
   await expect(page.getByRole('heading', { name: 'Configurer le téléphone de Fy' })).toBeVisible()
   await expect(page.getByText('Étape 3 sur 3')).toBeVisible()
   await expect(page.getByText('Aucun téléphone appairé pour l’instant.')).toBeVisible()

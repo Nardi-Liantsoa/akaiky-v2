@@ -94,6 +94,8 @@ const PAGES = [
   ['parent-creer-famille', '/espace', SANS_FAMILLE],
   ['parent-famille', '/espace/famille', PARENT],
   ['parent-ajouter-enfant', '/espace/enfant/nouveau', PARENT],
+  // Modifier un enfant (NAR-195 : « ‹ Accueil » en tête, sans « Annuler » ni « Configurer le téléphone »).
+  ['parent-modifier-enfant', '/espace/enfant/6f1c2b1e-0000-4000-8000-000000000101', PARENT],
   ['parent-reglages', '/espace/reglages', PARENT],
   // Page d'une section de Réglages (NAR-185) ; absente de main (la référence y est l'accueil).
   ['parent-reglages-contacts', '/espace/reglages/contacts', PARENT],
