@@ -1,0 +1,33 @@
+{
+  "_doc": "Cibles des mises à jour OTA (NAR-162). shells : l'identité que chaque coque Android porte nativement (applicationId de la variante, canal par défaut du greffon CapacitorUpdater, écrit dans ses assets par android/app/build.gradle) ; OtaIdentityTest.kt vérifie les assets fusionnés de la variante testée, src/lib/otaTarget.test.ts la règle de l'écran. cases : la décision de l'écran (src/lib/otaTarget.ts) pour une coque (appId et build natifs, lus par App.getInfo) et la cible annoncée avec un bundle (target : app, channel, minNativeBuild). Verdicts : accept ; unknown-shell (identifiant natif vide ou étranger aux deux apps, build illisible) ; invalid (cible absente ou mal formée) ; wrong-app (bundle d'une autre app) ; wrong-channel (canal qui n'appartient pas à l'app : son nom, ou son nom suivi de « - ») ; native-too-old (coque antérieure à minNativeBuild, comparé au versionCode de cette app). Le futur serveur OTA applique la même règle à app_id et version_code envoyés par le greffon.",
+  "shells": {
+    "parent": { "applicationId": "mg.nosytech.akaiky", "channel": "parent" },
+    "enfant": { "applicationId": "mg.nosytech.akaiky.enfant", "channel": "enfant" }
+  },
+  "cases": [
+    { "name": "parent reçoit un bundle parent", "shell": { "appId": "mg.nosytech.akaiky", "build": "3" }, "target": { "app": "parent", "channel": "parent", "minNativeBuild": 3 }, "verdict": "accept" },
+    { "name": "enfant reçoit un bundle enfant", "shell": { "appId": "mg.nosytech.akaiky.enfant", "build": "4" }, "target": { "app": "enfant", "channel": "enfant", "minNativeBuild": 2 }, "verdict": "accept" },
+    { "name": "canal de test de l'app parent", "shell": { "appId": "mg.nosytech.akaiky", "build": "3" }, "target": { "app": "parent", "channel": "parent-test", "minNativeBuild": 1 }, "verdict": "accept" },
+    { "name": "variante dérivée de l'enfant (.debug)", "shell": { "appId": "mg.nosytech.akaiky.enfant.debug", "build": "2" }, "target": { "app": "enfant", "channel": "enfant", "minNativeBuild": 2 }, "verdict": "accept" },
+    { "name": "bundle parent proposé à l'app enfant", "shell": { "appId": "mg.nosytech.akaiky.enfant", "build": "9" }, "target": { "app": "parent", "channel": "parent", "minNativeBuild": 1 }, "verdict": "wrong-app" },
+    { "name": "bundle enfant proposé à l'app parent", "shell": { "appId": "mg.nosytech.akaiky", "build": "9" }, "target": { "app": "enfant", "channel": "enfant", "minNativeBuild": 1 }, "verdict": "wrong-app" },
+    { "name": "bundle parent publié sur le canal enfant", "shell": { "appId": "mg.nosytech.akaiky", "build": "9" }, "target": { "app": "parent", "channel": "enfant", "minNativeBuild": 1 }, "verdict": "wrong-channel" },
+    { "name": "bundle enfant publié sur le canal parent", "shell": { "appId": "mg.nosytech.akaiky.enfant", "build": "9" }, "target": { "app": "enfant", "channel": "parent", "minNativeBuild": 1 }, "verdict": "wrong-channel" },
+    { "name": "canal au préfixe trompeur", "shell": { "appId": "mg.nosytech.akaiky", "build": "9" }, "target": { "app": "parent", "channel": "parentale", "minNativeBuild": 1 }, "verdict": "wrong-channel" },
+    { "name": "canal production générique", "shell": { "appId": "mg.nosytech.akaiky.enfant", "build": "9" }, "target": { "app": "enfant", "channel": "production", "minNativeBuild": 1 }, "verdict": "wrong-channel" },
+    { "name": "coque enfant trop ancienne", "shell": { "appId": "mg.nosytech.akaiky.enfant", "build": "2" }, "target": { "app": "enfant", "channel": "enfant", "minNativeBuild": 3 }, "verdict": "native-too-old" },
+    { "name": "coque parent trop ancienne", "shell": { "appId": "mg.nosytech.akaiky", "build": "1" }, "target": { "app": "parent", "channel": "parent", "minNativeBuild": 2 }, "verdict": "native-too-old" },
+    { "name": "cible absente", "shell": { "appId": "mg.nosytech.akaiky", "build": "3" }, "target": null, "verdict": "invalid" },
+    { "name": "app inconnue", "shell": { "appId": "mg.nosytech.akaiky", "build": "3" }, "target": { "app": "admin", "channel": "admin", "minNativeBuild": 1 }, "verdict": "invalid" },
+    { "name": "coque minimale absente", "shell": { "appId": "mg.nosytech.akaiky", "build": "3" }, "target": { "app": "parent", "channel": "parent" }, "verdict": "invalid" },
+    { "name": "coque minimale non entière", "shell": { "appId": "mg.nosytech.akaiky", "build": "3" }, "target": { "app": "parent", "channel": "parent", "minNativeBuild": "2" }, "verdict": "invalid" },
+    { "name": "coque minimale nulle", "shell": { "appId": "mg.nosytech.akaiky", "build": "3" }, "target": { "app": "parent", "channel": "parent", "minNativeBuild": 0 }, "verdict": "invalid" },
+    { "name": "canal vide", "shell": { "appId": "mg.nosytech.akaiky", "build": "3" }, "target": { "app": "parent", "channel": "", "minNativeBuild": 1 }, "verdict": "invalid" },
+    { "name": "canal au suffixe vide", "shell": { "appId": "mg.nosytech.akaiky", "build": "9" }, "target": { "app": "parent", "channel": "parent-", "minNativeBuild": 1 }, "verdict": "wrong-channel" },
+    { "name": "coque minimale décimale", "shell": { "appId": "mg.nosytech.akaiky", "build": "3" }, "target": { "app": "parent", "channel": "parent", "minNativeBuild": 1.5 }, "verdict": "invalid" },
+    { "name": "coque minimale négative", "shell": { "appId": "mg.nosytech.akaiky", "build": "3" }, "target": { "app": "parent", "channel": "parent", "minNativeBuild": -1 }, "verdict": "invalid" },
+    { "name": "identifiant natif étranger", "shell": { "appId": "com.example.autre", "build": "3" }, "target": { "app": "parent", "channel": "parent", "minNativeBuild": 1 }, "verdict": "unknown-shell" },
+    { "name": "identifiant natif vide", "shell": { "appId": "", "build": "3" }, "target": { "app": "parent", "channel": "parent", "minNativeBuild": 1 }, "verdict": "unknown-shell" },
+    { "name": "build natif illisible", "shell": { "appId": "mg.nosytech.akaiky", "build": "1.0" }, "target": { "app": "parent", "channel": "parent", "minNativeBuild": 1 }, "verdict": "unknown-shell" }
+  ]
+}
