@@ -77,5 +77,9 @@ GRANT UPDATE (heartbeat_token_hash, heartbeat_token_expires_at) ON child_devices
 -- Applications autorisées (023_allowed_apps.sql) : inventaire du téléphone et liste de l'enfant
 -- remplacés en entier (suppression puis ajout) ; config_version suit par déclencheur.
 GRANT INSERT, DELETE ON device_apps, allowed_apps TO app_runtime;
+-- Bundles OTA (024_ota_bundles.sql) : lecture seule (SELECT ci-dessus, aussi accordé par la
+-- migration). Aucun INSERT, UPDATE ni DELETE : la publication passe par server/bin/ota-publish.js
+-- avec le compte propriétaire.
+GRANT SELECT ON ota_bundles TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;

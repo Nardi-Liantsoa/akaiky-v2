@@ -123,6 +123,23 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     assert.equal((await call(app, 'PUT', `/api/children/${kid.id}/allowed-apps`, { cookie: user.cookie, body: { packages: [] } })).statusCode, 200)
     await assert.rejects(pool.query('UPDATE allowed_apps SET child_id = child_id'), /permission denied/)
     await assert.rejects(pool.query('UPDATE device_apps SET device_id = device_id'), /permission denied/)
+    // Bundles OTA (024_ota_bundles.sql) : publiés par le propriétaire, lus et servis par le rôle
+    // restreint, qui ne peut ni en publier, ni en modifier, ni en effacer.
+    const zip = Buffer.from('PK\u0003\u0004 bundle de test du rôle restreint')
+    const { rows: [ota] } = await admin.db.query(
+      "INSERT INTO ota_bundles(app, channel, version, min_native_build, bundle, sha256) VALUES ('enfant','enfant','e1',2,$1,encode(sha256($1),'hex')) RETURNING id", [zip])
+    const otaInfo = { platform: 'android', app_id: 'mg.nosytech.akaiky.enfant', version_code: '2', version_name: 'builtin', defaultChannel: 'enfant' }
+    const offer = await app.inject({ method: 'POST', url: '/api/ota/latest', payload: otaInfo })
+    assert.equal(offer.statusCode, 200, offer.body)
+    assert.equal(offer.json().url, `https://app.test/api/ota/bundles/${ota.id}`)
+    assert.equal((await app.inject({ method: 'POST', url: '/api/ota/latest', payload: { ...otaInfo, app_id: 'mg.nosytech.akaiky' } })).json().version, undefined)
+    assert.equal((await app.inject({ method: 'PUT', url: '/api/ota/channel', payload: { ...otaInfo, defaultChannel: 'parent' } })).json().channel, 'enfant')
+    assert.deepEqual((await app.inject({ method: 'GET', url: `/api/ota/bundles/${ota.id}` })).rawPayload, zip)
+    await assert.rejects(pool.query("INSERT INTO ota_bundles(app, channel, version, min_native_build, bundle, sha256) SELECT app, channel, 'e2', 1, bundle, sha256 FROM ota_bundles"), /permission denied/)
+    await assert.rejects(pool.query("UPDATE ota_bundles SET app = 'parent', channel = 'parent'"), /permission denied/)
+    await assert.rejects(pool.query('UPDATE ota_bundles SET min_native_build = 1'), /permission denied/)
+    await assert.rejects(pool.query('DELETE FROM ota_bundles'), /permission denied/)
+    await assert.rejects(pool.query('TRUNCATE ota_bundles'), /permission denied/)
     // Purge à échéance (016_retention.sql) : lancée par le rôle restreint, durées fixées dans
     // la base ; aucun DELETE direct sur les journaux pour autant.
     await pool.query("SELECT purge_expired()")
