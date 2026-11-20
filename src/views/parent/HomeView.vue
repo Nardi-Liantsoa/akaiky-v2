@@ -2,6 +2,7 @@
 import { onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import CreateFamily from '../../components/family/CreateFamily.vue'
+import AccountSection from '../../components/parent/AccountSection.vue'
 import LoadError from '../../components/family/LoadError.vue'
 import ChildCards from '../../components/parent/ChildCards.vue'
 import { useT } from '../../composables/useT'
@@ -19,7 +20,11 @@ watch(() => family.status, (s) => { if (s === 'ready') void loadChildren(true) }
 
 <template>
   <!-- Sans famille, l'accueil est l'étape de création (NAR-133). -->
-  <CreateFamily v-if="family.status === 'none'" />
+  <!-- Seul écran parent sans onglets : « Mon compte » y reste atteignable (NAR-156). -->
+  <template v-if="family.status === 'none'">
+    <CreateFamily />
+    <AccountSection class="account" />
+  </template>
   <LoadError v-else-if="family.status === 'error'" />
   <!-- Un seul bloc de chargement pour la famille puis les enfants : annoncé une fois. -->
   <section v-else>
@@ -43,5 +48,8 @@ watch(() => family.status, (s) => { if (s === 'ready') void loadChildren(true) }
 <style scoped>
 h1 {
   margin: 8px 0 16px;
+}
+.account {
+  margin-top: 28px;
 }
 </style>

@@ -14,13 +14,18 @@ const routes: RouteRecordRaw[] = [
     // le nom de l'accueil, cible des redirections après connexion.
     path: '/espace',
     component: () => import('./views/parent/ParentShell.vue'),
-    meta: { requiresAuth: true },
+    // parentShell : écrans de la coquille, où la barre d'onglets est la seule navigation
+    // (pas d'en-tête global, App.vue).
+    meta: { requiresAuth: true, parentShell: true },
     children: [
       { path: '', name: 'espace', component: () => import('./views/parent/HomeView.vue') },
       // requiresFamily : sans famille, retour à l'accueil, qui présente la création.
       { path: 'journal', name: 'journal', component: () => import('./views/parent/LogView.vue'), meta: { requiresFamily: true } },
       { path: 'reglages', name: 'reglages', component: () => import('./views/parent/SettingsView.vue'), meta: { requiresFamily: true } },
       { path: 'famille', name: 'famille', component: () => import('./views/parent/FamilyView.vue'), meta: { requiresFamily: true } },
+      // « Mon compte » de l'onglet Famille (NAR-156) : la sécurité garde la barre d'onglets,
+      // Famille y reste signalé. Sans requiresFamily : ouverte aussi avant la création.
+      { path: 'compte/securite', name: 'securite', component: () => import('./views/SecurityView.vue') },
       { path: 'enfant/nouveau', name: 'enfant-nouveau', component: () => import('./views/parent/ChildFormView.vue'), meta: { requiresFamily: true } },
       { path: 'enfant/:id', name: 'enfant', component: () => import('./views/parent/ChildFormView.vue'), meta: { requiresFamily: true } },
       { path: 'enfant/:id/telephone', name: 'telephone', component: () => import('./views/parent/PairingView.vue'), meta: { requiresFamily: true } },
@@ -33,7 +38,9 @@ const routes: RouteRecordRaw[] = [
   { path: '/enfant', name: 'enfant-accueil', component: () => import('./views/child/ChildHomeView.vue'), meta: { childApp: true } },
   // Ouverte sans session : la page explique comment se connecter, puis accepter.
   { path: '/invitation', name: 'invitation', component: () => import('./views/InviteView.vue') },
-  { path: '/securite', name: 'securite', component: () => import('./views/SecurityView.vue'), meta: { requiresAuth: true } },
+  // Ancienne adresse (liens, marque-pages, ?next=) : renvoyée dans la coquille parent.
+  // parentShell : pas d'en-tête au premier chargement, avant que la redirection aboutisse.
+  { path: '/securite', redirect: (to) => ({ name: 'securite', query: to.query, hash: to.hash }), meta: { parentShell: true } },
   { path: '/admin', name: 'admin', component: () => import('./views/AdminView.vue'), meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ]

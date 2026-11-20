@@ -110,7 +110,8 @@ onMounted(() => { load(); void loadFamily() })
 </script>
 
 <template>
-  <main class="page">
+  <!-- Dans la coquille parent (onglet Famille, « Mon compte ») : son <main> l'enveloppe. -->
+  <section>
     <h1>{{ t.security.title }}</h1>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
 
@@ -173,7 +174,7 @@ onMounted(() => { load(); void loadFamily() })
         <RouterLink :to="{ name: 'famille' }">{{ t.deletion.toFamily }}</RouterLink>
       </div>
     </DeleteConfirm>
-  </main>
+  </section>
 </template>
 
 <style scoped>

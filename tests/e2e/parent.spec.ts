@@ -32,7 +32,7 @@ test('police servie par l’application, aucun appel à un tiers', async ({ page
   await mockApi(page, connected)
   await page.goto('/espace')
   // La police se charge quand du texte en a besoin : attendre le rendu, puis le chargement.
-  await expect(page.locator('header.nav')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
   await page.evaluate(() => document.fonts.ready)
   // check() répond vrai même pour une police en échec : on lit son état réel.
   const status = await page.evaluate(() => [...document.fonts].filter((f) => f.family.replace(/"/g, '') === 'Nunito').map((f) => f.status))
@@ -58,4 +58,87 @@ test('app parent (web) : l’écran de l’app enfant n’est pas atteignable', 
   await mockApi(page, { 'GET /api/auth/me': () => ({ body: { user: null } }), 'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }) })
   await page.goto('/enfant')
   await expect(page).toHaveURL(/\/$/)
+})
+
+// NAR-156 : une seule navigation pour le parent connecté, la barre d'onglets.
+test('parent connecté : pas d’en-tête global, compte, langue et sécurité depuis Famille', async ({ page }) => {
+  await mockApi(page, {
+    ...connected,
+    'GET /api/auth/security': () => ({ body: { devices: [], mfaEnabled: false, recoveryCodesRemaining: 0 } }),
+    'GET /api/auth/app-sessions': () => ({ body: [] })
+  })
+  await page.goto('/espace/famille')
+  const tabs = page.getByRole('navigation', { name: 'Navigation principale' })
+  await expect(page.getByRole('heading', { name: 'Famille', exact: true })).toBeVisible()
+  await expect(page.getByRole('banner')).toHaveCount(0)
+  const account = page.getByRole('region', { name: 'Mon compte' })
+  // Administration réservée aux administrateurs.
+  await expect(account.getByRole('link', { name: 'Administration' })).toHaveCount(0)
+
+  // Langue : toute l'interface suit, la barre d'onglets comprise.
+  await account.getByLabel('Langue').selectOption('en')
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
+  await page.getByRole('region', { name: 'My account' }).getByLabel('Language').selectOption('fr')
+
+  await account.getByRole('link', { name: 'Sécurité' }).click()
+  await expect(page).toHaveURL(/\/espace\/compte\/securite$/)
+  await expect(page.getByRole('heading', { name: 'Sécurité du compte', level: 1 })).toBeVisible()
+  await expect(page.getByRole('banner')).toHaveCount(0)
+  await expect(tabs.getByRole('link', { name: 'Famille' })).toHaveAttribute('aria-current', 'page')
+  await expect(tabs.locator('[aria-current="page"]')).toHaveCount(1)
+
+  // Ancienne adresse : même écran, dans la coquille.
+  await page.goto('/securite')
+  await expect(page).toHaveURL(/\/espace\/compte\/securite$/)
+  await expect(tabs.getByRole('link', { name: 'Famille' })).toHaveAttribute('aria-current', 'page')
+})
+
+test('déconnexion depuis Famille : retour à l’accueil public, avec son en-tête', async ({ page }) => {
+  let user: typeof USER | null = USER
+  const calls = await mockApi(page, {
+    'GET /api/auth/me': () => ({ body: { user } }),
+    'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }),
+    'GET /api/families/me': () => ({ body: FAMILY }),
+    'POST /api/auth/logout': () => { user = null; return { body: { ok: true } } }
+  })
+  await page.goto('/espace/famille')
+  await page.getByRole('region', { name: 'Mon compte' }).getByRole('button', { name: 'Déconnexion' }).click()
+  await expect(page).toHaveURL(/\/$/)
+  expect(calls.some((r) => r.method() === 'POST' && r.url().endsWith('/api/auth/logout'))).toBe(true)
+  // Visiteur : l'en-tête global revient, sans les liens du compte.
+  const header = page.getByRole('banner')
+  await expect(header.getByRole('link', { name: 'Connexion' })).toBeVisible()
+  await expect(header.getByRole('button', { name: 'Déconnexion' })).toHaveCount(0)
+})
+
+test('administrateur parent : Administration dans « Mon compte », en-tête sur le back-office', async ({ page }) => {
+  const admin = { ...USER, is_admin: true }
+  await mockApi(page, {
+    'GET /api/auth/me': () => ({ body: { user: admin } }),
+    'GET /api/families/me': () => ({ body: FAMILY }),
+    'GET /api/admin/users': () => ({ body: [] }),
+    'GET /api/admin/audit': () => ({ body: [] })
+  })
+  await page.goto('/espace/famille')
+  await page.getByRole('region', { name: 'Mon compte' }).getByRole('link', { name: 'Administration' }).click()
+  await expect(page).toHaveURL(/\/admin$/)
+  const header = page.getByRole('banner')
+  await expect(header.getByRole('link', { name: 'Sécurité' })).toBeVisible()
+  await expect(header.getByRole('link', { name: 'Administration' })).toBeVisible()
+  await expect(header.getByRole('button', { name: 'Déconnexion' })).toBeVisible()
+  await expect(header.getByRole('link', { name: 'Mon espace' })).toHaveCount(0)
+  await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toHaveCount(0)
+})
+
+test('parent sans famille : « Mon compte » sur l’écran de création, sans en-tête', async ({ page }) => {
+  await mockApi(page, {
+    'GET /api/auth/me': () => ({ body: { user: USER } }),
+    'GET /api/families/me': () => ({ status: 404, body: { error: 'Famille introuvable.', code: 'no_family' } })
+  })
+  await page.goto('/espace')
+  await expect(page.getByRole('heading', { name: 'Bienvenue sur Akaiky' })).toBeVisible()
+  await expect(page.getByRole('banner')).toHaveCount(0)
+  const account = page.getByRole('region', { name: 'Mon compte' })
+  await expect(account.getByRole('link', { name: 'Sécurité' })).toBeVisible()
+  await expect(account.getByRole('button', { name: 'Déconnexion' })).toBeVisible()
 })

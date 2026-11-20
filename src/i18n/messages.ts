@@ -7,7 +7,7 @@
 
 const fr = {
   lang: { label: 'Langue', mg: 'Malagasy', fr: 'Français', en: 'English' },
-  nav: { home: 'Accueil', space: 'Mon espace', security: 'Sécurité', admin: 'Administration', login: 'Connexion', logout: 'Déconnexion' },
+  nav: { home: 'Accueil', security: 'Sécurité', admin: 'Administration', login: 'Connexion', logout: 'Déconnexion' },
   home: {
     title: 'Bienvenue',
     lead: 'Akaiky relie les parents à leurs enfants : un téléphone simple pour l’enfant, une application pour appeler, recevoir les alertes et tout régler.',
@@ -512,7 +512,8 @@ const fr = {
       nothingToday: 'Rien aujourd’hui pour l’instant.'
     },
     settings: { title: 'Réglages' },
-    family: { title: 'Famille', empty: 'Les membres de votre famille apparaîtront ici.' }
+    family: { title: 'Famille', empty: 'Les membres de votre famille apparaîtront ici.' },
+    account: { title: 'Mon compte', security: 'Sécurité', admin: 'Administration', language: 'Langue', logout: 'Déconnexion' }
   },
   consent: {
     signup: 'Je suis majeur·e et titulaire de l’autorité parentale sur les enfants que j’ajouterai.',
@@ -548,7 +549,7 @@ export type Messages = typeof fr
 
 const mg: Messages = {
   lang: { label: 'Fiteny', mg: 'Malagasy', fr: 'Français', en: 'English' },
-  nav: { home: 'Fandraisana', space: 'Ny toerako', security: 'Fiarovana', admin: 'Fitantanana', login: 'Hiditra', logout: 'Hivoaka' },
+  nav: { home: 'Fandraisana', security: 'Fiarovana', admin: 'Fitantanana', login: 'Hiditra', logout: 'Hivoaka' },
   home: {
     title: 'Tongasoa',
     lead: 'Mampifandray ny ray aman-dreny sy ny zanany i Akaiky: finday tsotra ho an’ny zaza, rindranasa hiantsoana, handraisana fampitandremana ary handrindrana ny zava-drehetra.',
@@ -1048,7 +1049,8 @@ const mg: Messages = {
       nothingToday: 'Mbola tsy misy androany.'
     },
     settings: { title: 'Fandrindrana' },
-    family: { title: 'Fianakaviana', empty: 'Eto no hiseho ireo mpikambana ao amin’ny fianakavianao.' }
+    family: { title: 'Fianakaviana', empty: 'Eto no hiseho ireo mpikambana ao amin’ny fianakavianao.' },
+    account: { title: 'Ny kaontiko', security: 'Fiarovana', admin: 'Fitantanana', language: 'Fiteny', logout: 'Hivoaka' }
   },
   consent: {
     signup: 'Efa olon-dehibe aho ary manana ny fahefana ray aman-dreny amin’ireo ankizy hampidiriko.',
@@ -1082,7 +1084,7 @@ const mg: Messages = {
 
 const en: Messages = {
   lang: { label: 'Language', mg: 'Malagasy', fr: 'Français', en: 'English' },
-  nav: { home: 'Home', space: 'My space', security: 'Security', admin: 'Administration', login: 'Sign in', logout: 'Sign out' },
+  nav: { home: 'Home', security: 'Security', admin: 'Administration', login: 'Sign in', logout: 'Sign out' },
   home: {
     title: 'Welcome',
     lead: 'Akaiky connects parents with their children: a simple phone for the child, and an app to call, receive alerts and manage everything.',
@@ -1581,7 +1583,8 @@ const en: Messages = {
       nothingToday: 'Nothing today yet.'
     },
     settings: { title: 'Settings' },
-    family: { title: 'Family', empty: 'Your family members will appear here.' }
+    family: { title: 'Family', empty: 'Your family members will appear here.' },
+    account: { title: 'My account', security: 'Security', admin: 'Administration', language: 'Language', logout: 'Sign out' }
   },
   consent: {
     signup: 'I am an adult and hold parental authority over the children I will add.',

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { auth, isAdmin, logout } from './store/auth'
 import { useT, locale, LOCALE_LIST } from './composables/useT'
 import { currentKind } from './lib/appKind'
@@ -7,6 +8,15 @@ import AppButton from './components/ui/AppButton.vue'
 
 const t = useT()
 const router = useRouter()
+const route = useRoute()
+
+// Écrans de la coquille parent : la barre d'onglets est la seule navigation (NAR-156),
+// compte, sécurité, langue et déconnexion sont dans l'onglet Famille. L'en-tête reste
+// au visiteur (accueil public, connexion) et au back-office. Avant la première
+// navigation (route de départ, sans correspondance), l'adresse demandée décide :
+// aucun en-tête ne clignote à l'ouverture d'un écran parent.
+const inShell = computed(() =>
+  (route.matched.length ? route.matched : router.resolve(window.location.pathname).matched).some((r) => r.meta.parentShell))
 
 async function onLogout() {
   await logout()
@@ -16,12 +26,12 @@ async function onLogout() {
 
 <template>
   <!-- En-tête dès que l'on sait être l'app parent (immédiat sur le web), sans attendre
-       /auth/me ; jamais dans l'app enfant, pas même pendant la lecture de l'identifiant. -->
-  <header v-if="currentKind === 'parent'" class="nav">
+       /auth/me ; jamais dans l'app enfant, pas même pendant la lecture de l'identifiant,
+       ni dans la coquille parent (barre d'onglets). -->
+  <header v-if="currentKind === 'parent' && !inShell" class="nav">
     <RouterLink class="brand" :to="{ name: 'accueil' }">Akaiky</RouterLink>
     <nav>
       <template v-if="auth.user">
-        <RouterLink :to="{ name: 'espace' }">{{ t.nav.space }}</RouterLink>
         <RouterLink :to="{ name: 'securite' }">{{ t.nav.security }}</RouterLink>
         <RouterLink v-if="isAdmin()" :to="{ name: 'admin' }">{{ t.nav.admin }}</RouterLink>
         <AppButton variant="link" class="logout" @click="onLogout">{{ t.nav.logout }}</AppButton>

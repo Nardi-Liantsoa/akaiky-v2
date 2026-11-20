@@ -9,5 +9,6 @@ declare module 'vue-router' {
     guestOnly?: boolean
     requiresFamily?: boolean
     childApp?: boolean
+    parentShell?: boolean
   }
 }
