@@ -65,6 +65,15 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   par un gestionnaire ou l'admin.
 - **Administrateurs** (`users.is_admin`, posé par `server/bin/make-admin.js`, MFA
   obligatoire) : back-office web **sans accès aux positions ni aux journaux d'appels**.
+  Tranche 1 (NAR-144, 20/11/2026), lecture seule, `server/src/routes/admin.js` : `GET /api/admin/families`
+  (identifiant, nombres de membres, d'enfants et de téléphones actifs, date ; **jamais le nom de la famille** :
+  texte libre en clair choisi par la famille, qui peut porter le prénom d'un enfant, et qu'aucune ligne du tableau
+  n'ouvre à l'équipe), `GET /api/admin/devices` (modèle, versions, dernière requête, dernier signal, état
+  `active`/`silent`/`revoked` calculé sur `child_devices` seul : seuil de l'alerte « silence », jamais
+  `device_alerts`), `GET /api/admin/stats` (nombres seuls ; SOS 0 et `sosTracked: false` tant que NAR-181
+  n'envoie rien au serveur). Pages de 50, `limit` ≤ 100, curseur `before` (date UTC à la microseconde + id) ; paramètre inconnu ou mal formé → 400. Colonnes
+  nommées une à une : ni `*_enc`, ni hachage, ni jeton, ni relevé de batterie ; inspection de toute réponse admin
+  dans `server/test/admin.test.js`. Désactivation, révocation et réinitialisation du code parent : tranches 2 et 3.
 - **Argent** : aucun en v1 (CdC §9).
 - **Langues** : `mg`, `fr`, `en`, malgache par défaut ; catalogues typés (`ampy-vue`).
 - **APK enfant (NAR-165, 18/11/2026)** : signé par un keystore hors dépôt
