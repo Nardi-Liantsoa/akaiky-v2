@@ -53,8 +53,11 @@ describe('enfants de la session', () => {
     login('u6', 'fA')
     listChildren.mockResolvedValue([A])
     await loadChildren()
+    children.order = ['a']
     inFamily('fB')
     expect(children.items).toEqual([])
+    // Ordre des cartes (NAR-193) : celui d'une autre famille n'est jamais repris.
+    expect(children.order).toEqual([])
     listChildren.mockResolvedValue([B])
     await loadChildren()
     expect(children.items.map((c) => c.id)).toEqual(['b'])

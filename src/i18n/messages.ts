@@ -205,6 +205,9 @@ const fr = {
     seenAt: (time: string) => `vu à ${time}`,
     seenAtOn: (day: string, time: string) => `vu le ${day} à ${time}`,
     levels: { ok: 'Tout va bien', warn: 'À vérifier', alert: 'Ne répond plus', none: 'Aucun téléphone' },
+    // Carte sans téléphone (NAR-193) : texte pour tous, bouton pour les gestionnaires.
+    noPhoneYet: (name: string) => `Le téléphone de ${name} n’est pas encore relié.`,
+    pairPhone: 'Relier le téléphone',
     actions: (name: string) => `Actions pour ${name}`,
     phone: 'Téléphone',
     parentCode: 'Code parent',
@@ -249,6 +252,8 @@ const fr = {
       silent: 'Le téléphone ne répond plus'
     },
     since: (when: string) => `Signalé ${when}`,
+    // « +N » d'un bandeau d'alertes regroupées (NAR-193), lu après « +N ».
+    moreAlerts: (n: number): string => (n === 1 ? 'autre alerte' : 'autres alertes'),
     loadError: 'État du téléphone indisponible pour le moment.'
   },
   // Durées relatives (« il y a 2 minutes ») : repli quand Intl.RelativeTimeFormat manque.
@@ -771,6 +776,8 @@ const mg: Messages = {
     seenAt: (time: string) => `hita tamin’ny ${time}`,
     seenAtOn: (day: string, time: string) => `hita ny ${day}, ${time}`,
     levels: { ok: 'Milamina', warn: 'Mila jerena', alert: 'Tsy mamaly', none: 'Tsy misy finday' },
+    noPhoneYet: (name: string) => `Mbola tsy mifandray ny findain’i ${name}.`,
+    pairPhone: 'Ampifandraiso ny finday',
     actions: (name: string) => `Asa ho an’i ${name}`,
     phone: 'Finday',
     parentCode: 'Kaody ray aman-dreny',
@@ -813,6 +820,7 @@ const mg: Messages = {
       silent: 'Tsy mamaly intsony ny finday'
     },
     since: (when: string) => `Voamarika ${when}`,
+    moreAlerts: () => 'fampitandremana hafa',
     loadError: 'Tsy azo jerena amin’izao ny toetry ny finday.'
   },
   // Tsy manana fiteny malagasy ny Intl.RelativeTimeFormat : ireto no ampiasaina.
@@ -1330,6 +1338,8 @@ const en: Messages = {
     seenAt: (time: string) => `seen at ${time}`,
     seenAtOn: (day: string, time: string) => `seen on ${day} at ${time}`,
     levels: { ok: 'All good', warn: 'Check phone', alert: 'Not responding', none: 'No phone' },
+    noPhoneYet: (name: string) => `${name}’s phone is not linked yet.`,
+    pairPhone: 'Link the phone',
     actions: (name: string) => `Actions for ${name}`,
     phone: 'Phone',
     parentCode: 'Parent code',
@@ -1372,6 +1382,7 @@ const en: Messages = {
       silent: 'Phone not responding'
     },
     since: (when: string) => `Reported ${when}`,
+    moreAlerts: (n: number) => (n === 1 ? 'more alert' : 'more alerts'),
     loadError: 'Phone status unavailable right now.'
   },
   relative: {

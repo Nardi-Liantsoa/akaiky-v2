@@ -5,6 +5,7 @@ import { getJournal, type JournalItem } from '../../api/journal'
 import { markShownAsRead } from '../../api/messages'
 import { useT } from '../../composables/useT'
 import { groupByDay } from '../../lib/groupByDay'
+import { selectChild } from '../../store/children'
 import { canManage } from '../../store/family'
 import LogItem from '../log/LogItem.vue'
 import StatusBlock from '../ui/StatusBlock.vue'
@@ -13,7 +14,8 @@ import StatusBlock from '../ui/StatusBlock.vue'
 // événements du jour, puis « Tout le journal ». Messages affichés = vus (NAR-150). Relu
 // toutes les 30 s tant que l'accueil est ouvert (le push viendra avec NAR-141).
 // bare : sans cadre de carte (affiché dans la carte dépliée de l'enfant, NAR-174).
-const props = defineProps<{ childId: string, bare?: boolean }>()
+// untitled : sans titre, posé sous le bouton « Aujourd'hui » qui le déplie (NAR-193).
+const props = defineProps<{ childId: string, bare?: boolean, untitled?: boolean }>()
 const t = useT()
 const items = ref<JournalItem[]>([])
 const status = ref<'loading' | 'ready' | 'error'>('loading')
@@ -59,10 +61,14 @@ onBeforeUnmount(() => { clearInterval(timer); generation++ })
 </script>
 
 <template>
-  <section class="today" :class="{ card: !bare, bare, stale: reloading && status === 'ready' }" :aria-busy="reloading">
+  <section
+    class="today" :class="{ card: !bare, bare, untitled, stale: reloading && status === 'ready' }" :aria-busy="reloading"
+    :aria-label="untitled ? t.parent.log.todayTitle : undefined"
+  >
     <header>
-      <h2>{{ t.parent.log.todayTitle }}</h2>
-      <RouterLink class="all" :to="{ name: 'journal' }">{{ t.parent.log.allLog }}</RouterLink>
+      <h2 v-if="!untitled">{{ t.parent.log.todayTitle }}</h2>
+      <!-- Plusieurs « Aujourd'hui » ouverts : le journal ouvert est celui de CET enfant. -->
+      <RouterLink class="all" :to="{ name: 'journal' }" @click="selectChild(childId)">{{ t.parent.log.allLog }}</RouterLink>
     </header>
     <StatusBlock v-if="status === 'error'" state="error" :text="t.parent.log.loadError" @retry="load" />
     <ul v-else-if="items.length" class="list">
@@ -89,6 +95,15 @@ onBeforeUnmount(() => { clearInterval(timer); generation++ })
   margin-top: 16px;
   /* Hauteur réservée : la carte ne saute pas pendant une relecture (changement d'enfant). */
   min-height: 120px;
+}
+/* Sous le bouton qui le déplie : ni second trait ni titre, « Tout le journal » à droite. */
+.bare.untitled {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.untitled header {
+  justify-content: flex-end;
 }
 header {
   display: flex;
