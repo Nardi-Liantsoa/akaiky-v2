@@ -18,6 +18,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { HttpError, audit, body, text } from './lib.js'
 import { normalizePhone } from './phone.js'
 import { hashPassword, passwordProblem, createLimiter, rateLimitKey } from './security.js'
+import { authCookie } from './auth-cookies.js'
 import { consumeQuota } from './quotas.js'
 import { smsTexts, smsLang } from './sms.js'
 
@@ -28,8 +29,25 @@ export const CODE_ATTEMPTS = 5
 // des quelques requêtes de la branche la plus longue.
 const REGISTER_FLOOR_MS = 900
 const RESEND_FLOOR_MS = 500
+// Réinitialisation (NAR-201) : la demande ne fait que lire et mettre en file ; la saisie du
+// code calcule toujours un hachage scrypt avant de comparer le code.
+const FORGOT_FLOOR_MS = 500
+const RESET_FLOOR_MS = 900
 const GENERIC_SMS = 'Si ce numéro attend une confirmation, un code vient de lui être envoyé par SMS.'
+const GENERIC_RESET = 'Si ce numéro correspond à un compte, un code vient de lui être envoyé par SMS.'
 const invalidCode = () => new HttpError(400, 'Code invalide ou expiré. Demandez-en un nouveau.', 'invalid_code')
+
+// Comme l'adresse d'un compte à adresse (passwordProblem) : l'identifiant, connu de tous les
+// contacts du titulaire, ne fait pas un mot de passe. Numéro national (9 derniers chiffres),
+// quelle que soit sa présentation dans le mot de passe. Inscription et réinitialisation.
+export function phonePasswordProblem(password, phone) {
+  const problem = passwordProblem(password)
+  if (problem) return problem
+  if (password.replace(/[\s.\-()/+]/g, '').includes(phone.slice(1).slice(-9))) {
+    return 'Le mot de passe ne doit pas contenir votre numéro de téléphone.'
+  }
+  return null
+}
 
 async function floor(started, ms) {
   const left = ms - (Date.now() - started)
@@ -110,14 +128,8 @@ export async function phoneRoutes(app, { limit, queue }) {
     const phone = phoneOf(b.phone)
     limit(req, phone)
     const name = text(b.name, { max: 80, min: 1, field: 'Nom' })
-    const problem = passwordProblem(b.password)
+    const problem = phonePasswordProblem(b.password, phone)
     if (problem) throw new HttpError(400, problem)
-    // Comme l'adresse d'un compte à adresse (passwordProblem) : l'identifiant, connu de tous
-    // les contacts du titulaire, ne fait pas un mot de passe. Numéro national (9 derniers
-    // chiffres), quelle que soit sa présentation dans le mot de passe.
-    if (b.password.replace(/[\s.\-()/+]/g, '').includes(phone.slice(1).slice(-9))) {
-      throw new HttpError(400, 'Le mot de passe ne doit pas contenir votre numéro de téléphone.')
-    }
     // Comme pour l'adresse (NAR-178) : vérifié avant toute lecture de la base.
     if (b.consent !== true) throw new HttpError(400, 'Cochez la case de consentement pour créer un compte.', 'consent_required')
     const lang = smsLang(b.lang)
@@ -172,5 +184,83 @@ export async function phoneRoutes(app, { limit, queue }) {
     })
     await floor(started, RESEND_FLOOR_MS)
     return reply.code(202).send({ message: GENERIC_SMS })
+  })
+
+  // Mot de passe oublié par SMS (NAR-201) : comme /forgot-password. Même budget d'envoi que
+  // l'inscription et le renvoi (numéro, IP, total), pris avant de savoir si le numéro a un
+  // compte ; compte lu et code envoyé dans la file ; réponse générique après une durée
+  // plancher. Un compte au numéro non confirmé reçoit aussi un code : c'est ainsi que le
+  // vrai titulaire reprend un numéro inscrit par un tiers (voir /phone/reset).
+  app.post('/phone/forgot', PUBLIC, async (req, reply) => {
+    const started = Date.now()
+    const b = body(req, ['phone', 'lang'])
+    const phone = phoneOf(b.phone)
+    limit(req, phone)
+    const lang = smsLang(b.lang)
+    available()
+    await sendBudget(req, phone)
+    queue.enqueue(async () => {
+      const u = (await db.query('SELECT id FROM users WHERE phone = $1', [phone])).rows[0]
+      if (!u) return
+      const code = await codes.issue(phone, 'reset')
+      await sms.send({ to: phone, text: texts.reset(code, lang) })
+      await audit(db, req, 'reset_requested', u.id)
+    })
+    await floor(started, FORGOT_FLOOR_MS)
+    return reply.code(202).send({ message: GENERIC_RESET })
+  })
+
+  // Nouveau mot de passe avec le code SMS (NAR-201), comme /reset-password : ferme toutes les
+  // sessions (cookie et Bearer), révoque les appareils de confiance, garde la MFA, n'ouvre
+  // pas de session, est audité, et prévient par SMS. Le code prouve la possession du
+  // numéro : un compte au numéro non confirmé (inscrit par un tiers) est confirmé et son
+  // mot de passe remplacé. Réponse identique (corps, statut, durée plancher) quel que soit
+  // le motif d'échec : numéro inconnu, sans code, code faux, échu ou épuisé.
+  app.post('/phone/reset', PUBLIC, async (req, reply) => {
+    const started = Date.now()
+    const b = body(req, ['phone', 'code', 'password', 'lang'])
+    const phone = phoneOf(b.phone)
+    limit(req, phone)
+    // Vérifié avant le code : un mot de passe refusé ne consomme pas d'essai. La règle ne
+    // dépend que des entrées, pas du compte.
+    const problem = phonePasswordProblem(b.password, phone)
+    if (problem) throw new HttpError(400, problem)
+    const lang = smsLang(b.lang)
+    available()
+    try {
+      if (typeof b.code !== 'string' || !/^\d{6}$/.test(b.code)) throw invalidCode()
+      // Hachage calculé avant le code, dans tous les cas : la durée ne dit pas si le code
+      // était bon, et un code consommé n'est jamais perdu faute de place dans la file scrypt.
+      const hash = await hashPassword(b.password)
+      // Essai compté et code consommé hors transaction : un échec plus loin n'annule pas le
+      // décompte, et deux saisies simultanées du bon code → une seule réussit.
+      if (!await codes.consume(phone, 'reset', b.code)) throw invalidCode()
+      const conn = await db.connect()
+      try {
+        await conn.query('BEGIN')
+        // Même ordre de verrouillage que la connexion et /reset-password : utilisateur d'abord.
+        // Une connexion concurrente relit le hachage sous ce verrou et échoue.
+        const u = (await conn.query('SELECT id, phone_verified_at FROM users WHERE phone = $1 FOR UPDATE', [phone])).rows[0]
+        if (!u) throw invalidCode()
+        await conn.query(`UPDATE users SET password_hash = $2, failed_logins = 0, locked_until = NULL,
+          phone_verified_at = COALESCE(phone_verified_at, now()) WHERE id = $1`, [u.id, hash])
+        await conn.query('DELETE FROM sessions WHERE user_id = $1', [u.id])
+        await conn.query('DELETE FROM trusted_devices WHERE user_id = $1', [u.id])
+        await conn.query('DELETE FROM mfa_challenges WHERE user_id = $1', [u.id])
+        // Code de confirmation en attente (inscription d'un tiers) : sans objet désormais.
+        await conn.query('DELETE FROM phone_codes WHERE phone = $1', [phone])
+        await audit(conn, req, 'password_reset', u.id, { channel: 'sms', reclaimed: !u.phone_verified_at })
+        await conn.query('COMMIT')
+      } catch (error) { await conn.query('ROLLBACK'); throw error } finally { conn.release() }
+      // « Mot de passe modifié » par la file : le mot de passe est déjà changé, un envoi en
+      // échec (ou une file pleine) ne doit pas faire croire le contraire.
+      try { queue.enqueue(() => sms.send({ to: phone, text: texts.passwordChanged(lang) })) } catch { app.log.error('SMS « mot de passe modifié » non envoyé (file pleine)') }
+    } catch (error) {
+      await floor(started, RESET_FLOOR_MS)
+      throw error
+    }
+    authCookie(reply, config, 'session', '', 0)
+    await floor(started, RESET_FLOOR_MS)
+    return { message: 'Mot de passe modifié. Connectez-vous avec le nouveau mot de passe.' }
   })
 }

@@ -39,6 +39,17 @@ export function smsTexts(appName) {
       fr: `${appName} : votre code de confirmation est ${code}. Valable 5 minutes. Ne le donnez a personne. Si vous n'avez rien demande, ignorez ce message.`,
       en: `${appName}: your confirmation code is ${code}. Valid for 5 minutes. Do not share it. If you did not ask for it, ignore this message.`
     })[smsLang(lang)],
+    // Réinitialisation du mot de passe (NAR-201).
+    reset: (code, lang) => ({
+      mg: `${appName}: ny kaody hanovana ny tenimiafinao dia ${code}. Manan-kery 5 minitra. Aza omena olona io. Raha tsy ianao no nangataka dia aza raharahiana.`,
+      fr: `${appName} : votre code pour changer de mot de passe est ${code}. Valable 5 minutes. Ne le donnez a personne. Si vous n'avez rien demande, ignorez ce message.`,
+      en: `${appName}: your password reset code is ${code}. Valid for 5 minutes. Do not share it. If you did not ask for it, ignore this message.`
+    })[smsLang(lang)],
+    passwordChanged: (lang) => ({
+      mg: `${appName}: novaina ny tenimiafin'ny kaontinao. Raha tsy ianao no nanova azy dia mangataha kaody vaovao avy hatrany hanovana azy indray.`,
+      fr: `${appName} : le mot de passe de votre compte vient d'etre modifie. Si ce n'est pas vous, demandez tout de suite un nouveau code pour le changer.`,
+      en: `${appName}: your account password was just changed. If this was not you, request a new code right away to change it again.`
+    })[smsLang(lang)],
     alreadyRegistered: (lang) => ({
       mg: `${appName}: nisy nangataka hisoratra anarana tamin'ity laharana ity, nefa efa manana kaonty izy. Raha tsy ianao dia aza raharahiana.`,
       fr: `${appName} : une inscription a ete demandee avec ce numero, qui a deja un compte. Connectez-vous avec votre mot de passe. Sinon, ignorez ce message.`,
