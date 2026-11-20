@@ -24,6 +24,12 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
 - Données de mineurs et de géolocalisation : les plus sensibles qui soient. Aucun
   service tiers de stockage ni de cartographie qui verrait les positions ; hébergement
   en Europe (NosyHost).
+- **Une migration publiée ne se modifie jamais** (NAR-198) : tout fichier de `server/src/migrations/`
+  présent sur `main` est figé ; une correction s'écrit dans une **nouvelle** migration numérotée,
+  additive. Le runner ne rejoue une migration que par son nom : un fichier édité après coup ne passe
+  jamais sur une base existante (023 et `device_apps.browser`, 19/11/2026). Garde-fous : empreinte
+  SHA-256 par migration dans `schema_migrations.checksum` (migrate et `DB_MIGRATIONS=verify` refusent
+  un fichier qui diffère), et job CI `migrations-frozen` (`scripts/check-migrations-frozen.mjs`).
 
 ## Décisions (cadrage du 17/11/2026)
 
