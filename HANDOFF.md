@@ -255,12 +255,21 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   rôle de filtrage requis), par `NEW_OUTGOING_CALL` (Android 8–9) et par la décision des appels
   sortants ; pas par l'appui sur le bouton (composeur seulement prérempli). Détails : `docs/MOBILE.md`.
   **Limites** : tout inconnu qui appelle pendant ces 30 min sonne (risque accepté par décision de
-  l'utilisateur) ; un enfant qui compose le 117 ou le 112 puis raccroche ouvre la fenêtre. Pendant le
+  l'utilisateur) ; un enfant qui compose une urgence de la liste puis raccroche ouvre la fenêtre. Pendant le
   mode de rappel d'urgence (ECBM) d'Android, tout appel sonne sans passer par le filtre ni par le
   journal (comportement du système). **Reste à vérifier sur un vrai téléphone** : Android 10 à 13
   (le service de filtrage reçoit-il bien les appels d'urgence sortants ? vérifié seulement sur 14),
   Android 9 (`NEW_OUTGOING_CALL` pour une urgence, vérifié sur 8.1), durée réelle de l'ECBM chez
   Telma, Orange et Airtel, un vrai rappel des secours (numéro masqué ou court).
+- **Numéros d'urgence (NAR-197)** : liste de l'app = 117 (police), 118 (pompiers), 147 (Ligne Verte,
+  violences faites aux enfants), 112 et 911 (acheminés par tout téléphone GSM) ; 15, 17, 18 (France),
+  114 et 119 retirés. Sources et degré de confiance : `docs/MOBILE.md` (« Numéros d'urgence ») et
+  `CallPolicy.kt`. Toujours composés et ouvrant la fenêtre des secours. **Limites** : le 118 ne repose
+  que sur une source non gouvernementale (ANWB) ; le SAMU (124, sources secondaires contradictoires)
+  et la gendarmerie (aucun numéro trouvé) ne sont pas dans la liste, à confirmer avec le client ou
+  auprès des opérateurs (Telma, Orange, Airtel) ; sur Android 10+, un numéro déclaré urgence par la
+  carte SIM ou le réseau reste traité en urgence. **La liste ne vaut que pour Madagascar : à revérifier
+  avant toute sortie dans un autre pays** (« À trancher avec le client », point 1 : marché).
 - **Volet des notifications** : affiché pendant le verrou (sans réglages rapides), car il
   porte l'appel entrant. Toucher une notification ou « Gérer » n'ouvre rien.
 

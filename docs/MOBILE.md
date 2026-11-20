@@ -155,6 +155,34 @@ Le simulateur d'appels n'accepte que des chiffres : un vrai numéro masqué (dif
 n'a pas pu être simulé. Le disque plein exige une partition de données préparée à la main
 (`mke2fs` de `platform-tools`, fichier creux de 6 Go) : l'émulateur refuse de la créer sous 7,4 Go libres.
 
+**Numéros d'urgence (NAR-197)** : `CallPolicy.EMERGENCY` = **117, 118, 147, 112, 911**. Ces numéros
+sont toujours composés (appels sortants, même liste vide ou pendant une plage), et leur appel ouvre
+la fenêtre des secours ci-dessous. Seulement Madagascar, plus les numéros que tout téléphone GSM
+achemine vers les secours. Sources vérifiées le 20/11/2026 :
+
+| Numéro | Service | Source | Confiance |
+|---|---|---|---|
+| 117 | Police, numéro général des secours depuis un mobile | gouvernement du Canada, <https://travel.gc.ca/destinations/madagascar> (« Dial 117 for emergency assistance ») ; gouvernement britannique, <https://www.gov.uk/foreign-travel-advice/madagascar/health> (« Call 117 from a mobile ») | élevée (deux gouvernements) |
+| 118 | Pompiers | ANWB (club automobile néerlandais), <https://www.anwb.nl/vakantie/madagaskar/reisvoorbereiding/voor-vertrek> | moyenne (source sérieuse, non gouvernementale ; concorde avec les guides) |
+| 147 | Ligne Verte, signalement des violences faites aux enfants, gratuite chez les trois opérateurs, 24 h/24 | UNICEF Madagascar, <https://www.unicef.org/madagascar/communiqu%C3%A9s-de-presse/lunicef-et-la-commune-urbaine-dantananarivo-signent-un-plan-daction> | élevée |
+| 112 | Reconnu comme urgence par tout téléphone, carte SIM ou non | 3GPP TS 22.101, résumé par l'EENA : <https://eena.org/blog/is-112-a-valid-emergency-number-in-america/> | élevée pour l'acheminement par le téléphone ; sa prise en charge par un centre malgache n'est pas garantie (117 d'abord) |
+| 911 | Même règle que le 112 (le téléphone le compose en appel d'urgence) | même source | élevée pour l'acheminement ; gardé parce qu'un enfant peut le connaître par la télévision |
+
+Retirés : **15, 17, 18** (SAMU, police, pompiers français ; le gouvernement britannique cite un 17
+malgache, mais depuis un fixe seulement, jamais depuis un mobile), **114** (urgences des sourds en
+France), **119** (aucune source pour Madagascar). **Non ajoutés** : le SAMU (124 sur des sites
+secondaires, fuel-prices.eu, openshores.co ; contredit par gov.uk, qui renvoie au 117) tant qu'une
+source officielle ne le confirme pas ; la gendarmerie (aucun numéro propre trouvé). Composés, ces
+numéros suivent la décision normale (refusés hors de la liste) et n'ouvrent pas la fenêtre. Seule
+exception, hors de l'app : sur Android 10+, `OutgoingCalls.isEmergency` interroge aussi
+`TelephonyManager.isEmergencyNumber` (carte SIM, réseau, base d'Android) ; un numéro que l'opérateur
+y déclare reste traité en urgence, ce qui est voulu. Le bouton « Appeler les secours »
+(`src/lib/emergency.ts` : MG → 117, sinon 112) et le repli du SOS (`SosPlugin.kt` : 112) ne rendent
+que des numéros de la liste. Cas partagés : `tests/fixtures/emergency-numbers.json` (`CallPolicyTest`,
+`src/lib/emergency.test.ts`) et `emergency.dialled` dans `tests/fixtures/incoming-call-cases.json`
+(fenêtre ouverte ou non selon le numéro composé). **À revérifier avant toute sortie dans un autre
+pays** : la liste ne vaut que pour Madagascar.
+
 **Fenêtre des secours (NAR-196)** : après un appel de l'enfant aux secours, tout appel entrant
 sonne pendant 30 min (`EmergencyWindow.MINUTES`), inconnu et masqué compris : le rappel des secours
 vient souvent d'un numéro inconnu. Règle pure `EmergencyWindow.kt` ; décision dans

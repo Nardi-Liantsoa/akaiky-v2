@@ -5,8 +5,25 @@ package mg.nosytech.akaiky
  * aucun clavier, et un numéro hors de la liste reçue du parent est refusé ici aussi.
  */
 object CallPolicy {
-    /** Numéros d'urgence acceptés (112 partout en GSM ; 117 police à Madagascar ; 15/17/18 en France). */
-    val EMERGENCY = setOf("112", "117", "118", "119", "15", "17", "18", "114", "911")
+    /**
+     * Numéros d'urgence de l'app (NAR-197) : toujours composables, et leur appel ouvre la
+     * fenêtre des secours (NAR-196). Madagascar seulement, plus les numéros que tout
+     * téléphone GSM achemine vers les secours. Sources (vérifiées le 20/11/2026) :
+     * - 117 police (numéro général des secours depuis un mobile) :
+     *   https://travel.gc.ca/destinations/madagascar ,
+     *   https://www.gov.uk/foreign-travel-advice/madagascar/health
+     * - 118 pompiers : https://www.anwb.nl/vakantie/madagaskar/reisvoorbereiding/voor-vertrek
+     * - 147 Ligne Verte, signalement des violences faites aux enfants, gratuite chez les trois
+     *   opérateurs, 24 h/24 : https://www.unicef.org/madagascar/communiqu%C3%A9s-de-presse/lunicef-et-la-commune-urbaine-dantananarivo-signent-un-plan-daction
+     * - 112 et 911 : reconnus comme urgences par tout téléphone, carte SIM ou non
+     *   (3GPP TS 22.101) : https://eena.org/blog/is-112-a-valid-emergency-number-in-america/
+     * Retirés : 15, 17, 18 (France ; le 17 malgache n'existe que depuis un fixe), 114 (France),
+     * 119 (aucune source pour Madagascar). Le SAMU (124 selon des sites secondaires, démenti
+     * par gov.uk) n'est pas ajouté tant qu'une source officielle ne le confirme pas.
+     * À revoir avant toute sortie dans un autre pays (docs/MOBILE.md, « Numéros d'urgence »).
+     * Cas partagés : tests/fixtures/emergency-numbers.json.
+     */
+    val EMERGENCY = setOf("117", "118", "147", "112", "911")
 
     /** Forme comparable : « + » initial et chiffres seulement. */
     fun normalize(number: String?): String? {
