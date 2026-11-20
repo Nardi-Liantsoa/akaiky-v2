@@ -81,6 +81,10 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   `aria-describedby`, `aria-invalid` sur erreur. Le champ vient de l'emplacement, qui reçoit
   `control` à poser dessus (`v-bind="control"`) ; id généré si absent. Libellés de champ en
   casse normale, `--fs-small`, `--text-soft` (≥ 7:1).
+- **`BackLink`** (NAR-195) — lien de retour en tête d'écran (« ‹ Réglages », « ‹ Accueil ») :
+  chevron + libellé `--accent`, ≥ `--tap`, vrai lien (`href`) dont le clic passe par `backTo`
+  (`src/lib/navigation.ts` : retour de l'historique si l'écran précédent est la cible, sinon
+  remplacement) ; `ariaLabel` donne le nom complet lu. Remplace tout « Annuler » de navigation.
 
 Tout autre contrôle sans règle de focus propre reçoit l'anneau par une règle globale de
 spécificité nulle (`:where(button, a, …):focus-visible`).

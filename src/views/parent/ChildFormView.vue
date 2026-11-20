@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, ref, shallowRef, watch } from 'vue'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router'
 import { addChild, removeChild, updateChild } from '../../api/children'
 import { ApiError } from '../../api/http'
 import LoadError from '../../components/family/LoadError.vue'
@@ -14,6 +14,7 @@ import { children, dropChild, loadChildren, selectChild, upsertChild } from '../
 import { contacts } from '../../store/contacts'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
+import BackLink from '../../components/ui/BackLink.vue'
 import ConfirmSheet from '../../components/ui/ConfirmSheet.vue'
 import FormField from '../../components/ui/FormField.vue'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
@@ -39,6 +40,36 @@ const consentError = ref('')
 const valid = computed(() => { const n = [...name.value.trim()].length; return n >= 1 && n <= 40 })
 // Formulaire montré seulement à un gestionnaire, une fois la famille connue.
 const allowed = computed(() => family.status === 'ready' && canManage())
+
+// Modifications non enregistrées (NAR-195, modification seulement) : valeurs lues au
+// remplissage du formulaire, comparées à la saisie. Quitter l'écran (« ‹ Accueil », barre
+// d'onglets, retour Android ou du navigateur) les fait confirmer par la feuille commune ;
+// rien de changé, ou enregistrement réussi : on part sans question.
+const initial = shallowRef<{ name: string, phone: string, color: AvatarColor | null } | null>(null)
+const dirty = computed(() => {
+  const base = initial.value
+  if (!id.value || !base || !allowed.value || !existing.value) return false
+  return name.value.trim() !== base.name || phone.value.trim() !== base.phone || color.value !== base.color
+})
+// Départ voulu (enregistré, retiré) : la garde laisse passer.
+let leaving = false
+// Sorties en attente de la réponse (true quitte, false reste). Une autre sortie demandée
+// pendant la question (retour du navigateur) attend la même réponse : aucune n'est
+// abandonnée en route, ce qui refermerait la feuille sous les yeux du parent.
+const leaveWaiters: Array<(leave: boolean) => void> = []
+const asking = ref(false)
+function answerLeave(leave: boolean) {
+  asking.value = false
+  for (const answer of leaveWaiters.splice(0)) answer(leave)
+}
+function confirmLeave(): true | Promise<boolean> {
+  if (leaving || !dirty.value) return true
+  asking.value = true
+  return new Promise<boolean>((resolve) => { leaveWaiters.push(resolve) })
+}
+onBeforeRouteLeave(() => confirmLeave())
+// Même écran, autre enfant ou ajout (composant réutilisé) : même question.
+onBeforeRouteUpdate((to: RouteLocationNormalized, from: RouteLocationNormalized) => (to.params.id === from.params.id ? true : confirmLeave()))
 
 // Enfant retiré ailleurs entre-temps : il quitte aussi la liste affichée.
 // Rôle retiré ailleurs (403) : la famille est relue, les actions disparaissent.
@@ -70,6 +101,8 @@ watch(() => [family.status, family.data?.role] as const, ([s]) => {
 let filledFor: string | null = null
 function reset() {
   filledFor = null
+  initial.value = null
+  answerLeave(false)
   name.value = ''
   phone.value = ''
   color.value = null
@@ -80,7 +113,13 @@ function reset() {
 }
 watch(id, reset)
 watch(existing, (c) => {
-  if (c && c.id !== filledFor) { filledFor = c.id; name.value = c.firstName; phone.value = c.phone ?? ''; color.value = c.avatarColor }
+  if (c && c.id !== filledFor) {
+    filledFor = c.id
+    name.value = c.firstName
+    phone.value = c.phone ?? ''
+    color.value = c.avatarColor
+    initial.value = { name: c.firstName.trim(), phone: (c.phone ?? '').trim(), color: c.avatarColor }
+  }
 }, { immediate: true })
 
 async function save() {
@@ -99,6 +138,7 @@ async function save() {
       : await addChild(name.value.trim(), color.value ?? undefined, phoneNow)
     upsertChild(saved)
     selectChild(saved.id)
+    leaving = true
     await router.push({ name: 'espace' })
   } catch (e) {
     error.value = message(e)
@@ -116,6 +156,7 @@ async function remove() {
   try {
     await removeChild(target)
     dropChild(target)
+    leaving = true
     await router.push({ name: 'espace' })
   } catch (e) {
     error.value = message(e)
@@ -130,6 +171,7 @@ async function remove() {
 
 <template>
   <section>
+    <BackLink :to="{ name: 'espace' }" :label="t.parent.home.back" :aria-label="t.parent.home.backLabel" />
     <h1>{{ !id ? t.children.addTitle : existing ? t.children.editTitle(existing.firstName) : t.children.edit }}</h1>
     <LoadError v-if="family.status === 'error'" />
     <StatusBlock v-else-if="allowed && id && children.status === 'error'" state="error" :text="t.children.loadError" @retry="loadChildren(true)" />
@@ -156,13 +198,8 @@ async function remove() {
       <ConsentCheckbox v-if="!id" id="child-consent" v-model="consent" :label="t.consent.child" v-model:error="consentError" />
       <div class="actions">
         <AppButton type="submit" :disabled="busy || !valid">{{ t.children.save }}</AppButton>
-        <RouterLink class="btn btn-ghost" :to="{ name: 'espace' }">{{ t.children.cancel }}</RouterLink>
       </div>
     </form>
-
-    <RouterLink v-if="existing && allowed" class="btn btn-ghost phone" :to="{ name: 'telephone', params: { id: existing.id } }">
-      {{ t.pairing.open }}
-    </RouterLink>
 
     <div v-if="existing && allowed" class="danger-zone">
       <p class="help">{{ t.children.removeHint }}</p>
@@ -172,6 +209,10 @@ async function remove() {
       v-if="existing && confirming.target.value === existing.id" id="child-remove" :title="t.children.removeTitle(existing.firstName)"
       :items="t.children.removeItems" :confirm="t.children.confirmRemove" :busy="busy" :opener="confirming.opener.value"
       @close="confirming.close()" @confirm="remove"
+    />
+    <ConfirmSheet
+      v-if="asking" id="child-leave" :title="t.children.unsavedTitle" :items="t.children.unsavedItems"
+      :confirm="t.children.unsavedConfirm" @close="answerLeave(false)" @confirm="answerLeave(true)"
     />
   </section>
 </template>
@@ -218,9 +259,6 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-.phone {
-  margin-top: 20px;
 }
 .danger-zone {
   margin-top: 28px;
