@@ -582,7 +582,45 @@ const fr = {
     no: 'non',
     when: 'Quand',
     action: 'Action',
-    actor: 'Auteur'
+    actor: 'Auteur',
+    lead: 'Familles, téléphones et derniers signaux. Ni prénom, ni numéro, ni position, ni journal d’appels.',
+    more: 'Afficher plus',
+    never: 'jamais',
+    stats: {
+      title: 'Statistiques',
+      help: 'Nombres anonymes, toutes familles confondues.',
+      families: 'Familles',
+      children: 'Enfants',
+      devices: 'Téléphones appairés',
+      active: 'En service',
+      silent: 'Silencieux',
+      signal24h: 'Signal reçu en 24 h',
+      sos: 'SOS ce mois-ci',
+      sosUntracked: 'pas encore suivi'
+    },
+    families: {
+      title: 'Familles',
+      help: 'Désignées par leur référence : le nom choisi par la famille n’est pas montré.',
+      ref: 'Référence',
+      members: 'Membres',
+      children: 'Enfants',
+      devices: 'Téléphones',
+      created: 'Créée le',
+      empty: 'Aucune famille.'
+    },
+    devices: {
+      title: 'Téléphones',
+      help: 'Modèle, versions et derniers signaux ; jamais l’enfant, son numéro ni sa position.',
+      model: 'Modèle',
+      unknownModel: 'Modèle inconnu',
+      versions: 'Android · app',
+      family: 'Famille',
+      lastSeen: 'Dernière requête',
+      lastSignal: 'Dernier signal',
+      state: 'État',
+      states: { active: 'actif', silent: 'silencieux', revoked: 'retiré' },
+      empty: 'Aucun téléphone.'
+    }
   }
 }
 
@@ -1152,7 +1190,45 @@ const mg: Messages = {
     no: 'tsia',
     when: 'Fotoana',
     action: 'Hetsika',
-    actor: 'Mpanao'
+    actor: 'Mpanao',
+    lead: 'Fianakaviana, finday ary famantarana farany. Tsy misy anarana, laharana, toerana na diarin’ny antso.',
+    more: 'Asehoy bebe kokoa',
+    never: 'tsy mbola',
+    stats: {
+      title: 'Antontanisa',
+      help: 'Isa tsy mitonona anarana, ho an’ny fianakaviana rehetra.',
+      families: 'Fianakaviana',
+      children: 'Ankizy',
+      devices: 'Finday mifandray',
+      active: 'Miasa',
+      silent: 'Mangina',
+      signal24h: 'Famantarana tao anatin’ny 24 ora',
+      sos: 'SOS tamin’ity volana ity',
+      sosUntracked: 'tsy mbola arahina'
+    },
+    families: {
+      title: 'Fianakaviana',
+      help: 'Fantarina amin’ny laharany: tsy aseho ny anarana nofidin’ny fianakaviana.',
+      ref: 'Laharana',
+      members: 'Mpikambana',
+      children: 'Ankizy',
+      devices: 'Finday',
+      created: 'Noforonina tamin’ny',
+      empty: 'Tsy misy fianakaviana.'
+    },
+    devices: {
+      title: 'Finday',
+      help: 'Karazany, dikany ary famantarana farany; tsy ny ankizy, ny laharany na ny toerany mihitsy.',
+      model: 'Karazany',
+      unknownModel: 'Karazany tsy fantatra',
+      versions: 'Android · app',
+      family: 'Fianakaviana',
+      lastSeen: 'Fangatahana farany',
+      lastSignal: 'Famantarana farany',
+      state: 'Toetra',
+      states: { active: 'miasa', silent: 'mangina', revoked: 'nesorina' },
+      empty: 'Tsy misy finday.'
+    }
   }
 }
 
@@ -1719,7 +1795,45 @@ const en: Messages = {
     no: 'no',
     when: 'When',
     action: 'Action',
-    actor: 'Actor'
+    actor: 'Actor',
+    lead: 'Families, phones and last signals. No first names, numbers, locations or call logs.',
+    more: 'Show more',
+    never: 'never',
+    stats: {
+      title: 'Statistics',
+      help: 'Anonymous counts across all families.',
+      families: 'Families',
+      children: 'Children',
+      devices: 'Paired phones',
+      active: 'In service',
+      silent: 'Silent',
+      signal24h: 'Signal in the last 24 h',
+      sos: 'SOS this month',
+      sosUntracked: 'not tracked yet'
+    },
+    families: {
+      title: 'Families',
+      help: 'Shown by reference: the name chosen by the family is not displayed.',
+      ref: 'Reference',
+      members: 'Members',
+      children: 'Children',
+      devices: 'Phones',
+      created: 'Created',
+      empty: 'No families.'
+    },
+    devices: {
+      title: 'Phones',
+      help: 'Model, versions and last signals; never the child, their number or their location.',
+      model: 'Model',
+      unknownModel: 'Unknown model',
+      versions: 'Android · app',
+      family: 'Family',
+      lastSeen: 'Last request',
+      lastSignal: 'Last signal',
+      state: 'State',
+      states: { active: 'active', silent: 'silent', revoked: 'removed' },
+      empty: 'No phones.'
+    }
   }
 }
 
