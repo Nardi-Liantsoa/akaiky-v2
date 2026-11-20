@@ -23,7 +23,7 @@ service.
 - **Votre famille** : son nom, son fuseau horaire, la liste de ses membres et leur rôle
   (parent principal, gestionnaire, contact), et les invitations en attente (adresse invitée,
   rôle, date d'expiration).
-- **Vos enfants** : prénom (chiffré), couleur de l'avatar, date d'ajout, date et auteur du
+- **Vos enfants** : prénom (chiffré), numéro de téléphone s'il est renseigné (chiffré), couleur de l'avatar, date d'ajout, date et auteur du
   consentement parental, date du dernier code parent (le code lui-même n'est gardé que sous
   forme d'empreinte).
 - **Les contacts autorisés de chaque enfant** : nom et numéro de téléphone (chiffrés), ordre,
