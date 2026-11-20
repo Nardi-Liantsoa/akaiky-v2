@@ -23,6 +23,10 @@ const status = ref<'loading' | 'ready' | 'error'>('loading')
 // même si l'on change d'enfant puis revient.
 const savingFor = ref<string | null>(null)
 const busy = computed(() => savingFor.value !== null)
+// Deux erreurs distinctes, jamais affichées ensemble (comme AllowedAppsCard) : celle du
+// chargement (avec « Réessayer ») l'emporte sur celle du dernier enregistrement, qui
+// survit à la relecture qui le suit (NAR-188).
+const loadError = ref('')
 const error = ref('')
 const done = ref(false)
 
@@ -42,7 +46,6 @@ let loadId = 0
 async function load(childId: string) {
   const id = ++loadId
   status.value = 'loading'
-  error.value = ''
   done.value = false
   try {
     const list = await getTemplates(childId)
@@ -51,11 +54,12 @@ async function load(childId: string) {
     status.value = 'ready'
   } catch (e) {
     if (id !== loadId) return
-    error.value = errorText(e, t.value)
+    loadError.value = errorText(e, t.value)
     status.value = 'error'
   }
 }
-watch(() => props.childId, (id) => { void load(id) }, { immediate: true })
+// Autre enfant : erreur d'enregistrement effacée, textes relus.
+watch(() => props.childId, (id) => { error.value = ''; void load(id) }, { immediate: true })
 
 async function save() {
   if (busy.value || !changed.value.length || invalid.value) return
@@ -85,7 +89,7 @@ function reset(slot: QuickSlot) {
 
 <template>
   <SectionCard id="messages-rapides" class="templates" tabindex="-1" :title="t.templates.title" :help="t.templates.hint">
-    <StatusBlock v-if="status === 'error'" state="error" :text="`${t.templates.loadError} ${error}`" @retry="load(childId)" />
+    <StatusBlock v-if="status === 'error'" state="error" :text="`${t.templates.loadError} ${loadError}`" @retry="load(childId)" />
     <form v-else :aria-busy="status === 'loading'" :class="{ refreshing: status === 'loading' }" @submit.prevent="save">
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <ul class="slots">

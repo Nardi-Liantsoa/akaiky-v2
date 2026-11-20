@@ -82,3 +82,101 @@ test('Réglages › Messages rapides : la fin de la carte n’est pas cachée pa
   const tabs = await page.getByRole('navigation', { name: 'Navigation principale' }).boundingBox()
   expect(card!.y + card!.height).toBeLessThanOrEqual(tabs!.y)
 })
+
+// Enregistrement en échec (NAR-188) : l'erreur d'action survit à la relecture qui suit,
+// distincte de l'erreur de chargement ; jamais les deux à la fois.
+const TIANA = { ...FY, id: '6f1c2b1e-0000-4000-8000-000000000102', firstName: 'Tiana', avatarColor: 'green' }
+const failures = [
+  { name: '500', text: 'Une erreur est survenue. Réessayez.', fail: { status: 500, body: { error: 'Erreur interne.' } } },
+  { name: 'réseau coupé', text: 'Connexion au serveur impossible. Vérifiez votre réseau et réessayez.', fail: 'network' },
+  { name: '400 du serveur', text: 'Texte refusé par le serveur.', fail: { status: 400, body: { error: 'Texte refusé par le serveur.' } } }
+] as const
+
+// PUT du message 2 en échec tant que `state.failing` ; GET des textes comptés.
+async function failingApi(page: import('@playwright/test').Page, fail: (typeof failures)[number]['fail'], extra: Parameters<typeof mockApi>[1] = {}) {
+  const api = templatesApi()
+  const state = { failing: true }
+  const put = api.handlers[`PUT ${base}/2`]
+  const calls = await mockApi(page, {
+    ...api.handlers,
+    [`PUT ${base}/2`]: (req) => (state.failing && fail !== 'network' ? fail : put(req)),
+    ...extra
+  })
+  if (fail === 'network') {
+    await page.route(`**${base}/2`, (route) => (state.failing ? route.abort('internetdisconnected') : route.fallback()))
+  }
+  const reads = () => calls.filter((r) => r.method() === 'GET' && new URL(r.url()).pathname === base).length
+  return { api, state, reads }
+}
+
+for (const { name, text, fail } of failures) {
+  test(`enregistrement en échec (${name}) : l’erreur du serveur reste après la relecture, un enregistrement réussi l’efface`, async ({ page }) => {
+    const { api, state, reads } = await failingApi(page, fail)
+    await openSection(page, 'Messages rapides')
+    const card = page.locator('#messages-rapides')
+    const field = page.getByLabel('Message 2')
+    await expect(field).toBeEnabled()
+    const before = reads()
+
+    await field.fill('Viens me chercher à l’école')
+    await page.getByRole('button', { name: 'Enregistrer les messages' }).click()
+    // La carte a relu les textes, puis l'erreur est toujours là, seule.
+    await expect.poll(reads).toBeGreaterThan(before)
+    await expect(card.locator('form')).toHaveAttribute('aria-busy', 'false')
+    await expect(field).toBeEnabled()
+    await expect(card.getByRole('alert')).toHaveText(text)
+    await expect(card.getByRole('alert')).toHaveCount(1)
+    await expect(page.getByText('Enregistré. Le téléphone l’affichera')).toHaveCount(0)
+
+    // Enregistrement suivant réussi : l'erreur disparaît.
+    state.failing = false
+    await field.fill('Viens me chercher à l’école')
+    await page.getByRole('button', { name: 'Enregistrer les messages' }).click()
+    await expect(page.getByText('Enregistré. Le téléphone l’affichera')).toBeVisible()
+    await expect(card.getByRole('alert')).toHaveCount(0)
+    expect(api.puts).toEqual([{ slot: 2, text: 'Viens me chercher à l’école' }])
+  })
+}
+
+test('enregistrement en échec puis autre enfant : l’erreur est effacée', async ({ page }) => {
+  await failingApi(page, failures[0].fail, { 'GET /api/children': () => ({ body: [FY, TIANA] }) })
+  await openSection(page, 'Messages rapides')
+  const card = page.locator('#messages-rapides')
+  await page.getByLabel('Message 2').fill('Viens me chercher à l’école')
+  await page.getByRole('button', { name: 'Enregistrer les messages' }).click()
+  await expect(card.getByRole('alert')).toHaveText(failures[0].text)
+
+  await page.getByRole('button', { name: /Enfant affiché : Fy/ }).click()
+  await page.getByRole('dialog').getByRole('button', { name: /^Tiana/ }).click()
+  await expect(page.getByRole('button', { name: /Enfant affiché : Tiana/ })).toBeVisible()
+  await expect(page.getByLabel('Message 2')).toBeEnabled()
+  await expect(card.getByRole('alert')).toHaveCount(0)
+})
+
+test('enregistrement en échec puis relecture en échec : une seule erreur à la fois', async ({ page }) => {
+  let readFails = false
+  const { state, reads } = await failingApi(page, failures[0].fail, {
+    [`GET ${base}`]: () => (readFails ? { status: 500, body: { error: 'Erreur.' } } : { body: [1, 2, 3, 4].map((slot) => ({ slot, text: null })) })
+  })
+  await openSection(page, 'Messages rapides')
+  const card = page.locator('#messages-rapides')
+  await expect(page.getByLabel('Message 2')).toBeEnabled()
+  const before = reads()
+  readFails = true
+  await page.getByLabel('Message 2').fill('Viens me chercher à l’école')
+  await page.getByRole('button', { name: 'Enregistrer les messages' }).click()
+  await expect.poll(reads).toBeGreaterThan(before)
+  // Relecture en échec : le seul bloc de chargement (avec « Réessayer »), pas l'erreur d'enregistrement en plus.
+  const loadAlert = card.getByRole('alert').filter({ hasText: 'Impossible de charger les messages rapides.' })
+  await expect(loadAlert).toBeVisible()
+  await expect(card.getByRole('alert')).toHaveCount(1)
+
+  // Réessayer réussit : l'échec d'enregistrement, toujours vrai, revient seul.
+  readFails = false
+  state.failing = true
+  await card.getByRole('button', { name: 'Réessayer' }).click()
+  await expect(page.getByLabel('Message 2')).toBeEnabled()
+  await expect(loadAlert).toHaveCount(0)
+  await expect(card.getByRole('alert')).toHaveText(failures[0].text)
+  await expect(card.getByRole('alert')).toHaveCount(1)
+})
