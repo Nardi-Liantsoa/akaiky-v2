@@ -106,7 +106,7 @@ const ADMIN = {
     ],
     next: null
   },
-  'GET /api/admin/users': [{ id: HANTA.id, email: HANTA.email, name: 'Hanta', is_admin: true, created_at: '2026-01-05T10:00:00Z', email_verified_at: '2026-01-05T10:05:00Z', sms_account: false, verified: true, mfa: true }],
+  'GET /api/admin/users': [{ id: HANTA.id, email: HANTA.email, name: 'Hanta', is_admin: true, created_at: '2026-01-05T10:00:00Z', email_verified_at: '2026-01-05T10:05:00Z', sms_account: false, verified: true, disabled_at: null, mfa: true }],
   'GET /api/admin/audit': [{ at: '2026-01-15T09:00:00Z', action: 'login', target: null, actor: HANTA.email }]
 }
 const PAGES = [

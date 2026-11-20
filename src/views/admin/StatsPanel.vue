@@ -15,6 +15,8 @@ async function load() {
   try { stats.value = await getAdminStats() } catch (e) { error.value = e }
 }
 onMounted(load)
+// Relu par la page après une action de l'équipe (téléphone retiré, NAR-199).
+defineExpose({ reload: load })
 </script>
 
 <template>

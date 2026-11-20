@@ -13,6 +13,8 @@ import StatusBlock from '../../components/ui/StatusBlock.vue'
 const t = useT()
 const list = usePagedList(listAdminFamilies)
 onMounted(list.reload)
+// Relu par la page après un téléphone retiré (nombre de téléphones actifs, NAR-199).
+defineExpose({ reload: list.reload })
 </script>
 
 <template>
