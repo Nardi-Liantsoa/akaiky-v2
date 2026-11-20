@@ -3,6 +3,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { pushSheet } from '../../composables/useSheetStack'
 import { useT } from '../../composables/useT'
 import AppButton from '../ui/AppButton.vue'
+import AppIcon from '../ui/AppIcon.vue'
 
 // Feuille du bas (NAR-174) : menu d'un enfant, liste des enfants. Rendue dans <body>
 // (jamais sous l'en-tête), inscrite dans la pile des feuilles (Échap, retour Android,
@@ -12,7 +13,9 @@ import AppButton from '../ui/AppButton.vue'
 // touché ne prend pas le focus, d'où le passage explicite).
 // alert : feuille de confirmation (NAR-184, ConfirmSheet), annoncée comme alertdialog ;
 // son emplacement « actions » remplace le bouton « Fermer ».
-const props = defineProps<{ title: string, opener?: HTMLElement | null, alert?: boolean }>()
+// closeIcon (NAR-195, menu « ⋯ ») : petit bouton × dans l'en-tête à la place du grand
+// « Fermer » du bas ; sans lui, l'apparence d'origine (sélecteur d'enfant, confirmation).
+const props = defineProps<{ title: string, opener?: HTMLElement | null, alert?: boolean, closeIcon?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 const t = useT()
 const sheet = ref<HTMLElement | null>(null)
@@ -43,10 +46,16 @@ function trap(e: KeyboardEvent) {
   <Teleport to="body">
     <div class="backdrop" @click.self="emit('close')">
       <div ref="sheet" class="sheet" :role="alert ? 'alertdialog' : 'dialog'" aria-modal="true" :aria-label="title" tabindex="-1" @keydown.tab="trap">
-        <h2>{{ title }}</h2>
+        <div v-if="closeIcon" class="head">
+          <h2>{{ title }}</h2>
+          <button type="button" class="close-icon" :aria-label="t.children.close" @click="emit('close')">
+            <AppIcon name="cross" :size="22" />
+          </button>
+        </div>
+        <h2 v-else>{{ title }}</h2>
         <slot />
         <slot name="actions">
-          <AppButton variant="ghost" class="close" @click="emit('close')">{{ t.children.close }}</AppButton>
+          <AppButton v-if="!closeIcon" variant="ghost" class="close" @click="emit('close')">{{ t.children.close }}</AppButton>
         </slot>
       </div>
     </div>
@@ -74,6 +83,36 @@ function trap(e: KeyboardEvent) {
 }
 h2 {
   margin: 0 0 12px;
+}
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-2)) var(--space-3) 0;
+}
+.head h2 {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.close-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+.close-icon:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: calc(-1 * var(--focus-offset));
 }
 .close {
   width: 100%;

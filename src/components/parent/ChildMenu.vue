@@ -5,7 +5,8 @@ import { useT } from '../../composables/useT'
 import { selectChild } from '../../store/children'
 import ChildSheet from './ChildSheet.vue'
 
-// Actions d'un enfant (« ⋯ » de sa carte, gestionnaires) : modifier, téléphone, code parent.
+// Actions d'un enfant (« ⋯ » de sa carte, gestionnaires) : modifier, téléphone (s'il est
+// relié), code parent. Fermé par ×, le fond, Échap ou le retour Android (ChildSheet).
 const props = defineProps<{ child: Child, opener?: HTMLElement | null }>()
 const emit = defineEmits<{ close: [] }>()
 const t = useT()
@@ -19,10 +20,12 @@ async function openParentCode() {
 </script>
 
 <template>
-  <ChildSheet :title="t.children.actions(child.firstName)" :opener="opener" @close="emit('close')">
+  <ChildSheet :title="t.children.actions(child.firstName)" :opener="opener" close-icon @close="emit('close')">
     <nav class="menu">
       <RouterLink class="item" :to="{ name: 'enfant', params: { id: child.id } }" @click="emit('close')">{{ t.children.edit }}</RouterLink>
-      <RouterLink class="item" :to="{ name: 'telephone', params: { id: child.id } }" @click="emit('close')">{{ t.children.phone }}</RouterLink>
+      <!-- Sans téléphone relié (même test que la carte, phoneLastSeenAt), la carte offre déjà
+           « Relier le téléphone » : pas de doublon ici (NAR-195). -->
+      <RouterLink v-if="child.phoneLastSeenAt" class="item" :to="{ name: 'telephone', params: { id: child.id } }" @click="emit('close')">{{ t.children.phone }}</RouterLink>
       <button class="item" type="button" @click="openParentCode">{{ t.children.parentCode }}</button>
     </nav>
   </ChildSheet>

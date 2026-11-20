@@ -12,9 +12,12 @@ test('un parent crée sa famille, ajoute un enfant et obtient un QR d’appairag
   await page.getByRole('checkbox', { name: /autorité parentale sur cet enfant/ }).check()
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page).toHaveURL(/\/espace$/)
-  // Menu « ⋯ » de la carte de l'enfant (NAR-174) : « Téléphone ».
+  // Pas encore de téléphone : « Relier le téléphone » sur la carte (NAR-193) ; le menu « ⋯ »
+  // ne propose « Téléphone » qu'une fois un téléphone relié (NAR-195).
   await page.getByRole('button', { name: 'Actions pour Fy' }).click()
-  await page.getByRole('link', { name: 'Téléphone' }).click()
+  await expect(page.getByRole('dialog', { name: 'Actions pour Fy' }).getByRole('link', { name: 'Téléphone' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Fermer' }).click()
+  await page.getByRole('button', { name: 'Relier le téléphone' }).click()
   await expect(page.getByRole('heading', { name: 'Configurer le téléphone de Fy' })).toBeVisible()
   await page.getByRole('button', { name: 'Afficher le QR code' }).click()
   await expect(page.getByRole('img', { name: 'QR code de configuration du téléphone' })).toBeVisible()

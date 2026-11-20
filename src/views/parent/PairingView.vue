@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import QRCode from 'qrcode'
 import { createPairing, listDevices, revokeDevice, type ChildDevice } from '../../api/devices'
 import { ApiError } from '../../api/http'
@@ -13,6 +13,7 @@ import { formatDay } from '../../lib/format'
 import { children, dropChild, loadChildren } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
+import BackLink from '../../components/ui/BackLink.vue'
 import ConfirmSheet from '../../components/ui/ConfirmSheet.vue'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
 
@@ -152,6 +153,8 @@ watch(childId, () => {
 
 <template>
   <section>
+    <!-- Retour en tête (NAR-195) : on arrive ici depuis la carte de l'accueil. -->
+    <BackLink :to="{ name: 'espace' }" :label="t.parent.home.back" :aria-label="t.parent.home.backLabel" />
     <LoadError v-if="family.status === 'error'" />
     <StatusBlock v-else-if="children.status === 'error'" state="error" :text="t.children.loadError" @retry="loadChildren(true)" />
     <StatusBlock v-else-if="family.status !== 'ready' || children.status !== 'ready'" state="loading" fill />
@@ -201,8 +204,6 @@ watch(childId, () => {
         @close="confirming.close()" @confirm="revoke"
       />
       <p v-if="devices.length" class="help">{{ t.pairing.revokeHint }}</p>
-
-      <RouterLink class="btn btn-ghost back" :to="{ name: 'enfant', params: { id: child.id } }">{{ t.children.cancel }}</RouterLink>
     </template>
   </section>
 </template>
@@ -288,8 +289,5 @@ h2 {
   margin: 0;
   font-weight: 800;
   color: var(--call);
-}
-.back {
-  margin-top: 24px;
 }
 </style>

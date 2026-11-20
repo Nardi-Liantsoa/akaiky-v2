@@ -167,7 +167,6 @@ const fr = {
   },
   pairing: {
     title: (name: string) => `Configurer le téléphone de ${name}`,
-    open: 'Configurer le téléphone',
     steps: [
       'Réinitialisez le téléphone de l’enfant (paramètres d’usine).',
       'Sur l’écran de bienvenue, touchez 6 fois le même endroit de l’écran.',
@@ -225,13 +224,16 @@ const fr = {
     color: 'Couleur',
     colors: { orange: 'Orange', blue: 'Bleu', violet: 'Violet', green: 'Vert', yellow: 'Jaune' },
     save: 'Enregistrer',
-    cancel: 'Annuler',
     edit: 'Modifier',
     remove: 'Retirer cet enfant',
     confirmRemove: 'Confirmer : retirer cet enfant',
     removeTitle: (name: string) => `Retirer ${name} ?`,
     removeItems: ['ses contacts autorisés et ses réglages (code parent, plages horaires, messages rapides, applications) ;', 'ses téléphones, aussitôt déconnectés ;', 'le journal de ses appels et ses messages.'],
     removeHint: 'Ses contacts et ses réglages seront aussi effacés.',
+    // Sortie de « Modifier » avec des changements non enregistrés (NAR-195) ; « Annuler » reste.
+    unsavedTitle: 'Quitter sans enregistrer ?',
+    unsavedItems: ['vos modifications seront perdues.'],
+    unsavedConfirm: 'Quitter sans enregistrer',
     emptyManager: 'Ajoutez votre premier enfant pour configurer son téléphone.',
     emptyMember: 'Les enfants ajoutés par la famille apparaîtront ici.',
     tooMany: 'Nombre maximal d’enfants atteint.',
@@ -495,7 +497,8 @@ const fr = {
   },
   parent: {
     tabsLabel: 'Navigation principale',
-    home: { title: 'Accueil', empty: 'Les enfants de votre famille apparaîtront ici.', seenBy: (names: string) => `Vu par ${names}` },
+    // back / backLabel : lien « ‹ Accueil » en tête de Modifier et de l'appairage (NAR-195).
+    home: { title: 'Accueil', empty: 'Les enfants de votre famille apparaîtront ici.', seenBy: (names: string) => `Vu par ${names}`, back: 'Accueil', backLabel: 'Retour à l’accueil' },
     log: {
       title: 'Journal',
       empty: 'Les appels, messages et alertes apparaîtront ici.',
@@ -744,7 +747,6 @@ const mg: Messages = {
   },
   pairing: {
     title: (name: string) => `Handrindra ny findain’i ${name}`,
-    open: 'Handrindra ny finday',
     steps: [
       'Avereno amin’ny toerana niaviany ny findain’ilay zaza (paramètres d’usine).',
       'Eo amin’ny efijery fandraisana, kitiho in-6 eo amin’ny toerana iray ihany.',
@@ -799,13 +801,15 @@ const mg: Messages = {
     color: 'Loko',
     colors: { orange: 'Volomboasary', blue: 'Manga', violet: 'Volomparasy', green: 'Maitso', yellow: 'Mavo' },
     save: 'Tehirizo',
-    cancel: 'Hanafoana',
     edit: 'Hanova',
     remove: 'Esory ity zaza ity',
     confirmRemove: 'Hamarino: esory ity zaza ity',
     removeTitle: (name: string) => `Hanaisotra an’i ${name} ?`,
     removeItems: ['ireo mpifandray nahazo alalana sy ny fandrindrana azy (kaody ray aman-dreny, fotoana voafetra, hafatra haingana, rindranasa);', 'ireo findainy, tapaka avy hatrany;', 'ny tantaran’ny antsony sy ireo hafany.'],
     removeHint: 'Ho voafafa koa ny mpifandraisany sy ny fandrindrana azy.',
+    unsavedTitle: 'Hiala tsy mitahiry ?',
+    unsavedItems: ['ho very ireo fanovana nataonao.'],
+    unsavedConfirm: 'Hiala tsy mitahiry',
     emptyManager: 'Ampio ny zanakao voalohany mba handrindrana ny findainy.',
     emptyMember: 'Eto no hiseho ireo ankizy nampidirin’ny fianakaviana.',
     tooMany: 'Tratra ny isan’ny ankizy farafahabetsany.',
@@ -1063,7 +1067,7 @@ const mg: Messages = {
   },
   parent: {
     tabsLabel: 'Fitetezana lehibe',
-    home: { title: 'Fandraisana', empty: 'Eto no hiseho ireo ankizy ao amin’ny fianakavianao.', seenBy: (names: string) => `Hitan’i ${names}` },
+    home: { title: 'Fandraisana', empty: 'Eto no hiseho ireo ankizy ao amin’ny fianakavianao.', seenBy: (names: string) => `Hitan’i ${names}`, back: 'Fandraisana', backLabel: 'Hiverina amin’ny fandraisana' },
     log: {
       title: 'Tantara',
       empty: 'Eto no hiseho ny antso, ny hafatra ary ny fampitandremana.',
@@ -1310,7 +1314,6 @@ const en: Messages = {
   },
   pairing: {
     title: (name: string) => `Set up ${name}’s phone`,
-    open: 'Set up the phone',
     steps: [
       'Reset the child’s phone (factory settings).',
       'On the welcome screen, tap the same spot 6 times.',
@@ -1365,13 +1368,15 @@ const en: Messages = {
     color: 'Colour',
     colors: { orange: 'Orange', blue: 'Blue', violet: 'Purple', green: 'Green', yellow: 'Yellow' },
     save: 'Save',
-    cancel: 'Cancel',
     edit: 'Edit',
     remove: 'Remove this child',
     confirmRemove: 'Confirm: remove this child',
     removeTitle: (name: string) => `Remove ${name}?`,
     removeItems: ['their allowed contacts and settings (parent code, time slots, quick messages, apps);', 'their phones, disconnected right away;', 'their call log and messages.'],
     removeHint: 'Their contacts and settings will also be deleted.',
+    unsavedTitle: 'Leave without saving?',
+    unsavedItems: ['your changes will be lost.'],
+    unsavedConfirm: 'Leave without saving',
     emptyManager: 'Add your first child to set up their phone.',
     emptyMember: 'Children added by the family will appear here.',
     tooMany: 'Maximum number of children reached.',
@@ -1628,7 +1633,7 @@ const en: Messages = {
   },
   parent: {
     tabsLabel: 'Main navigation',
-    home: { title: 'Home', empty: 'Your family’s children will appear here.', seenBy: (names: string) => `Seen by ${names}` },
+    home: { title: 'Home', empty: 'Your family’s children will appear here.', seenBy: (names: string) => `Seen by ${names}`, back: 'Home', backLabel: 'Back to home' },
     log: {
       title: 'Log',
       empty: 'Calls, messages and alerts will appear here.',
