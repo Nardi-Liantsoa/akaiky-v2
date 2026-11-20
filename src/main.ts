@@ -4,6 +4,7 @@ import { StatusBar, Style } from '@capacitor/status-bar'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { App as NativeApp } from '@capacitor/app'
 import { appKind } from './lib/appKind'
+import { startOtaRuntime } from './lib/otaRuntime'
 import { closeTopSheet } from './composables/useSheetStack'
 import App from './App.vue'
 import { router } from './router'
@@ -47,4 +48,7 @@ if (Capacitor.getPlatform() === 'android') {
 // réseau : sans cet appel à temps, le bundle est annulé au lancement suivant.
 if (Capacitor.isNativePlatform()) {
   CapacitorUpdater.notifyAppReady().catch(() => {})
+  // Puis seulement, sans l'attendre : vérification OTA (NAR-191), inerte tant que les coques ne
+  // visent pas le serveur Akaiky (src/lib/otaUpdate.ts, barrière Capgo).
+  void appKind().then(startOtaRuntime).catch(() => {})
 }

@@ -44,6 +44,21 @@ function parseTarget(raw: unknown): OtaTarget | null {
   return { app: app as AppKind, channel, minNativeBuild }
 }
 
+// Cible relue depuis le champ `data` de la réponse OTA (NAR-191) : le greffon iOS 8.54.2 ne
+// transmet au JavaScript que ses champs connus (`target` y est perdu) mais garde `data`, un
+// dictionnaire de chaînes. Même lecture sur Android et iOS. Exactement trois clés textuelles,
+// coque minimale en entier décimal sans zéro de tête ; toute autre forme : null (verdict invalid).
+// Écrit par le serveur (server/src/ota.js, targetData) ; cas partagés : `data` de la fixture.
+export function targetFromData(data: unknown): unknown {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null
+  const d = data as Record<string, unknown>
+  const keys = Object.keys(d).sort()
+  if (keys.join(',') !== 'app,channel,minNativeBuild') return null
+  if (typeof d.app !== 'string' || typeof d.channel !== 'string' || typeof d.minNativeBuild !== 'string') return null
+  if (!/^[1-9][0-9]{0,9}$/.test(d.minNativeBuild)) return null
+  return { app: d.app, channel: d.channel, minNativeBuild: Number(d.minNativeBuild) }
+}
+
 // Toujours fermé : une coque qu'on ne sait pas lire, ou une cible douteuse, ne reçoit rien.
 export function otaVerdict(target: unknown, shell: Shell): OtaVerdict {
   if (!ownAppId(shell.appId) || !/^\d+$/.test(shell.build)) return 'unknown-shell'

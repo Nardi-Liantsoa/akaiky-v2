@@ -5,7 +5,7 @@ import shared from '../../tests/fixtures/ota-target-cases.json'
 const getInfo = vi.fn()
 vi.mock('@capacitor/app', () => ({ App: { getInfo: () => getInfo() } }))
 
-const { otaVerdict, readShell, channelBelongsTo } = await import('./otaTarget')
+const { otaVerdict, readShell, channelBelongsTo, targetFromData } = await import('./otaTarget')
 const { kindFromAppId } = await import('./appKind')
 
 describe('otaVerdict (cas partagés)', () => {
@@ -20,6 +20,19 @@ describe('otaVerdict (cas partagés)', () => {
       expect(otaVerdict(target, { appId: shell.applicationId, build: '1' })).toBe('accept')
       expect(otaVerdict(target, { appId: other.applicationId, build: '99' })).toBe('wrong-app')
     }
+  })
+})
+
+describe('targetFromData (cible en chaînes, cas partagés)', () => {
+  it('relit exactement chaque forme écrite par le serveur', () => {
+    for (const c of shared.data.canonical) {
+      expect(targetFromData(c.data)).toEqual(c.target)
+      expect(otaVerdict(targetFromData(c.data), { appId: c.target.app === 'enfant' ? 'mg.nosytech.akaiky.enfant' : 'mg.nosytech.akaiky', build: '2100000000' })).toBe('accept')
+    }
+  })
+  it.each(shared.data.refused.map((d) => [JSON.stringify(d), d] as const))('refuse %s (verdict invalid)', (_n, d) => {
+    expect(targetFromData(d)).toBeNull()
+    expect(otaVerdict(targetFromData(d), { appId: 'mg.nosytech.akaiky', build: '9' })).toBe('invalid')
   })
 })
 
