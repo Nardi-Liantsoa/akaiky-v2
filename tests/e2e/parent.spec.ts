@@ -42,7 +42,7 @@ test('police servie par l’application, aucun appel à un tiers', async ({ page
   for (const f of fonts) expect(f.status).toBe(200)
 })
 
-test('police préchargée depuis le HTML et téléchargée une seule fois (NAR-157)', async ({ page, request }) => {
+test('police préchargée depuis le HTML et téléchargée une seule fois (NAR-157)', async ({ page, request, browserName }) => {
   const html = await (await request.get('/')).text()
   const preloads = [...html.matchAll(/<link\b[^>]*\brel="preload"[^>]*>/g)].map((m) => m[0]).filter((tag) => /\bas="font"/.test(tag))
   expect(preloads).toHaveLength(1)
@@ -53,15 +53,24 @@ test('police préchargée depuis le HTML et téléchargée une seule fois (NAR-1
   expect(href).toMatch(/^\/assets\/[^/]+\.woff2$/)
   expect((await request.get(href!)).status()).toBe(200)
 
-  const fonts: string[] = []
-  page.on('request', (r) => { if (new URL(r.url()).pathname.endsWith('.woff2')) fonts.push(new URL(r.url()).pathname) })
+  // Mode de chaque requête : une requête CORS porte l'en-tête Origin, une requête no-cors non.
+  const pending: Promise<string>[] = []
+  page.on('request', (r) => {
+    const path = new URL(r.url()).pathname
+    if (path.endsWith('.woff2')) pending.push(r.allHeaders().then((h) => `${path} ${'origin' in h ? 'cors' : 'no-cors'}`))
+  })
   await mockApi(page, connected)
   await page.goto('/espace')
   await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
   await page.evaluate(() => document.fonts.ready)
   const status = await page.evaluate(() => [...document.fonts].filter((f) => f.family.replace(/"/g, '') === 'Nunito').map((f) => f.status))
   expect(status).toEqual(['loaded'])
-  expect(fonts).toEqual([href])
+  const fonts = (await Promise.all(pending)).sort()
+  // Chromium et Firefox chargent @font-face en CORS : le preload crossorigin sert, un seul
+  // téléchargement. WebKit charge une police de même origine en no-cors : aucun preload ne
+  // peut servir aux deux moteurs (sans crossorigin, c'est Chromium qui télécharge deux fois).
+  // On garde le comportement standard ; WebKit ajoute sa requête no-cors, et rien d'autre.
+  expect(fonts).toEqual(browserName === 'webkit' ? [`${href} cors`, `${href} no-cors`] : [`${href} cors`])
 })
 
 test('écran étroit en malgache : libellés des onglets contenus dans leur colonne', async ({ page }) => {

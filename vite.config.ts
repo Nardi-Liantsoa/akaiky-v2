@@ -10,8 +10,10 @@ const API = process.env.VITE_API_PROXY || 'http://127.0.0.1:8787'
 // Police Nunito (src/style.css, NAR-157) : sans indice, le navigateur ne la découvre qu'après
 // avoir lu la feuille de style, et le texte saute de la police système à Nunito. Le preload,
 // écrit au build depuis le bundle (nom haché, base du build), la demande en même temps que la
-// CSS. `crossorigin` est exigé : une police se charge toujours en mode CORS, et sans lui le
-// navigateur la téléchargerait deux fois. Même origine : la CSP (font-src 'self') l'admet.
+// CSS. `crossorigin` est exigé : Chromium et Firefox chargent @font-face en mode CORS, et sans
+// lui ils la téléchargeraient deux fois. WebKit (Safari) charge une police de même origine en
+// no-cors et ignore donc ce preload (deux requêtes) : aucune balise ne sert les deux moteurs, on
+// suit la norme. Même origine : la CSP (font-src 'self') l'admet.
 const PRELOADED_FONT = 'src/assets/fonts/nunito-latin-wght.woff2'
 function preloadFont(): Plugin {
   let base = '/'
