@@ -224,15 +224,67 @@ lancement suivant.
 réseau** : un utilisateur hors connexion verrait sa mise à jour annulée à
 chaque démarrage.
 
-Le runtime complet — canaux, throttling des vérifications, liste des bundles
-en échec, décision de mise à jour — n'est volontairement pas dans ce kit : il
-est très couplé au projet. Le reprendre depuis
-`tia-baiboly/src/composables/useLiveUpdate.ts` et
-`tia-baiboly/src/utils/otaDecision.ts` le jour où le besoin se présente.
+**OTA pas encore activé** : aucun serveur OTA auto-hébergé ni runtime de mise à jour
+(vérifier, télécharger, `set`) n'existe encore. Tant qu'ils manquent, aucun bundle n'est
+distribué. Capgo Cloud n'est pas utilisé (données de mineurs).
+
+### Une app, un canal (NAR-162)
+
+Les variantes `parent` et `enfant` partagent le même bundle web, mais pas les mêmes
+greffons natifs (Device Owner, filtrage des appels, SOS… dans la seule coque enfant) et
+leurs `versionCode` suivent deux échelles indépendantes. Chaque publication vise donc
+**une** app, et l'app se reconnaît par sa coque, jamais par le bundle :
+
+| App | Identifiant envoyé par le greffon (`app_id`) | Canal par défaut | Canaux acceptés | Coque minimale comparée à |
+|---|---|---|---|---|
+| parent (Android, iOS) | `mg.nosytech.akaiky` | `parent` | `parent`, `parent-*` | `versionCode` / `CFBundleVersion` parent |
+| enfant (Android) | `mg.nosytech.akaiky.enfant` | `enfant` | `enfant`, `enfant-*` | `versionCode` du bloc `enfant { }` |
+
+- **Côté coque (natif)** : `capacitor.config.json` est commun aux deux variantes (`appId`
+  racine `mg.nosytech.akaiky`). Au build, `android/app/build.gradle` (`OtaIdentityTask`,
+  transformation des assets de chaque variante) y écrit `plugins.CapacitorUpdater.appId` =
+  `applicationId` de la variante, `defaultChannel` = nom de la variante,
+  `allowSetDefaultChannel: false`, `allowModifyAppId: false`, `statsUrl: ''` : le JavaScript
+  ne peut ni changer de canal ni d'identité, et aucune statistique ne part. Seule exception
+  du greffon : la réponse du serveur à `getChannel()` devient le canal par défaut retenu ;
+  le serveur OTA ne doit donc jamais répondre un canal d'une autre app. Le build échoue si
+  l'identifiant et la variante ne concordent pas, ou si le bloc `CapacitorUpdater` manque. iOS (parent seul) prend les valeurs parent de `capacitor.config.ts`.
+  Un bundle parent arrivé par erreur sur la coque enfant ne change donc rien au canal
+  que celle-ci demande ensuite.
+- **Côté serveur (à construire)** : la réponse de mise à jour n'offre que les bundles dont
+  la cible correspond à `app_id` (règle de préfixe de `src/lib/appKind.ts`) et au canal
+  demandé, et dont `minNativeBuild` est ≤ `version_code` envoyé par le greffon. Il refuse
+  un bundle dont la cible manque ou est mal formée.
+- **Côté écran (défense en profondeur)** : la réponse porte `target: { app, channel,
+  minNativeBuild }` à côté de `version` et `url`. Avant tout téléchargement, le runtime
+  appelle `otaVerdict(target, await readShell())` (`src/lib/otaTarget.ts` ; identifiant et
+  `versionCode` lus par `App.getInfo()`) et n'installe que sur `accept`. Tout autre verdict
+  (`wrong-app`, `wrong-channel`, `native-too-old`, `invalid`, `unknown-shell`) : rien.
+- Cas partagés : `tests/fixtures/ota-target-cases.json` (vitest `src/lib/otaTarget.test.ts`,
+  JVM `OtaIdentityTest.kt`, qui lit les assets réellement embarqués par la variante testée ;
+  le futur serveur les reprend).
+
+### Publier un OTA (procédure, une fois le serveur en place)
+
+1. Vérifier le verdict : changement web seul (JS, CSS, templates, assets). Sinon : coque.
+   Pas de bump de `package.json`.
+2. `npm run build` (un seul bundle web pour les deux apps).
+3. Publier ce bundle **une fois par app**, chacune avec sa cible :
+   - parent : `app: parent`, canaux `parent` puis `parent-test` (tous les canaux actifs),
+     `minNativeBuild` = plus petit `versionCode` parent installé qui a tous les greffons
+     dont le bundle a besoin ; la même cible sert la coque iOS, comparée à son
+     `CFBundleVersion` (`CURRENT_PROJECT_VERSION`, entier) : Android parent et iOS gardent
+     donc un même numéro de build pour les mêmes greffons, sinon le plus bas des deux
+     décide ;
+   - enfant : `app: enfant`, canaux `enfant` puis `enfant-test`, `minNativeBuild` = même
+     règle sur l'échelle `versionCode` enfant (bloc `enfant { }`).
+   Ne jamais reprendre la coque minimale d'une app pour l'autre.
+4. Un bundle qui appelle un greffon propre à l'enfant reste utile à l'app parent (l'écran
+   enfant n'y est jamais montré) ; c'est la coque minimale qui protège, pas le contenu.
 
 Deux règles de survie, elles, valent partout : publier chaque OTA sur **tous
-les canaux** actifs, et ne jamais diffuser un bundle qui exige une coque plus
-récente que celles réellement installées chez les utilisateurs.
+les canaux** actifs de l'app visée, et ne jamais diffuser un bundle qui exige une coque
+plus récente que celles réellement installées chez les utilisateurs.
 
 ## Ce que NosyHost héberge
 
