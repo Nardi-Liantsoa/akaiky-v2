@@ -14,21 +14,25 @@ const BATCH = 50
 const GIVE_UP_MS = 60 * 60_000
 
 // incoming : appel reçu d'un contact (NAR-145), durée lue dans les appels entrants d'Android.
-export interface PendingCall { id: string, contactId: string, name: string, number: string, startedAt: number, incoming?: boolean }
+// emergencyWindow : appel reçu laissé sonner par la fenêtre des secours (NAR-196).
+export interface PendingCall { id: string, contactId: string, name: string, number: string, startedAt: number, incoming?: boolean, emergencyWindow?: boolean }
 // name et phone : instantané au moment de l'appel (contact retiré ou modifié avant l'envoi).
 export interface CallEvent { id: string, kind: 'call_out', contactId: string, name: string, phone: string, startedAt: string, durationS: number | null }
 // Sortie du verrou (NAR-168) : par le code saisi sur le téléphone ou à la demande d'un
 // parent ; durée accordée en secondes (une sortie refermée plus tôt n'est pas recomptée). Envoyée par la même file que les appels.
 export interface UnlockEvent { id: string, kind: 'unlock', source: 'code' | 'remote', startedAt: string, durationS: number }
 // Appel reçu d'un contact (NAR-145) ; contactId absent si le contact a été retiré entre-temps.
-export interface CallInEvent { id: string, kind: 'call_in', contactId?: string, name?: string, phone: string, startedAt: string, durationS: number | null }
+// emergencyWindow (NAR-196) : appel qui aurait été refusé, laissé sonner parce que l'enfant a
+// appelé les secours moins de 30 min plus tôt ; numéro tel que reçu, absent s'il était masqué.
+export interface CallInEvent { id: string, kind: 'call_in', contactId?: string, name?: string, phone?: string, startedAt: string, durationS: number | null, emergencyWindow?: true }
 // Appel rejeté sans sonnerie : numéro tel que reçu, absent s'il était masqué.
 // contactId, name : contact refusé pendant une plage « école » (NAR-176).
 export interface BlockedEvent { id: string, kind: 'call_blocked', phone?: string, contactId?: string, name?: string, startedAt: string }
 export type DeviceEvent = CallEvent | UnlockEvent | CallInEvent | BlockedEvent
 // Événement noté par le filtre natif (CallPlugin.peekIncoming).
 // school : refusé pendant une plage « école » (contact non parent, NAR-176).
-export interface ScreenedCall { id: string, kind: 'call_in' | 'call_blocked', phone?: string, startedAt: number, school?: boolean }
+// emergencyWindow : laissé sonner par la fenêtre des secours (NAR-196), numéro absent si masqué.
+export interface ScreenedCall { id: string, kind: 'call_in' | 'call_blocked', phone?: string, startedAt: number, school?: boolean, emergencyWindow?: boolean }
 export interface CallLogEntry { found: boolean, permission?: boolean, startedAt?: number, durationS?: number }
 
 export interface JournalDeps {
@@ -53,6 +57,7 @@ const isPending = (v: unknown): v is PendingCall => typeof (v as PendingCall)?.i
 const isEvent = (v: unknown): v is DeviceEvent => {
   const e = v as DeviceEvent | null
   if (typeof e?.id !== 'string') return false
+  if (e.kind === 'call_in' && e.emergencyWindow === true) return e.phone === undefined || typeof e.phone === 'string'
   if (e.kind === 'call_out' || e.kind === 'call_in') return typeof e.phone === 'string'
   if (e.kind === 'call_blocked') return e.phone === undefined || typeof e.phone === 'string'
   return e.kind === 'unlock' && (e.source === 'code' || e.source === 'remote') && typeof e.durationS === 'number'
@@ -101,7 +106,7 @@ export function createCallJournal(deps: JournalDeps) {
     importScreened(calls: ScreenedCall[], contacts: { id: string, name: string, phone: string }[]): Promise<string[]> {
       return pendingLock(async () => {
         const isValid = (c: ScreenedCall) => typeof c?.id === 'string' && typeof c.startedAt === 'number'
-          && (c.kind === 'call_in' ? typeof c.phone === 'string' : c.kind === 'call_blocked')
+          && (c.kind === 'call_in' ? typeof c.phone === 'string' || (c.emergencyWindow === true && c.phone === undefined) : c.kind === 'call_blocked')
         const valid = calls.filter(isValid)
         // Contact refusé pendant une plage « école » (NAR-176, marqué par le natif) : nom et
         // contact gardés pour que le parent le reconnaisse (et ne se voie pas proposer de
@@ -114,20 +119,28 @@ export function createCallJournal(deps: JournalDeps) {
             startedAt: new Date(c.startedAt).toISOString()
           }
         })
+        // Numéro masqué laissé sonner par la fenêtre des secours (NAR-196) : aucune durée à
+        // chercher (rien à comparer au journal d'Android), mis directement dans la file.
+        const hiddenRung: DeviceEvent[] = valid.filter((c) => c.kind === 'call_in' && c.phone === undefined).map((c) => ({
+          id: c.id, kind: 'call_in', startedAt: new Date(c.startedAt).toISOString(), durationS: null, emergencyWindow: true
+        }))
         const pending = await readList(deps.store, PENDING_KEY, isPending)
         const known = new Set(pending.map((p) => p.id))
         for (const c of valid) {
-          if (c.kind !== 'call_in' || known.has(c.id)) continue
+          if (c.kind !== 'call_in' || c.phone === undefined || known.has(c.id)) continue
           const contact = contacts.find((k) => k.phone === c.phone)
-          pending.push({ id: c.id, contactId: contact?.id ?? '', name: contact?.name ?? '', number: c.phone!, startedAt: c.startedAt, incoming: true })
+          pending.push({
+            id: c.id, contactId: contact?.id ?? '', name: contact?.name ?? '', number: c.phone, startedAt: c.startedAt, incoming: true,
+            ...(c.emergencyWindow === true ? { emergencyWindow: true } : {})
+          })
         }
         const keptPending = pending.slice(-MAX_QUEUE)
         const keptIds = new Set(keptPending.map((p) => p.id))
         // File et « en cours » enregistrées AVANT l'acquittement natif : rien ne se perd.
-        await append(blocked)
+        await append([...blocked, ...hiddenRung])
         await save(PENDING_KEY, keptPending)
         // Acquittés : ce qui est gardé, et ce qui est illisible (sinon relu sans fin).
-        return calls.filter((c) => typeof c?.id === 'string' && (!isValid(c) || c.kind === 'call_blocked' || keptIds.has(c.id))).map((c) => c.id)
+        return calls.filter((c) => typeof c?.id === 'string' && (!isValid(c) || c.kind === 'call_blocked' || (c.kind === 'call_in' && c.phone === undefined) || keptIds.has(c.id))).map((c) => c.id)
       })
     },
 
@@ -163,7 +176,7 @@ export function createCallJournal(deps: JournalDeps) {
           const startedAt = new Date(log.found && log.startedAt ? log.startedAt : p.startedAt).toISOString()
           const durationS = log.found && typeof log.durationS === 'number' ? log.durationS : null
           resolved.push(p.incoming
-            ? { id: p.id, kind: 'call_in', ...(p.contactId ? { contactId: p.contactId, name: p.name } : {}), phone: p.number, startedAt, durationS }
+            ? { id: p.id, kind: 'call_in', ...(p.contactId ? { contactId: p.contactId, name: p.name } : {}), phone: p.number, startedAt, durationS, ...(p.emergencyWindow ? { emergencyWindow: true as const } : {}) }
             : { id: p.id, kind: 'call_out', contactId: p.contactId, name: p.name, phone: p.number, startedAt, durationS })
         }
         // File d'abord, liste « en cours » ensuite : un arrêt entre les deux ne perd rien

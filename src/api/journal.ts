@@ -4,7 +4,8 @@ import type { QuickSlot } from '../lib/quickMessages'
 // Journal de l'enfant (NAR-152).
 export type JournalFilter = 'all' | 'calls' | 'blocked' | 'messages' | 'unlocks'
 export type JournalItem =
-  | { id: string, kind: 'call_out' | 'call_in' | 'call_blocked', at: string, contactId: string | null, name: string | null, phone: string | null, durationS: number | null }
+  // emergencyWindow (NAR-196) : appel reçu laissé sonner par la fenêtre des secours.
+  | { id: string, kind: 'call_out' | 'call_in' | 'call_blocked', at: string, contactId: string | null, name: string | null, phone: string | null, durationS: number | null, emergencyWindow?: boolean }
   | { id: string, kind: 'unlock', at: string, source: 'code' | 'remote', durationS: number | null }
   | { id: string, kind: 'message', at: string, slot: QuickSlot, text?: string | null, readBy: { name: string, readAt: string }[], readByMe: boolean }
 

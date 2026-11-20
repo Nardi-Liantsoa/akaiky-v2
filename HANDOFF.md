@@ -248,6 +248,19 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   réflexion `ITelephony` sur des ROM constructeur (Tecno, Itel, Samsung), et le passage du journal
   à l'écran puis au serveur (WebView non lancée pendant le test : la file native est vérifiée,
   sa reprise est celle de NAR-145).
+- **Fenêtre des secours (NAR-196)** : après un appel de l'enfant aux secours, tout appel entrant sonne
+  30 min (inconnu et masqué compris), noté `call_in` marqué « laissé passer » au journal du parent.
+  Horloge depuis le démarrage + numéro de démarrage : l'heure du téléphone n'y fait rien, un
+  redémarrage la ferme. Appel aux secours vu par le service de filtrage (appels sortants, Android 10+,
+  rôle de filtrage requis), par `NEW_OUTGOING_CALL` (Android 8–9) et par la décision des appels
+  sortants ; pas par l'appui sur le bouton (composeur seulement prérempli). Détails : `docs/MOBILE.md`.
+  **Limites** : tout inconnu qui appelle pendant ces 30 min sonne (risque accepté par décision de
+  l'utilisateur) ; un enfant qui compose le 117 ou le 112 puis raccroche ouvre la fenêtre. Pendant le
+  mode de rappel d'urgence (ECBM) d'Android, tout appel sonne sans passer par le filtre ni par le
+  journal (comportement du système). **Reste à vérifier sur un vrai téléphone** : Android 10 à 13
+  (le service de filtrage reçoit-il bien les appels d'urgence sortants ? vérifié seulement sur 14),
+  Android 9 (`NEW_OUTGOING_CALL` pour une urgence, vérifié sur 8.1), durée réelle de l'ECBM chez
+  Telma, Orange et Airtel, un vrai rappel des secours (numéro masqué ou court).
 - **Volet des notifications** : affiché pendant le verrou (sans réglages rapides), car il
   porte l'appel entrant. Toucher une notification ou « Gérer » n'ouvre rien.
 

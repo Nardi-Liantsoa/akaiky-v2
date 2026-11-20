@@ -106,3 +106,22 @@ test('contact bloqué pendant une plage « école » (NAR-176) : nommé, sans «
   await expect(page.getByText('pendant une plage horaire · n’a pas sonné')).toBeVisible()
   await expect(page.getByRole('link', { name: 'Autoriser ce numéro' })).toHaveCount(0)
 })
+
+test('appel laissé passer par la fenêtre des secours (NAR-196) : marqué, numéro masqué nommé, sans « Autoriser »', async ({ page }) => {
+  await page.clock.setFixedTime(NOW)
+  const items = [
+    { id: '6f1c2b1e-0000-4000-8000-000000000410', kind: 'call_in', at: ago(0.1), contactId: null, name: null, phone: '+261329876543', durationS: 95, emergencyWindow: true },
+    { id: '6f1c2b1e-0000-4000-8000-000000000411', kind: 'call_in', at: ago(0.2), contactId: null, name: null, phone: null, durationS: null, emergencyWindow: true }
+  ]
+  await mockApi(page, {
+    ...me,
+    'GET /api/families/me': () => ({ body: FAMILY }),
+    'GET /api/children': () => ({ body: [FY] }),
+    [`GET /api/children/${FY.id}/journal`]: () => ({ body: { items, next: null, today: { calls: 2, blocked: 0, messages: 0, unlocks: 0 } } })
+  })
+  await page.goto('/espace/journal')
+  await expect(page.getByText('Appel de numéro masqué')).toBeVisible()
+  await expect(page.getByText('laissé passer : appel aux secours dans les 30 min · 1 min 35 s')).toBeVisible()
+  await expect(page.getByText('laissé passer : appel aux secours dans les 30 min', { exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Autoriser ce numéro' })).toHaveCount(0)
+})
