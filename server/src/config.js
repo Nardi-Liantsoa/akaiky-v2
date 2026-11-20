@@ -12,6 +12,13 @@ function positive(value, fallback) {
   return n
 }
 
+// Limite par IP : entier positif plafonné, pour qu'une valeur géante ne revienne pas à la couper.
+function capped(value, fallback, name) {
+  const n = positive(value, fallback)
+  if (n > 100000) throw new Error(`${name} : 100000 au plus`)
+  return n
+}
+
 function required(name) {
   const v = process.env[name]
   if (!v) throw new Error(`Variable d'environnement manquante : ${name}`)
@@ -160,6 +167,12 @@ export function loadConfig(env = process.env) {
       invitationEmailsPerHour: positive(env.INVITATION_EMAILS_PER_HOUR, 100)
     },
     // Anti brute force : tentatives par IP (15 min) et par adresse email (1 h).
-    limits: { perIp: positive(env.RATE_LIMIT_IP, 20), perEmail: positive(env.RATE_LIMIT_EMAIL, 5), apiPerMinute: positive(env.API_RATE_LIMIT, 300) }
+    limits: {
+      perIp: positive(env.RATE_LIMIT_IP, 20), perEmail: positive(env.RATE_LIMIT_EMAIL, 5), apiPerMinute: positive(env.API_RATE_LIMIT, 300),
+      // Serveur OTA (NAR-189), par IP : vérifications par minute, téléchargements complets par
+      // 15 minutes. À relever derrière un NAT d'opérateur, sans jamais couper la limite.
+      otaPerMinute: capped(env.OTA_RATE_LIMIT, 60, 'OTA_RATE_LIMIT'),
+      otaDownloadsPer15Min: capped(env.OTA_DOWNLOAD_RATE_LIMIT, 30, 'OTA_DOWNLOAD_RATE_LIMIT')
+    }
   }
 }
