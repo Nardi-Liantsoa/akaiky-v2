@@ -24,7 +24,8 @@ export function createPasswordConfirm(db) {
   return async function confirmPassword(req, password, action, { lockFirst } = {}) {
     const user = req.user
     if (!user) throw new HttpError(401, 'Connexion requise.')
-    return guard(user.email, async (conn, g) => {
+    // Garde du compte par son identifiant : adresse, ou numéro d'un compte sans adresse (NAR-136).
+    return guard(user.email ?? user.phone, async (conn, g) => {
       const u = (await conn.query('SELECT password_hash FROM users WHERE id = $1', [user.id])).rows[0]
       // 400 et non 401 : un 401 voudrait dire « session perdue » (le client natif renouvellerait et renverrait).
       if (!u || !await verifyPassword(password, u.password_hash)) {

@@ -99,6 +99,19 @@ function push(env, production) {
   return { provider, serviceAccount: provider === 'fcm' ? loadServiceAccount(env.FCM_SERVICE_ACCOUNT) : null }
 }
 
+// SMS (NAR-136) : fake (développement et tests : mémoire, et fichier SMS_OUTBOX s'il est donné)
+// ou none (aucun envoi : inscription et renvoi de code par téléphone répondent 503). Le
+// fournisseur réel fera l'objet d'un ticket à part. fake et SMS_OUTBOX sont refusés en
+// production : un code ne doit jamais atterrir ailleurs que sur le téléphone.
+function sms(env, production) {
+  const provider = env.SMS_PROVIDER || (production ? 'none' : 'fake')
+  if (!['fake', 'none'].includes(provider)) throw new Error('SMS_PROVIDER : fake ou none (fournisseur réel : ticket à part)')
+  if (production && provider === 'fake') throw new Error('SMS_PROVIDER=fake est réservé aux tests : interdit en production')
+  if (production && env.SMS_OUTBOX) throw new Error('SMS_OUTBOX est réservé aux tests : interdit en production')
+  if (env.SMS_OUTBOX && provider !== 'fake') throw new Error('SMS_OUTBOX exige SMS_PROVIDER=fake')
+  return { provider, outbox: env.SMS_OUTBOX || '' }
+}
+
 export function loadConfig(env = process.env) {
   const production = env.NODE_ENV === 'production'
   const natives = nativeOrigins(env.NATIVE_ORIGINS)
@@ -121,6 +134,7 @@ export function loadConfig(env = process.env) {
   // Recette automatique (skill ampy-recette) : emails écrits dans un fichier au lieu d'être envoyés.
   if (production && env.MAIL_OUTBOX) throw new Error('MAIL_OUTBOX est réservé aux tests : interdit en production')
   const pushConfig = push(env, production)
+  const smsConfig = sms(env, production)
   return {
     appName: env.APP_NAME || 'Akaiky',
     mfaKey,
@@ -137,6 +151,7 @@ export function loadConfig(env = process.env) {
     nativeOrigins: natives,
     deviceApk: deviceApk(env, production, natives),
     push: pushConfig,
+    sms: smsConfig,
     staticDir: env.STATIC_DIR || new URL('../../dist/web', import.meta.url).pathname,
     // APK de l'app enfant embarqué dans l'image (NAR-165), servi à /downloads/akaiky-enfant.apk.
     downloadsDir: env.DOWNLOADS_DIR || new URL('../../downloads', import.meta.url).pathname,
@@ -164,7 +179,9 @@ export function loadConfig(env = process.env) {
       registrationsPerHour: positive(env.REGISTRATIONS_PER_HOUR, 100),
       authEmailsPerHour: positive(env.AUTH_EMAILS_PER_HOUR, 200),
       // Budget séparé : des invitations en rafale n'épuisent pas celui des courriels de compte.
-      invitationEmailsPerHour: positive(env.INVITATION_EMAILS_PER_HOUR, 100)
+      invitationEmailsPerHour: positive(env.INVITATION_EMAILS_PER_HOUR, 100),
+      // SMS d'authentification, tous numéros confondus (un SMS coûte : attaque de facturation).
+      smsPerHour: positive(env.SMS_PER_HOUR, 100)
     },
     // Anti brute force : tentatives par IP (15 min) et par adresse email (1 h).
     limits: {
@@ -172,7 +189,12 @@ export function loadConfig(env = process.env) {
       // Serveur OTA (NAR-189), par IP : vérifications par minute, téléchargements complets par
       // 15 minutes. À relever derrière un NAT d'opérateur, sans jamais couper la limite.
       otaPerMinute: capped(env.OTA_RATE_LIMIT, 60, 'OTA_RATE_LIMIT'),
-      otaDownloadsPer15Min: capped(env.OTA_DOWNLOAD_RATE_LIMIT, 30, 'OTA_DOWNLOAD_RATE_LIMIT')
+      otaDownloadsPer15Min: capped(env.OTA_DOWNLOAD_RATE_LIMIT, 30, 'OTA_DOWNLOAD_RATE_LIMIT'),
+      // SMS (NAR-136) : par numéro et par heure (en base), délai minimal entre deux envois au
+      // même numéro (en base), par IP (/64) et par heure (en mémoire, une instance).
+      smsPerNumber: capped(env.SMS_PER_NUMBER_PER_HOUR, 3, 'SMS_PER_NUMBER_PER_HOUR'),
+      smsCooldownSeconds: capped(env.SMS_RESEND_SECONDS, 60, 'SMS_RESEND_SECONDS'),
+      smsPerIp: capped(env.SMS_PER_IP_PER_HOUR, 10, 'SMS_PER_IP_PER_HOUR')
     }
   }
 }

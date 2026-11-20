@@ -81,6 +81,11 @@ MAIL_FROM=Akaiky <no-reply@akaiky.a-definir.invalid>         # domaine avec SPF 
 # OTA_DOWNLOAD_RATE_LIMIT=30                           # téléchargements de bundle OTA/15 min/IP ; 100000 au plus
 # PHONE_DEFAULT_COUNTRY=MG                            # pays des numéros saisis sans indicatif : MG ou FR
 # INVITATION_EMAILS_PER_HOUR=100                       # invitations envoyées par heure, tous comptes (budget séparé des courriels de compte)
+# SMS_PROVIDER=none                                    # SMS d'authentification (NAR-136) : none par défaut en production (inscription par numéro → 503), fake refusé ; fournisseur réel : ticket à part
+# SMS_PER_HOUR=100                                     # SMS d'authentification par heure, tous numéros (quota en base, alerte sms_quota)
+# SMS_PER_NUMBER_PER_HOUR=3                            # SMS par numéro et par heure (en base)
+# SMS_RESEND_SECONDS=60                                # délai minimal entre deux SMS au même numéro (en base)
+# SMS_PER_IP_PER_HOUR=10                               # SMS demandés par IP (/64) et par heure (mémoire, une instance)
 PUSH_PROVIDER=none                                    # notifications push (NAR-141) : none tant que Firebase n'existe pas, puis fcm ; fake refusé
 # FCM_SERVICE_ACCOUNT=/run/secrets/fcm.json            # avec fcm : compte de service Firebase (fichier monté hors image, ou le JSON) ; vérifié au démarrage
 ```
@@ -90,7 +95,7 @@ Firebase n'existe pas).** Sans cette variable, l'application refuse de démarrer
 
 L'application **refuse de démarrer** si une valeur de production manque ou
 est dangereuse (origine en http, clé MFA absente, `TRUST_PROXY=true`, SMTP sans
-expéditeur, `PUSH_PROVIDER` absent ou `fake`, compte de service FCM illisible). Le message d'erreur est dans `make logs`.
+expéditeur, `PUSH_PROVIDER` absent ou `fake`, `SMS_PROVIDER=fake` ou `SMS_OUTBOX`, compte de service FCM illisible). Le message d'erreur est dans `make logs`.
 
 ```bash
 make check

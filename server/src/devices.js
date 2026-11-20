@@ -1,10 +1,11 @@
+import { loginColumn } from './phone.js'
 import { newToken, tokenHash } from './security.js'
 import { readAuthCookie, authCookie } from './auth-cookies.js'
 export async function recognizedDevice(db, req, config, email) {
  const token = readAuthCookie(req, config, 'device')
  if (!token) return null
  return (await db.query(`SELECT d.id FROM trusted_devices d JOIN users u ON u.id=d.user_id
- WHERE d.token_hash=$1 AND d.expires_at>now() AND u.email=$2`, [tokenHash(token),email])).rows[0]?.id || null
+ WHERE d.token_hash=$1 AND d.expires_at>now() AND u.${loginColumn(email)}=$2`, [tokenHash(token),email])).rows[0]?.id || null
 }
 export async function rememberDevice(conn, req, reply, config, userId, deviceId, remember) {
  if (!remember && !deviceId) return

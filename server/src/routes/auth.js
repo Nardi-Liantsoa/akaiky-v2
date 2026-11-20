@@ -1,7 +1,7 @@
 import { createMfa } from '../mfa.js'
 import { recognizedDevice, rememberDevice } from '../devices.js'
 import { readAuthCookie, authCookie } from '../auth-cookies.js'
-import { HttpError, audit, me, emailAddress, text } from '../lib.js'
+import { HttpError, audit, me, emailAddress, text, body } from '../lib.js'
 import { hashPassword, verifyPassword, burnPasswordTime, newToken, tokenHash, passwordProblem, createLimiter, rateLimitKey } from '../security.js'
 import { authEmails } from '../mailer.js'
 import { consumeQuota, createAuthQueue } from '../quotas.js'
@@ -9,6 +9,8 @@ import { createLoginGuard, securityAlert } from '../login-guard.js'
 import { nativeRoutes } from '../native.js'
 import { setTimeout as delay } from 'node:timers/promises'
 import { passwordOf } from '../password-confirm.js'
+import { normalizePhone, loginColumn } from '../phone.js'
+import { phoneRoutes } from '../phone-auth.js'
 
 // Réponse identique que l'adresse existe ou non : l'API ne révèle jamais
 // quels emails ont un compte.
@@ -76,11 +78,22 @@ export default async function authRoutes(app) {
   // Vérifie email + mot de passe sous la garde de connexion, puis appelle
   // `accepted(conn, user)` dans une transaction qui verrouille l'utilisateur.
   // Partagé par la connexion web et la connexion de l'application native.
+  // Identifiant de connexion : une adresse OU un numéro (NAR-136), jamais les deux.
+  const identifierOf = (b) => {
+    const hasEmail = b?.email !== undefined, hasPhone = b?.phone !== undefined
+    if (hasEmail === hasPhone) throw new HttpError(400, 'Email ou numéro de téléphone requis.')
+    return hasPhone ? normalizePhone(b.phone, config.phoneCountry) : email(b.email)
+  }
+
   async function checkCredentials(req, b, deviceId, accepted) {
-    const e = email(b.email)
+    const e = identifierOf(b)
+    // Colonne d'une liste fermée (email, phone), déduite de la forme normalisée.
+    const column = loginColumn(e)
+    const byPhone = column === 'phone'
     if (typeof b.password !== 'string' || b.password.length > 200) throw new HttpError(400, 'Mot de passe requis.')
     return guardLogin(e, async (conn, guard) => {
-      const u = (await conn.query('SELECT id, email, name, is_admin, password_hash, email_verified_at FROM users WHERE email=$1', [e])).rows[0]
+      const u = (await conn.query(`SELECT id, email, phone, name, is_admin, password_hash, email_verified_at, phone_verified_at
+        FROM users WHERE ${column}=$1`, [e])).rows[0]
       // Email inconnu : on vérifie quand même un hachage, pour que la durée ne trahisse rien.
       const valid = u ? await verifyPassword(b.password, u.password_hash) : (await burnPasswordTime(b.password), false)
       if (!valid) {
@@ -89,11 +102,12 @@ export default async function authRoutes(app) {
           if (failures >= 10) await securityAlert(conn, 'login_attack')
           await audit(conn, req, 'login_failed', u.id)
         }
-        throw new HttpError(401, 'Email ou mot de passe incorrect.')
+        throw new HttpError(401, byPhone ? 'Numéro ou mot de passe incorrect.' : 'Email ou mot de passe incorrect.')
       }
       await guard.succeeded()
       // Contrôlé après le mot de passe : ne révèle rien à qui ne le connaît pas.
-      if (!u.email_verified_at) throw new HttpError(403, 'Confirmez votre adresse email avant de vous connecter.')
+      if (byPhone && !u.phone_verified_at) throw new HttpError(403, 'Confirmez votre numéro avant de vous connecter.', 'phone_unverified')
+      if (!byPhone && !u.email_verified_at) throw new HttpError(403, 'Confirmez votre adresse email avant de vous connecter.')
       await conn.query('BEGIN')
       try {
         // Une réinitialisation ou promotion concurrente invalide l'ancien résultat.
@@ -127,7 +141,8 @@ export default async function authRoutes(app) {
     if (ownerCheck.rows.length) throw ownerMustTransfer()
     if (await isLastAdmin(db, user.id)) throw lastAdmin()
     const password = passwordOf(req.body)
-    const address = email(user.email)
+    // Compte à numéro sans adresse (NAR-136) : aucune invitation reçue à effacer.
+    const address = user.email ? email(user.email) : null
     await app.confirmPassword(req, password, async (conn) => {
       // Adhésion verrouillée quel que soit son rôle, et rôle relu ici : les changements de
       // rôle et les départs verrouillent toutes les adhésions de la famille (lockedMembers,
@@ -145,14 +160,14 @@ export default async function authRoutes(app) {
         if (await isLastAdmin(conn, user.id)) throw lastAdmin()
       }
       await conn.query('DELETE FROM invitations WHERE invited_by = $1 AND used_at IS NULL', [user.id])
-      await conn.query('DELETE FROM invitations WHERE email = $1', [address])
+      if (address) await conn.query('DELETE FROM invitations WHERE email = $1', [address])
       await audit(conn, req, 'account_deleted', user.id)
       await conn.query('DELETE FROM users WHERE id = $1', [user.id])
     }, {
       // Même ordre que l'acceptation (invitation verrouillée, puis la ligne de l'utilisateur
       // par la clé étrangère de l'adhésion créée) : sinon interblocage avec une acceptation
       // simultanée par ce même compte.
-      lockFirst: (conn) => conn.query('SELECT id FROM invitations WHERE email = $1 FOR UPDATE', [address]),
+      lockFirst: (conn) => address ? conn.query('SELECT id FROM invitations WHERE email = $1 FOR UPDATE', [address]) : null,
     })
     authCookie(reply, config, 'session', '', 0)
     authCookie(reply, config, 'challenge', '', 0)
@@ -215,9 +230,10 @@ export default async function authRoutes(app) {
   })
 
   app.post('/login', PUBLIC, async (req, reply) => {
-    const b = req.body || {}
     limit(req)
-    const deviceId = await recognizedDevice(db, req, config, email(b.email))
+    // Liste fermée (NAR-136 y ajoute `phone`) : un champ inconnu est un 400.
+    const b = body(req, ['email', 'phone', 'password', 'rememberDevice'])
+    const deviceId = await recognizedDevice(db, req, config, identifierOf(b))
     return checkCredentials(req, b, deviceId, (conn, user, needsMfa) => needsMfa
       ? mfa.begin(conn, req, reply, user, deviceId, b.rememberDevice === true)
       : finishLogin(conn, req, reply, user, deviceId, b.rememberDevice === true))
@@ -284,4 +300,5 @@ export default async function authRoutes(app) {
   })
 
   await nativeRoutes(app, { limit, checkCredentials })
+  await phoneRoutes(app, { limit, queue })
 }

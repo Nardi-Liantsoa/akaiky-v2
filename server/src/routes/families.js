@@ -139,7 +139,8 @@ export default async function familiesRoutes(app) {
       const { familyId, members } = await lockedMembers(conn, req, ['owner'])
       await conn.query('SELECT 1 FROM families WHERE id = $1 FOR UPDATE', [familyId])
       const { rows: recipients } = await conn.query(
-        'SELECT u.email FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.family_id = $1 AND m.user_id <> $2',
+        // Membres à numéro sans adresse (NAR-136) : pas d'avis (aucun SMS de notification en v1).
+        'SELECT u.email FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.family_id = $1 AND m.user_id <> $2 AND u.email IS NOT NULL',
         [familyId, req.user.id])
       const { rows: [{ children }] } = await conn.query('SELECT count(*)::int AS children FROM children WHERE family_id = $1', [familyId])
       // Des comptes seulement : aucune donnée personnelle dans le journal.
