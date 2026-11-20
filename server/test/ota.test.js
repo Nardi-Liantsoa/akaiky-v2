@@ -8,7 +8,7 @@ import { promisify } from 'node:util'
 import { createHash } from 'node:crypto'
 import { crc32 } from 'node:zlib'
 import { startDb, startApp, ORIGIN } from './helpers.js'
-import { otaVerdict, parseTarget, publishProblem, kindFromAppId } from '../src/ota.js'
+import { otaVerdict, parseTarget, publishProblem, kindFromAppId, targetData } from '../src/ota.js'
 import { loadConfig } from '../src/config.js'
 
 // Cas partagés avec l'écran (src/lib/otaTarget.test.ts) et la coque (OtaIdentityTest.kt).
@@ -68,6 +68,14 @@ test('règle serveur : même verdict que l’écran sur chaque cas partagé', ()
   for (const s of Object.values(FIXTURE.shells)) assert.equal(kindFromAppId(s.applicationId), s.channel)
 })
 
+// NAR-191 : la cible aussi en chaînes dans `data`, seul champ libre que le greffon iOS transmet.
+test('cible en chaînes (`data`) : forme exacte des cas partagés, rien que des chaînes', () => {
+  for (const c of FIXTURE.data.canonical) {
+    assert.deepEqual(targetData(c.target), c.data)
+    assert.ok(Object.values(targetData(c.target)).every((v) => typeof v === 'string'))
+  }
+})
+
 // Chaque cas : la cible est publiée si elle est publiable (sinon la publication ET la base la
 // refusent), puis la coque du cas demande une mise à jour sur le canal de la cible et sur son
 // propre canal. Elle ne reçoit le bundle que si l'écran l'accepterait.
@@ -96,6 +104,7 @@ test('route : bundle servi exactement quand otaVerdict l’accepte (cas partagé
         assert.equal(res.statusCode, 200)
         assert.equal(body.url, `${ORIGIN}/api/ota/bundles/${id}`, c.name)
         assert.deepEqual(body.target, t, c.name)
+        assert.deepEqual(body.data, targetData(t), c.name)
         assert.equal(otaVerdict(body.target, c.shell), 'accept', c.name)
       } else {
         assert.ok(body.error, c.name)
@@ -142,7 +151,8 @@ test('réponse au format du greffon ; zip servi par identifiant, empreinte exact
   assert.equal(res.statusCode, 200)
   assert.deepEqual(res.json(), {
     version: '1.0.0-ota.1', url: `${ORIGIN}/api/ota/bundles/${id}`, checksum: SHA,
-    target: { app: 'parent', channel: 'parent', minNativeBuild: 3 }
+    target: { app: 'parent', channel: 'parent', minNativeBuild: 3 },
+    data: { app: 'parent', channel: 'parent', minNativeBuild: '3' }
   })
   assert.equal(res.headers['cache-control'], 'no-store')
   assert.equal(res.headers['x-content-type-options'], 'nosniff')

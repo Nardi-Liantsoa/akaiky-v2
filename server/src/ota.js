@@ -31,6 +31,13 @@ export function parseTarget(raw) {
   return { app, channel, minNativeBuild }
 }
 
+// La même cible, en chaînes, pour le champ `data` de la réponse (NAR-191) : le greffon iOS 8.54.2
+// ne transmet au JavaScript que ses champs connus (`target` est perdu) mais garde `data`, un
+// dictionnaire de chaînes (une valeur non textuelle ferait échouer tout le décodage côté iOS).
+// L'écran lit la cible là, sur les deux plateformes (src/lib/otaTarget.ts, targetFromData) ;
+// cas partagés : `data` de tests/fixtures/ota-target-cases.json.
+export const targetData = ({ app, channel, minNativeBuild }) => ({ app, channel, minNativeBuild: String(minNativeBuild) })
+
 // Toujours fermé : une coque qu'on ne sait pas lire, ou une cible douteuse, ne reçoit rien.
 export function otaVerdict(target, shell) {
   if (!ownAppId(shell.appId) || !/^\d+$/.test(shell.build)) return 'unknown-shell'
