@@ -155,6 +155,59 @@ Le simulateur d'appels n'accepte que des chiffres : un vrai numéro masqué (dif
 n'a pas pu être simulé. Le disque plein exige une partition de données préparée à la main
 (`mke2fs` de `platform-tools`, fichier creux de 6 Go) : l'émulateur refuse de la créer sous 7,4 Go libres.
 
+**Fenêtre des secours (NAR-196)** : après un appel de l'enfant aux secours, tout appel entrant
+sonne pendant 30 min (`EmergencyWindow.MINUTES`), inconnu et masqué compris : le rappel des secours
+vient souvent d'un numéro inconnu. Règle pure `EmergencyWindow.kt` ; décision dans
+`CallPolicy.screenIncoming` (`emergencyWindow`), qui rend `RING_EMERGENCY_WINDOW` pour un appel qui
+aurait été refusé (un contact joignable reste `RING`) ; appliquée dans `IncomingCalls.screen`, commune
+au service de filtrage (Android 10+) et au récepteur d'Android 8–9 : même comportement sur les deux
+chemins, cas partagés dans `tests/fixtures/incoming-call-cases.json` (dans la fenêtre, à 29 min 59 s,
+à 30 min pile, après, sans appel aux secours, après un redémarrage, filtrage inactif).
+- **Horloge** : instant de l'appel gardé en `elapsedRealtime` avec `Settings.Global.BOOT_COUNT`
+  (préférences privées `akaiky.calls`, `emergency_at` / `emergency_boot`, écriture synchrone), comme la
+  sortie du verrou : changer l'heure du téléphone ne l'ouvre ni ne la prolonge ; un redémarrage la ferme
+  (autre numéro de démarrage, ou horloge repartie de zéro si le numéro est illisible). Un nouvel appel
+  aux secours la relance pour 30 min.
+- **Qui note l'appel aux secours** (`EmergencyCalls.record`, aucun numéro gardé) :
+  - Android 10+ : `AkaikyCallScreeningService`, à qui Telecom présente aussi les appels **sortants**,
+    appels d'urgence compris (vérifié sur Android 14 : `BIND_SCREENING` pour l'appel au 112), quel
+    que soit le composeur : bouton « Appeler les secours » et SOS (`ACTION_DIAL` puis « Appeler »),
+    composeur du système, composeur d'urgence. Seul point d'Android 10+ qui voit une urgence connue de
+    Telecom : le service de redirection ne la reçoit pas. Exige le rôle de filtrage, qui est de toute
+    façon la condition du filtre (sans lui, tout sonne déjà). Réponse rendue avant l'écriture.
+  - Android 10+ aussi : `AkaikyCallRedirectionService` et `OutgoingCalls.decide`, pour un numéro
+    d'urgence de la liste de l'app que Telecom ne connaît pas (117 sur l'émulateur : il arrive alors
+    au service de redirection).
+  - Android 8–9 : `OutgoingCallReceiver` (`NEW_OUTGOING_CALL`, envoyé aussi pour les urgences ;
+    vérifié sur Android 8.1 avec le 112), puis `OutgoingCalls.decide` pour une urgence connue du
+    seul téléphone (`PhoneNumberUtils.isEmergencyNumber`).
+  - Pas le bouton lui-même : il n'ouvre que le composeur prérempli, l'enfant peut ne pas appeler ;
+    noter l'appui ouvrirait la fenêtre sans appel (appuyer puis annuler). L'appel qui suit est vu
+    par les chemins ci-dessus.
+  - Pas le journal d'appels d'Android : les appels d'urgence n'y sont pas écrits par défaut (réglage
+    opérateur `allow_emergency_numbers_in_call_log`, vérifié sur Android 14).
+- **Journal** : appel laissé sonner noté `call_in` avec `emergencyWindow: true` (numéro tel que reçu,
+  absent s'il est masqué) ; pas de `screenedAllowedAt` (le SOS n'y voit pas un parent qui rappelle).
+  L'écran (`src/lib/callJournal.ts`) cherche sa durée comme pour un contact, ou l'envoie aussitôt sans
+  durée s'il est masqué ; le serveur garde la marque (`device_events.emergency_window`, migration
+  `026`, appels reçus seulement), la rend dans `/calls`, le journal et l'export ; le journal du parent
+  écrit « laissé passer : appel aux secours dans les 30 min ».
+- **Mode de rappel d'urgence (ECBM)** : sur l'émulateur Android 14, un appel au 112 met le téléphone
+  dans ce mode, où **Android lui-même laisse sonner tout appel entrant sans consulter le filtre** (ni
+  décision, ni journal : propriété `ecbm` de l'appel, aucun `BIND_SCREENING`). Le modem de l'émulateur
+  n'en sort jamais (relancer `com.android.phone` en root le remet à zéro). Sur un vrai téléphone GSM,
+  ce mode est rare (CDMA, certains opérateurs IMS) et borné par l'opérateur (5 min en général) : la
+  fenêtre de l'app prend le relais ensuite.
+
+Vérifié sur l'émulateur `kiosk34` (Android 14) : inconnu refusé sans appel aux secours ; bouton
+des secours de l’écran (117) puis « Appeler » dans le composeur → appel noté, inconnu qui sonne et noté `call_in` marqué, jusqu'à
+la file de l'écran ; contact qui sonne sans marque ; 112 depuis le composeur → appel noté par le
+service de filtrage (puis ECBM, voir ci-dessus, quitté en relançant `com.android.phone`) → inconnu
+qui sonne, marqué ; fenêtre passée (instant reculé de 31 min) → refusé, et toujours refusé une fois
+l'heure du téléphone reculée d'une heure ; redémarrage → refusé. Sur `nar172-api27` (Android 8.1,
+`PROCESS_OUTGOING_CALLS` par `pm grant`) : inconnu raccroché avant, 112 noté par `NEW_OUTGOING_CALL`,
+inconnu et numéro « masqué » (un chiffre) qui sonnent, notés marqués.
+
 Vérification locale (émulateur, sans QR) :
 `adb shell dpm set-device-owner mg.nosytech.akaiky.enfant/mg.nosytech.akaiky.AkaikyDeviceAdminReceiver`
 sur un émulateur neuf (`-wipe-data`, sans compte). Le scan réel (6 touches sur l'écran de

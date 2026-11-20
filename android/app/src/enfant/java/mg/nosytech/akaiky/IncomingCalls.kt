@@ -104,15 +104,20 @@ object IncomingCalls {
         // Numéro noté : le contact reconnu s'il y en a un ; null si masqué (moins de 2 chiffres).
         val shown = displayNumber(raw, countries, allowedSet)
         // Décision sur TOUTES les lectures du numéro reçu (pas seulement celle notée).
+        // Fenêtre des secours (NAR-196) : l'enfant a appelé les secours il y a moins de 30 min.
+        val emergencyWindow = filtering && EmergencyCalls.windowOpen(context)
         val decision = CallPolicy.screenIncoming(if (shown == null) null else raw, filtering, allowedSet, { number, contact ->
             contact in candidates(number, countries)
-        }, reachableSet)
+        }, reachableSet, emergencyWindow)
         if (!act(decision)) return decision
         when (decision) {
             CallPolicy.Incoming.RING -> if (filtering && shown != null) {
                 markScreenedAllowed(context, now)
                 record(context, "call_in", shown, now)
             }
+            // Laissé sonner par la fenêtre des secours : noté `call_in` marqué, numéro masqué
+            // compris (sans numéro). Pas un contact : le SOS n'y voit pas un parent qui rappelle.
+            CallPolicy.Incoming.RING_EMERGENCY_WINDOW -> record(context, "call_in", shown, now, emergencyWindow = true)
             CallPolicy.Incoming.BLOCK_UNKNOWN, CallPolicy.Incoming.BLOCK_HIDDEN, CallPolicy.Incoming.BLOCK_SCHEDULE ->
                 record(context, "call_blocked", if (decision == CallPolicy.Incoming.BLOCK_HIDDEN) null else shown, now,
                     school = decision == CallPolicy.Incoming.BLOCK_SCHEDULE)
@@ -120,15 +125,19 @@ object IncomingCalls {
         return decision
     }
 
-    /** school : refusé parce qu'une plage « école » était en cours (contact non parent). */
+    /**
+     * school : refusé parce qu'une plage « école » était en cours (contact non parent).
+     * emergencyWindow : laissé sonner par la fenêtre des secours (NAR-196).
+     */
     @Synchronized
-    fun record(context: Context, kind: String, phone: String?, startedAt: Long, school: Boolean = false) {
+    fun record(context: Context, kind: String, phone: String?, startedAt: Long, school: Boolean = false, emergencyWindow: Boolean = false) {
         val list = read(context)
         list.put(JSONObject().apply {
             put("id", UUID.randomUUID().toString())
             put("kind", kind)
             if (phone != null) put("phone", phone)
             if (school) put("school", true)
+            if (emergencyWindow) put("emergencyWindow", true)
             put("startedAt", startedAt)
         })
         val kept = JSONArray()

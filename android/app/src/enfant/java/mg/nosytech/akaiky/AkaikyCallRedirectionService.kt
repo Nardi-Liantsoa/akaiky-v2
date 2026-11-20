@@ -22,6 +22,9 @@ class AkaikyCallRedirectionService : CallRedirectionService() {
     override fun onPlaceCall(handle: Uri, initialPhoneAccount: PhoneAccountHandle, allowInteractiveResponse: Boolean) {
         val scheme = handle.scheme
         val raw = if (scheme == "tel") handle.schemeSpecificPart else null
+        // Urgence de la liste de l'app que Telecom ne connaît pas (elle arrive alors ici) :
+        // fenêtre des secours (NAR-196), notée avant de rendre la main.
+        if (scheme == "tel" && CallPolicy.isEmergency(raw)) EmergencyCalls.record(this)
         val place = CallPolicy.placeOutgoing(scheme, raw) { OutgoingCalls.decide(this, raw, initialPhoneAccount) }
         try { if (place) placeCallUnmodified() else cancelCall() } catch (e: Exception) { /* liaison déjà défaite */ }
     }

@@ -19,8 +19,8 @@ class OutgoingCallReceiver : BroadcastReceiver() {
         if (intent.action != Intent.ACTION_NEW_OUTGOING_CALL) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) return
         val raw = resultData ?: intent.getStringExtra(Intent.EXTRA_PHONE_NUMBER)
-        // Urgence : composée sans aucune lecture.
-        if (CallPolicy.isEmergency(raw)) return
+        // Urgence : composée sans aucune décision ; notée pour la fenêtre des secours (NAR-196).
+        if (CallPolicy.isEmergency(raw)) { EmergencyCalls.record(context); return }
         val place = try { OutgoingCalls.allows(OutgoingCalls.decide(context, raw)) } catch (e: Exception) { false }
         if (!place) {
             resultData = null

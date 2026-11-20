@@ -25,7 +25,10 @@ const view = computed(() => {
   const log = t.value.parent.log
   switch (i.kind) {
     case 'call_out': return { tone: 'call', title: log.callOut(i.name ?? (i.phone ? formatPhone(i.phone) : log.unknownContact)), detail: duration(i.durationS) }
-    case 'call_in': return { tone: 'call', title: log.callIn(i.name ?? (i.phone ? formatPhone(i.phone) : log.unknownContact)), detail: duration(i.durationS) }
+    // Laissé sonner par la fenêtre des secours (NAR-196) : inconnu ou masqué, marqué comme tel.
+    case 'call_in': return i.emergencyWindow
+      ? { tone: 'call', title: log.callIn(i.name ?? (i.phone ? formatPhone(i.phone) : log.hiddenNumber)), detail: [log.emergencyWindow, duration(i.durationS)].filter(Boolean).join(' · ') }
+      : { tone: 'call', title: log.callIn(i.name ?? (i.phone ? formatPhone(i.phone) : log.unknownContact)), detail: duration(i.durationS) }
     // Contact connu (nom) : bloqué pendant une plage « école » (NAR-176).
     case 'call_blocked': return i.name
       ? { tone: 'blocked', title: log.blockedContact(i.name), detail: `${log.duringSchedule} · ${log.notRung}` }

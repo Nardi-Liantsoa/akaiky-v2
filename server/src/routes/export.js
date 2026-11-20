@@ -97,7 +97,7 @@ export async function exportRoutes(app) {
            FROM quick_messages qm WHERE family_id = $1) x
         WHERE n <= $2 ORDER BY child_id, n`, [familyId, MESSAGES_CAP + 1]))
     const events = byChild(await q(
-      `SELECT id, child_id, kind, started_at, duration_s, name_enc, phone_enc, unlock_source FROM (
+      `SELECT id, child_id, kind, started_at, duration_s, name_enc, phone_enc, unlock_source, emergency_window FROM (
          SELECT e.*, row_number() OVER (PARTITION BY child_id ORDER BY created_at DESC, id DESC) AS n
            FROM device_events e WHERE family_id = $1) x
         WHERE n <= $2 ORDER BY child_id, n`, [familyId, JOURNAL_CAP + 1]))
@@ -167,7 +167,8 @@ export async function exportRoutes(app) {
           durationS: r.duration_s ?? null,
           name: open(r.name_enc, eventAad(r.id, 'name'), 'device_events', r.id),
           phone: open(r.phone_enc, eventAad(r.id, 'phone'), 'device_events', r.id),
-          source: r.unlock_source ?? null
+          source: r.unlock_source ?? null,
+          ...(r.emergency_window ? { emergencyWindow: true } : {})
         })),
         journalTruncated: evts.length > JOURNAL_CAP
       }

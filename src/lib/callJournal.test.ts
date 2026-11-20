@@ -51,6 +51,25 @@ describe('createCallJournal', () => {
     expect(s.queue().filter((e: DeviceEvent) => e.id === 'b1')).toHaveLength(1)
   })
 
+  it('fenêtre des secours (NAR-196) : inconnu laissé sonner → durée lue, marqué ; masqué → file sans durée, marqué', async () => {
+    const lastOutgoing = vi.fn(async () => ({ found: true, startedAt: 1_000_100, durationS: 75 }))
+    const s = setup({ lastOutgoing })
+    const kept = await s.journal.importScreened([
+      { id: 'e1', kind: 'call_in', phone: '+261329876543', startedAt: 1_000_000, emergencyWindow: true },
+      { id: 'e2', kind: 'call_in', startedAt: 1_000_200, emergencyWindow: true },
+      // Sans la marque, un appel reçu sans numéro reste illisible : acquitté, jamais envoyé.
+      { id: 'x', kind: 'call_in', startedAt: 1_000_300 } as never
+    ], [{ id: 'maman', name: 'Maman', phone: '+261341234567' }])
+    expect(kept).toEqual(['e1', 'e2', 'x'])
+    expect(s.queue()).toEqual([{ id: 'e2', kind: 'call_in', startedAt: new Date(1_000_200).toISOString(), durationS: null, emergencyWindow: true }])
+    await s.journal.complete()
+    expect(lastOutgoing).toHaveBeenCalledWith('+261329876543', 1_000_000 - 2_000, undefined, true)
+    expect(s.queue()[1]).toEqual({ id: 'e1', kind: 'call_in', phone: '+261329876543', startedAt: new Date(1_000_100).toISOString(), durationS: 75, emergencyWindow: true })
+    await s.journal.flush()
+    expect(s.deps.post).toHaveBeenCalledWith(expect.arrayContaining([expect.objectContaining({ id: 'e1', emergencyWindow: true }), expect.objectContaining({ id: 'e2', emergencyWindow: true })]))
+    expect(s.queue()).toEqual([])
+  })
+
   it('déverrouillage (NAR-168) : mis dans la file avec son origine et sa durée, envoyé avec les appels', async () => {
     const s = setup()
     await s.journal.unlocked('remote', 12)

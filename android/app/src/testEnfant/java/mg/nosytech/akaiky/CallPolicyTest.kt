@@ -54,7 +54,7 @@ class CallPolicyTest {
         // Mêmes cas que LegacyIncomingTest (Android 8–9, NAR-172) : même décision.
         assertTrue(IncomingCases.all.size >= 10)
         for (c in IncomingCases.all) {
-            assertEquals(c.name, c.expected, CallPolicy.screenIncoming(c.number, c.filtering, c.allowed, IncomingCases.e164Mg, c.reachable))
+            assertEquals(c.name, c.expected, CallPolicy.screenIncoming(c.number, c.filtering, c.allowed, IncomingCases.e164Mg, c.reachable, c.emergencyWindow))
         }
     }
 
