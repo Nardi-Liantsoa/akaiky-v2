@@ -15,7 +15,7 @@ class LegacyIncomingTest {
         // Copie sans numéro (Android 9) ou numéro masqué : relecture de l'état courant (vide si masqué).
         if (s == LegacyIncoming.Step.ReadNumber) s = ring.onNumberRead(true, c.number ?: "")
         val number = (s as? LegacyIncoming.Step.Decide ?: return null).number
-        val decision = CallPolicy.screenIncoming(number, c.filtering, c.allowed, IncomingCases.e164Mg, c.reachable)
+        val decision = CallPolicy.screenIncoming(number, c.filtering, c.allowed, IncomingCases.e164Mg, c.reachable, c.emergencyWindow)
         return decision to LegacyIncoming.blocks(decision)
     }
 
@@ -24,7 +24,7 @@ class LegacyIncomingTest {
         for (c in IncomingCases.all) for (inBroadcast in listOf(true, false)) {
             val (decision, hangup) = legacyFlow(c, inBroadcast) ?: error("${c.name} : jamais décidé")
             assertEquals(c.name, c.expected, decision)
-            assertEquals(c.name, c.expected != CallPolicy.Incoming.RING, hangup)
+            assertEquals(c.name, !CallPolicy.rings(c.expected), hangup)
         }
     }
 

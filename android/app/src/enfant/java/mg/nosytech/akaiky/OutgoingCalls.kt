@@ -31,6 +31,8 @@ object OutgoingCalls {
         val decision = CallPolicy.screenOutgoing(raw, true, allowed, reachable,
             { number, contact -> contact in candidates(number, country) },
             { number -> isEmergency(context, number) })
+        // Urgence connue du téléphone seulement (carte SIM, réseau) : fenêtre des secours (NAR-196).
+        if (decision == CallPolicy.Outgoing.EMERGENCY) EmergencyCalls.record(context)
         if (decision != CallPolicy.Outgoing.PLACE && decision != CallPolicy.Outgoing.EMERGENCY) {
             Log.i(TAG, "Appel sortant refusé : $decision")
         }
@@ -92,8 +94,12 @@ object OutgoingCalls {
 
     private val E164 = Regex("^\\+[1-9][0-9]{6,14}$")
 
-    /** Numéro d'urgence : liste de l'app, puis ceux que connaît le téléphone (carte SIM, réseau). */
-    private fun isEmergency(context: Context, number: String): Boolean {
+    /**
+     * Numéro d'urgence : liste de l'app, puis ceux que connaît le téléphone (carte SIM, réseau).
+     * Un `*` ou `#` (code de service) n'en est jamais un.
+     */
+    fun isEmergency(context: Context, number: String?): Boolean {
+        if (number.isNullOrBlank() || number.any { it == '*' || it == '#' }) return false
         if (CallPolicy.isEmergency(number)) return true
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

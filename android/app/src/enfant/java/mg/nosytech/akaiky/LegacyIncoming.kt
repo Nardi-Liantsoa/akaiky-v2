@@ -46,8 +46,11 @@ object LegacyIncoming {
         applies(sdk) && receiverEnabled && numberReadable(sdk, readPhoneState, readCallLog) &&
             hangup(sdk, answerCalls, callPhone) != Hangup.NONE
 
-    /** Appel à raccrocher : hors liste, masqué ou contact hors des parents pendant une plage. */
-    fun blocks(decision: CallPolicy.Incoming): Boolean = decision != CallPolicy.Incoming.RING
+    /**
+     * Appel à raccrocher : hors liste, masqué ou contact hors des parents pendant une plage ;
+     * jamais pendant la fenêtre qui suit un appel aux secours (NAR-196).
+     */
+    fun blocks(decision: CallPolicy.Incoming): Boolean = !CallPolicy.rings(decision)
 
     /**
      * Appel en ligne d'après le mode audio (MODE_IN_CALL, MODE_IN_COMMUNICATION) : un appel qui

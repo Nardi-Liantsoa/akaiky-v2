@@ -48,7 +48,15 @@ object CallPolicy {
 
     /** Décision sur un appel entrant (NAR-145). */
     /** BLOCK_SCHEDULE : contact de la liste refusé parce qu'une plage « école » est en cours (NAR-176). */
-    enum class Incoming { RING, BLOCK_UNKNOWN, BLOCK_HIDDEN, BLOCK_SCHEDULE }
+    /**
+     * RING_EMERGENCY_WINDOW (NAR-196) : appel qui aurait été refusé, laissé sonner parce que
+     * l'enfant a appelé les secours il y a moins de 30 min (leur rappel vient souvent d'un
+     * numéro inconnu ou masqué). Noté `call_in` avec la marque `emergencyWindow`.
+     */
+    enum class Incoming { RING, RING_EMERGENCY_WINDOW, BLOCK_UNKNOWN, BLOCK_HIDDEN, BLOCK_SCHEDULE }
+
+    /** L'appel sonne (contact joignable, filtrage inactif, ou fenêtre des secours). */
+    fun rings(decision: Incoming): Boolean = decision == Incoming.RING || decision == Incoming.RING_EMERGENCY_WINDOW
 
     /**
      * Seul un contact autorisé fait sonner le téléphone ; un numéro masqué ou hors liste
@@ -58,12 +66,20 @@ object CallPolicy {
      * `reachable` : numéros joignables maintenant (les parents pendant une plage, voir
      * `reachable()`) ; un contact de la liste qui n'y est pas donne BLOCK_SCHEDULE.
      * Pas d'exception pour les numéros d'urgence : un numéro présenté se falsifie facilement.
+     * `emergencyWindow` (NAR-196, voir EmergencyWindow.isOpen) : l'enfant a appelé les secours
+     * il y a moins de 30 min ; tout appel qui aurait été refusé (inconnu, masqué, contact hors
+     * plage) sonne alors, sous RING_EMERGENCY_WINDOW. Un contact joignable reste RING.
      */
-    fun screenIncoming(number: String?, filtering: Boolean, allowed: Set<String>, matches: (String, String) -> Boolean, reachable: Set<String> = allowed): Incoming {
+    fun screenIncoming(number: String?, filtering: Boolean, allowed: Set<String>, matches: (String, String) -> Boolean, reachable: Set<String> = allowed, emergencyWindow: Boolean = false): Incoming {
         if (!filtering) return Incoming.RING
-        val n = normalize(number) ?: return Incoming.BLOCK_HIDDEN
-        if (reachable.any { matches(n, it) }) return Incoming.RING
-        return if (allowed.any { matches(n, it) }) Incoming.BLOCK_SCHEDULE else Incoming.BLOCK_UNKNOWN
+        val n = normalize(number)
+        val decision = when {
+            n == null -> Incoming.BLOCK_HIDDEN
+            reachable.any { matches(n, it) } -> Incoming.RING
+            allowed.any { matches(n, it) } -> Incoming.BLOCK_SCHEDULE
+            else -> Incoming.BLOCK_UNKNOWN
+        }
+        return if (decision != Incoming.RING && emergencyWindow) Incoming.RING_EMERGENCY_WINDOW else decision
     }
 
     /** Décision sur un appel sortant (NAR-169). */

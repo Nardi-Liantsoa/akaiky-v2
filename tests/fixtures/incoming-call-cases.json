@@ -1,5 +1,5 @@
 {
-  "_doc": "Cas partagés du filtre des appels entrants : CallPolicyTest.kt (service de filtrage, Android 10+, NAR-145) et LegacyIncomingTest.kt (récepteur PHONE_STATE, Android 8–9, NAR-172) doivent donner la même décision. Lecture E.164 simplifiée dans les tests (« 0… » malgache → +261…). La décision ne lit aucun réseau : hors ligne, elle est identique. number null = numéro masqué.",
+  "_doc": "Cas partagés du filtre des appels entrants : CallPolicyTest.kt (service de filtrage, Android 10+, NAR-145) et LegacyIncomingTest.kt (récepteur PHONE_STATE, Android 8–9, NAR-172) doivent donner la même décision. Lecture E.164 simplifiée dans les tests (« 0… » malgache → +261…). La décision ne lit aucun réseau : hors ligne, elle est identique. number null = numéro masqué. Fenêtre des secours (NAR-196) : `emergency` = dernier appel de l'enfant aux secours (atElapsed : horloge depuis le démarrage, ms ; boot : numéro de démarrage), `now` = instant de l'appel reçu (même horloge) ; sans `emergency`, aucun appel aux secours. 30 min = 1800000 ms. L'heure du téléphone n'est jamais lue : la changer ne rouvre ni ne prolonge la fenêtre.",
   "allowed": ["+261341234567", "+261331234567"],
   "parents": ["+261341234567"],
   "cases": [
@@ -15,6 +15,18 @@
     { "name": "filtrage inactif : masqué sonne", "number": null, "filtering": false, "inSchool": false, "expected": "RING" },
     { "name": "plage école : parent sonne", "number": "0341234567", "filtering": true, "inSchool": true, "expected": "RING" },
     { "name": "plage école : contact non parent refusé", "number": "+261331234567", "filtering": true, "inSchool": true, "expected": "BLOCK_SCHEDULE" },
-    { "name": "plage école : inconnu", "number": "+261329876543", "filtering": true, "inSchool": true, "expected": "BLOCK_UNKNOWN" }
+    { "name": "plage école : inconnu", "number": "+261329876543", "filtering": true, "inSchool": true, "expected": "BLOCK_UNKNOWN" },
+    { "name": "secours appelés il y a 5 min : inconnu sonne", "number": "+261329876543", "filtering": true, "inSchool": false, "emergency": { "atElapsed": 1000000, "boot": 7 }, "now": { "elapsed": 1300000, "boot": 7 }, "expected": "RING_EMERGENCY_WINDOW" },
+    { "name": "secours appelés il y a 5 min : masqué sonne", "number": null, "filtering": true, "inSchool": false, "emergency": { "atElapsed": 1000000, "boot": 7 }, "now": { "elapsed": 1300000, "boot": 7 }, "expected": "RING_EMERGENCY_WINDOW" },
+    { "name": "secours appelés il y a 5 min : contact non parent pendant une plage sonne", "number": "+261331234567", "filtering": true, "inSchool": true, "emergency": { "atElapsed": 1000000, "boot": 7 }, "now": { "elapsed": 1300000, "boot": 7 }, "expected": "RING_EMERGENCY_WINDOW" },
+    { "name": "secours appelés il y a 5 min : contact joignable, sonnerie ordinaire", "number": "+261341234567", "filtering": true, "inSchool": false, "emergency": { "atElapsed": 1000000, "boot": 7 }, "now": { "elapsed": 1300000, "boot": 7 }, "expected": "RING" },
+    { "name": "secours appelés il y a 29 min 59 s : inconnu sonne encore", "number": "+261329876543", "filtering": true, "inSchool": false, "emergency": { "atElapsed": 1000000, "boot": 7 }, "now": { "elapsed": 2799999, "boot": 7 }, "expected": "RING_EMERGENCY_WINDOW" },
+    { "name": "secours appelés il y a 30 min pile : inconnu refusé de nouveau", "number": "+261329876543", "filtering": true, "inSchool": false, "emergency": { "atElapsed": 1000000, "boot": 7 }, "now": { "elapsed": 2800000, "boot": 7 }, "expected": "BLOCK_UNKNOWN" },
+    { "name": "secours appelés il y a 31 min (heure du téléphone reculée d'une heure : sans effet) : inconnu refusé", "number": "+261329876543", "filtering": true, "inSchool": false, "emergency": { "atElapsed": 1000000, "boot": 7 }, "now": { "elapsed": 2860000, "boot": 7 }, "expected": "BLOCK_UNKNOWN" },
+    { "name": "secours appelés il y a 31 min : masqué refusé", "number": null, "filtering": true, "inSchool": false, "emergency": { "atElapsed": 1000000, "boot": 7 }, "now": { "elapsed": 2860000, "boot": 7 }, "expected": "BLOCK_HIDDEN" },
+    { "name": "aucun appel aux secours : inconnu refusé", "number": "+261329876543", "filtering": true, "inSchool": false, "now": { "elapsed": 1300000, "boot": 7 }, "expected": "BLOCK_UNKNOWN" },
+    { "name": "secours appelés puis redémarrage (autre numéro de démarrage) : inconnu refusé", "number": "+261329876543", "filtering": true, "inSchool": false, "emergency": { "atElapsed": 1000000, "boot": 7 }, "now": { "elapsed": 1300000, "boot": 8 }, "expected": "BLOCK_UNKNOWN" },
+    { "name": "secours appelés puis redémarrage (horloge repartie de zéro, numéro de démarrage illisible) : inconnu refusé", "number": "+261329876543", "filtering": true, "inSchool": false, "emergency": { "atElapsed": 1000000, "boot": -1 }, "now": { "elapsed": 60000, "boot": -1 }, "expected": "BLOCK_UNKNOWN" },
+    { "name": "secours appelés, filtrage inactif : sonnerie ordinaire", "number": "+261329876543", "filtering": false, "inSchool": false, "emergency": { "atElapsed": 1000000, "boot": 7 }, "now": { "elapsed": 1300000, "boot": 7 }, "expected": "RING" }
   ]
 }
