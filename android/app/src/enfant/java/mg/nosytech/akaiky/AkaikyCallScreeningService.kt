@@ -9,7 +9,8 @@ import android.telecom.CallScreeningService
  * ROLE_CALL_SCREENING). Seul un contact autorisé fait sonner le téléphone ; un numéro
  * hors liste ou masqué est rejeté sans sonnerie et noté (`call_blocked`). Un appel
  * accepté est noté aussi (`call_in`), sa durée est lue après l'appel.
- * Décision prise ici, sans réseau, sur la liste reçue du parent (CallPlugin.setAllowed).
+ * Décision prise ici, sans réseau, sur la liste reçue du parent (CallPlugin.setAllowed),
+ * par IncomingCalls.screen, commune au récepteur d'Android 8–9 (NAR-172).
  */
 class AkaikyCallScreeningService : CallScreeningService() {
     override fun onScreenCall(details: Call.Details) {
@@ -18,31 +19,10 @@ class AkaikyCallScreeningService : CallScreeningService() {
             respondToCall(details, CallResponse.Builder().build())
             return
         }
-        val raw = details.handle?.schemeSpecificPart
-        val countries = IncomingCalls.countries(this)
-        val filtering = IncomingCalls.isFiltering(this)
-        val allowedSet = IncomingCalls.allowed(this)
-        // Pendant une plage « école » (NAR-176) : seuls les parents sonnent ; les autres
-        // contacts sont refusés et notés comme bloqués, sous leur numéro de contact.
-        val reachableSet = IncomingCalls.reachable(this, allowedSet)
-        // Numéro noté : le contact reconnu s'il y en a un ; null si masqué (moins de 2 chiffres).
-        val shown = IncomingCalls.displayNumber(raw, countries, allowedSet)
-        // Décision sur TOUTES les lectures du numéro reçu (pas seulement celle notée).
-        val decision = CallPolicy.screenIncoming(if (shown == null) null else raw, filtering, allowedSet, { number, allowed ->
-            allowed in IncomingCalls.candidates(number, countries)
-        }, reachableSet)
-        val now = System.currentTimeMillis()
+        val decision = IncomingCalls.screen(this, details.handle?.schemeSpecificPart)
         val response = CallResponse.Builder()
-        when (decision) {
-            CallPolicy.Incoming.RING -> if (filtering && shown != null) {
-                IncomingCalls.markScreenedAllowed(this, now)
-                IncomingCalls.record(this, "call_in", shown, now)
-            }
-            CallPolicy.Incoming.BLOCK_UNKNOWN, CallPolicy.Incoming.BLOCK_HIDDEN, CallPolicy.Incoming.BLOCK_SCHEDULE -> {
-                response.setDisallowCall(true).setRejectCall(true).setSkipNotification(true)
-                IncomingCalls.record(this, "call_blocked", if (decision == CallPolicy.Incoming.BLOCK_HIDDEN) null else shown, now,
-                    school = decision == CallPolicy.Incoming.BLOCK_SCHEDULE)
-            }
+        if (decision != CallPolicy.Incoming.RING) {
+            response.setDisallowCall(true).setRejectCall(true).setSkipNotification(true)
         }
         respondToCall(details, response.build())
     }

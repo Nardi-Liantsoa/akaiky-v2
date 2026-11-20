@@ -228,8 +228,26 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   ARM API 26 n'a pas de WebView).
 - **Filtrage des appels entrants (NAR-145)** : actif seulement si le parent a confirmé
   « Activer le filtrage des appels » sur le téléphone (rôle système, Android 10+). Sans
-  cette confirmation, ou sur Android 8–9 (NAR-172), tout numéro peut appeler l'enfant ;
-  l'écran de l'enfant l'indique pendant une sortie.
+  cette confirmation, tout numéro peut appeler l'enfant ; l'écran de l'enfant l'indique
+  pendant une sortie (état réel : `screeningRole().incomingActive`).
+- **Filtrage des appels entrants sur Android 8–9 (NAR-172)** : récepteur `PHONE_STATE`, même
+  décision et même file que NAR-145, appel refusé raccroché (`TelecomManager.endCall` sur 9,
+  `ITelephony.endCall` par réflexion sur 8.0–8.1), permissions accordées en Device Owner, aucune
+  confirmation. **Signalé : une courte sonnerie reste** (0,2 à 0,3 s mesurées sur émulateur
+  Android 8.1 ; Android ne laisse pas une app couper la sonnerie avant Android 10), avec l'écran
+  d'appel entrant entrevu ; plus longue sur un téléphone lent ou chargé, à mesurer sur un vrai
+  Android 8. Sur Android 9, un numéro masqué sonne environ 3 s de plus (attente de la copie
+  numérotée de la diffusion, pour ne jamais raccrocher un parent ; processus tué pendant cette
+  attente : il sonne). Un appel en attente (pendant un autre appel, cellulaire ou VoIP) n'est ni
+  raccroché ni noté. Une
+  permission manquante désactive le filtre (tout sonne, l'écran le dit) plutôt que de raccrocher
+  un parent. **Reste à vérifier sur un vrai téléphone** : Android 9 (l'image d'émulateur arm64 est
+  inutilisable ici), un vrai numéro masqué, la durée de la sonnerie et l'écran d'appel entrant
+  sous le verrou, les permissions accordées par `setPermissionGrantState` sur un téléphone
+  provisionné par QR (`READ_CALL_LOG` est « restreinte » ; l'émulateur a reçu `pm grant`), la
+  réflexion `ITelephony` sur des ROM constructeur (Tecno, Itel, Samsung), et le passage du journal
+  à l'écran puis au serveur (WebView non lancée pendant le test : la file native est vérifiée,
+  sa reprise est celle de NAR-145).
 - **Volet des notifications** : affiché pendant le verrou (sans réglages rapides), car il
   porte l'appel entrant. Toucher une notification ou « Gérer » n'ouvre rien.
 

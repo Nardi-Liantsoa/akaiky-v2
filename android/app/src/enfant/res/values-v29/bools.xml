@@ -2,4 +2,6 @@
 <resources>
     <!-- Android 10+ : le service de redirection (rôle ROLE_CALL_REDIRECTION) filtre seul les appels sortants. -->
     <bool name="outgoing_receiver_enabled">false</bool>
+    <!-- Android 10+ : le service de filtrage (rôle ROLE_CALL_SCREENING) filtre seul les appels entrants. -->
+    <bool name="incoming_receiver_enabled">false</bool>
 </resources>

@@ -1,0 +1,20 @@
+{
+  "_doc": "Cas partagés du filtre des appels entrants : CallPolicyTest.kt (service de filtrage, Android 10+, NAR-145) et LegacyIncomingTest.kt (récepteur PHONE_STATE, Android 8–9, NAR-172) doivent donner la même décision. Lecture E.164 simplifiée dans les tests (« 0… » malgache → +261…). La décision ne lit aucun réseau : hors ligne, elle est identique. number null = numéro masqué.",
+  "allowed": ["+261341234567", "+261331234567"],
+  "parents": ["+261341234567"],
+  "cases": [
+    { "name": "contact au format international", "number": "+261341234567", "filtering": true, "inSchool": false, "expected": "RING" },
+    { "name": "contact au format national", "number": "0331234567", "filtering": true, "inSchool": false, "expected": "RING" },
+    { "name": "numéro inconnu", "number": "+261329876543", "filtering": true, "inSchool": false, "expected": "BLOCK_UNKNOWN" },
+    { "name": "inconnu aux 7 derniers chiffres d'un contact", "number": "+261321234567", "filtering": true, "inSchool": false, "expected": "BLOCK_UNKNOWN" },
+    { "name": "numéro masqué", "number": null, "filtering": true, "inSchool": false, "expected": "BLOCK_HIDDEN" },
+    { "name": "numéro d'urgence présenté (falsifiable) : pas d'exception", "number": "112", "filtering": true, "inSchool": false, "expected": "BLOCK_UNKNOWN" },
+    { "name": "117 présenté : pas d'exception", "number": "117", "filtering": true, "inSchool": false, "expected": "BLOCK_UNKNOWN" },
+    { "name": "liste vide, filtrage actif", "number": "+261341234567", "filtering": true, "inSchool": false, "allowed": [], "expected": "BLOCK_UNKNOWN" },
+    { "name": "filtrage inactif (pas appairé) : inconnu sonne", "number": "+261329876543", "filtering": false, "inSchool": false, "expected": "RING" },
+    { "name": "filtrage inactif : masqué sonne", "number": null, "filtering": false, "inSchool": false, "expected": "RING" },
+    { "name": "plage école : parent sonne", "number": "0341234567", "filtering": true, "inSchool": true, "expected": "RING" },
+    { "name": "plage école : contact non parent refusé", "number": "+261331234567", "filtering": true, "inSchool": true, "expected": "BLOCK_SCHEDULE" },
+    { "name": "plage école : inconnu", "number": "+261329876543", "filtering": true, "inSchool": true, "expected": "BLOCK_UNKNOWN" }
+  ]
+}
