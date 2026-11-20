@@ -46,6 +46,13 @@ export const ICONS = {
   // Lignes du résumé de Réglages (NAR-185) : applications (grille), SOS (sirène).
   grid: { shapes: [rect({ x: 4, y: 4, width: 6, height: 6, rx: 1.5 }), rect({ x: 14, y: 4, width: 6, height: 6, rx: 1.5 }), rect({ x: 4, y: 14, width: 6, height: 6, rx: 1.5 }), rect({ x: 14, y: 14, width: 6, height: 6, rx: 1.5 })] },
   siren: { shapes: [path('M7 18v-6a5 5 0 0 1 10 0v6'), path('M5 21h14v-3H5z'), path('M12 2v2M4.2 5.2l1.4 1.4M19.8 5.2l-1.4 1.4')] },
+  // État du téléphone sur l'accueil parent (NAR-192) : pastille, bandeaux, tuiles en défaut.
+  check: { shapes: [path('M5 12.5l4.5 4.5L19 7')] },
+  warning: { shapes: [path('M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'), path('M12 9v4M12 17h.01')] },
+  cross: { shapes: [path('M6 6l12 12M18 6 6 18')] },
+  sim: { shapes: [path('M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z'), rect({ x: 9, y: 11, width: 6, height: 6, rx: 1 })] },
+  // Menu « ⋯ » de la carte d'un enfant : trois points pleins.
+  more: { svg: { fill: 'currentColor', stroke: 'none' }, shapes: [circle(5, 12, 2), circle(12, 12, 2), circle(19, 12, 2)] },
   // Batterie : contour et borne ; le niveau, variable, est passé dans l'emplacement.
   battery: {
     viewBox: '0 0 24 12',

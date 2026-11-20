@@ -142,3 +142,26 @@ test('parent sans famille : « Mon compte » sur l’écran de création, sans e
   await expect(account.getByRole('link', { name: 'Sécurité' })).toBeVisible()
   await expect(account.getByRole('button', { name: 'Déconnexion' })).toBeVisible()
 })
+
+// NAR-192 : cibles tactiles de la carte d'un enfant, « ⋯ » en icône nommée.
+test('accueil : « Tout le journal », « ⋯ » et l’en-tête de la carte font au moins 48 px', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 640 })
+  const FY = '6f1c2b1e-0000-4000-8000-000000000101'
+  await mockApi(page, {
+    ...connected,
+    'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }),
+    'GET /api/children': () => ({ body: [{ id: FY, firstName: 'Fy', avatarColor: 'orange', createdAt: '2026-11-11T10:00:00Z', parentCodeSetAt: null, remoteUnlockUntil: null, phoneLastSeenAt: null }] }),
+    [`GET /api/children/${FY}/journal`]: () => ({ body: { items: [], next: null } })
+  })
+  await page.goto('/espace')
+  const more = page.getByRole('button', { name: 'Actions pour Fy' })
+  await expect(more).toBeVisible()
+  // Icône du jeu commun, sans texte « ⋯ » ; le nom vient d'aria-label.
+  await expect(more.locator('svg')).toHaveCount(1)
+  await expect(more).toHaveText('')
+  for (const target of [page.getByRole('link', { name: 'Tout le journal' }), more, page.getByRole('button', { name: /^Fy / })]) {
+    const box = await target.boundingBox()
+    expect(box?.height).toBeGreaterThanOrEqual(48)
+    expect(box?.width).toBeGreaterThanOrEqual(48)
+  }
+})
