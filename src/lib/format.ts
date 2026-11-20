@@ -37,3 +37,14 @@ export function formatLongDate(date: Date, locale: Locale): string {
   }
   return new Intl.DateTimeFormat(locale === 'fr' ? 'fr-FR' : 'en-GB', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(date)
 }
+
+// Date et heure du back-office (NAR-144), à l'heure de Madagascar : « 15 janv. 2026, 13:00 ».
+// Malgache : chiffres seuls (Intl n'a pas les mois malgaches partout).
+export function formatDateTime(iso: string, locale: Locale): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  if (locale === 'mg') {
+    return new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
+  }
+  return new Intl.DateTimeFormat(locale === 'fr' ? 'fr-FR' : 'en-GB', { timeZone: TZ, day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
+}

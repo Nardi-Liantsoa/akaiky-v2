@@ -92,6 +92,15 @@
   `migrations-frozen` (une PR n'ajoute que des migrations). Détail : `NOSYHOST.md` § 5, section suivante.
   **Prochain déploiement : lancer `node server/bin/migrate.js` une fois** (enregistre les empreintes).
 
+- Back-office, tranche 1 (NAR-144, 20/11/2026) : statistiques anonymes, familles (par référence, sans nom) et
+  téléphones (modèle, versions, derniers signaux, état) en lecture seule dans `/admin` (web, admin MFA). Aucune
+  migration ni droit SQL nouveau (lectures seules, `SELECT` déjà accordé). Suite proposée : tranche 2,
+  désactivation d'un compte (`users.disabled_at`, migration 027 et `ops/runtime-role.sql`, `SESSION_RULE`, refus
+  de connexion au message générique, réactivation par `POST /api/admin/users/:id/enable`) et révocation d'un
+  téléphone par l'admin (même chemin que la famille, extrait de `routes/devices.js`) ; tranche 3, réinitialisation
+  du code parent (voir « Limites résiduelles », back-office). La page `admin` de la comparaison visuelle diffère de
+  `main` par construction (nouvelle page).
+
 ## Migrations figées
 
 Une migration publiée ne se modifie jamais : la correction est une nouvelle migration numérotée.
@@ -434,4 +443,16 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   `STATUS_FAILURE`, même chemin de fermeture), Android 8–9 (`GET_SIGNATURES`), téléphone provisionné par QR.
   Aucun écran de progression : l'enfant voit l'app redémarrer. Téléphones déjà configurés avant NAR-170 : coque à
   installer une fois par une autre voie (`docs/MOBILE.md`).
+- **Back-office (NAR-144, tranche 1)** : l'équipe voit des identifiants, pas des noms ; pour retrouver une
+  famille au téléphone, elle part de l'adresse du compte (liste des comptes) — le lien compte → famille n'est pas
+  encore affiché. Les lectures de l'équipe ne sont pas inscrites au journal d'audit (seules les actions le seront,
+  tranches 2 et 3). Pages de 50 sans recherche ni filtre. **Code parent, tranche 3 (décision proposée)** : le
+  téléphone de l'enfant ignore un `parentCode` nul (`ChildHomeView.vue` garde le hachage enregistré et reste
+  armé), donc effacer le hachage ne déverrouille rien mais casse le déverrouillage à distance (409
+  `no_parent_code`) et fait croire au parent qu'il n'y a pas de code ; un hachage impossible enfermerait un
+  téléphone hors ligne sans sortie. Retenu : l'ancien code reste valable jusqu'à ce qu'un gestionnaire en choisisse
+  un nouveau, avec une demande de changement visible et auditée. Vérification d'identité avant toute
+  réinitialisation : demande écrite depuis l'adresse du compte `owner`/`manager`, puis réponses que l'équipe peut
+  contrôler sans donnée personnelle (nombre d'enfants, modèle du téléphone, mois de création de la famille), et
+  confirmation par un second membre `owner`/`manager` s'il existe ; jamais sur la seule preuve d'accès à l'adresse.
 - **Traductions malgaches** : à faire relire par une personne de langue maternelle.

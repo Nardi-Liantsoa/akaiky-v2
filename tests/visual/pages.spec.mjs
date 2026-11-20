@@ -87,6 +87,28 @@ const SANS_FAMILLE = {
   'GET /api/auth/me': { user: HANTA },
   'GET /api/families/me': { [ERREUR]: true, status: 404, json: { error: 'Famille introuvable.', code: 'no_family' } }
 }
+// Back-office (NAR-144) : administrateur, statistiques, familles par référence, téléphones.
+const ADMIN = {
+  ...PARENT,
+  'GET /api/auth/me': { user: { ...HANTA, is_admin: true } },
+  'GET /api/admin/stats': { families: 12, children: 17, devices: 15, activeDevices: 13, silentDevices: 2, devicesSignal24h: 14, sosThisMonth: 0, sosTracked: false },
+  'GET /api/admin/families': {
+    items: [
+      { id: '6f1c2b1e-0000-4000-8000-0000000000f1', members: 2, children: 2, devices: 1, createdAt: '2026-01-10T10:00:00Z' },
+      { id: '9a3d4c5e-0000-4000-8000-0000000000f2', members: 1, children: 1, devices: 1, createdAt: '2026-01-08T10:00:00Z' }
+    ],
+    next: null
+  },
+  'GET /api/admin/devices': {
+    items: [
+      { id: '6f1c2b1e-0000-4000-8000-0000000000d1', familyId: '6f1c2b1e-0000-4000-8000-0000000000f1', model: 'Samsung Galaxy A10', osVersion: '11', appVersion: '1.0', createdAt: '2026-01-12T10:00:00Z', lastSeenAt: '2026-01-15T09:58:00Z', statusAt: '2026-01-15T09:58:00Z', revokedAt: null, state: 'active' },
+      { id: '9a3d4c5e-0000-4000-8000-0000000000d2', familyId: '9a3d4c5e-0000-4000-8000-0000000000f2', model: 'Itel A70', osVersion: '13', appVersion: '1.0', createdAt: '2026-01-09T10:00:00Z', lastSeenAt: '2026-01-15T07:00:00Z', statusAt: '2026-01-15T07:00:00Z', revokedAt: null, state: 'silent' }
+    ],
+    next: null
+  },
+  'GET /api/admin/users': [{ id: HANTA.id, email: HANTA.email, name: 'Hanta', is_admin: true, created_at: '2026-01-05T10:00:00Z', email_verified_at: '2026-01-05T10:05:00Z', mfa: true }],
+  'GET /api/admin/audit': [{ at: '2026-01-15T09:00:00Z', action: 'login', target: null, actor: HANTA.email }]
+}
 const PAGES = [
   ['accueil', '/', ANONYME],
   ['connexion', '/connexion', ANONYME],
@@ -103,6 +125,8 @@ const PAGES = [
   // Ancienne adresse : rendue dans la coquille parent depuis NAR-156, et sur main aussi.
   ['parent-securite', '/securite', PARENT],
   ['parent-telephone', '/espace/enfant/6f1c2b1e-0000-4000-8000-000000000101/telephone', PARENT],
+  // Back-office (NAR-144) ; absent de main sous cette forme (référence : l'ancienne page Administration).
+  ['admin', '/admin', ADMIN],
   ['invitation-sans-session', '/invitation#invite=' + 'T'.repeat(43), ANONYME]
 ]
 

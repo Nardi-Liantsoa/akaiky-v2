@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatClock, formatDay, formatLongDate } from './format'
+import { formatClock, formatDateTime, formatDay, formatLongDate } from './format'
 
 describe('formatDay', () => {
   it('jour et mois à l’heure de Madagascar, dans les trois langues', () => {
@@ -26,5 +26,18 @@ describe('formatClock et formatLongDate (écran de l’enfant)', () => {
     expect(formatLongDate(d, 'en')).toBe('Wednesday 18 November')
     expect(formatLongDate(d, 'mg')).toBe('Alarobia 18 Novambra')
     expect(formatLongDate(new Date('x'), 'fr')).toBe('')
+  })
+})
+
+describe('formatDateTime (back-office)', () => {
+  it('date et heure de Madagascar, dans les trois langues', () => {
+    // 22:30 UTC le 31 décembre 2025 = 1er janvier 2026 01:30 à Antananarivo.
+    const iso = '2025-12-31T22:30:00Z'
+    expect(formatDateTime(iso, 'mg')).toBe('01/01/2026 01:30')
+    expect(formatDateTime(iso, 'fr')).toMatch(/^1 janv\. 2026.* 01:30$/)
+    expect(formatDateTime(iso, 'en')).toMatch(/^1 Jan 2026.* 01:30$/)
+  })
+  it('date illisible : chaîne vide', () => {
+    expect(formatDateTime('nope', 'en')).toBe('')
   })
 })
