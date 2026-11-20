@@ -221,7 +221,13 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   titulaire ; aucun `UPDATE (consent_at)` accordé : la reposer à la reprise demanderait une migration, ou l'écran de
   NAR-202 peut redemander le consentement). Le tiers n'a rien pu y créer (pas de connexion sans numéro confirmé). Le
   titulaire ne doit toujours pas saisir un code de confirmation qu'il n'a pas demandé (le SMS le dit) : sinon il
-  confirmerait le compte du tiers, qu'il reprendrait ensuite par la réinitialisation. **Réinitialisation par SMS =
+  confirmerait le compte du tiers, qu'il reprendrait ensuite par la réinitialisation. Dans ce cas seulement, le tiers a pu se connecter
+  et créer des données : à la reprise (audit `reclaimed: false`, rien ne distingue ce compte d'un compte normal), le
+  titulaire hérite de sa famille, de ses enfants, des membres et des invitations en attente qu'il a envoyées (encore
+  acceptables, l'invitant restant gestionnaire), et voit les données de ces membres ; les téléphones d'enfant appairés
+  par le tiers gardent leur session d'appareil jusqu'à leur révocation. Le tiers, lui, perd tout accès (sessions
+  cookie et Bearer effacées) et ne voit jamais les données du titulaire. Le titulaire peut supprimer la famille
+  héritée ; aucune parade automatique sans savoir qui a confirmé le numéro. **Réinitialisation par SMS =
   prise de compte par échange de carte SIM** : comme l'adresse e-mail pour un compte à adresse, la possession du
   numéro suffit à changer le mot de passe ; un compte à numéro n'a pas de MFA (réservée aux admins, qui sont à
   adresse), donc rien d'autre n'est demandé. Même chose pour un **numéro recyclé** par l'opérateur : son nouveau

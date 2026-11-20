@@ -265,6 +265,44 @@ test('numéro non confirmé inscrit par un tiers : le titulaire le reprend (num�
   assert.deepEqual(rows.map((r) => r.details), [{ channel: 'sms', reclaimed: true }])
 })
 
+// Compte désactivé par l'équipe (NAR-199) : comme /forgot-password et /reset-password, la
+// réinitialisation ne dit rien de la désactivation (mêmes réponses qu'un compte actif) et
+// change le mot de passe, mais n'ouvre jamais de session : la connexion reste refusée par le
+// même 401 qu'un mauvais mot de passe, tant que l'équipe n'a pas réactivé le compte.
+test('compte désactivé : demande et saisie identiques à un compte actif, mot de passe changé, aucune session ; réactivé → nouveau mot de passe', async () => {
+  const active = await phoneUser(ctx)
+  const off = await phoneUser(ctx)
+  await ctx.db.query('UPDATE users SET disabled_at = now() WHERE id = $1', [off.id])
+  await sleep(1100)
+
+  const asked = await Promise.all([forgot(ctx, active.phone), forgot(ctx, off.phone), forgot(ctx, newPhone())])
+  for (const r of asked) { assert.equal(r.statusCode, 202); assert.equal(r.body, asked[0].body) }
+  const codeOff = codeIn(await lastSms(ctx, off.phone, 0, RESET_SMS))
+  const codeActive = codeIn(await lastSms(ctx, active.phone, 0, RESET_SMS))
+
+  const wrong = await reset(ctx, off.phone, wrongOf(codeOff))
+  assert.equal(wrong.body, (await reset(ctx, active.phone, wrongOf(codeActive))).body, 'code faux : même refus')
+  const done = await reset(ctx, off.phone, codeOff)
+  assert.equal(done.statusCode, 200, done.body)
+  assert.equal(done.body, (await reset(ctx, active.phone, codeActive)).body, 'succès : même réponse')
+  const cookies = [].concat(done.headers['set-cookie'] || [])
+  assert.ok(cookies.every((c) => /Max-Age=0/i.test(c)), 'aucune session posée')
+
+  const row = (await ctx.db.query('SELECT disabled_at FROM users WHERE id = $1', [off.id])).rows[0]
+  assert.ok(row.disabled_at, 'toujours désactivé')
+  const refused = await login(ctx, off.phone, NEW_PASSWORD)
+  assert.equal(refused.statusCode, 401)
+  assert.equal(refused.body, (await login(ctx, active.phone, 'pas le bon mot de passe')).body, 'même 401 qu’un mauvais mot de passe')
+  const nat = await native(ctx.app, 'POST', '/api/auth/native/login', { body: { phone: off.phone, password: NEW_PASSWORD } })
+  assert.equal(nat.statusCode, 401)
+  assert.equal((await ctx.db.query('SELECT count(*)::int AS n FROM sessions WHERE user_id = $1', [off.id])).rows[0].n, 0)
+  assert.equal((await call(ctx.app, 'GET', '/api/auth/me', { cookie: off.cookie })).json().user, null)
+
+  await ctx.db.query('UPDATE users SET disabled_at = NULL WHERE id = $1', [off.id])
+  assert.equal((await login(ctx, off.phone, PASSWORD)).statusCode, 401, 'ancien mot de passe remplacé')
+  assert.equal((await login(ctx, off.phone, NEW_PASSWORD)).statusCode, 200, 'réactivé : nouveau mot de passe')
+})
+
 test('limites partagées avec l’inscription et le renvoi : par numéro (délai, nombre), par IP (/64), globale ; refus sans SMS', async () => {
   const perNumber = await startApp(dbh.url, { ...OPEN, SMS_PER_NUMBER_PER_HOUR: '3', SMS_RESEND_SECONDS: '60' })
   try {

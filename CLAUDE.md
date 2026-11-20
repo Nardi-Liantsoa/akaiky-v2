@@ -85,7 +85,9 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   possession du numéro : un numéro inscrit par un tiers et jamais confirmé est repris par son titulaire**), toutes les
   sessions (cookie et Bearer) et défis MFA effacés, appareils de confiance révoqués, codes du numéro effacés, MFA gardée,
   aucune session ouverte, audité `password_reset` `{ channel: 'sms', reclaimed }`, SMS « mot de passe modifié » par la
-  file. Aucune migration (droits de 001 et 027). Tests : `server/test/phone-reset.test.js`.
+  file. Compte désactivé par l'équipe (NAR-199) : rien ne le distingue (même 202, même 200, mêmes durées), le mot de
+  passe est changé comme par `/reset-password`, aucune session n'est ouverte et la connexion reste le 401 générique
+  jusqu'à la réactivation. Aucune migration (droits de 001 et 027). Tests : `server/test/phone-reset.test.js`.
   Tranches suivantes : écran d'inscription, de connexion et de réinitialisation par numéro + e2e (tranche 3, NAR-202) ;
   fournisseur SMS réel (ticket à part).
 - **Organisations : plusieurs** — chaque **famille** est une organisation (modèle
