@@ -206,6 +206,50 @@ inanalysable et l'application reste figée sur l'écran de démarrage.
 transpilé avec ses polyfills, sans chunks SystemJS — ceux-ci reposent sur des
 scripts en ligne que la politique de sécurité de contenu bloque.
 
+## Mise à niveau AGP 9 / Capacitor 9 (liste de contrôle, NAR-163)
+
+Coque préparée sur AGP 8.13 / Gradle 8.14.3 / Kotlin 2.2 sans changer de version
+ni de comportement (mêmes fichiers dans les quatre APK, même `capacitor.config.json`
+réécrit par `OtaIdentityTask`) :
+
+- `proguard-android.txt` → `proguard-android-optimize.txt` (AGP 9 refuse le premier ;
+  sans effet aujourd'hui, `minifyEnabled = false`).
+- `rootProject.buildDir` → `rootProject.layout.buildDirectory` (tâche `clean`,
+  déclarée par `tasks.register`).
+- `aaptOptions` → `androidResources` (même `ignoreAssetsPattern`), `kotlinOptions` →
+  `kotlin { compilerOptions }` (JVM 21).
+- Affectations Groovy `prop valeur` → `prop = valeur` dans `app/build.gradle`
+  (`signingConfig`, `buildConfig`, `dimension`, `minSdk`, `versionCode`…) : la forme
+  sans `=` disparaît avec Gradle 10.
+- `OtaIdentityTask` : déjà sur `androidComponents` (`onVariants`, `artifacts.use(...)
+  .toTransform(SingleArtifact.ASSETS)`, non dépréciée), aucune `applicationVariants`,
+  `project.exec`, `$buildDir` ni API `convention` dans nos fichiers.
+- Variantes : `flavorDimensions = ['app']`, `dimension = 'app'`, rien à changer ;
+  `minSdkVersion = 26` reste dans `variables.gradle`.
+
+À faire **pendant** la montée de version (pas avant) :
+
+1. Kotlin intégré d'AGP 9 : retirer `apply plugin: 'org.jetbrains.kotlin.android'`
+   (`app/build.gradle`) et la dépendance `kotlin-gradle-plugin` (`build.gradle`), sinon
+   `android.builtInKotlin=false` le temps de la transition. Le bloc `kotlin { compilerOptions }`
+   reste valable.
+2. Nouveau DSL d'AGP 9 (`android.newDsl`) : vérifier qu'aucun greffon de `node_modules`
+   n'utilise encore `applicationVariants`/`libraryVariants` (aucun aujourd'hui).
+3. `lintOptions { abortOnError false }` de Capacitor et de chaque greffon (`@capacitor/android`,
+   `app`, `status-bar`, `@capgo/capacitor-updater`, `@aparajita/capacitor-secure-storage`,
+   `capacitor-cordova-android-plugins` généré) : DSL retiré par AGP 9, à recevoir des versions
+   Capacitor 9 des greffons (on ne modifie pas `node_modules`). Avertissements restants
+   `abortOnError` / `exceptionFormat` (Gradle 10) : même origine.
+4. `com.google.gms:google-services` 4.4.4 : vérifier la version compatible AGP 9.
+5. `variables.gradle` réécrit par `npx cap migrate` : remettre `minSdkVersion = 26`.
+6. `gradle.taskGraph.whenReady` (garde de la release enfant) : à revoir si le cache de
+   configuration devient obligatoire.
+7. `flatDir` (`app/build.gradle`, `capacitor-cordova-android-plugins`) : simple avertissement,
+   modèle Capacitor ; suivre le modèle Capacitor 9.
+8. Contrôle : `./gradlew --warning-mode all clean assembleParentDebug assembleEnfantDebug
+   assembleParentRelease assembleEnfantRelease`, puis `assets/capacitor.config.json` des APK
+   (bloc `CapacitorUpdater` : `appId` et `defaultChannel` propres à chaque variante).
+
 ## Icônes et écran de démarrage
 
 ```bash

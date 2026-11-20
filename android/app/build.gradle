@@ -26,17 +26,19 @@ android {
     namespace = "mg.nosytech.akaiky"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "mg.nosytech.akaiky"
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        aaptOptions {
-             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
-            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
-        }
+        applicationId = "mg.nosytech.akaiky"
+        // minSdk 26 : valeur de variables.gradle (minSdkVersion), lue par cap sync.
+        minSdk = rootProject.ext.minSdkVersion
+        targetSdk = rootProject.ext.targetSdkVersion
+        versionCode = 1
+        versionName = "1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+    // Ex-aaptOptions (supprimé par AGP 9, NAR-163) : même motif, même effet.
+    androidResources {
+        // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+        // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+        ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
     // Deux applications, une base de code (CLAUDE.md, « Décisions ») :
     //  - parent : Play Store (et App Store pour iOS) ;
@@ -45,42 +47,40 @@ android {
     signingConfigs {
         if (keystoreProperties['storeFile']) {
             enfantRelease {
-                storeFile keystorePath(keystoreProperties['storeFile'])
-                storePassword keystoreProperties['storePassword']
-                keyAlias keystoreProperties['keyAlias']
-                keyPassword keystoreProperties['keyPassword']
+                storeFile = keystorePath(keystoreProperties['storeFile'])
+                storePassword = keystoreProperties['storePassword']
+                keyAlias = keystoreProperties['keyAlias']
+                keyPassword = keystoreProperties['keyPassword']
             }
         }
     }
     flavorDimensions = ['app']
     productFlavors {
         parent {
-            dimension 'app'
+            dimension = 'app'
         }
         enfant {
-            dimension 'app'
+            dimension = 'app'
             // mg.nosytech.akaiky.enfant : CHILD_APP_ID de src/lib/appKind.ts.
-            applicationIdSuffix '.enfant'
+            applicationIdSuffix = '.enfant'
             // Versions propres à l'app enfant (mises à jour par APK, hors Play Store) :
             // à monter à chaque publication, sinon Android refuse la mise à jour.
-            versionCode 1
-            versionName '1.0'
+            versionCode = 1
+            versionName = '1.0'
             // Release seulement : le type debug garde sa propre signature de debug.
-            if (keystoreProperties['storeFile']) signingConfig signingConfigs.enfantRelease
+            if (keystoreProperties['storeFile']) signingConfig = signingConfigs.enfantRelease
         }
-    }
-    // Même cible que le Java de Capacitor (capacitor.build.gradle : VERSION_21).
-    kotlinOptions {
-        jvmTarget = '21'
     }
     // BuildConfig.FLAVOR : MainActivity n'enregistre le greffon d'appel que dans l'app enfant.
     buildFeatures {
-        buildConfig true
+        buildConfig = true
     }
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Sans effet tant que minifyEnabled = false (ni R8 ni règles appliqués) ; AGP 9 refuse
+            // proguard-android.txt, d'où la version -optimize (NAR-163).
+            minifyEnabled = false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
@@ -123,6 +123,14 @@ abstract class OtaIdentityTask extends DefaultTask {
         updater.allowModifyAppId = false
         updater.statsUrl = ''
         file.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(config))
+    }
+}
+
+// Même cible que le Java de Capacitor (capacitor.build.gradle : VERSION_21). Ex-kotlinOptions
+// (DSL déprécié par Kotlin 2.x, absent du Kotlin intégré d'AGP 9) : compilerOptions (NAR-163).
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
     }
 }
 
