@@ -66,6 +66,14 @@
   (3) écrire le runtime (vérifier, `otaVerdict`, télécharger, `set`). Procédure :
   `docs/MOBILE.md` « Mises à jour OTA ».
 
+- Numéro de l'enfant (NAR-194, 20/11/2026) : colonne `children.phone_enc` (migration `025`, additive, nullable),
+  E.164 chiffré avec les données associées `children:phone:<id>`, sans index aveugle (aucune recherche par numéro).
+  Saisi par un gestionnaire dans le formulaire de l'enfant (champ facultatif), lu par tous les membres, dans l'export,
+  effacé avec l'enfant ou la famille. Bouton « Antsoy » / « Appeler » / « Call » (lien `tel:`) sur la carte de
+  l'accueil, seulement avec un numéro. Pas de nouvelle coque : Capacitor ouvre `tel:` hors de la WebView ; **à
+  vérifier sur un vrai téléphone parent (Android et iOS)** que le composeur s'ouvre. Le numéro n'est pas envoyé au
+  téléphone de l'enfant. Exemple du champ au pays des contacts déjà chargés (Madagascar sinon).
+
 ## Décisions datées
 
 - 17/11/2026 — nouveau projet séparé du premier `~/labo2026/akaiky` (laissé intact),

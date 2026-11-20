@@ -11,6 +11,7 @@ import { useT } from '../../composables/useT'
 import { AVATAR_COLORS, type AvatarColor } from '../../lib/avatar'
 import { errorText } from '../../lib/errors'
 import { children, dropChild, loadChildren, selectChild, upsertChild } from '../../store/children'
+import { contacts } from '../../store/contacts'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
 import ConfirmSheet from '../../components/ui/ConfirmSheet.vue'
@@ -23,6 +24,8 @@ const router = useRouter()
 const id = computed(() => (typeof route.params.id === 'string' ? route.params.id : null))
 const existing = computed(() => (id.value ? children.items.find((c) => c.id === id.value) ?? null : null))
 const name = ref('')
+// Numéro de l'enfant (NAR-194), facultatif : vide = aucun numéro (null envoyé).
+const phone = ref('')
 // null : aucune couleur choisie à l'ajout, le serveur applique sa rotation.
 const color = ref<AvatarColor | null>(null)
 const busy = ref(false)
@@ -48,6 +51,7 @@ function message(e: unknown): string {
   if (e instanceof ApiError && e.code === 'too_many_children') return t.value.children.tooMany
   if (e instanceof ApiError && e.code === 'child_not_found') return t.value.children.notFound
   if (e instanceof ApiError && e.code === 'consent_required') return t.value.consent.required
+  if (e instanceof ApiError && e.code === 'invalid_phone') return t.value.contacts.invalidPhone
   return errorText(e, t.value)
 }
 
@@ -67,6 +71,7 @@ let filledFor: string | null = null
 function reset() {
   filledFor = null
   name.value = ''
+  phone.value = ''
   color.value = null
   confirming.close()
   error.value = ''
@@ -75,7 +80,7 @@ function reset() {
 }
 watch(id, reset)
 watch(existing, (c) => {
-  if (c && c.id !== filledFor) { filledFor = c.id; name.value = c.firstName; color.value = c.avatarColor }
+  if (c && c.id !== filledFor) { filledFor = c.id; name.value = c.firstName; phone.value = c.phone ?? ''; color.value = c.avatarColor }
 }, { immediate: true })
 
 async function save() {
@@ -86,9 +91,12 @@ async function save() {
   error.value = ''
   try {
     // L'adresse décide : /enfant/:id modifie, /enfant/nouveau ajoute.
+    // Numéro envoyé seulement s'il change : un numéro inchangé n'est pas réécrit.
+    const phoneNow = phone.value.trim() || null
+    const phoneChanged = phoneNow !== (existing.value?.phone ?? null)
     const saved = id.value
-      ? await updateChild(id.value, { firstName: name.value.trim(), ...(color.value ? { avatarColor: color.value } : {}) })
-      : await addChild(name.value.trim(), color.value ?? undefined)
+      ? await updateChild(id.value, { firstName: name.value.trim(), ...(color.value ? { avatarColor: color.value } : {}), ...(phoneChanged ? { phone: phoneNow } : {}) })
+      : await addChild(name.value.trim(), color.value ?? undefined, phoneNow)
     upsertChild(saved)
     selectChild(saved.id)
     await router.push({ name: 'espace' })
@@ -132,6 +140,10 @@ async function remove() {
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <FormField id="child-name" :label="t.children.firstName" v-slot="{ control }">
         <input v-bind="control" v-model="name" class="input" autocomplete="off" required data-selectable />
+      </FormField>
+      <!-- Même saisie que le numéro d'un contact ; formulaire réservé aux gestionnaires (allowed). -->
+      <FormField id="child-phone" :label="t.children.phoneNumber" :help="t.children.phoneNumberHelp" v-slot="{ control }">
+        <input v-bind="control" v-model="phone" class="input" type="tel" inputmode="tel" autocomplete="off" :placeholder="t.contacts.phonePlaceholder[contacts.country]" data-selectable />
       </FormField>
       <fieldset class="field colors">
         <legend>{{ t.children.color }}</legend>

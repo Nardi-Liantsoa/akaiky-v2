@@ -114,6 +114,11 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
         <p>{{ t.children.noPhoneYet(c.firstName) }}</p>
         <AppButton v-if="canManage()" block @click="router.push({ name: 'telephone', params: { id: c.id } })">{{ t.children.pairPhone }}</AppButton>
       </div>
+      <!-- « Antsoy » (NAR-194, maquette écran 6 : sous l'état du téléphone, avant « Aujourd'hui ») :
+           lien tel: au style du bouton principal (--call), pour tous les membres, seulement avec un numéro. -->
+      <a v-if="c.phone" class="btn btn-block call" :href="`tel:${c.phone}`" :aria-label="t.children.callChild(c.firstName)">
+        <AppIcon name="call" :size="20" />{{ t.children.call }}
+      </a>
       <!-- Deux enfants ou plus : « Aujourd'hui » derrière un bouton à aria-expanded. -->
       <h3 v-if="collapsible && c.phoneLastSeenAt" class="today-toggle">
         <button type="button" :aria-expanded="openToday.has(c.id)" :aria-controls="`today-${c.id}`" @click="toggleToday(c)">
@@ -250,6 +255,10 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
   margin: 0;
   color: var(--text-soft);
   font-weight: 700;
+}
+.call {
+  margin: var(--space-3) 0 var(--space-1);
+  text-decoration: none;
 }
 .today-toggle {
   margin: var(--space-2) 0 0;

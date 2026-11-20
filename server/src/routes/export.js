@@ -18,6 +18,7 @@ import { eventAad } from './devices.js'
 import { messageTextAad, templateAad } from './messages.js'
 import { scheduleAad } from './schedules.js'
 import { allowedAppAad } from './apps.js'
+import { childPhoneAad } from './children.js'
 
 export const EXPORTS_PER_HOUR = 5
 export const JOURNAL_CAP = 5000
@@ -71,7 +72,7 @@ export async function exportRoutes(app) {
           AND EXISTS (SELECT 1 FROM memberships m WHERE m.family_id = i.family_id AND m.user_id = i.invited_by AND m.role = ANY($2::text[]))
         ORDER BY i.created_at`, [familyId, MANAGERS])
     const children = await q(
-      'SELECT id, first_name_enc, avatar_color, created_at, parent_code_set_at, sos_siren, consent_at, consent_by FROM children WHERE family_id = $1 ORDER BY created_at, id')
+      'SELECT id, first_name_enc, phone_enc, avatar_color, created_at, parent_code_set_at, sos_siren, consent_at, consent_by FROM children WHERE family_id = $1 ORDER BY created_at, id')
 
     const contacts = byChild(await q(
       'SELECT id, child_id, name_enc, phone_enc, position, member_user_id FROM allowed_contacts WHERE family_id = $1 ORDER BY child_id, position'))
@@ -125,6 +126,7 @@ export async function exportRoutes(app) {
       const evts = events.get(c.id) ?? []
       return {
         firstName: open(c.first_name_enc, childAad(c.id), 'children', c.id),
+        phone: open(c.phone_enc, childPhoneAad(c.id), 'children', c.id),
         avatarColor: c.avatar_color,
         createdAt: c.created_at,
         parentCodeSetAt: c.parent_code_set_at ?? null,
