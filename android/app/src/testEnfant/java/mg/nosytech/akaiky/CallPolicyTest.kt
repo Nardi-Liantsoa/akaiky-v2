@@ -1,10 +1,13 @@
 package mg.nosytech.akaiky
 
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 class CallPolicyTest {
     private val allowed = setOf("+261341234567", "+261331234567")
@@ -103,6 +106,37 @@ class CallPolicyTest {
         assertEquals(CallPolicy.Outgoing.EMERGENCY, out("117", reachable = emptySet()))
         assertEquals(CallPolicy.Outgoing.EMERGENCY, out("999", list = emptySet(), isEmergency = { it == "999" || emergency(it) }))
         assertEquals(CallPolicy.Outgoing.BLOCK_UNKNOWN, out("1170"))
+    }
+
+    // Liste des urgences (NAR-197), partagée avec src/lib/emergency.test.ts.
+    private val numbers = JSONObject(File("../../tests/fixtures/emergency-numbers.json").readText())
+    private fun list(key: String): List<String> = numbers.getJSONArray(key).let { a: JSONArray -> (0 until a.length()).map { a.getString(it) } }
+
+    @Test fun urgencesDeMadagascarSeulement() {
+        assertEquals(list("emergency").toSet(), CallPolicy.EMERGENCY)
+        val boom: () -> CallPolicy.Outgoing = { throw IllegalStateException("jamais lu pour une urgence") }
+        for (n in list("emergency")) {
+            assertTrue(n, CallPolicy.isEmergency(n))
+            // Toujours composé : liste vide, plage « école », sans aucune lecture.
+            assertEquals(n, CallPolicy.Outgoing.EMERGENCY, out(n, list = emptySet()))
+            assertEquals(n, CallPolicy.Outgoing.EMERGENCY, out(n, reachable = emptySet()))
+            assertTrue(n, CallPolicy.placeImmediately("tel", n))
+            assertTrue(n, CallPolicy.placeOutgoing("tel", n, boom))
+        }
+    }
+
+    @Test fun urgencesRetirees() {
+        // 15, 17, 18 (France), 114, 119… : décision normale, refusés hors de la liste.
+        for (n in list("notEmergency")) {
+            assertFalse(n, CallPolicy.isEmergency(n))
+            assertFalse(n, CallPolicy.placeImmediately("tel", n))
+            assertEquals(n, CallPolicy.Outgoing.BLOCK_UNKNOWN, out(n))
+            assertEquals(n, CallPolicy.Outgoing.BLOCK_UNKNOWN, out(n, list = emptySet()))
+            var read = 0
+            assertFalse(n, CallPolicy.placeOutgoing("tel", n) { read++; CallPolicy.Outgoing.BLOCK_UNKNOWN })
+            assertEquals(n, 1, read)
+        }
+        assertTrue(list("notEmergency").containsAll(listOf("15", "17", "18", "114", "119")))
     }
 
     @Test fun sortantListeVideRefuse() {

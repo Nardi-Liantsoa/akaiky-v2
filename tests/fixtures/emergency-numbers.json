@@ -1,0 +1,5 @@
+{
+  "_doc": "Numéros d'urgence de l'app (NAR-197), partagés par CallPolicyTest.kt (appels sortants toujours permis, réponse immédiate de la redirection) et src/lib/emergency.test.ts (le numéro du bouton « Appeler les secours » en fait partie). `emergency` : liste exacte de CallPolicy.EMERGENCY, sources dans CallPolicy.kt et docs/MOBILE.md. `notEmergency` : numéros retirés ou jamais retenus ; composés, ils suivent la décision normale (refusés hors de la liste) et n'ouvrent pas la fenêtre des secours (NAR-196, cas dans incoming-call-cases.json).",
+  "emergency": ["117", "118", "147", "112", "911"],
+  "notEmergency": ["15", "17", "18", "114", "119", "124", "999", "110"]
+}

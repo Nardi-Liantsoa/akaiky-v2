@@ -21,7 +21,10 @@ object IncomingCases {
             val c = cases.getJSONObject(i)
             val allowed = set(if (c.has("allowed")) c.getJSONArray("allowed") else shared.getJSONArray("allowed"))
             // Fenêtre des secours (NAR-196) : la règle pure EmergencyWindow, la même sur les deux chemins.
-            val mark = c.optJSONObject("emergency")?.let { EmergencyWindow.Mark(it.getLong("atElapsed"), it.getInt("boot")) }
+            // `dialled` (NAR-197) : l'appel n'est noté (EmergencyCalls.record) que si le numéro composé est une urgence de l'app.
+            val mark = c.optJSONObject("emergency")
+                ?.takeIf { !it.has("dialled") || CallPolicy.isEmergency(it.getString("dialled")) }
+                ?.let { EmergencyWindow.Mark(it.getLong("atElapsed"), it.getInt("boot")) }
             val now = c.optJSONObject("now")
             Case(
                 c.getString("name"),
