@@ -511,7 +511,29 @@ const fr = {
       allLog: 'Tout le journal',
       nothingToday: 'Rien aujourd’hui pour l’instant.'
     },
-    settings: { title: 'Réglages' },
+    settings: {
+      title: 'Réglages',
+      back: 'Réglages',
+      backLabel: 'Retour aux réglages',
+      sectionsLabel: 'Sections des réglages',
+      unavailable: 'Indisponible',
+      summaryError: (names: string) => `Résumé indisponible : ${names}.`,
+      summary: {
+        apps: (count: string, names: string) => `${count} · ${names}`,
+        noApps: 'Aucune application autorisée',
+        noInventory: 'Liste du téléphone pas encore reçue',
+        codeSet: (date: string) => `Défini le ${date}`,
+        codeNotSet: 'Pas encore défini',
+        schedule: (label: string, days: string, start: string, end: string) => `${label} · ${days} ${start}–${end}`,
+        scheduleMore: (text: string, n: number) => `${text} · +${n}`,
+        schedulesOff: (n: number) => (n === 1 ? '1 plage, désactivée' : `${n} plages, désactivées`),
+        noSchedule: 'Aucune plage',
+        sirenOn: 'Sirène activée',
+        sirenOff: 'Sirène désactivée',
+        templatesDefault: 'Textes par défaut',
+        templatesCustom: (n: number, max: number) => `${n} sur ${max} ${n === 1 ? 'personnalisé' : 'personnalisés'}`
+      }
+    },
     family: { title: 'Famille', empty: 'Les membres de votre famille apparaîtront ici.' },
     account: { title: 'Mon compte', security: 'Sécurité', admin: 'Administration', language: 'Langue', logout: 'Déconnexion' }
   },
@@ -1048,7 +1070,29 @@ const mg: Messages = {
       allLog: 'Ny tantara rehetra',
       nothingToday: 'Mbola tsy misy androany.'
     },
-    settings: { title: 'Fandrindrana' },
+    settings: {
+      title: 'Fandrindrana',
+      back: 'Fandrindrana',
+      backLabel: 'Hiverina amin’ny fandrindrana',
+      sectionsLabel: 'Sokajin’ny fandrindrana',
+      unavailable: 'Tsy azo jerena',
+      summaryError: (names: string) => `Tsy azo jerena ny famintinana : ${names}.`,
+      summary: {
+        apps: (count: string, names: string) => `${count} · ${names}`,
+        noApps: 'Tsy misy fampiharana nahazoan-dalana',
+        noInventory: 'Mbola tsy tonga ny lisitry ny finday',
+        codeSet: (date: string) => `Napetraka tamin’ny ${date}`,
+        codeNotSet: 'Mbola tsy napetraka',
+        schedule: (label: string, days: string, start: string, end: string) => `${label} · ${days} ${start}–${end}`,
+        scheduleMore: (text: string, n: number) => `${text} · +${n}`,
+        schedulesOff: (n: number) => `Fotoana ${n}, tsy mandeha`,
+        noSchedule: 'Tsy misy fotoana',
+        sirenOn: 'Mandeha ny feo fampitandremana',
+        sirenOff: 'Tsy mandeha ny feo fampitandremana',
+        templatesDefault: 'Lahatsoratra voalohany',
+        templatesCustom: (n: number, max: number) => `${n} amin’ny ${max} novaina`
+      }
+    },
     family: { title: 'Fianakaviana', empty: 'Eto no hiseho ireo mpikambana ao amin’ny fianakavianao.' },
     account: { title: 'Ny kaontiko', security: 'Fiarovana', admin: 'Fitantanana', language: 'Fiteny', logout: 'Hivoaka' }
   },
@@ -1582,7 +1626,29 @@ const en: Messages = {
       allLog: 'Full log',
       nothingToday: 'Nothing today yet.'
     },
-    settings: { title: 'Settings' },
+    settings: {
+      title: 'Settings',
+      back: 'Settings',
+      backLabel: 'Back to settings',
+      sectionsLabel: 'Settings sections',
+      unavailable: 'Unavailable',
+      summaryError: (names: string) => `Summary unavailable: ${names}.`,
+      summary: {
+        apps: (count: string, names: string) => `${count} · ${names}`,
+        noApps: 'No app allowed',
+        noInventory: 'Phone app list not received yet',
+        codeSet: (date: string) => `Set on ${date}`,
+        codeNotSet: 'Not set yet',
+        schedule: (label: string, days: string, start: string, end: string) => `${label} · ${days} ${start}–${end}`,
+        scheduleMore: (text: string, n: number) => `${text} · +${n}`,
+        schedulesOff: (n: number) => (n === 1 ? '1 time slot, off' : `${n} time slots, off`),
+        noSchedule: 'No time slot',
+        sirenOn: 'Siren on',
+        sirenOff: 'Siren off',
+        templatesDefault: 'Default texts',
+        templatesCustom: (n: number, max: number) => `${n} of ${max} customised`
+      }
+    },
     family: { title: 'Family', empty: 'Your family members will appear here.' },
     account: { title: 'My account', security: 'Security', admin: 'Administration', language: 'Language', logout: 'Sign out' }
   },

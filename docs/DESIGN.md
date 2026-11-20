@@ -71,7 +71,8 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   relectures qui laissent le contenu affiché gardent leur estompage (`aria-busy`).
 - **`SectionCard`** (NAR-186) — carte de section : `title` en `h2` qui nomme la `<section>`,
   `help` facultatif dessous (classe globale `.help`, `--text-soft`), emplacement `aside` à
-  droite du titre (compteur), contenu en emplacement par défaut.
+  droite du titre (compteur), contenu en emplacement par défaut. `level="1"` (NAR-185) : le
+  titre devient le `h1` de la page quand la carte l'occupe seule, avec l'apparence d'un `h2`.
 - **`ToggleSwitch`** (NAR-186) — interrupteur : `<button role="switch" aria-checked>`, zone
   ≥ `--tap`, `v-model` contrôlé (l'état affiché reste celui du parent, pas d'affichage
   anticipé), `disabled`, libellé dans le bouton (`hideLabel` : lu seulement), `description`
@@ -114,6 +115,10 @@ App **parent** (Android + iOS), barre d'onglets Accueil · Journal · Réglages 
 8. **Réglages** (téléphone de l'enfant) — contacts autorisés ordonnés par glisser
    (« L'ordre sert aussi pour les appels SOS », 4 sur 6, rôle de chacun), applications
    autorisées en puces, plage « École », sirène pendant un SOS, « Déverrouiller 15 min ».
+   Depuis NAR-185 : un **résumé** (une ligne ≥ 48 px par section : icône, titre, état réel
+   en une ligne, chevron ; tient sans défiler à 360 px pour un enfant), chaque section sur
+   sa page (`/espace/reglages/<section>`, retour « ‹ Réglages » = retour de l'historique),
+   sélecteur d'enfant en haut, même enfant partout.
 9. **Journal** — filtres Tout · Appels · Bloqués · Messages · SOS, groupé par jour,
    « Autoriser » sur un appel bloqué, mention « gardé 90 jours, puis effacé ».
 10. **Appairage, étape 3 sur 3** — QR « Valable 15 minutes · usage unique », liste des

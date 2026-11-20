@@ -9,6 +9,7 @@ import { useConfirm } from '../../composables/useConfirm'
 import { useT } from '../../composables/useT'
 import { AVATAR_COLORS, type AvatarColor } from '../../lib/avatar'
 import { contactErrorText } from '../../lib/contactErrors'
+import { backTo } from '../../lib/navigation'
 import { isE164 } from '../../lib/phone'
 import { children, loadChildren, selectChild } from '../../store/children'
 import { contacts, loadContacts } from '../../store/contacts'
@@ -42,7 +43,7 @@ onMounted(() => { void loadFamily() })
 // Rejoué aussi quand l'adresse change d'enfant (même composant réutilisé).
 watch(() => [family.status, family.data?.role, childId.value] as const, ([s]) => {
   if (s !== 'ready') return
-  if (!canManage()) { void router.replace({ name: 'reglages' }); return }
+  if (!canManage()) { void router.replace({ name: 'reglages-contacts' }); return }
   void loadChildren()
   void loadContacts(childId.value)
 }, { immediate: true })
@@ -67,8 +68,9 @@ watch(existing, (c) => {
   }
 }, { immediate: true })
 
-// Retour sur les réglages de l'enfant de l'adresse, même s'il n'était pas celui affiché.
-const back = () => { selectChild(childId.value); return router.push({ name: 'reglages' }) }
+// Retour sur la section Contacts de l'enfant de l'adresse, même s'il n'était pas celui
+// affiché (NAR-185) : retour dans l'historique si l'on en vient, sinon elle remplace la fiche.
+const back = () => { selectChild(childId.value); return backTo(router, { name: 'reglages-contacts' }) }
 
 async function save() {
   if (busy.value || !valid.value) return
@@ -161,7 +163,9 @@ async function remove() {
         </fieldset>
         <div class="actions">
           <AppButton type="submit" :disabled="busy || !valid">{{ t.contacts.save }}</AppButton>
-          <RouterLink class="btn btn-ghost" :to="{ name: 'reglages' }">{{ t.contacts.cancel }}</RouterLink>
+          <RouterLink v-slot="{ href }" :to="{ name: 'reglages-contacts' }" custom>
+            <a :href="href" class="btn btn-ghost" @click.prevent="back">{{ t.contacts.cancel }}</a>
+          </RouterLink>
         </div>
       </form>
       <div v-if="existing" class="danger-zone">
