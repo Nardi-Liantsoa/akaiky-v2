@@ -78,6 +78,10 @@
   NAR-190 (`updateUrl`/`channelUrl` des coques, nouvelle coque parent et enfant), migration 024 jouée,
   publication à la main (`docs/MOBILE.md`). Limites : `HANDOFF.md` « Limites résiduelles ».
 
+- Réinitialisation du mot de passe par code SMS (NAR-201, tranche 2 de NAR-136, 20/11/2026) : API seule
+  (`/api/auth/phone/forgot`, `/api/auth/phone/reset`, `server/src/phone-auth.js`), aucune migration, aucune variable
+  d'environnement nouvelle ; écran : NAR-202. Détail dans `CLAUDE.md`, limites dans « Limites résiduelles ».
+  Tests : `server/test/phone-reset.test.js` (et le rôle restreint dans `phone-auth.test.js`).
 - Numéro de l'enfant (NAR-194, 20/11/2026) : colonne `children.phone_enc` (migration `025`, additive, nullable),
   E.164 chiffré avec les données associées `children:phone:<id>`, sans index aveugle (aucune recherche par numéro).
   Saisi par un gestionnaire dans le formulaire de l'enfant (champ facultatif), lu par tous les membres, dans l'export,
@@ -206,13 +210,23 @@ Développement : la version debug garde le débogage USB. Pour réinstaller, app
 
 Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une limite tue est une faille.
 
-- **Connexion par téléphone (NAR-136, tranche 1)** : pas encore de fournisseur SMS réel (`SMS_PROVIDER=none` en
-  production : inscription et renvoi par numéro répondent 503, la connexion par numéro marche) ; pas encore de
-  récupération du compte par SMS (tranche 2) ni d'écran (tranche 3). **Numéro occupé par un tiers** : quelqu'un
-  peut inscrire le numéro d'un autre sans jamais le confirmer ; le vrai titulaire reçoit « vous avez déjà un
-  compte » et ne peut pas reprendre le numéro avant la tranche 2 (réinitialisation par SMS, qui confirmera le
-  numéro et remplacera le mot de passe). Il ne doit pas saisir un code qu'il n'a pas demandé (le SMS le dit) :
-  sinon il confirmerait le compte du tiers. SMS seul = facteur faible (échange de carte SIM) : pas d'admin à
+- **Connexion par téléphone (NAR-136, tranches 1 et 2)** : pas encore de fournisseur SMS réel (`SMS_PROVIDER=none` en
+  production : inscription, renvoi et réinitialisation par numéro répondent 503, la connexion par numéro marche) ;
+  pas encore d'écran (tranche 3, NAR-202 : les routes de réinitialisation n'ont aucune interface). **Numéro occupé
+  par un tiers** : quelqu'un peut inscrire le numéro d'un autre sans jamais le confirmer ; le vrai titulaire reçoit
+  « vous avez déjà un compte » et **le reprend par « mot de passe oublié »** (NAR-201 : le code de réinitialisation
+  prouve la possession du numéro, confirme le numéro et remplace le mot de passe du tiers ; audité
+  `password_reset` avec `reclaimed: true`). Restent du tiers sur le compte repris : le **nom** saisi à l'inscription
+  (modifiable par le titulaire) et la date de **consentement** `consent_at` (donnée par le tiers, pas par le
+  titulaire ; aucun `UPDATE (consent_at)` accordé : la reposer à la reprise demanderait une migration, ou l'écran de
+  NAR-202 peut redemander le consentement). Le tiers n'a rien pu y créer (pas de connexion sans numéro confirmé). Le
+  titulaire ne doit toujours pas saisir un code de confirmation qu'il n'a pas demandé (le SMS le dit) : sinon il
+  confirmerait le compte du tiers, qu'il reprendrait ensuite par la réinitialisation. **Réinitialisation par SMS =
+  prise de compte par échange de carte SIM** : comme l'adresse e-mail pour un compte à adresse, la possession du
+  numéro suffit à changer le mot de passe ; un compte à numéro n'a pas de MFA (réservée aux admins, qui sont à
+  adresse), donc rien d'autre n'est demandé. Même chose pour un **numéro recyclé** par l'opérateur : son nouveau
+  titulaire peut reprendre le compte de l'ancien et voir sa famille (enfants, contacts, journal) ; parade possible
+  plus tard : un second facteur, ou une confirmation par un autre membre de la famille. SMS seul = facteur faible (échange de carte SIM) : pas d'admin à
   numéro (MFA web par adresse). Limite par IP en mémoire (une instance) ; numéro et total en base. Numéros des
   comptes en clair en base, comme les adresses (identifiant de connexion, index unique).
 

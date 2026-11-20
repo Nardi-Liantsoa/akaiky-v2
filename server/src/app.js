@@ -130,7 +130,7 @@ export async function buildApp({ config, db, mailer, sms, logger = true, dbReady
   // Deux calculs de mot de passe simultanés au plus par source : chacun réserve
   // ~128 Mo (scrypt). Libérés à la réponse, au délai dépassé ou à l'abandon.
   const hashes = new Map(), hashingRequests = new Map()
-  const HASHING = /^\/api\/auth\/(?:login|register|reset-password|native\/login|phone\/register)(?:\?|$)/
+  const HASHING = /^\/api\/auth\/(?:login|register|reset-password|native\/login|phone\/register|phone\/reset)(?:\?|$)/
   // Suppressions confirmées par mot de passe (famille, compte) : un calcul aussi.
   const HASHING_DELETE = /^\/api\/(?:families|auth)\/me(?:\?|$)/
   app.addHook('onRequest', async (req, reply) => {

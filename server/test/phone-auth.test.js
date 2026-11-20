@@ -366,6 +366,16 @@ test('PostgreSQL : parcours par numéro sous le rôle restreint ; numéro et cod
     assert.equal((await call(app, 'GET', '/api/auth/me', { cookie: u.cookie })).json().user.id, u.id)
     await new Promise((r) => setTimeout(r, 1100))
     assert.equal((await call(app, 'POST', '/api/auth/phone/resend', { body: { phone: u.phone } })).statusCode, 202)
+    // Réinitialisation par SMS (NAR-201) sous le rôle restreint : mot de passe, confirmation,
+    // sessions, appareils, défis MFA et codes, avec les seuls droits accordés.
+    await new Promise((r) => setTimeout(r, 1100))
+    const mark = texts.length
+    assert.equal((await call(app, 'POST', '/api/auth/phone/forgot', { body: { phone: u.phone } })).statusCode, 202)
+    const resetSms = await waitFor(() => texts.slice(mark).find((m) => m.to === u.phone && /\d{6}/.test(m.text)))
+    const done = await call(app, 'POST', '/api/auth/phone/reset', { body: { phone: u.phone, code: codeIn(resetSms), password: 'vorona manidina ambony rano' } })
+    assert.equal(done.statusCode, 200, done.body)
+    assert.equal((await call(app, 'GET', '/api/auth/me', { cookie: u.cookie })).json().user, null)
+    assert.equal((await login(runtime, u.phone, 'vorona manidina ambony rano')).statusCode, 200)
     await assert.rejects(pool.query("UPDATE users SET phone = '+261340000000'"), /permission denied/)
     await assert.rejects(pool.query("UPDATE phone_codes SET phone = '+261340000000'"), /permission denied/)
     await assert.rejects(pool.query("UPDATE phone_codes SET purpose = 'reset'"), /permission denied/)
