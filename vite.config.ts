@@ -1,11 +1,35 @@
 /// <reference types="vitest/config" />
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import legacy from '@vitejs/plugin-legacy'
 import capacitorConfig from './capacitor.config.ts'
 
 // En développement, /api est relayé vers l'API locale (`npm run dev:api`, port 8787).
 const API = process.env.VITE_API_PROXY || 'http://127.0.0.1:8787'
+
+// Police Nunito (src/style.css, NAR-157) : sans indice, le navigateur ne la découvre qu'après
+// avoir lu la feuille de style, et le texte saute de la police système à Nunito. Le preload,
+// écrit au build depuis le bundle (nom haché, base du build), la demande en même temps que la
+// CSS. `crossorigin` est exigé : une police se charge toujours en mode CORS, et sans lui le
+// navigateur la téléchargerait deux fois. Même origine : la CSP (font-src 'self') l'admet.
+const PRELOADED_FONT = 'src/assets/fonts/nunito-latin-wght.woff2'
+function preloadFont(): Plugin {
+  let base = '/'
+  return {
+    name: 'akaiky-preload-font',
+    apply: 'build',
+    configResolved(config) { base = config.base },
+    transformIndexHtml: {
+      order: 'post',
+      handler(_html, ctx) {
+        const font = Object.values(ctx.bundle ?? {}).find((f) => f.type === 'asset' && f.originalFileNames.includes(PRELOADED_FONT))
+        // Police renommée ou plus importée : on échoue plutôt que de perdre le preload sans bruit.
+        if (!font) throw new Error(`Police à précharger absente du bundle : ${PRELOADED_FONT}`)
+        return [{ tag: 'link', injectTo: 'head', attrs: { rel: 'preload', as: 'font', type: 'font/woff2', crossorigin: true, href: base + font.fileName } }]
+      }
+    }
+  }
+}
 
 // Sortie dans dist/web : servi par l'API en production (STATIC_DIR) et
 // embarqué par Capacitor (webDir).
@@ -27,6 +51,7 @@ export default defineConfig(({ command, mode }) => {
     },
     plugins: [
       vue(),
+      preloadFont(),
       // Vieux WebView Android (téléphones sans Play Store) : la cible Vite par
       // défaut y émet une syntaxe illisible et l'app reste figée sur l'écran de
       // démarrage. Un seul bundle moderne transpilé, sans chunks SystemJS (leurs

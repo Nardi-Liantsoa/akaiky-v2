@@ -42,6 +42,28 @@ test('police servie par l’application, aucun appel à un tiers', async ({ page
   for (const f of fonts) expect(f.status).toBe(200)
 })
 
+test('police préchargée depuis le HTML et téléchargée une seule fois (NAR-157)', async ({ page, request }) => {
+  const html = await (await request.get('/')).text()
+  const preloads = [...html.matchAll(/<link\b[^>]*\brel="preload"[^>]*>/g)].map((m) => m[0]).filter((tag) => /\bas="font"/.test(tag))
+  expect(preloads).toHaveLength(1)
+  // Sans crossorigin, le preload ne sert pas à @font-face et la police part deux fois.
+  expect(preloads[0]).toMatch(/\bcrossorigin\b/)
+  expect(preloads[0]).toMatch(/\btype="font\/woff2"/)
+  const href = preloads[0].match(/\bhref="([^"]+)"/)?.[1]
+  expect(href).toMatch(/^\/assets\/[^/]+\.woff2$/)
+  expect((await request.get(href!)).status()).toBe(200)
+
+  const fonts: string[] = []
+  page.on('request', (r) => { if (new URL(r.url()).pathname.endsWith('.woff2')) fonts.push(new URL(r.url()).pathname) })
+  await mockApi(page, connected)
+  await page.goto('/espace')
+  await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toBeVisible()
+  await page.evaluate(() => document.fonts.ready)
+  const status = await page.evaluate(() => [...document.fonts].filter((f) => f.family.replace(/"/g, '') === 'Nunito').map((f) => f.status))
+  expect(status).toEqual(['loaded'])
+  expect(fonts).toEqual([href])
+})
+
 test('écran étroit en malgache : libellés des onglets contenus dans leur colonne', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 })
   await page.addInitScript(() => { try { localStorage.setItem('akaiky-v2.lang', 'mg') } catch { /* stockage indisponible */ } })
