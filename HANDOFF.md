@@ -50,6 +50,19 @@
   composé en « 00 », non gardée). « Pas de réponse → contact suivant » au vrai sens reste à voir sur téléphone réel.
   Suite (NAR-181) : arrêt par prise en charge d'un parent, journal du SOS au serveur.
 
+- **OTA parent / enfant (NAR-162, nouvelle coque parent ET enfant)** : chaque coque se
+  présente au greffon OTA avec son identifiant et son canal (`parent` / `enfant`), écrits
+  nativement au build (`OtaIdentityTask`, `android/app/build.gradle`) ; statistiques Capgo
+  coupées (`statsUrl: ''`). **Avant le premier OTA** : (1) livrer ces deux coques — les
+  coques antérieures se présentent toutes comme l'app parent et envoient leurs statistiques
+  à `plugin.capgo.app` ; la coque minimale du premier OTA de chaque app est donc le
+  `versionCode` de cette coque-là ; (2) construire le serveur OTA auto-hébergé (tri par
+  `app_id`, canal et `version_code`, cas de `tests/fixtures/ota-target-cases.json`) et
+  régler `updateUrl`/`channelUrl` vers lui (encore une coque ; par défaut ils visent
+  Capgo Cloud, appelé seulement si le JavaScript le demande, ce qu'aucun code ne fait) ;
+  (3) écrire le runtime (vérifier, `otaVerdict`, télécharger, `set`). Procédure :
+  `docs/MOBILE.md` « Mises à jour OTA ».
+
 ## Décisions datées
 
 - 17/11/2026 — nouveau projet séparé du premier `~/labo2026/akaiky` (laissé intact),

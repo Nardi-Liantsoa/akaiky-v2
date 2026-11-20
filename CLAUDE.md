@@ -185,6 +185,16 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   d'`AllowedApps` (jamais le fil partagé des plugins : SOS, appels). Autorisée devenue protégée : `blocked: true` dans
   `GET /api/children/:id/apps`, « bloquée » sur la carte, retirable ; refus nommant le paquet (`package`), écartée de la
   rangée de l'écran. Limites : `HANDOFF.md`. Nouvelle coque enfant.
+- **OTA, une app un canal (NAR-162, 20/11/2026)** : bundle web commun, publié une fois par app avec sa
+  cible `target: { app, channel, minNativeBuild }` ; canaux `parent`/`parent-*` et `enfant`/`enfant-*` ;
+  coque minimale comparée au `versionCode` de l'app visée (échelles indépendantes). L'app se reconnaît par sa
+  coque, jamais par le bundle : `OtaIdentityTask` (`android/app/build.gradle`) écrit dans les assets de chaque
+  variante `CapacitorUpdater.appId` = `applicationId`, `defaultChannel` = variante, canal et identifiant non
+  modifiables par le JavaScript ; iOS (parent) par `capacitor.config.ts`. Statistiques Capgo coupées
+  (`statsUrl: ''`). Écran : `otaVerdict` (`src/lib/otaTarget.ts`) refuse toute cible d'une autre app, d'un
+  autre canal, mal formée ou au-dessus de la coque ; le serveur OTA (pas encore construit, ni Capgo Cloud)
+  fera le même tri (`tests/fixtures/ota-target-cases.json`, aussi lu par `OtaIdentityTest.kt`).
+  Procédure : `docs/MOBILE.md`. Nouvelle coque parent et enfant.
 - **Hors connexion** : appels et SOS par SMS sans Internet (natif enfant). L'app
   parent démarre hors ligne et le dit, sans déconnecter.
 - **Notifications** : FCM (Android) et APNs (iOS), comptes au nom du client. Alertes

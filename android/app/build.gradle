@@ -85,6 +85,67 @@ android {
     }
 }
 
+// Identité OTA propre à chaque coque (NAR-162). Les deux variantes partagent le
+// capacitor.config.json écrit par `cap sync` (appId racine mg.nosytech.akaiky) : sans cela,
+// le greffon CapacitorUpdater de l'app enfant se présenterait au serveur OTA comme l'app
+// parent. Les assets fusionnés de chaque variante reçoivent donc, nativement et jamais par le
+// bundle web : appId = applicationId de la variante, canal par défaut = nom de la variante,
+// canal et appId non modifiables depuis le JavaScript, statistiques Capgo coupées (statsUrl
+// vide). Échec du build si l'identité écrite ne correspond pas
+// à la règle de src/lib/appKind.ts (préfixe de l'app enfant), ou si le bloc CapacitorUpdater manque.
+// Vérifié par OtaIdentityTest.kt contre tests/fixtures/ota-target-cases.json.
+abstract class OtaIdentityTask extends DefaultTask {
+    @InputDirectory abstract DirectoryProperty getInputAssets()
+    @OutputDirectory abstract DirectoryProperty getOutputAssets()
+    @Input abstract Property<String> getAppId()
+    @Input abstract Property<String> getChannel()
+    // Opérations sur fichiers injectées (pas de Task.project à l'exécution : cache de configuration).
+    @javax.inject.Inject abstract FileSystemOperations getFs()
+
+    @TaskAction
+    void write() {
+        def out = outputAssets.get().asFile
+        fs.delete { delete out }
+        fs.copy { from inputAssets; into out }
+        def file = new File(out, 'capacitor.config.json')
+        if (!file.exists()) throw new GradleException("capacitor.config.json absent des assets : lancer npx cap sync android")
+        def id = appId.get()
+        def kind = (id == 'mg.nosytech.akaiky.enfant' || id.startsWith('mg.nosytech.akaiky.enfant.')) ? 'enfant' : 'parent'
+        if (kind != channel.get()) throw new GradleException("Variante ${channel.get()} avec l'identifiant ${id} (app ${kind}) : canal OTA incohérent")
+        // Forme attendue, sinon échec : un bloc absent laisserait le greffon à ses défauts
+        // (autoUpdate actif, statistiques vers plugin.capgo.app).
+        def config = new groovy.json.JsonSlurper().parse(file)
+        def updater = (config instanceof Map && config.plugins instanceof Map) ? config.plugins.CapacitorUpdater : null
+        if (!(updater instanceof Map)) throw new GradleException("plugins.CapacitorUpdater absent ou mal formé dans capacitor.config.json (capacitor.config.ts, npx cap sync android)")
+        updater.appId = id
+        updater.defaultChannel = channel.get()
+        updater.allowSetDefaultChannel = false
+        updater.allowModifyAppId = false
+        updater.statsUrl = ''
+        file.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(config))
+    }
+}
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        def name = variant.name.capitalize()
+        def task = project.tasks.register("otaIdentity${name}", OtaIdentityTask) {
+            appId.set(variant.applicationId)
+            channel.set(variant.flavorName)
+        }
+        variant.artifacts.use(task)
+            .wiredWithDirectories({ it.inputAssets }, { it.outputAssets })
+            .toTransform(com.android.build.api.artifact.SingleArtifact.ASSETS.INSTANCE)
+        // Le test JVM lit les assets que la variante embarque réellement, et les cas partagés.
+        def fixture = rootProject.file('../tests/fixtures/ota-target-cases.json')
+        project.tasks.matching { it.name == "test${name}UnitTest" }.configureEach { t ->
+            t.inputs.dir(task.flatMap { it.outputAssets })
+            t.inputs.file(fixture)
+            t.systemProperty 'akaiky.assets', task.get().outputAssets.get().asFile.absolutePath
+        }
+    }
+}
+
 repositories {
     flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
