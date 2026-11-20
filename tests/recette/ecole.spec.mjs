@@ -28,11 +28,17 @@ test('pendant la plage « école », le téléphone ne montre que les parents et
   const etag = (await device(page, 'GET', '/config', { token: accessToken })).headers().etag
 
   // Le parent crée la plage par l'interface (lun–ven, 8:00–16:00 par défaut).
+  // Réglages en résumé (NAR-185) : la section s'ouvre par sa ligne.
   await page.goto('/espace/reglages')
+  await page.getByRole('navigation', { name: 'Sections des réglages' }).getByRole('link', { name: /^Plages horaires/ }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Plages horaires' })).toBeVisible()
   const card = page.locator('#plages')
   await card.getByRole('button', { name: '+ Ajouter une plage' }).click()
   await card.getByRole('button', { name: 'Enregistrer la plage' }).click()
   await expect(card.getByText('Lun–Ven · 8:00–16:00 · parents + SOS')).toBeVisible()
+  // Retour au résumé : sa ligne dit la plage enregistrée.
+  await page.getByRole('link', { name: 'Retour aux réglages' }).click()
+  await expect(page.getByRole('navigation', { name: 'Sections des réglages' }).getByRole('link', { name: /^Plages horaires/ })).toContainText('École · Lun–Ven 8:00–16:00')
 
   // Relevé suivant du téléphone : nouvelle version, avec la plage et les contacts « parents ».
   const res = await device(page, 'GET', '/config', { token: accessToken, headers: { 'if-none-match': etag } })

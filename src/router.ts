@@ -3,6 +3,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { auth, init, isAdmin } from './store/auth'
 import { family, loadFamily } from './store/family'
 import { appKind } from './lib/appKind'
+import { SETTINGS_SECTIONS } from './lib/settingsSections'
 
 // Les gardes servent le confort de navigation, pas la sécurité : chaque route
 // d'API vérifie elle-même la session et le rôle.
@@ -21,7 +22,23 @@ const routes: RouteRecordRaw[] = [
       { path: '', name: 'espace', component: () => import('./views/parent/HomeView.vue') },
       // requiresFamily : sans famille, retour à l'accueil, qui présente la création.
       { path: 'journal', name: 'journal', component: () => import('./views/parent/LogView.vue'), meta: { requiresFamily: true } },
-      { path: 'reglages', name: 'reglages', component: () => import('./views/parent/SettingsView.vue'), meta: { requiresFamily: true } },
+      {
+        // Réglages (NAR-185) : un résumé, puis une page par section ; le cadre (enfant
+        // affiché, chargements) reste monté de l'une à l'autre. meta fusionnée : la garde
+        // requiresFamily vaut pour chaque page.
+        path: 'reglages',
+        component: () => import('./views/parent/SettingsLayout.vue'),
+        meta: { requiresFamily: true },
+        children: [
+          { path: '', name: 'reglages', component: () => import('./views/parent/SettingsView.vue'), meta: { requiresFamily: true } },
+          ...SETTINGS_SECTIONS.map((s) => ({
+            path: s.path,
+            name: s.route,
+            component: () => import('./views/parent/SettingsSectionView.vue'),
+            meta: { requiresFamily: true, settingsSection: s.key }
+          }))
+        ]
+      },
       { path: 'famille', name: 'famille', component: () => import('./views/parent/FamilyView.vue'), meta: { requiresFamily: true } },
       // « Mon compte » de l'onglet Famille (NAR-156) : la sécurité garde la barre d'onglets,
       // Famille y reste signalé. Sans requiresFamily : ouverte aussi avant la création.
@@ -29,6 +46,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'enfant/nouveau', name: 'enfant-nouveau', component: () => import('./views/parent/ChildFormView.vue'), meta: { requiresFamily: true } },
       { path: 'enfant/:id', name: 'enfant', component: () => import('./views/parent/ChildFormView.vue'), meta: { requiresFamily: true } },
       { path: 'enfant/:id/telephone', name: 'telephone', component: () => import('./views/parent/PairingView.vue'), meta: { requiresFamily: true } },
+      // Fiche contact : hors du cadre de Réglages, son retour mène à la section Contacts.
       { path: 'reglages/enfant/:childId/contact/nouveau', name: 'contact-nouveau', component: () => import('./views/parent/ContactFormView.vue'), meta: { requiresFamily: true } },
       { path: 'reglages/enfant/:childId/contact/:id', name: 'contact', component: () => import('./views/parent/ContactFormView.vue'), meta: { requiresFamily: true } }
     ]
@@ -48,7 +66,7 @@ const routes: RouteRecordRaw[] = [
 export const router = createRouter({
   history: createWebHistory(),
   routes,
-  // Ancre (« ⋯ › Code parent » → #code-parent) : la page s'ouvre sur cet élément.
+  // Ancre éventuelle : la page s'ouvre sur cet élément.
   scrollBehavior: (to, _from, saved) => saved ?? (to.hash ? { el: to.hash, top: 8 } : { top: 0 })
 })
 

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { FAMILY, mockApi, USER } from './mock'
+import { openSection } from './settings'
 
 const me = { 'GET /api/auth/me': () => ({ body: { user: USER } }), 'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }) }
 const FY = { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'yellow', createdAt: '2026-11-10T10:00:00Z', parentCodeSetAt: null, remoteUnlockUntil: null, phoneLastSeenAt: null, sosSiren: false }
@@ -13,7 +14,7 @@ test('le gestionnaire définit le code parent : refus immédiats, puis « défin
     'GET /api/children': () => ({ body: [FY] }),
     [PUT]: () => ({ body: { parentCodeSetAt: '2026-11-18T09:00:00Z', remoteUnlockUntil: null, phoneLastSeenAt: null } })
   })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Code parent')
   await expect(page.getByText('Pas encore défini')).toBeVisible()
   await page.getByRole('button', { name: 'Définir le code' }).click()
   const code = page.getByLabel('Nouveau code (6 chiffres)'), confirm = page.getByLabel('Confirmer le code')
@@ -45,7 +46,7 @@ test('refus du serveur traduit ; un contact voit l’état sans pouvoir changer 
     'GET /api/children': () => ({ body: [FY] }),
     [PUT]: () => ({ status: 400, body: { error: '…', code: 'weak_parent_code' } })
   })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Code parent')
   await page.getByRole('button', { name: 'Définir le code' }).click()
   await page.getByLabel('Nouveau code (6 chiffres)').fill('482915')
   await page.getByLabel('Confirmer le code').fill('482915')
@@ -73,7 +74,7 @@ test('déverrouiller 15 min à distance : demandé, état affiché ; refusé san
     'GET /api/children': () => ({ body: [withCode] }),
     [`POST /api/children/${FY.id}/unlock`]: () => ({ body: { remoteUnlockUntil: until } })
   })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Code parent')
   await page.getByRole('button', { name: 'Déverrouiller 15 min' }).click()
   await expect(page.getByText(/Déverrouillage demandé jusqu’à \d\d:\d\d\./)).toBeVisible()
   expect(calls.filter((r) => r.method() === 'POST' && r.url().endsWith('/unlock'))).toHaveLength(1)
@@ -85,7 +86,7 @@ test('sans code parent : pas de bouton de déverrouillage', async ({ page }) => 
     'GET /api/families/me': () => ({ body: FAMILY }),
     'GET /api/children': () => ({ body: [FY] })
   })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Code parent')
   await expect(page.getByText('Pas encore défini')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Déverrouiller 15 min' })).toHaveCount(0)
 })

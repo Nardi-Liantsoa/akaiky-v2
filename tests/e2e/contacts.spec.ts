@@ -1,6 +1,7 @@
 import { expect, test, type Request } from '@playwright/test'
 import { cancelEveryWay, confirmSheet } from './confirm'
 import { FAMILY, mockApi, USER } from './mock'
+import { openSection, row } from './settings'
 
 type C = { id: string, childId: string, name: string, phone: string, position: number, avatarColor: string, memberUserId: string | null, memberRole: string | null }
 const me = { 'GET /api/auth/me': () => ({ body: { user: USER } }), 'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }) }
@@ -35,7 +36,7 @@ const common = { ...me, 'GET /api/families/me': () => ({ body: FAMILY }), 'GET /
 test('ajouter un contact puis le faire monter : liste, compteur et ordre', async ({ page }) => {
   const api = contactsApi([{ id: cid(1), name: 'Maman', phone: '+261341111111', avatarColor: 'orange', memberUserId: null, memberRole: null }])
   const calls = await mockApi(page, { ...common, ...api.handlers })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Contacts autorisés')
   await expect(page.getByText('Téléphone de Fy')).toBeVisible()
   await expect(page.getByText('1 sur 6')).toBeVisible()
   await page.getByRole('link', { name: '+ Ajouter un contact' }).click()
@@ -43,7 +44,7 @@ test('ajouter un contact puis le faire monter : liste, compteur et ordre', async
   await page.getByLabel('Numéro de téléphone').fill('034 12 345 67')
   await page.getByLabel('Membre de la famille').selectOption({ label: 'Alice · Parent principal' })
   await page.getByRole('button', { name: 'Enregistrer' }).click()
-  await expect(page).toHaveURL(/\/espace\/reglages$/)
+  await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
   await expect(page.getByText('2 sur 6')).toBeVisible()
   const post = calls.find((r) => r.method() === 'POST')!.postDataJSON()
   expect(post).toEqual({ name: 'Papa', phone: '034 12 345 67', memberUserId: USER.id })
@@ -83,19 +84,19 @@ test('numéro refusé par le serveur : message traduit, rien n’est ajouté', a
 test('six contacts : plus de lien d’ajout ; contact de famille : lecture seule', async ({ page }) => {
   const six = Array.from({ length: 6 }, (_, i) => ({ id: cid(i + 1), name: `Contact ${i + 1}`, phone: `+26134000000${i}`, avatarColor: 'blue', memberUserId: null, memberRole: null }))
   await mockApi(page, { ...common, ...contactsApi(six).handlers })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Contacts autorisés')
   await expect(page.getByText('6 sur 6')).toBeVisible()
   await expect(page.getByRole('link', { name: '+ Ajouter un contact' })).toHaveCount(0)
 
   await page.unrouteAll({ behavior: 'ignoreErrors' })
   await mockApi(page, { ...common, 'GET /api/families/me': () => ({ body: { ...FAMILY, role: 'member' } }), ...contactsApi(six.slice(0, 2)).handlers })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Contacts autorisés')
   await expect(page.getByText('2 sur 6')).toBeVisible()
   await expect(page.getByRole('button', { name: /^Monter / })).toHaveCount(0)
   await expect(page.getByRole('link', { name: /^Modifier / })).toHaveCount(0)
   await expect(page.getByRole('link', { name: '+ Ajouter un contact' })).toHaveCount(0)
   await page.goto(`/espace/reglages/enfant/${FY.id}/contact/nouveau`)
-  await expect(page).toHaveURL(/\/espace\/reglages$/)
+  await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
 })
 
 test('sans enfant : Réglages invite à en ajouter un', async ({ page }) => {
@@ -116,7 +117,7 @@ test('modifier le nom d’un contact lié : le membre lié n’est pas renvoyé'
   await expect(page.getByLabel('Nom affiché')).toHaveValue('Papa')
   await page.getByLabel('Nom affiché').fill('Papa Rakoto')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
-  await expect(page).toHaveURL(/\/espace\/reglages$/)
+  await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
   // Seul le champ modifié part.
   const body = calls.find((r) => r.method() === 'PATCH')!.postDataJSON()
   expect(body).toEqual({ name: 'Papa Rakoto' })
@@ -145,7 +146,7 @@ test('retirer un contact : feuille de confirmation, rien ne part avant « Confir
   await expect(sheet.getByRole('listitem')).toHaveCount(2)
   expect(calls.filter(isDelete)).toHaveLength(0)
   await sheet.getByRole('button', { name: 'Confirmer : retirer ce contact' }).click()
-  await expect(page).toHaveURL(/\/espace\/reglages$/)
+  await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
   await expect(page.getByText('1 sur 6')).toBeVisible()
   expect(calls.filter(isDelete).map((r) => new URL(r.url()).pathname)).toEqual([`/api/contacts/${cid(1)}`])
 })
@@ -174,7 +175,7 @@ test('changement d’enfant : la carte des contacts reste en place, estompée, j
     await slow
     await route.fulfill({ json: { version: 1, max: 6, country: 'MG', contacts: [{ id: cid(9), childId: TIANA.id, name: 'Dadabe', phone: '+261331112233', position: 1, avatarColor: 'blue', memberUserId: null, memberRole: null }] } })
   })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Contacts autorisés')
   await expect(page.getByText('Maman')).toBeVisible()
   // Sélecteur compact (NAR-174) : « Fy ▾ », puis Tiana dans la liste.
   await page.getByRole('button', { name: /Enfant affiché : Fy/ }).click()
@@ -186,4 +187,47 @@ test('changement d’enfant : la carte des contacts reste en place, estompée, j
   release()
   await expect(page.getByText('Dadabe')).toBeVisible()
   await expect(card).toHaveAttribute('aria-busy', 'false')
+})
+
+test('fiche contact : Annuler, Enregistrer et le retour de l’historique mènent à la section Contacts, pas au résumé', async ({ page }) => {
+  const api = contactsApi([{ id: cid(1), name: 'Maman', phone: '+261341111111', avatarColor: 'orange', memberUserId: null, memberRole: null }])
+  await mockApi(page, { ...common, ...api.handlers })
+  await openSection(page, 'Contacts autorisés')
+  // Annuler : retour à la section, sans nouvelle entrée dans l'historique.
+  await page.getByRole('link', { name: '+ Ajouter un contact' }).click()
+  await page.getByRole('link', { name: 'Annuler' }).click()
+  await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
+  await expect(page.getByRole('heading', { level: 1, name: 'Contacts autorisés' })).toBeVisible()
+  // Retour de l'historique (bouton Android) depuis la fiche : la section aussi.
+  await page.getByRole('link', { name: 'Modifier Maman' }).click()
+  await expect(page.getByLabel('Nom affiché')).toHaveValue('Maman')
+  await page.goBack()
+  await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
+  // Enregistrer : la section, liste relue ; un retour de plus mène au résumé.
+  await page.getByRole('link', { name: '+ Ajouter un contact' }).click()
+  await page.getByLabel('Nom affiché').fill('Papa')
+  await page.getByLabel('Numéro de téléphone').fill('034 12 345 67')
+  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
+  await expect(page.getByText('2 sur 6')).toBeVisible()
+  await page.goBack()
+  await expect(page).toHaveURL(/\/espace\/reglages$/)
+  await expect(row(page, 'Contacts autorisés')).toContainText('2 sur 6')
+})
+
+test('fiche contact ouverte par son adresse (« Autoriser » du journal, autre enfant) : l’enregistrement mène à la section Contacts de cet enfant', async ({ page }) => {
+  const TIANA = { ...FY, id: '6f1c2b1e-0000-4000-8000-000000000102', firstName: 'Tiana', avatarColor: 'green' }
+  await mockApi(page, {
+    ...common,
+    'GET /api/children': () => ({ body: [FY, TIANA] }),
+    ...contactsApi().handlers,
+    [`GET /api/children/${TIANA.id}/contacts`]: () => ({ body: { version: 1, max: 6, country: 'MG', contacts: [] } }),
+    [`POST /api/children/${TIANA.id}/contacts`]: () => ({ status: 201, body: { id: cid(7), childId: TIANA.id, name: 'Dadabe', phone: '+261341234567', position: 1, avatarColor: 'blue', memberUserId: null, memberRole: null } })
+  })
+  await page.goto(`/espace/reglages/enfant/${TIANA.id}/contact/nouveau`)
+  await page.getByLabel('Nom affiché').fill('Dadabe')
+  await page.getByLabel('Numéro de téléphone').fill('034 12 345 67')
+  await page.getByRole('button', { name: 'Enregistrer' }).click()
+  await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
+  await expect(page.getByRole('button', { name: /Enfant affiché : Tiana/ })).toBeVisible()
 })

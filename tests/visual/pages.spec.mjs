@@ -35,6 +35,12 @@ const PARENT = {
       { id: '6f1c2b1e-0000-4000-8000-000000000203', childId: '6f1c2b1e-0000-4000-8000-000000000101', name: 'Mamie', phone: '+261321234567', position: 3, avatarColor: 'violet', memberUserId: null, memberRole: null }
     ]
   },
+  // Applications autorisées (NAR-143) : une autorisée, une proposée.
+  'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/apps': {
+    max: 4,
+    inventory: [{ package: 'com.android.camera2', label: 'Appareil photo', icon: null, allowed: true }, { package: 'com.android.calculator2', label: 'Calculatrice', icon: null, allowed: false }],
+    allowed: [{ package: 'com.android.camera2', label: 'Appareil photo', position: 1 }]
+  },
   // Plages « école » (NAR-148).
   'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/schedules': [
     { id: '6f1c2b1e-0000-4000-8000-000000000301', label: 'École', days: 31, startMin: 480, endMin: 960, enabled: true }
@@ -89,6 +95,8 @@ const PAGES = [
   ['parent-famille', '/espace/famille', PARENT],
   ['parent-ajouter-enfant', '/espace/enfant/nouveau', PARENT],
   ['parent-reglages', '/espace/reglages', PARENT],
+  // Page d'une section de Réglages (NAR-185) ; absente de main (la référence y est l'accueil).
+  ['parent-reglages-contacts', '/espace/reglages/contacts', PARENT],
   ['parent-journal', '/espace/journal', PARENT],
   // Ancienne adresse : rendue dans la coquille parent depuis NAR-156, et sur main aussi.
   ['parent-securite', '/securite', PARENT],

@@ -14,7 +14,7 @@ const router = useRouter()
 async function openParentCode() {
   selectChild(props.child.id)
   emit('close')
-  await router.push({ name: 'reglages', hash: '#code-parent' })
+  await router.push({ name: 'reglages-code-parent' })
 }
 </script>
 

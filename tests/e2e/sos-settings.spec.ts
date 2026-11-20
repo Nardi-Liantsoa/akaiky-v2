@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { FAMILY, mockApi, USER } from './mock'
+import { openSection } from './settings'
 
 // Réglages du SOS (NAR-151) : sirène pendant un SOS, carte de Réglages.
 const me = { 'GET /api/auth/me': () => ({ body: { user: USER } }), 'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }) }
@@ -14,7 +15,7 @@ test('le gestionnaire allume la sirène : l’interrupteur suit la réponse du s
     'GET /api/children': () => ({ body: [FY] }),
     [PUT]: (req) => ({ body: { sosSiren: req.postDataJSON().enabled } })
   })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'SOS')
   const siren = page.getByRole('switch', { name: 'Sirène pendant un SOS' })
   await expect(siren).toHaveAttribute('aria-checked', 'false')
   await expect(page.getByText(/sonne très fort pendant 2 minutes au plus/)).toBeVisible()
@@ -33,7 +34,7 @@ test('refus du serveur : message affiché, interrupteur inchangé', async ({ pag
     'GET /api/children': () => ({ body: [FY] }),
     [PUT]: () => ({ status: 500, body: { error: 'Erreur interne.' } })
   })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'SOS')
   const siren = page.getByRole('switch', { name: 'Sirène pendant un SOS' })
   await siren.click()
   await expect(page.locator('#sos').getByRole('alert')).toBeVisible()
@@ -48,7 +49,7 @@ test('un contact voit l’état de la sirène sans pouvoir le changer', async ({
     'GET /api/families/me': () => ({ body: asMember }),
     'GET /api/children': () => ({ body: [{ ...FY, sosSiren: true }] })
   })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'SOS')
   const siren = page.getByRole('switch', { name: 'Sirène pendant un SOS' })
   await expect(siren).toBeDisabled()
   await expect(siren).toHaveAttribute('aria-checked', 'true')

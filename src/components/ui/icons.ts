@@ -41,6 +41,11 @@ export const ICONS = {
   mail: { shapes: [rect({ x: 3, y: 5, width: 18, height: 14, rx: 2 }), path('M3 7l9 6 9-6')] },
   // Lien vers un écran (« Mon compte »).
   'chevron-right': { shapes: [path('M9 6l6 6-6 6')] },
+  // Retour vers l'écran parent (sections de Réglages, NAR-185).
+  'chevron-left': { shapes: [path('M15 6l-6 6 6 6')] },
+  // Lignes du résumé de Réglages (NAR-185) : applications (grille), SOS (sirène).
+  grid: { shapes: [rect({ x: 4, y: 4, width: 6, height: 6, rx: 1.5 }), rect({ x: 14, y: 4, width: 6, height: 6, rx: 1.5 }), rect({ x: 4, y: 14, width: 6, height: 6, rx: 1.5 }), rect({ x: 14, y: 14, width: 6, height: 6, rx: 1.5 })] },
+  siren: { shapes: [path('M7 18v-6a5 5 0 0 1 10 0v6'), path('M5 21h14v-3H5z'), path('M12 2v2M4.2 5.2l1.4 1.4M19.8 5.2l-1.4 1.4')] },
   // Batterie : contour et borne ; le niveau, variable, est passé dans l'emplacement.
   battery: {
     viewBox: '0 0 24 12',
