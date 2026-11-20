@@ -37,9 +37,18 @@ const config: CapacitorConfig = {
     },
     // Mises à jour OTA (@capgo/capacitor-updater) pilotées par le code ; un
     // bundle qui n'appelle pas notifyAppReady() à temps est annulé au lancement suivant.
+    // Canal par app (NAR-162, docs/MOBILE.md « Mises à jour OTA ») : valeurs de l'app parent
+    // (iOS). Sur Android, chaque variante les réécrit dans ses propres assets au build
+    // (android/app/build.gradle, OtaIdentityTask) : appId et canal de la coque, jamais du bundle.
     CapacitorUpdater: {
       autoUpdate: false,
-      appReadyTimeout: 10000
+      appReadyTimeout: 10000,
+      defaultChannel: 'parent',
+      allowSetDefaultChannel: false,
+      allowModifyAppId: false,
+      // Statistiques désactivées : par défaut le greffon envoie chaque lancement, avec
+      // l'identifiant d'appareil, à plugin.capgo.app (service tiers, téléphones d'enfants).
+      statsUrl: ''
     }
   }
 }
