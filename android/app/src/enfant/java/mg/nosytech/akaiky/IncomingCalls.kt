@@ -87,6 +87,39 @@ object IncomingCalls {
     fun markScreenedAllowed(context: Context, at: Long) { prefs(context).edit().putLong("screenedAllowedAt", at).commit() }
     fun screenedAllowedAt(context: Context): Long = prefs(context).getLong("screenedAllowedAt", 0L)
 
+    /**
+     * Décision sur un appel entrant et sa note au journal, commune au service de filtrage
+     * (Android 10+, NAR-145) et au récepteur d'Android 8–9 (NAR-172) : même lecture du numéro,
+     * même règle (CallPolicy.screenIncoming), même file. Aucun réseau. `act` reçoit la décision
+     * avant l'écriture au journal (Android 8–9 : raccrocher d'abord, noter ensuite) ; faux : rien
+     * n'est noté (Android 8–9 : refus qui n'a pas pu raccrocher, l'appel a sonné).
+     */
+    fun screen(context: Context, raw: String?, now: Long = System.currentTimeMillis(), act: (CallPolicy.Incoming) -> Boolean = { true }): CallPolicy.Incoming {
+        val countries = countries(context)
+        val filtering = isFiltering(context)
+        val allowedSet = allowed(context)
+        // Pendant une plage « école » (NAR-176) : seuls les parents sonnent ; les autres
+        // contacts sont refusés et notés comme bloqués, sous leur numéro de contact.
+        val reachableSet = reachable(context, allowedSet)
+        // Numéro noté : le contact reconnu s'il y en a un ; null si masqué (moins de 2 chiffres).
+        val shown = displayNumber(raw, countries, allowedSet)
+        // Décision sur TOUTES les lectures du numéro reçu (pas seulement celle notée).
+        val decision = CallPolicy.screenIncoming(if (shown == null) null else raw, filtering, allowedSet, { number, contact ->
+            contact in candidates(number, countries)
+        }, reachableSet)
+        if (!act(decision)) return decision
+        when (decision) {
+            CallPolicy.Incoming.RING -> if (filtering && shown != null) {
+                markScreenedAllowed(context, now)
+                record(context, "call_in", shown, now)
+            }
+            CallPolicy.Incoming.BLOCK_UNKNOWN, CallPolicy.Incoming.BLOCK_HIDDEN, CallPolicy.Incoming.BLOCK_SCHEDULE ->
+                record(context, "call_blocked", if (decision == CallPolicy.Incoming.BLOCK_HIDDEN) null else shown, now,
+                    school = decision == CallPolicy.Incoming.BLOCK_SCHEDULE)
+        }
+        return decision
+    }
+
     /** school : refusé parce qu'une plage « école » était en cours (contact non parent). */
     @Synchronized
     fun record(context: Context, kind: String, phone: String?, startedAt: Long, school: Boolean = false) {

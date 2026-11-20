@@ -2,4 +2,6 @@
 <resources>
     <!-- Récepteur NEW_OUTGOING_CALL (NAR-169) : Android 8–9 seulement ; Android 10+ : rôle de redirection. -->
     <bool name="outgoing_receiver_enabled">true</bool>
+    <!-- Récepteur PHONE_STATE (NAR-172) : filtre des appels entrants d'Android 8–9 ; Android 10+ : service de filtrage. -->
+    <bool name="incoming_receiver_enabled">true</bool>
 </resources>

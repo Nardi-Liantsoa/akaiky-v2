@@ -59,6 +59,8 @@ class CallPlugin : Plugin() {
         // plage est déjà active, rendues sinon.
         // Filtre des appels sortants d'Android 8–9 (NAR-169) : permission accordée d'office.
         OutgoingCalls.grant(context)
+        // Filtre des appels entrants d'Android 8–9 (NAR-172) : permissions accordées d'office.
+        LegacyIncomingCalls.grant(context)
         Kiosk.enforceOnMain(context, activity)
         call.resolve()
     }
@@ -102,7 +104,10 @@ class CallPlugin : Plugin() {
         val redirectionHeld = roles?.isRoleHeld(RoleManager.ROLE_CALL_REDIRECTION) == true
         // outgoingActive : état réel du filtre des appels sortants (rôle détenu sur Android 10+,
         // récepteur actif avec PROCESS_OUTGOING_CALLS accordée sur Android 8–9).
-        call.resolve(JSObject().put("available", available).put("held", held)
+        // incomingActive (NAR-172) : état réel du filtre des appels entrants (rôle détenu sur
+        // Android 10+, récepteur actif avec ses permissions sur Android 8–9).
+        val incomingActive = if (available) held else LegacyIncomingCalls.active(context)
+        call.resolve(JSObject().put("available", available).put("held", held).put("incomingActive", incomingActive)
             .put("redirectionAvailable", redirectionAvailable).put("redirectionHeld", redirectionHeld)
             .put("outgoingActive", OutgoingCalls.filterActive(context)))
     }

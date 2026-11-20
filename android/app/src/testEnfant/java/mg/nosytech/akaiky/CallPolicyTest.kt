@@ -50,6 +50,14 @@ class CallPolicyTest {
         assertEquals(CallPolicy.Incoming.BLOCK_UNKNOWN, CallPolicy.screenIncoming("+261341234567", true, emptySet(), suffix9))
     }
 
+    @Test fun casPartagesDuFiltreDesAppelsEntrants() {
+        // Mêmes cas que LegacyIncomingTest (Android 8–9, NAR-172) : même décision.
+        assertTrue(IncomingCases.all.size >= 10)
+        for (c in IncomingCases.all) {
+            assertEquals(c.name, c.expected, CallPolicy.screenIncoming(c.number, c.filtering, c.allowed, IncomingCases.e164Mg, c.reachable))
+        }
+    }
+
     @Test fun filtrageInactifToutSonne() {
         assertEquals(CallPolicy.Incoming.RING, CallPolicy.screenIncoming(null, false, emptySet(), suffix9))
         assertEquals(CallPolicy.Incoming.RING, CallPolicy.screenIncoming("+261329876543", false, allowed, suffix9))
