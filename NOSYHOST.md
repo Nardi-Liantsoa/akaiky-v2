@@ -77,6 +77,8 @@ MAIL_FROM=Akaiky <no-reply@akaiky.a-definir.invalid>         # domaine avec SPF 
 # DEVICE_APK_VERSION_CODE=<versionCode>              # mise à jour des téléphones (NAR-170) ; exigé en production avec DEVICE_APK_URL
 # DEVICE_APK_SHA256=<SHA-256 hexadécimal du fichier>   # seulement si l'APK est servi ailleurs que par ce serveur
 # API_RATE_LIMIT=300                                   # requêtes/min/IP ; à relever derrière un NAT d'opérateur
+# OTA_RATE_LIMIT=60                                    # vérifications OTA/min/IP (NAR-189) ; 100000 au plus
+# OTA_DOWNLOAD_RATE_LIMIT=30                           # téléchargements de bundle OTA/15 min/IP ; 100000 au plus
 # PHONE_DEFAULT_COUNTRY=MG                            # pays des numéros saisis sans indicatif : MG ou FR
 # INVITATION_EMAILS_PER_HOUR=100                       # invitations envoyées par heure, tous comptes (budget séparé des courriels de compte)
 PUSH_PROVIDER=none                                    # notifications push (NAR-141) : none tant que Firebase n'existe pas, puis fcm ; fake refusé
@@ -177,6 +179,19 @@ serveur et que l'APK manque à l'image, l'API le journalise au démarrage et ref
 (503) plutôt que d'en émettre qui mèneraient à une page introuvable ; de même si
 l'empreinte écrite par la release diffère de `DEVICE_APK_SIGNATURE_SHA256`. Le script
 refuse aussi un `versionCode` qui ne monte pas (`ALLOW_SAME_VERSION=1` pour reconstruire).
+
+## 7. Bundles OTA (NAR-189)
+
+Les bundles web OTA vivent dans la base (`ota_bundles`, migration 024), pas dans l'image :
+publier ne redéploie rien. Publication **à la main**, conteneur ponctuel ou poste relié à la
+base, avec le compte **propriétaire** (le rôle `app_runtime` n'a que `SELECT`) :
+
+```bash
+node server/bin/ota-publish.js --app parent --channel parent --min-native <versionCode> --version <version> bundle.zip
+```
+
+Une fois par app et par canal ; procédure et choix de la coque minimale : `docs/MOBILE.md`
+« Publier un OTA ». Les bundles sont dans les sauvegardes de la base.
 
 ## Ce qu'il ne faut pas casser
 
