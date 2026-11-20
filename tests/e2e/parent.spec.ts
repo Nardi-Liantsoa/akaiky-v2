@@ -150,7 +150,7 @@ test('accueil : « Tout le journal », « ⋯ » et l’en-tête de la carte fon
   await mockApi(page, {
     ...connected,
     'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }),
-    'GET /api/children': () => ({ body: [{ id: FY, firstName: 'Fy', avatarColor: 'orange', createdAt: '2026-11-11T10:00:00Z', parentCodeSetAt: null, remoteUnlockUntil: null, phoneLastSeenAt: null }] }),
+    'GET /api/children': () => ({ body: [{ id: FY, firstName: 'Fy', avatarColor: 'orange', createdAt: '2026-11-11T10:00:00Z', parentCodeSetAt: null, remoteUnlockUntil: null, phoneLastSeenAt: new Date().toISOString() }] }),
     [`GET /api/children/${FY}/journal`]: () => ({ body: { items: [], next: null } })
   })
   await page.goto('/espace')
