@@ -19,8 +19,10 @@ export function normalizePhone(raw, country = 'MG') {
   if (v.startsWith('00')) v = `+${v.slice(2)}`
   // 0 national gardé après l'indicatif (« +261 (0)34… », « +261 034… ») : retiré,
   // sinon le même numéro aurait deux formes et passerait le contrôle de doublon.
+  // Tous les 0 (« +261 00 34… ») : sinon une seconde forme du même numéro contournerait
+  // l'unicité du compte et les limites d'envoi de SMS par numéro (NAR-136).
   for (const { code } of Object.values(COUNTRIES)) {
-    if (v.startsWith(`+${code}0`)) { v = `+${code}${v.slice(code.length + 2)}`; break }
+    if (v.startsWith(`+${code}0`)) { v = `+${code}${v.slice(code.length + 1).replace(/^0+/, '')}`; break }
   }
   if (!v.startsWith('+')) {
     const rule = COUNTRIES[country]
@@ -32,3 +34,9 @@ export function normalizePhone(raw, country = 'MG') {
   if (!/^\+[1-9]\d{7,14}$/.test(v)) throw invalid()
   return v
 }
+
+// Forme E.164 déjà normalisée (celle de la base) : distingue un numéro d'une adresse e-mail
+// partout où un compte se cherche par son identifiant (connexion, garde, appareils de confiance).
+export const isE164 = (v) => typeof v === 'string' && /^\+[1-9]\d{7,14}$/.test(v)
+// Colonne de `users` qui porte l'identifiant : liste fermée, jamais une valeur du client.
+export const loginColumn = (id) => isE164(id) ? 'phone' : 'email'

@@ -85,12 +85,12 @@ export function createMfa(app, finishLogin) {
    c.pending_secret=seal(newSecret(),config.mfaKey,c.user_id)
    await conn.query('UPDATE mfa_challenges SET pending_secret=$2 WHERE token_hash=$1',[c.token_hash,c.pending_secret])
   }
-  const email=(await conn.query('SELECT email FROM users WHERE id=$1',[c.user_id])).rows[0].email
-  return {secret:unseal(c.pending_secret,config.mfaKey,c.user_id),account:email,issuer:config.appName}
+  const {email,phone}=(await conn.query('SELECT email,phone FROM users WHERE id=$1',[c.user_id])).rows[0]
+  return {secret:unseal(c.pending_secret,config.mfaKey,c.user_id),account:email??phone,issuer:config.appName}
  }))
  app.post('/mfa/verify',{config:{public:true}},async(req,reply)=>transaction(req,async(conn,c)=>{
   // Verrou utilisateur : activation, consommation du code et session atomiques.
-  const user=(await conn.query('SELECT id,email,name,is_admin FROM users WHERE id=$1 FOR UPDATE',[c.user_id])).rows[0]
+  const user=(await conn.query('SELECT id,email,phone,name,is_admin FROM users WHERE id=$1 FOR UPDATE',[c.user_id])).rows[0]
   const enrolled=!!(await conn.query('SELECT user_id FROM mfa_factors WHERE user_id=$1',[c.user_id])).rows[0]
   let codes
   if(!enrolled) {

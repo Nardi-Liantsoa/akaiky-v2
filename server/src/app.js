@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join, extname, relative } from 'node:path'
 import { HttpError, SESSION_RULE } from './lib.js'
+import { createSms } from './sms.js'
 import { tokenHash, createLimiter, rateLimitKey } from './security.js'
 import { readAuthCookie } from './auth-cookies.js'
 import { createPasswordConfirm } from './password-confirm.js'
@@ -98,9 +99,10 @@ const heartbeatOf = (req) => {
   return m ? m[1] : null
 }
 
-export async function buildApp({ config, db, mailer, logger = true, dbReady = true }) {
+export async function buildApp({ config, db, mailer, sms, logger = true, dbReady = true }) {
   const app = Fastify({
-    logger: logger && { level: 'info', redact: ['req.headers.cookie', 'req.headers.authorization', 'res.headers["set-cookie"]'] },
+    // `logger.stream` : sortie du journal capturée par un test (aucun code SMS ne doit y passer).
+    logger: logger && { level: 'info', redact: ['req.headers.cookie', 'req.headers.authorization', 'res.headers["set-cookie"]'], ...(logger.stream ? { stream: logger.stream } : {}) },
     trustProxy: config.trustProxy,
     bodyLimit: 64 * 1024,
     requestTimeout: 30000,
@@ -116,6 +118,8 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   // 503 ; /health répond toujours (il ne doit jamais dépendre de la base).
   app.decorate('dbReady', dbReady)
   app.decorate('mailer', mailer)
+  // SMS d'authentification (NAR-136) : fournisseur de la configuration, ou celui d'un test.
+  app.decorate('sms', sms ?? createSms(config))
   // Mot de passe redemandé avant une suppression (famille, compte) : garde de connexion partagée.
   app.decorate('confirmPassword', createPasswordConfirm(db))
 
@@ -126,7 +130,7 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   // Deux calculs de mot de passe simultanés au plus par source : chacun réserve
   // ~128 Mo (scrypt). Libérés à la réponse, au délai dépassé ou à l'abandon.
   const hashes = new Map(), hashingRequests = new Map()
-  const HASHING = /^\/api\/auth\/(?:login|register|reset-password|native\/login)(?:\?|$)/
+  const HASHING = /^\/api\/auth\/(?:login|register|reset-password|native\/login|phone\/register)(?:\?|$)/
   // Suppressions confirmées par mot de passe (famille, compte) : un calcul aussi.
   const HASHING_DELETE = /^\/api\/(?:families|auth)\/me(?:\?|$)/
   app.addHook('onRequest', async (req, reply) => {
@@ -306,12 +310,12 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
              FROM users u
             WHERE s.token_hash = $1 AND s.kind = $4 AND s.expires_at > now() AND u.id = s.user_id
               AND ${SESSION_RULE}
-            RETURNING s.id AS session_id, u.id, u.email, u.name, u.is_admin
+            RETURNING s.id AS session_id, u.id, u.email, u.phone, u.name, u.is_admin
          ), push_seen AS (
            UPDATE push_tokens t SET last_seen_at = now() FROM sess
             WHERE t.session_id = sess.session_id AND t.last_seen_at < now() - interval '1 hour'
          )
-         SELECT id, email, name, is_admin FROM sess`,
+         SELECT id, email, phone, name, is_admin FROM sess`,
         [hash, config.session.idleDays, config.session.absoluteDays, kind])
       if (rows[0]) { req.user = rows[0]; req.sessionHash = hash }
     }

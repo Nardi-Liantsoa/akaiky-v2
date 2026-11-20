@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import { HttpError } from './lib.js'
+// `email` ci-dessous : identifiant normalisé, adresse ou numéro E.164 (NAR-136).
+import { loginColumn } from './phone.js'
 
 export const loginBucket = email => createHash('sha256').update(email).digest().readUInt16BE(0)
 export const loginDelay = failures => failures < 10 ? 0 : Math.min(30, 2 ** Math.min(5, failures - 10))
@@ -30,7 +32,7 @@ export function createLoginGuard(db) {
       const account = (await conn.query(`SELECT id,
         CASE WHEN locked_until < now()-interval '1 hour' THEN 0 ELSE failed_logins END AS failures,
         GREATEST(0, LEAST(30, COALESCE(EXTRACT(EPOCH FROM locked_until-now()),0))) AS wait
-        FROM users WHERE email=$1`, [email])).rows[0]
+        FROM users WHERE ${loginColumn(email)}=$1`, [email])).rows[0]
       if (!account) await conn.query('INSERT INTO login_guards(bucket) VALUES ($1) ON CONFLICT DO NOTHING', [bucket])
       const device = deviceId ? (await conn.query(`SELECT id,
         CASE WHEN next_attempt_at < now()-interval '1 hour' THEN 0 ELSE failures END AS failures,

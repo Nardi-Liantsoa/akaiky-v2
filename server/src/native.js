@@ -12,7 +12,7 @@
 //     rejeu détecté, session de l'appareil fermée et signalée.
 // L'app garde le jeton de renouvellement dans le Keychain / Keystore, le jeton
 // d'accès en mémoire, et sérialise ses renouvellements (un seul à la fois).
-import { HttpError, audit, me, isUuid, SESSION_RULE } from './lib.js'
+import { HttpError, audit, me, isUuid, SESSION_RULE, body } from './lib.js'
 import { newToken, tokenHash } from './security.js'
 import { securityAlert } from './login-guard.js'
 
@@ -31,8 +31,9 @@ export async function nativeRoutes(app, { limit, checkCredentials }) {
   const label = (b) => typeof b.device === 'string' ? b.device.replace(/[^\p{L}\p{N} ._()-]/gu, '').slice(0, 60) : null
 
   app.post('/native/login', PUBLIC, async (req) => {
-    const b = req.body || {}
     limit(req)
+    // Liste fermée (NAR-136 y ajoute `phone`) : un champ inconnu est un 400.
+    const b = body(req, ['email', 'phone', 'password', 'device'])
     return checkCredentials(req, b, null, async (conn, user, needsMfa) => {
       // Les comptes à double authentification (admins) passent par la version
       // web : le défi MFA repose sur un cookie que la WebView n'enverrait pas.
@@ -71,7 +72,7 @@ export async function nativeRoutes(app, { limit, checkCredentials }) {
         WHERE s.kind = 'bearer' AND s.refresh_expires_at > now()
           AND (s.refresh_hash = $1 OR (s.previous_refresh_hash = $1 AND s.rotated_at > now() - make_interval(days => $7)))
           AND u.id = s.user_id AND ${SESSION_RULE}
-        RETURNING u.id, u.email, u.name, u.is_admin`,
+        RETURNING u.id, u.email, u.phone, u.name, u.is_admin`,
       [hash, access.hash, refresh.hash, config.native.accessMinutes, config.native.refreshDays, ABSOLUTE_DAYS, PREVIOUS_DAYS])
     if (rows[0]) return { user: me(rows[0]), ...tokens(access.token, refresh.token) }
     // Jeton écarté par une réutilisation de son prédécesseur : deux détenteurs

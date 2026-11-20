@@ -201,6 +201,16 @@ Développement : la version debug garde le débogage USB. Pour réinstaller, app
 
 Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une limite tue est une faille.
 
+- **Connexion par téléphone (NAR-136, tranche 1)** : pas encore de fournisseur SMS réel (`SMS_PROVIDER=none` en
+  production : inscription et renvoi par numéro répondent 503, la connexion par numéro marche) ; pas encore de
+  récupération du compte par SMS (tranche 2) ni d'écran (tranche 3). **Numéro occupé par un tiers** : quelqu'un
+  peut inscrire le numéro d'un autre sans jamais le confirmer ; le vrai titulaire reçoit « vous avez déjà un
+  compte » et ne peut pas reprendre le numéro avant la tranche 2 (réinitialisation par SMS, qui confirmera le
+  numéro et remplacera le mot de passe). Il ne doit pas saisir un code qu'il n'a pas demandé (le SMS le dit) :
+  sinon il confirmerait le compte du tiers. SMS seul = facteur faible (échange de carte SIM) : pas d'admin à
+  numéro (MFA web par adresse). Limite par IP en mémoire (une instance) ; numéro et total en base. Numéros des
+  comptes en clair en base, comme les adresses (identifiant de connexion, index unique).
+
 - **Runtime OTA (NAR-191)** : la barrière Capgo se fie à l'`updateUrl` lu au build dans
   `capacitor.config.ts`, pas à celui de la coque (le greffon ne l'expose pas) ; ils viennent de la même
   source et un OTA n'atteint qu'une coque qui vise déjà ce serveur, mais une coque construite à la main

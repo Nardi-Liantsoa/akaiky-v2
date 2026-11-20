@@ -1,7 +1,7 @@
 import { HttpError } from './lib.js'
 import { securityAlert } from './login-guard.js'
 
-const ALERTS = { registrations: 'registrations_quota', 'auth-emails': 'auth_emails_quota', 'invitation-emails': 'invitation_emails_quota' }
+const ALERTS = { registrations: 'registrations_quota', 'auth-emails': 'auth_emails_quota', 'invitation-emails': 'invitation_emails_quota', sms: 'sms_quota' }
 
 // UPSERT atomique : ni les requêtes concurrentes ni un redémarrage ne remettent
 // le quota à zéro. Les noms sont constants, jamais fournis par les visiteurs.

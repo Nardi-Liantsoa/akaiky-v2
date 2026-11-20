@@ -55,11 +55,13 @@ export function body(req, allowed) {
 // (alias u) soit valable : adresse confirmée, et second facteur vérifié pour un
 // admin ou un compte qui en a un. Une seule définition, pour le hook de session
 // et le renouvellement natif.
-export const SESSION_RULE = `u.email_verified_at IS NOT NULL
+// Compte à numéro (NAR-136) : numéro confirmé à la place de l'adresse.
+export const SESSION_RULE = `(u.email_verified_at IS NOT NULL OR u.phone_verified_at IS NOT NULL)
   AND (s.mfa_verified_at IS NOT NULL OR (NOT u.is_admin AND NOT EXISTS (SELECT 1 FROM mfa_factors f WHERE f.user_id = u.id)))`
 
 // Ce que le navigateur reçoit d'un compte : champ par champ, jamais la ligne entière.
-export const me = (u) => ({ id: u.id, email: u.email, name: u.name, is_admin: u.is_admin })
+// email ou phone peut être null (compte à numéro ou à adresse, NAR-136).
+export const me = (u) => ({ id: u.id, email: u.email ?? null, phone: u.phone ?? null, name: u.name, is_admin: u.is_admin })
 
 // Journal en ajout seul (le rôle SQL de l'application n'a que INSERT dessus).
 export async function audit(db, req, action, target = null, details = null) {

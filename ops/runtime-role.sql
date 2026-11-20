@@ -83,5 +83,14 @@ GRANT INSERT, DELETE ON device_apps, allowed_apps TO app_runtime;
 -- migration). Aucun INSERT, UPDATE ni DELETE : la publication passe par server/bin/ota-publish.js
 -- avec le compte propriétaire.
 GRANT SELECT ON ota_bundles TO app_runtime;
+-- Connexion par téléphone (027_phone_auth.sql) : numéro écrit à l'inscription seulement (aucun
+-- UPDATE (phone)), date de confirmation ; codes SMS émis, essais comptés, consommés ; compteurs
+-- d'envoi par numéro. Purge par purge_expired().
+GRANT INSERT (phone) ON users TO app_runtime;
+GRANT UPDATE (phone_verified_at) ON users TO app_runtime;
+GRANT INSERT, DELETE ON phone_codes TO app_runtime;
+GRANT UPDATE (code_hash, attempts, expires_at, created_at) ON phone_codes TO app_runtime;
+GRANT INSERT ON phone_send_limits TO app_runtime;
+GRANT UPDATE (sends, window_expires_at, last_sent_at) ON phone_send_limits TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;

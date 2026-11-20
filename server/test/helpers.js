@@ -30,7 +30,7 @@ export const ORIGIN = 'https://app.test'
 export const PROBE = '/api/test-probe'
 export const NATIVE = 'capacitor://localhost'
 
-export async function startApp(url, env = {}) {
+export async function startApp(url, env = {}, opts = {}) {
   const dist = mkdtempSync(join(tmpdir(), 'app-dist-'))
   mkdirSync(join(dist, 'assets'))
   writeFileSync(join(dist, 'index.html'), '<!doctype html><title>App</title>')
@@ -44,9 +44,13 @@ export async function startApp(url, env = {}) {
   await migrate(db)
   const sent = []
   const mailer = { sent, async send(m) { sent.push(m) } }
-  const app = await buildApp({ config, db, mailer, logger: false })
+  // SMS : faux fournisseur en mémoire, sauf si le test demande le vrai fournisseur « fake »
+  // de la configuration (SMS_OUTBOX, SMS_PROVIDER) ; `logger` : un flux pour inspecter le journal.
+  const texts = []
+  const sms = env.SMS_OUTBOX || env.SMS_PROVIDER ? undefined : { available: true, sent: texts, async send(m) { texts.push(m) } }
+  const app = await buildApp({ config, db, mailer, sms, logger: opts.logger ?? false })
   await app.register(probeRoutes, { prefix: PROBE })
-  return { app, db, sent, close: async () => { await app.close(); await db.end(); rmSync(dist, { recursive: true, force: true }) } }
+  return { app, db, sent, texts: sms ? texts : app.sms.sent, close: async () => { await app.close(); await db.end(); rmSync(dist, { recursive: true, force: true }) } }
 }
 
 // Requête « navigateur légitime » : bonne origine + en-tête anti-CSRF.

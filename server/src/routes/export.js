@@ -58,12 +58,12 @@ export async function exportRoutes(app) {
     }
 
     const [me] = await q(
-      `SELECT u.name, u.email, u.created_at, u.consent_at, u.email_verified_at,
+      `SELECT u.name, u.email, u.phone, u.created_at, u.consent_at, u.email_verified_at, u.phone_verified_at,
               EXISTS (SELECT 1 FROM mfa_factors f WHERE f.user_id = u.id) AS mfa
          FROM users u WHERE u.id = $1`, [req.user.id])
     const [family] = await q('SELECT name, created_at, timezone FROM families WHERE id = $1')
     const members = await q(
-      `SELECT m.user_id, m.role, m.created_at, u.name, u.email FROM memberships m JOIN users u ON u.id = m.user_id
+      `SELECT m.user_id, m.role, m.created_at, u.name, u.email, u.phone FROM memberships m JOIN users u ON u.id = m.user_id
         WHERE m.family_id = $1 ORDER BY m.created_at, m.user_id`)
     const memberName = new Map(members.map((m) => [m.user_id, m.name]))
     const invitations = await q(
@@ -179,12 +179,12 @@ export async function exportRoutes(app) {
       exportedAt: now.toISOString(),
       me: {
         name: me.name, email: me.email, createdAt: me.created_at, consentAt: me.consent_at ?? null,
-        emailVerified: !!me.email_verified_at, mfaEnabled: me.mfa
+        emailVerified: !!me.email_verified_at, phone: me.phone, phoneVerified: !!me.phone_verified_at, mfaEnabled: me.mfa
       },
       family: { name: family.name, createdAt: family.created_at, timezone: family.timezone },
       members: members.map((m) => ({
         name: m.name, role: m.role, joinedAt: m.created_at, isMe: m.user_id === req.user.id,
-        ...(m.user_id === req.user.id ? { email: m.email } : {})
+        ...(m.user_id === req.user.id ? { email: m.email, phone: m.phone } : {})
       })),
       invitations: invitations.map((r) => ({ role: r.role, expiresAt: r.expires_at })),
       children: out,

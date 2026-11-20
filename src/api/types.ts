@@ -1,6 +1,8 @@
 export interface User {
   id: string
-  email: string
+  // Compte à adresse OU à numéro (NAR-136) : l'un des deux peut être null.
+  email: string | null
+  phone?: string | null
   name: string
   is_admin: boolean
 }
