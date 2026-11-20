@@ -24,12 +24,16 @@ test('un contact ajouté par le parent est vu par le téléphone au relevé suiv
   const etag = before.headers().etag
 
   // Le parent ajoute un contact par l'interface.
+  // Réglages en résumé (NAR-185) : la section s'ouvre par sa ligne.
   await page.goto('/espace/reglages')
+  await page.getByRole('navigation', { name: 'Sections des réglages' }).getByRole('link', { name: /^Contacts autorisés/ }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Contacts autorisés' })).toBeVisible()
   await page.getByRole('link', { name: '+ Ajouter un contact' }).click()
   await page.getByLabel('Nom affiché').fill('Maman')
   await page.getByLabel('Numéro de téléphone').fill('034 12 345 67')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
-  await expect(page).toHaveURL(/\/espace\/reglages$/)
+  await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
+  await expect(page.getByText('1 sur 6')).toBeVisible()
 
   // Relevé suivant du téléphone (toutes les 30 s) : la nouvelle version, avec le contact.
   const after = await device(page, 'GET', '/config', { token: accessToken, headers: { 'if-none-match': etag } })
@@ -57,7 +61,10 @@ test('une application autorisée par le parent est vue par le téléphone au rel
   const etag = before.headers().etag
 
   // Le parent autorise l'appareil photo par l'interface ; le navigateur n'est pas proposé.
+  // Réglages en résumé (NAR-185) : la section s'ouvre par sa ligne.
   await page.goto('/espace/reglages')
+  await page.getByRole('navigation', { name: 'Sections des réglages' }).getByRole('link', { name: /^Applications autorisées/ }).click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Applications autorisées' })).toBeVisible()
   const card = page.locator('#applications')
   await card.getByRole('button', { name: '+ Ajouter' }).click()
   await expect(card.getByRole('button', { name: 'Chrome' })).toHaveCount(0)

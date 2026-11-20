@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { FAMILY, mockApi, USER } from './mock'
+import { openSection } from './settings'
 
 // Applications autorisées (NAR-143) : carte de Réglages, puces et liste du téléphone.
 const me = { 'GET /api/auth/me': () => ({ body: { user: USER } }), 'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }) }
@@ -36,7 +37,7 @@ function server(initial: string[] = []) {
 
 test('le gestionnaire ajoute une application depuis la liste du téléphone puis la retire', async ({ page }) => {
   const calls = await mockApi(page, { ...base, 'GET /api/families/me': () => ({ body: FAMILY }), ...server() })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Applications autorisées')
   const card = page.locator('#applications')
   await expect(card.getByRole('heading', { name: 'Applications autorisées' })).toBeVisible()
   await expect(card.getByText('Aucune application autorisée pour l’instant.')).toBeVisible()
@@ -54,7 +55,7 @@ test('le gestionnaire ajoute une application depuis la liste du téléphone puis
 
 test('4 applications au plus : plus de « + Ajouter », message affiché', async ({ page }) => {
   await mockApi(page, { ...base, 'GET /api/families/me': () => ({ body: FAMILY }), ...server(INVENTORY.slice(0, 4).map((a) => a.package)) })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Applications autorisées')
   const card = page.locator('#applications')
   await expect(card.getByText('4 sur 4')).toBeVisible()
   await expect(card.getByRole('button', { name: '+ Ajouter' })).toHaveCount(0)
@@ -66,7 +67,7 @@ test('refus du serveur (application protégée) : message traduit, liste inchang
     ...base, 'GET /api/families/me': () => ({ body: FAMILY }), ...server(),
     [PUT]: () => ({ status: 400, body: { error: 'Cette application ne peut pas être autorisée.', code: 'protected_app' } })
   })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Applications autorisées')
   const card = page.locator('#applications')
   await card.getByRole('button', { name: '+ Ajouter' }).click()
   await card.getByRole('button', { name: 'Calculatrice' }).click()
@@ -76,7 +77,7 @@ test('refus du serveur (application protégée) : message traduit, liste inchang
 
 test('le téléphone n’a encore rien envoyé : le parent le sait', async ({ page }) => {
   await mockApi(page, { ...base, 'GET /api/families/me': () => ({ body: FAMILY }) })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Applications autorisées')
   const card = page.locator('#applications')
   await expect(card.getByText('Le téléphone n’a pas encore envoyé la liste de ses applications.')).toBeVisible()
   await expect(card.getByRole('button', { name: '+ Ajouter' })).toHaveCount(0)
@@ -85,7 +86,7 @@ test('le téléphone n’a encore rien envoyé : le parent le sait', async ({ pa
 test('un contact voit les applications autorisées sans pouvoir les changer', async ({ page }) => {
   const asMember = { ...FAMILY, role: 'member', members: [{ userId: USER.id, name: USER.name, role: 'member', isMe: true }] }
   const calls = await mockApi(page, { ...base, 'GET /api/families/me': () => ({ body: asMember }), ...server(['com.android.deskclock']) })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Applications autorisées')
   const card = page.locator('#applications')
   await expect(card.getByText('✓ Horloge')).toBeVisible()
   await expect(card.getByRole('button')).toHaveCount(0)
@@ -107,7 +108,7 @@ test('autorisée devenue protégée : « bloquée », refus qui la nomme, puis r
       return { body: { max: 4, allowed } }
     }
   })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Applications autorisées')
   const card = page.locator('#applications')
   await expect(card.getByText('Lecteur : bloquée')).toBeVisible()
   await expect(card.getByText('✓ Horloge')).toBeVisible()

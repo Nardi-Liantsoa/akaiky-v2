@@ -1,6 +1,7 @@
 import { expect, test, type Request } from '@playwright/test'
 import { cancelEveryWay, confirmSheet } from './confirm'
 import { FAMILY, mockApi, USER } from './mock'
+import { openSection } from './settings'
 
 // Plages horaires « école » (NAR-148) : carte de Réglages, gestionnaire et contact.
 const FY = { id: '6f1c2b1e-0000-4000-8000-000000000101', firstName: 'Fy', avatarColor: 'yellow', createdAt: '2026-11-10T10:00:00Z', parentCodeSetAt: null, remoteUnlockUntil: null, phoneLastSeenAt: null, sosSiren: false }
@@ -46,7 +47,7 @@ function schedulesApi(initial: S[] = []) {
 test('le gestionnaire ajoute « École » lun–ven 8:00–16:00, la désactive, puis la retire après confirmation', async ({ page }) => {
   const api = schedulesApi()
   await mockApi(page, api.handlers)
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Plages horaires')
   const card = page.locator('#plages')
   await expect(card.getByText('Aucune plage pour l’instant.')).toBeVisible()
   await card.getByRole('button', { name: '+ Ajouter une plage' }).click()
@@ -82,7 +83,7 @@ test('le gestionnaire ajoute « École » lun–ven 8:00–16:00, la désactive,
 test('plage de nuit : fin avant le début annoncée ; sans jour ni heures valides, rien ne part', async ({ page }) => {
   const api = schedulesApi()
   await mockApi(page, api.handlers)
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Plages horaires')
   const card = page.locator('#plages')
   await card.getByRole('button', { name: '+ Ajouter une plage' }).click()
   await card.getByLabel('Nom').fill('Nuit')
@@ -105,7 +106,7 @@ test('plage de nuit : fin avant le début annoncée ; sans jour ni heures valide
 test('retrait d’une plage : Annuler, Échap et fond referment la feuille sans rien envoyer, focus rendu', async ({ page }) => {
   const api = schedulesApi([{ id: sid(1), label: 'École', days: 31, startMin: 480, endMin: 960, enabled: true }])
   const calls = await mockApi(page, api.handlers)
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Plages horaires')
   const card = page.locator('#plages')
   await cancelEveryWay(page, card.getByRole('button', { name: 'Retirer', exact: true }), calls, (r) => r.method() === 'DELETE')
   await expect(card.getByText('Lun–Ven · 8:00–16:00 · parents + SOS')).toBeVisible()
@@ -117,7 +118,8 @@ test('« Retirer » une plage, dans les trois langues', async ({ page }) => {
   await mockApi(page, api.handlers)
   for (const [lang, label] of [['fr', 'Retirer'], ['mg', 'Esory'], ['en', 'Remove']] as const) {
     await page.addInitScript((l) => { try { localStorage.setItem('akaiky-v2.lang', l) } catch { /* stockage indisponible */ } }, lang)
-    await page.goto('/espace/reglages')
+    // Page de la section ouverte par son adresse : le titre de sa ligne change avec la langue.
+    await page.goto('/espace/reglages/plages')
     await expect(page.locator('#plages').getByRole('button', { name: label, exact: true })).toBeVisible()
   }
 })
@@ -125,7 +127,7 @@ test('« Retirer » une plage, dans les trois langues', async ({ page }) => {
 test('un contact de famille voit les plages sans pouvoir les modifier', async ({ page }) => {
   const api = schedulesApi([{ id: sid(1), label: 'École', days: 31, startMin: 480, endMin: 960, enabled: true }])
   await mockApi(page, { ...api.handlers, 'GET /api/families/me': () => ({ body: { ...FAMILY, role: 'member' } }) })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Plages horaires')
   const card = page.locator('#plages')
   await expect(card.getByText('Lun–Ven · 8:00–16:00 · parents + SOS')).toBeVisible()
   await expect(card.getByText('Active')).toBeVisible()
@@ -137,12 +139,12 @@ test('aucun contact relié à un parent : la carte prévient que personne ne pou
   const api = schedulesApi([{ id: sid(1), label: 'École', days: 31, startMin: 480, endMin: 960, enabled: true }])
   const mamie = { id: '6f1c2b1e-0000-4000-8000-000000000203', childId: FY.id, name: 'Mamie', phone: '+261321234567', position: 1, avatarColor: 'violet', memberUserId: null, memberRole: null }
   await mockApi(page, { ...api.handlers, [`GET /api/children/${FY.id}/contacts`]: () => ({ body: { version: 1, max: 6, country: 'MG', contacts: [mamie] } }) })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Plages horaires')
   await expect(page.locator('#plages').getByText('Aucun contact n’est relié à un parent')).toBeVisible()
   // Maman reliée au parent principal : plus d'avertissement.
   await page.unrouteAll({ behavior: 'ignoreErrors' })
   await mockApi(page, { ...api.handlers, [`GET /api/children/${FY.id}/contacts`]: () => ({ body: { version: 1, max: 6, country: 'MG', contacts: [{ ...mamie, name: 'Maman', memberUserId: USER.id, memberRole: 'owner' }] } }) })
-  await page.goto('/espace/reglages')
+  await openSection(page, 'Plages horaires')
   await expect(page.locator('#plages').getByText('Lun–Ven · 8:00–16:00 · parents + SOS')).toBeVisible()
   await expect(page.locator('#plages').getByText('Aucun contact n’est relié à un parent')).toHaveCount(0)
 })

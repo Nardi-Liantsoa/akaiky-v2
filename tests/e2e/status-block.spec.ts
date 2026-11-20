@@ -99,7 +99,8 @@ test('accueil : erreur de chargement, puis « Réessayer » affiche les enfants'
   await expect(page.getByRole('button', { name: /^Fy / })).toBeVisible()
 })
 
-test('réglages : chaque carte en échec propose « Réessayer », même présentation, une seule erreur par carte', async ({ page }) => {
+// Depuis NAR-185, chaque carte a sa page (le résumé a son propre bandeau : settings-summary.spec.ts).
+test('réglages : chaque section en échec propose « Réessayer », même présentation, une seule erreur par carte', async ({ page }) => {
   let fail = true
   const failing = () => ({ status: 503, body: { error: 'Occupé.' } })
   await mockApi(page, {
@@ -108,30 +109,30 @@ test('réglages : chaque carte en échec propose « Réessayer », même présen
     [`GET /api/children/${FY.id}/schedules`]: () => (fail ? failing() : { body: [] }),
     [`GET /api/children/${FY.id}/message-templates`]: () => (fail ? failing() : { body: [1, 2, 3, 4].map((slot) => ({ slot, text: null })) })
   })
-  await page.goto('/espace/reglages')
-  const apps = page.getByRole('alert').filter({ hasText: 'Applications indisponibles pour le moment.' })
-  const schedules = page.getByRole('alert').filter({ hasText: 'Impossible de charger les plages horaires.' })
-  const templates = page.getByRole('alert').filter({ hasText: 'Impossible de charger les messages rapides.' })
-  for (const a of [apps, schedules, templates]) await expect(a).toHaveCount(1)
-  // Applications autorisées : jamais deux erreurs empilées (chargement et action).
-  await expect(page.locator('#applications').getByRole('alert')).toHaveCount(1)
-  const buttons = page.getByRole('alert').getByRole('button', { name: 'Réessayer' })
-  await expect(buttons).toHaveCount(3)
-  const looks = await buttons.evaluateAll((els) => els.map((el) => {
-    const s = getComputedStyle(el)
-    return [el.className, s.backgroundColor, s.borderColor, s.color, s.minHeight].join('|')
-  }))
+  const looks: string[] = []
+  for (const [path, title, text, ready] of [
+    ['applications', 'Applications autorisées', 'Applications indisponibles pour le moment.', 'Le téléphone n’a pas encore envoyé la liste de ses applications.'],
+    ['plages', 'Plages horaires', 'Impossible de charger les plages horaires.', 'Aucune plage pour l’instant.'],
+    ['messages', 'Messages rapides', 'Impossible de charger les messages rapides.', 'Message 1']
+  ] as const) {
+    fail = true
+    await page.goto(`/espace/reglages/${path}`)
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible()
+    const alert = page.getByRole('alert').filter({ hasText: text })
+    // Une seule erreur sur la page (applications : jamais chargement et action empilés).
+    await expect(alert).toHaveCount(1)
+    await expect(page.getByRole('alert')).toHaveCount(1)
+    const button = alert.getByRole('button', { name: 'Réessayer' })
+    looks.push(await button.evaluate((el) => {
+      const s = getComputedStyle(el)
+      return [el.className, s.backgroundColor, s.borderColor, s.color, s.minHeight].join('|')
+    }))
+    fail = false
+    await button.click()
+    await expect(alert).toHaveCount(0)
+    await expect(page.getByText(ready).first()).toBeVisible()
+  }
   expect(new Set(looks).size).toBe(1)
-
-  fail = false
-  await apps.getByRole('button', { name: 'Réessayer' }).click()
-  await expect(apps).toHaveCount(0)
-  await expect(page.getByText('Le téléphone n’a pas encore envoyé la liste de ses applications.')).toBeVisible()
-  await schedules.getByRole('button', { name: 'Réessayer' }).click()
-  await expect(schedules).toHaveCount(0)
-  await expect(page.getByText('Aucune plage pour l’instant.')).toBeVisible()
-  await templates.getByRole('button', { name: 'Réessayer' }).click()
-  await expect(templates).toHaveCount(0)
 })
 
 test('journal : erreur de chargement, puis « Réessayer » relit le journal', async ({ page }) => {
