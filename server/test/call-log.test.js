@@ -98,6 +98,50 @@ test('formes refusées : bloqué avec contact ou durée, reçu sans numéro E.16
   assert.equal((await events(fy.device, [{ id: randomUUID(), kind: 'call_blocked', phone: '321', startedAt: at(1) }])).json().accepted.length, 1)
 })
 
+test('fenêtre des secours (NAR-196) : appel reçu marqué, inconnu ou masqué, rendu au calls, au journal et à l’export', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const fy = await pairedChild(owner, 'Fy')
+  const unknown = { id: randomUUID(), kind: 'call_in', phone: '+261329876543', startedAt: at(3), durationS: 40, emergencyWindow: true }
+  const hidden = { id: randomUUID(), kind: 'call_in', startedAt: at(2), durationS: null, emergencyWindow: true }
+  const short = { id: randomUUID(), kind: 'call_in', phone: '1515', startedAt: at(1), durationS: null, emergencyWindow: true }
+  const res = await events(fy.device, [unknown, hidden, short])
+  assert.equal(res.statusCode, 200, res.body)
+  assert.deepEqual(res.json().accepted, [unknown.id, hidden.id, short.id])
+  // Marque réservée aux appels reçus ; sans elle, un appel reçu sans numéro E.164 reste refusé ;
+  // marqué avec un contact : numéro E.164 exigé.
+  const bad = [
+    { id: randomUUID(), kind: 'call_blocked', phone: '+261329876543', startedAt: at(1), emergencyWindow: true },
+    { id: randomUUID(), kind: 'unlock', source: 'code', startedAt: at(1), durationS: 60, emergencyWindow: true },
+    { id: randomUUID(), kind: 'call_in', startedAt: at(1), emergencyWindow: false },
+    { id: randomUUID(), kind: 'call_in', contactId: randomUUID(), phone: '1515', startedAt: at(1), emergencyWindow: true }
+  ]
+  assert.deepEqual((await events(fy.device, bad)).json().rejected.sort(), bad.map((e) => e.id).sort())
+  // Champ de type inattendu : lot refusé par le schéma.
+  assert.equal((await events(fy.device, [{ ...unknown, id: randomUUID(), emergencyWindow: 'oui' }])).statusCode, 400)
+
+  const list = (await calls(owner, fy.kid.id)).json().calls
+  assert.deepEqual(list.map((c) => [c.kind, c.phone, c.durationS, c.emergencyWindow]), [
+    ['call_in', '1515', null, true],
+    ['call_in', null, null, true],
+    ['call_in', '+261329876543', 40, true]
+  ])
+  const items = (await call(ctx.app, 'GET', `/api/children/${fy.kid.id}/journal?kind=calls`, { cookie: owner.cookie })).json().items
+  assert.deepEqual(items.map((i) => i.emergencyWindow), [true, true, true])
+  // Appel ordinaire : pas de marque (champ absent, réponse inchangée).
+  const maman = (await call(ctx.app, 'POST', `/api/children/${fy.kid.id}/contacts`, { cookie: owner.cookie, body: { name: 'Maman', phone: '034 12 345 67' } })).json()
+  const plain = { id: randomUUID(), kind: 'call_in', contactId: maman.id, name: 'Maman', phone: '+261341234567', startedAt: at(0.5), durationS: 5 }
+  assert.equal((await events(fy.device, [plain])).json().accepted[0], plain.id)
+  const first = (await calls(owner, fy.kid.id)).json().calls[0]
+  assert.equal(first.id, plain.id)
+  assert.equal('emergencyWindow' in first, false)
+  const { rows } = await ctx.db.query('SELECT emergency_window FROM device_events WHERE id = ANY($1::uuid[]) ORDER BY started_at', [[unknown.id, plain.id]])
+  assert.deepEqual(rows.map((r) => r.emergency_window), [true, false])
+  const exported = (await call(ctx.app, 'GET', '/api/families/me/export', { cookie: owner.cookie })).json()
+  const journal = JSON.stringify(exported)
+  assert.ok(journal.includes('"emergencyWindow":true'), 'marque exportée')
+})
+
 test('cloisonnement : le téléphone de X n’écrit pas chez Y ; A/B → 404 ; contact, pas d’accès à un autre enfant', async () => {
   const a = await newUser(ctx)
   await family(a)

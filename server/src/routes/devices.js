@@ -101,7 +101,10 @@ const EVENTS = {
           // Contact : E.164. Numéro bloqué : tel que reçu (E.164 si possible, sinon chiffres).
           phone: { type: 'string', pattern: '^\\+?[0-9]{2,15}$' },
           startedAt: { type: 'string', maxLength: 40 },
-          durationS: { type: ['integer', 'null'], minimum: 0, maximum: 86400 }
+          durationS: { type: ['integer', 'null'], minimum: 0, maximum: 86400 },
+          // call_in laissé sonner par la fenêtre des secours (NAR-196) : l'enfant avait appelé
+          // les secours moins de 30 min plus tôt ; numéro tel que reçu, absent s'il était masqué.
+          emergencyWindow: { type: 'boolean' }
         }
       }
     }
@@ -174,7 +177,7 @@ export async function devicesRoutes(app) {
     const [beforeAt, beforeId] = typeof req.query.before === 'string' ? req.query.before.split('_') : []
     const cursor = beforeAt && !Number.isNaN(Date.parse(beforeAt)) && isUuid(beforeId) ? [new Date(beforeAt), beforeId] : null
     const { rows } = await db.query(
-      `SELECT id, kind, contact_id, name_enc, phone_enc, started_at, duration_s FROM device_events
+      `SELECT id, kind, contact_id, name_enc, phone_enc, started_at, duration_s, emergency_window FROM device_events
         WHERE child_id = $1 AND family_id = $2 AND kind = ANY($3::text[])
           AND ($4::timestamptz IS NULL OR (started_at, id) < ($4, $5::uuid))
         ORDER BY started_at DESC, id DESC LIMIT 51`,
@@ -189,7 +192,8 @@ export async function devicesRoutes(app) {
         name: r.name_enc ? openField(r.name_enc, config.dataKey, eventAad(r.id, 'name')) : null,
         phone: r.phone_enc ? openField(r.phone_enc, config.dataKey, eventAad(r.id, 'phone')) : null,
         startedAt: r.started_at,
-        durationS: r.duration_s
+        durationS: r.duration_s,
+        ...(r.emergency_window ? { emergencyWindow: true } : {})
       })),
       next: rows.length > 50 && last ? `${last.started_at.toISOString()}_${last.id}` : null
     }
@@ -394,9 +398,13 @@ export async function deviceSessionRoutes(app) {
             ? e.source === undefined && (e.durationS === undefined || e.durationS === null)
               && (e.contactId === undefined ? e.name === undefined : isUuid(e.contactId) && e164 && typeof e.name === 'string')
             : e.kind === 'call_in'
-              ? e.source === undefined && e164 && (e.contactId === undefined || isUuid(e.contactId))
+              ? e.source === undefined && (e.contactId === undefined || isUuid(e.contactId))
+                && (e164 || (e.emergencyWindow === true && e.contactId === undefined))
               : e.source === undefined && isUuid(e.contactId) && (e.phone === undefined || e164)
-        const plausible = shaped && isUuid(e.id) && !Number.isNaN(started)
+        // Marque de la fenêtre des secours : appels reçus seulement.
+        const marked = e.emergencyWindow === true
+        const shapedMark = !marked || e.kind === 'call_in'
+        const plausible = shaped && shapedMark && isUuid(e.id) && !Number.isNaN(started)
           && started <= now + 5 * 60000 && started >= now - 90 * 86400000
         const contact = known.get(e.contactId)
         const foreign = contact && (contact.child_id !== req.device.childId || contact.family_id !== req.device.familyId)
@@ -409,14 +417,14 @@ export async function deviceSessionRoutes(app) {
           && !(contact && blindIndex(e.phone, config.dataKey, 'phone').equals(contact.phone_index))
         const name = !plainBlock && typeof e.name === 'string' ? e.name.trim().slice(0, 80) : ''
         const insert = (contactId) => conn.query(
-          `INSERT INTO device_events(id, family_id, child_id, device_id, kind, contact_id, name_enc, phone_enc, started_at, duration_s, unlock_source, phone_index)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) ON CONFLICT (id) DO NOTHING`,
+          `INSERT INTO device_events(id, family_id, child_id, device_id, kind, contact_id, name_enc, phone_enc, started_at, duration_s, unlock_source, phone_index, emergency_window)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) ON CONFLICT (id) DO NOTHING`,
           [e.id, req.device.familyId, req.device.childId, req.device.id, e.kind, contactId,
             name ? sealField(name, config.dataKey, eventAad(e.id, 'name')) : null,
             e.phone ? sealField(e.phone, config.dataKey, eventAad(e.id, 'phone')) : null,
             new Date(started), e.durationS ?? null, unlock ? e.source : null,
             // Index aveugle : regrouper les appels d'un même numéro sans le déchiffrer.
-            e.phone ? blindIndex(e.phone, config.dataKey, 'phone') : null])
+            e.phone ? blindIndex(e.phone, config.dataKey, 'phone') : null, marked])
         await conn.query('SAVEPOINT ev')
         let rowCount
         try {
