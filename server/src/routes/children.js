@@ -1,11 +1,12 @@
-// Enfants de la famille de la session (NAR-135). Lecture : tous les membres ;
-// écriture : owner et manager. La famille vient de l'adhésion de la session et
+// Enfants de la famille de la session (NAR-135). Lecture : tous les membres (numéro de
+// l'enfant compris, NAR-194) ; écriture : owner et manager. La famille vient de l'adhésion de la session et
 // chaque requête filtre sur elle : l'enfant d'une autre famille n'existe pas (404).
 import { randomUUID } from 'node:crypto'
 import { HttpError, audit, isUuid, text } from '../lib.js'
 import { withTransaction } from '../db.js'
 import { MANAGERS, ROLES, lockOwnFamily, requireOwnFamily } from '../families.js'
 import { openField, sealField } from '../crypto-fields.js'
+import { normalizePhone } from '../phone.js'
 import { hashParentCode, parentCodeProblem, reserveHashSlot } from '../parent-code.js'
 import { createLimiter } from '../security.js'
 
@@ -23,13 +24,19 @@ const CREATE = {
   additionalProperties: false,
   required: ['firstName'],
   // parentalConsent : exigé à true (NAR-178), vérifié après le rôle pour un refus précis.
-  properties: { firstName: { type: 'string', maxLength: 200 }, avatarColor: { type: 'string', enum: AVATAR_COLORS }, parentalConsent: { type: 'boolean' } }
+  // phone : numéro de l'enfant (NAR-194), E.164 après normalisation comme un contact ; null = aucun.
+  properties: {
+    firstName: { type: 'string', maxLength: 200 },
+    avatarColor: { type: 'string', enum: AVATAR_COLORS },
+    phone: { type: ['string', 'null'], maxLength: 40 },
+    parentalConsent: { type: 'boolean' }
+  }
 }
 const UPDATE = {
   type: 'object',
   additionalProperties: false,
   minProperties: 1,
-  properties: { firstName: CREATE.properties.firstName, avatarColor: CREATE.properties.avatarColor }
+  properties: { firstName: CREATE.properties.firstName, avatarColor: CREATE.properties.avatarColor, phone: CREATE.properties.phone }
 }
 // Corps du code parent : la forme exacte est vérifiée ensuite, pour un refus précis.
 const PARENT_CODE = {
@@ -45,18 +52,24 @@ export const REMOTE_UNLOCK_SQL = 'CASE WHEN remote_unlock_until > now() THEN rem
 // Dernier passage d'un téléphone appairé non révoqué (état « vu à … » de la carte, NAR-174).
 const LAST_SEEN_SQL = `(SELECT max(d.last_seen_at) FROM child_devices d
   WHERE d.child_id = children.id AND d.family_id = children.family_id AND d.revoked_at IS NULL) AS phone_last_seen_at`
-const COLUMNS = `id, first_name_enc, avatar_color, created_at, parent_code_set_at, sos_siren, ${REMOTE_UNLOCK_SQL}, ${LAST_SEEN_SQL}`
+const COLUMNS = `id, first_name_enc, phone_enc, avatar_color, created_at, parent_code_set_at, sos_siren, ${REMOTE_UNLOCK_SQL}, ${LAST_SEEN_SQL}`
 const firstName = (v) => text(v, { min: 1, max: 40, field: 'Prénom' })
 const notFound = () => new HttpError(404, 'Enfant introuvable.', 'child_not_found')
 const aad = (id) => `children:first_name:${id}`
+// Données associées du numéro de l'enfant (NAR-194) : aussi lues par l'export (export.js).
+export const childPhoneAad = (id) => `children:phone:${id}`
 
 export default async function childrenRoutes(app) {
   const { db, config } = app
   const seal = (id, name) => sealField(name, config.dataKey, aad(id))
+  // Numéro de l'enfant : null efface, sinon normalisé en E.164 (même règle que les contacts) puis chiffré.
+  const sealPhone = (id, raw) => raw === null ? null : sealField(normalizePhone(raw, config.phoneCountry), config.dataKey, childPhoneAad(id))
   // Champ par champ : jamais la ligne (ni le chiffré, ni le hachage du code parent) vers le navigateur.
   const serialize = (r) => ({
     id: r.id,
     firstName: openField(r.first_name_enc, config.dataKey, aad(r.id)),
+    // Lu par tous les membres : un contact appelle aussi l'enfant (« Antsoy », NAR-194).
+    phone: r.phone_enc ? openField(r.phone_enc, config.dataKey, childPhoneAad(r.id)) : null,
     avatarColor: r.avatar_color,
     createdAt: r.created_at,
     parentCodeSetAt: r.parent_code_set_at ?? null,
@@ -84,10 +97,11 @@ export default async function childrenRoutes(app) {
       const { rows: used } = await conn.query('SELECT avatar_color FROM children WHERE family_id = $1', [own.familyId])
       if (used.length >= MAX_CHILDREN) throw new HttpError(409, 'Nombre maximal d’enfants atteint.', 'too_many_children')
       const id = randomUUID()
+      const phone = sealPhone(id, req.body.phone ?? null)
       const color = req.body.avatarColor ?? leastUsedColor(used.map((r) => r.avatar_color))
       const { rows: [created] } = await conn.query(
-        `INSERT INTO children(id, family_id, first_name_enc, avatar_color, consent_at, consent_by) VALUES ($1, $2, $3, $4, now(), $5)
-         RETURNING ${COLUMNS}`, [id, own.familyId, seal(id, name), color, req.user.id])
+        `INSERT INTO children(id, family_id, first_name_enc, phone_enc, avatar_color, consent_at, consent_by) VALUES ($1, $2, $3, $4, $5, now(), $6)
+         RETURNING ${COLUMNS}`, [id, own.familyId, seal(id, name), phone, color, req.user.id])
       await audit(conn, req, 'child_added', id)
       return created
     })
@@ -102,6 +116,8 @@ export default async function childrenRoutes(app) {
       const own = await lockOwnFamily(conn, req, MANAGERS)
       const sets = [], values = [id, own.familyId]
       if (name !== undefined) { values.push(seal(id, name)); sets.push(`first_name_enc = $${values.length}`) }
+      // Numéro validé après le rôle : un contact reçoit 403 quel que soit le numéro envoyé.
+      if (req.body.phone !== undefined) { values.push(sealPhone(id, req.body.phone)); sets.push(`phone_enc = $${values.length}`) }
       if (req.body.avatarColor !== undefined) { values.push(req.body.avatarColor); sets.push(`avatar_color = $${values.length}`) }
       const { rows: [updated] } = await conn.query(
         `UPDATE children SET ${sets.join(', ')} WHERE id = $1 AND family_id = $2 RETURNING ${COLUMNS}`, values)

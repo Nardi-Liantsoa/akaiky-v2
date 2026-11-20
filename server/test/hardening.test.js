@@ -83,6 +83,18 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     assert.equal((await call(app, 'POST', `/api/children/${child.json().id}/unlock`, { cookie: user.cookie })).statusCode, 200)
     // Sirène pendant un SOS (022_sos_siren.sql) sous le rôle restreint.
     assert.equal((await call(app, 'PUT', `/api/children/${child.json().id}/sos-siren`, { cookie: user.cookie, body: { enabled: true } })).statusCode, 200)
+    // Numéro de l'enfant (025_child_phone.sql) : posé, lu puis effacé sous le rôle restreint ;
+    // la colonne chiffrée seule est ouverte en écriture, jamais la famille ni le consentement.
+    const withPhone = await call(app, 'PATCH', `/api/children/${child.json().id}`, { cookie: user.cookie, body: { phone: '034 12 345 67' } })
+    assert.equal(withPhone.statusCode, 200, withPhone.body)
+    assert.equal(withPhone.json().phone, '+261341234567')
+    assert.equal((await call(app, 'PATCH', `/api/children/${child.json().id}`, { cookie: user.cookie, body: { phone: null } })).json().phone, null)
+    const { rows: childGrants } = await pool.query(
+      `SELECT column_name FROM information_schema.column_privileges
+        WHERE grantee = 'app_runtime' AND table_name = 'children' AND privilege_type = 'UPDATE' ORDER BY column_name`)
+    assert.deepEqual(childGrants.map((r) => r.column_name),
+      ['avatar_color', 'first_name_enc', 'parent_code_hash', 'parent_code_set_at', 'phone_enc', 'remote_unlock_until', 'sos_siren'])
+    await assert.rejects(pool.query('UPDATE children SET consent_by = consent_by'), /permission denied/)
     assert.equal((await call(app, 'DELETE', `/api/children/${child.json().id}`, { cookie: user.cookie })).statusCode, 200)
     await assert.rejects(pool.query('UPDATE children SET family_id = family_id'), /permission denied/)
     // Contacts autorisés sous le rôle restreint (GRANT de 006_allowed_contacts.sql).
