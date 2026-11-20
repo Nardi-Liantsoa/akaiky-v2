@@ -10,6 +10,7 @@ import type { IconName } from '../ui/icons'
 // alerte ouverte, tuiles Batterie · Réseau · Carte SIM. Relu chaque minute et au retour au
 // premier plan ; pendant une relecture, le contenu connu reste affiché (estompé seulement
 // s'il appartient à un autre enfant), jamais de clignotement.
+// NAR-193 : un seul bandeau (le plus grave) ; « +N » (bouton à aria-expanded) déplie les autres.
 // NAR-192 : chaque bandeau et chaque tuile en défaut portent une icône (jamais la couleur
 // seule) ; le dernier passage est dans la ligne d'état de la carte, qui reçoit les alertes
 // lues ici (`alerts`) pour sa pastille, sans second chargement : `null` tant que l'état
@@ -69,6 +70,10 @@ const alerts = computed(() => devices.value
   .flatMap((d) => d.alerts.map((a) => ({ ...a, deviceId: d.id })))
   .filter((a) => ORDER.includes(a.kind))
   .sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind)))
+// Autres alertes repliées par défaut ; repliées aussi pour un autre enfant ou s'il n'en reste qu'une.
+const showAll = ref(false)
+watch(() => props.childId, () => { showAll.value = false })
+watch(() => alerts.value.length, (n) => { if (n < 2) showAll.value = false })
 const stale = computed(() => reloading.value && loadedFor.value !== props.childId)
 const ago = (iso: string | null) => relativeTime(iso, t.value, locale.value, now.value)
 const battery = (d: DeviceStatusInfo) => d.batteryPct === null ? t.value.phoneState.unknown : t.value.phoneState.percent(d.batteryPct)
@@ -92,15 +97,36 @@ const lowBattery = (d: DeviceStatusInfo) => d.batteryPct !== null && d.batteryPc
     :aria-label="t.phoneState.label(name)"
   >
     <p v-if="status === 'error'" class="unavailable">{{ t.phoneState.loadError }}</p>
-    <ul v-if="alerts.length" class="alerts">
-      <li v-for="a in alerts" :key="`${a.deviceId}-${a.kind}`" class="banner" :class="BANNER[a.kind].tone" role="alert">
-        <AppIcon :name="BANNER[a.kind].icon" :size="22" class="icon" />
-        <span class="text">
-          <strong>{{ t.phoneState.alerts[a.kind] }}</strong>
-          <span class="since">{{ t.phoneState.since(ago(a.openedAt)) }}</span>
-        </span>
-      </li>
-    </ul>
+    <!-- NAR-193 : un seul bandeau, l'alerte la plus grave ; « +N » déplie les autres. -->
+    <div v-if="alerts.length" class="alerts">
+      <div class="top">
+        <div v-for="a in alerts.slice(0, 1)" :key="`${a.deviceId}-${a.kind}`" class="banner" :class="BANNER[a.kind].tone" role="alert">
+          <AppIcon :name="BANNER[a.kind].icon" :size="22" class="icon" />
+          <span class="text">
+            <strong>{{ t.phoneState.alerts[a.kind] }}</strong>
+            <span class="since">{{ t.phoneState.since(ago(a.openedAt)) }}</span>
+          </span>
+        </div>
+        <button
+          v-if="alerts.length > 1" type="button" class="more-alerts" :aria-expanded="showAll" :aria-controls="`alerts-${childId}`"
+          @click="showAll = !showAll"
+        >
+          <!-- Nommé « +2 autres alertes » : le texte visible fait partie du nom. -->
+          <span>+{{ alerts.length - 1 }}</span>
+          <span class="visually-hidden">{{ ` ${t.phoneState.moreAlerts(alerts.length - 1)}` }}</span>
+          <AppIcon name="chevron-right" :size="18" class="chevron" />
+        </button>
+      </div>
+      <ul v-if="alerts.length > 1" v-show="showAll" :id="`alerts-${childId}`" class="others">
+        <li v-for="a in alerts.slice(1)" :key="`${a.deviceId}-${a.kind}`" class="banner" :class="BANNER[a.kind].tone">
+          <AppIcon :name="BANNER[a.kind].icon" :size="22" class="icon" />
+          <span class="text">
+            <strong>{{ t.phoneState.alerts[a.kind] }}</strong>
+            <span class="since">{{ t.phoneState.since(ago(a.openedAt)) }}</span>
+          </span>
+        </li>
+      </ul>
+    </div>
     <div v-for="d in devices" :key="d.id" class="device">
       <p v-if="devices.length > 1 && d.model" class="model">{{ d.model }}</p>
       <template v-if="d.statusAt">
@@ -136,13 +162,52 @@ const lowBattery = (d: DeviceStatusInfo) => d.batteryPct !== null && d.batteryPc
   opacity: 0.45;
   pointer-events: none;
 }
-.alerts {
+.alerts,
+.others {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
+}
+.top {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.top .banner {
+  flex: 1;
+  min-width: 0;
+}
+/* « +N » : cible ≥ 48 px, chevron vers le bas replié, vers le haut déplié. */
+.more-alerts {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0 8px 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+.more-alerts .chevron {
+  transform: rotate(90deg);
+  transition: transform 0.15s;
+}
+.more-alerts[aria-expanded='true'] .chevron {
+  transform: rotate(-90deg);
+}
+.more-alerts:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 .banner {
   display: flex;

@@ -14,7 +14,11 @@ export const children = reactive({
   status: 'unknown' as 'unknown' | 'loading' | 'ready' | 'error',
   items: [] as Child[],
   error: null as unknown,
-  selectedId: null as string | null
+  selectedId: null as string | null,
+  // Ordre des cartes de l'accueil tel qu'affiché (NAR-193, `sortBySeverity`) : gardé hors du
+  // composant pour qu'un retour sur l'accueil reparte du même ordre, sans saut pendant que
+  // les états des téléphones sont relus. Préférence d'affichage, jamais écrite sur l'appareil.
+  order: [] as string[]
 })
 
 let loadedFor: string | null = null
@@ -34,7 +38,7 @@ function resetIfOtherScope() {
   loadedFor = s
   generation++
   pending = null
-  Object.assign(children, { status: 'unknown', items: [], error: null, selectedId: null })
+  Object.assign(children, { status: 'unknown', items: [], error: null, selectedId: null, order: [] })
 }
 watch(scope, resetIfOtherScope, { flush: 'sync' })
 
