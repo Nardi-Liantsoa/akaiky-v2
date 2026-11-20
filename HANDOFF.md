@@ -56,10 +56,13 @@
   coupées (`statsUrl: ''`). **Avant le premier OTA** : (1) livrer ces deux coques — les
   coques antérieures se présentent toutes comme l'app parent et envoient leurs statistiques
   à `plugin.capgo.app` ; la coque minimale du premier OTA de chaque app est donc le
-  `versionCode` de cette coque-là ; (2) construire le serveur OTA auto-hébergé (tri par
-  `app_id`, canal et `version_code`, cas de `tests/fixtures/ota-target-cases.json`) et
-  régler `updateUrl`/`channelUrl` vers lui (encore une coque ; par défaut ils visent
-  Capgo Cloud, appelé seulement si le JavaScript le demande, ce qu'aucun code ne fait) ;
+  `versionCode` de cette coque-là ; (2) le serveur OTA auto-hébergé existe (NAR-189 :
+  `/api/ota/latest`, `/api/ota/channel`, `/api/ota/bundles/:id`, table `ota_bundles`,
+  publication `server/bin/ota-publish.js`) ; reste à régler `updateUrl` =
+  `https://<domaine>/api/ota/latest` et `channelUrl` = `https://<domaine>/api/ota/channel`
+  dans les coques (encore une coque ; par défaut ils visent Capgo Cloud, appelé seulement si
+  le JavaScript le demande, ce qu'aucun code ne fait), et jouer la migration 024 avant
+  l'image qui en a besoin ;
   (3) écrire le runtime (vérifier, `otaVerdict`, télécharger, `set`). Procédure :
   `docs/MOBILE.md` « Mises à jour OTA ».
 
@@ -134,6 +137,16 @@ Développement : la version debug garde le débogage USB. Pour réinstaller, app
 ## Limites résiduelles assumées
 
 Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une limite tue est une faille.
+
+- **Bundles OTA non signés (NAR-189)** : intégrité par le SHA-256 que le greffon vérifie et par
+  le https ; ni chiffrement (`session_key`) ni signature de bundle. Quiconque écrit dans
+  `ota_bundles` (compte propriétaire de la base) peut distribuer du code aux deux apps : ce
+  compte ne sert qu'aux commandes administratives. Routes OTA publiques : un bundle se
+  télécharge sans session (c'est le code de la version web, déjà public ; canaux de test
+  compris : n'y publier rien de confidentiel). Limites par IP
+  (`OTA_RATE_LIMIT`, `OTA_DOWNLOAD_RATE_LIMIT`) : à relever derrière un NAT d'opérateur.
+  Corps du greffon validé strictement : une coque avec un greffon plus récent qui enverrait
+  un champ nouveau ne reçoit aucune mise à jour tant que le serveur ne le connaît pas.
 
 - **SOS hors ligne (NAR-151)** : décroché d'un appel sortant deviné (au moins 8 s connectées au journal d'appels ;
   coupure à 25 s, puis un rappel sans coupure du même contact si le journal montre qu'il avait décroché) : une

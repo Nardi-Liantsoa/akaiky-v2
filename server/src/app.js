@@ -20,6 +20,7 @@ import { devicesRoutes, deviceSessionRoutes } from './routes/devices.js'
 import { devicePushRoutes, pushRoutes } from './routes/push.js'
 import { childStatusRoutes, deviceStatusRoutes } from './routes/device-status.js'
 import { appsRoutes, deviceAppsRoutes } from './routes/apps.js'
+import otaRoutes from './routes/ota.js'
 
 // Politique de contenu : tout vient de la même origine, aucun script en ligne,
 // aucun tiers (polices hébergées sur place).
@@ -89,6 +90,9 @@ const bearerOf = (req) => {
 // Jeton « signal de vie » du natif en arrière-plan (NAR-180, 021_heartbeat_tokens.sql) :
 // schéma à part, accepté sur la seule route du signal. Ailleurs, il n'ouvre rien.
 const HEARTBEAT_PATH = /^\/api\/device\/heartbeat(?:\?|$)/
+// Serveur OTA (NAR-189, routes/ota.js) : appelé par le greffon natif, sans session ni origine.
+// Routes publiques en lecture seule : ni cookie lu, ni contrôle CSRF (rien n'est écrit).
+const OTA_PATH = /^\/api\/ota\//
 const heartbeatOf = (req) => {
   const m = /^Heartbeat ([A-Za-z0-9_-]{43})$/.exec(req.headers.authorization || '')
   return m ? m[1] : null
@@ -188,6 +192,7 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
       }).send()
     }
     if (!app.dbReady) throw new HttpError(503, 'Service en cours de démarrage. Réessayez dans un instant.')
+    if (OTA_PATH.test(req.url)) { req.authTransport = 'ota'; return }
     // Signal du natif (NAR-180) : envoyé hors WebView, donc sans origine. Un navigateur en
     // met toujours une sur un POST, et l'en-tête Authorization impose un pré-vol refusé hors
     // des origines natives : aucune page ne l'atteint. Ni cookie ni contrôle CSRF.
@@ -225,6 +230,11 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   app.decorateRequest('device', null)
   app.addHook('preHandler', async (req) => {
     if (!req.url.startsWith('/api/')) return
+    // OTA : aucune session cherchée ; seule une route déclarée `ota` est servie sous ce préfixe.
+    if (req.authTransport === 'ota') {
+      if (req.routeOptions.url && !req.routeOptions.config?.ota) throw new HttpError(401, 'Connexion requise.')
+      return
+    }
     // Session d'appareil : cherchée parmi les seules sessions d'appareil, jamais par
     // cookie ni parmi les sessions de compte. Un appareil révoqué n'en a plus.
     // Réciproquement, plus bas, une session de compte n'atteint jamais ces routes.
@@ -364,6 +374,7 @@ export async function buildApp({ config, db, mailer, logger = true, dbReady = tr
   await app.register(deviceStatusRoutes, { prefix: '/api/device' })
   await app.register(appsRoutes, { prefix: '/api' })
   await app.register(deviceAppsRoutes, { prefix: '/api/device' })
+  await app.register(otaRoutes, { prefix: '/api/ota' })
 
   // APK de l'app enfant (NAR-165) : lu une fois au démarrage, servi tel quel, sans
   // session (Android le télécharge pendant le provisionnement par QR). L'intégrité

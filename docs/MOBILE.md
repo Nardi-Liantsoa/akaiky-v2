@@ -224,9 +224,11 @@ lancement suivant.
 réseau** : un utilisateur hors connexion verrait sa mise à jour annulée à
 chaque démarrage.
 
-**OTA pas encore activé** : aucun serveur OTA auto-hébergé ni runtime de mise à jour
-(vérifier, télécharger, `set`) n'existe encore. Tant qu'ils manquent, aucun bundle n'est
-distribué. Capgo Cloud n'est pas utilisé (données de mineurs).
+**OTA pas encore activé** : le serveur OTA auto-hébergé existe (NAR-189, ci-dessous), mais
+les coques ne le visent pas encore (`updateUrl` / `channelUrl` absents de
+`capacitor.config.ts`, donc Capgo Cloud par défaut, jamais appelé) et aucun runtime de mise à
+jour (vérifier, `otaVerdict`, télécharger, `set`) n'existe. Tant qu'ils manquent, aucun bundle
+n'est distribué. Capgo Cloud n'est pas utilisé (données de mineurs).
 
 ### Une app, un canal (NAR-162)
 
@@ -251,10 +253,10 @@ leurs `versionCode` suivent deux échelles indépendantes. Chaque publication vi
   l'identifiant et la variante ne concordent pas, ou si le bloc `CapacitorUpdater` manque. iOS (parent seul) prend les valeurs parent de `capacitor.config.ts`.
   Un bundle parent arrivé par erreur sur la coque enfant ne change donc rien au canal
   que celle-ci demande ensuite.
-- **Côté serveur (à construire)** : la réponse de mise à jour n'offre que les bundles dont
+- **Côté serveur (NAR-189)** : la réponse de mise à jour n'offre que les bundles dont
   la cible correspond à `app_id` (règle de préfixe de `src/lib/appKind.ts`) et au canal
   demandé, et dont `minNativeBuild` est ≤ `version_code` envoyé par le greffon. Il refuse
-  un bundle dont la cible manque ou est mal formée.
+  un bundle dont la cible manque ou est mal formée. Détail : « Serveur OTA » ci-dessous.
 - **Côté écran (défense en profondeur)** : la réponse porte `target: { app, channel,
   minNativeBuild }` à côté de `version` et `url`. Avant tout téléchargement, le runtime
   appelle `otaVerdict(target, await readShell())` (`src/lib/otaTarget.ts` ; identifiant et
@@ -262,14 +264,60 @@ leurs `versionCode` suivent deux échelles indépendantes. Chaque publication vi
   (`wrong-app`, `wrong-channel`, `native-too-old`, `invalid`, `unknown-shell`) : rien.
 - Cas partagés : `tests/fixtures/ota-target-cases.json` (vitest `src/lib/otaTarget.test.ts`,
   JVM `OtaIdentityTest.kt`, qui lit les assets réellement embarqués par la variante testée ;
-  le futur serveur les reprend).
+  serveur `server/test/ota.test.js`, contre la vraie route et la vraie base).
 
-### Publier un OTA (procédure, une fois le serveur en place)
+### Serveur OTA (NAR-189)
+
+Auto-hébergé dans l'API, au format du greffon 8.54 (« updateUrl » et « channelUrl »
+auto-hébergés). Routes publiques en lecture seule (`server/src/routes/ota.js`) : appelées par
+le natif (OkHttp, URLSession), sans session, cookie ni origine, donc hors contrôle CSRF.
+Rien n'est écrit ni journalisé de ce que l'appareil envoie (`device_id` compris).
+
+| Route | Appel du greffon | Réponse |
+|---|---|---|
+| `POST /api/ota/latest` | `getLatest()` (`updateUrl`) | `{ version, url, checksum, target }` ; sinon `{ error: 'no_new_version_available', message }` (200) ; coque inconnue (`unknown_shell`) ou canal étranger à l'app (`wrong_channel`) : 400 |
+| `PUT /api/ota/channel` | `getChannel()` (`channelUrl`) | `{ channel, status: 'default', allowSet: false }` : le canal demandé s'il appartient à l'app de `app_id`, sinon le canal de cette app ; identifiant étranger : 400, rien de gardé |
+| `GET /api/ota/bundles/:id` | téléchargement de `url` | le zip (`application/zip`, pièce jointe, ETag = SHA-256) |
+
+- `setChannel`, `unsetChannel`, `listChannels` ne sont pas servis (404) : les coques les
+  désactivent, et le canal ne doit dépendre que de la coque.
+- Le bundle proposé est le plus récent de **cette** app sur **ce** canal que la coque peut
+  faire tourner (`min_native_build ≤ version_code`) : un bundle plus récent mais trop
+  exigeant laisse passer le précédent. La ligne repasse par `otaVerdict` (copie serveur,
+  `server/src/ota.js`) avant de partir. `version_name` égal à la version proposée : aucune.
+- Corps validé avec `additionalProperties: false` : champs du greffon 8.54.2 (Android
+  `createInfoObject`, iOS `InfoObject`) listés un à un ; un champ inconnu est un 400, donc
+  aucune mise à jour. Une nouvelle version du greffon est une nouvelle coque : mettre à jour
+  la liste (et le test « corps exact ») **avant** de livrer cette coque.
+- Limites par IP : `OTA_RATE_LIMIT` vérifications par minute (60), `OTA_DOWNLOAD_RATE_LIMIT`
+  téléchargements complets par 15 min (30) ; 429 + `Retry-After`, que le greffon respecte.
+  `Cache-Control: no-store` partout (préfixe `/api/`).
+- Stockage : table `ota_bundles` (024), zip en `bytea` (10 Mo au plus ; le bundle actuel fait
+  ~270 Ko zippé), SHA-256 recalculé et contrôlé par la base, canal contraint à l'app. L'image ne
+  garde aucun état et une publication ne doit pas exiger de redéploiement : le disque du
+  conteneur est exclu, la base est sauvegardée. Quatre bundles au plus gardés en mémoire après
+  leur première lecture (lignes immuables), quatre lectures de bundles différents au plus en même
+  temps (503 au-delà) ; la limite de téléchargement est comptée avant la lecture en base.
+  L'application n'a que `SELECT`.
+- `target` : le greffon Android le transmet tel quel au JavaScript ; **le greffon iOS 8.54.2 ne
+  le transmet pas** (`AppVersionDec` ne garde que ses champs connus). Le runtime à écrire doit en
+  tenir compte côté iOS (sinon `otaVerdict` y répond `invalid` et rien ne s'installe).
+- Pas de chiffrement ni de signature des bundles (pas de `session_key`) : l'intégrité repose
+  sur le SHA-256 vérifié par le greffon et sur le https. Limite : `HANDOFF.md`.
+
+### Publier un OTA (procédure, une fois les coques réglées sur ce serveur)
 
 1. Vérifier le verdict : changement web seul (JS, CSS, templates, assets). Sinon : coque.
    Pas de bump de `package.json`.
-2. `npm run build` (un seul bundle web pour les deux apps).
-3. Publier ce bundle **une fois par app**, chacune avec sa cible :
+2. `npm run build` (un seul bundle web pour les deux apps), puis zipper le **contenu** de
+   `dist/web` (`index.html` à la racine) : `(cd dist/web && zip -qr ../../bundle.zip .)`.
+3. Publier ce bundle **une fois par app et par canal**, avec le compte propriétaire de la base
+   (comme `server/bin/migrate.js` ; jamais automatique) :
+   `DATABASE_URL=<propriétaire> node server/bin/ota-publish.js --app <parent|enfant> --channel <canal> --min-native <versionCode> --version <version> bundle.zip`.
+   Le script refuse une app inconnue, un canal qui n'est pas à l'app, une coque minimale qui
+   n'est pas un entier ≥ 1, un fichier qui n'est pas un zip avec `index.html` à la racine, et
+   une version déjà publiée sur ce canal ; il calcule le SHA-256. Retour arrière : republier
+   l'ancien zip sous une nouvelle version (le plus récent l'emporte). Chaque app, sa cible :
    - parent : `app: parent`, canaux `parent` puis `parent-test` (tous les canaux actifs),
      `minNativeBuild` = plus petit `versionCode` parent installé qui a tous les greffons
      dont le bundle a besoin ; la même cible sert la coque iOS, comparée à son
