@@ -74,6 +74,8 @@ object ApkUpdate {
             "lastAttemptAt" to p.getLong("lastAttemptAt", 0L).takeIf { it > 0 },
             "lastResult" to p.getString("lastResult", null),
             "running" to running,
+            // NAR-191 : lu par le runtime OTA de l'écran (src/lib/otaUpdate.ts), qui n'agit qu'au repos.
+            "busy" to busy(context),
         )
     }
 
@@ -209,7 +211,7 @@ object ApkUpdate {
     }
 
     /** SOS en cours, gardé ou en lancement ; appel en cours (ou illisible : jamais pris pour « libre »). */
-    private fun busy(context: Context): Boolean {
+    fun busy(context: Context): Boolean {
         if (SosService.running != null || SosService.persistedRun(context) != null || SosRun.snapshot()?.optBoolean("active") == true) return true
         val inCall = try { context.getSystemService(TelecomManager::class.java)?.isInCall } catch (e: Exception) { null }
         return inCall != false

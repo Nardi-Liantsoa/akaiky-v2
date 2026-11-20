@@ -19,12 +19,12 @@ class ApkUpdatePlugin : Plugin() {
         ApkUpdate.restoreIfNeeded(context)
     }
 
-    /** { versionCode, lastAttemptAt?, lastResult?, running } */
+    /** { versionCode, lastAttemptAt?, lastResult?, running, busy } ; busy : SOS ou appel en cours (ou illisible). */
     @PluginMethod
     fun status(call: PluginCall) {
         try {
             val s = ApkUpdate.status(context)
-            val out = JSObject().put("versionCode", s["versionCode"]).put("running", s["running"])
+            val out = JSObject().put("versionCode", s["versionCode"]).put("running", s["running"]).put("busy", s["busy"])
             s["lastAttemptAt"]?.let { out.put("lastAttemptAt", it) }
             s["lastResult"]?.let { out.put("lastResult", it) }
             call.resolve(out)
