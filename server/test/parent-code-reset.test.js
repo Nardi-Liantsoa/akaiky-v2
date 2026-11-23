@@ -95,6 +95,10 @@ test('demande : auditée, ancien code toujours valable, configuration du télép
   assert.equal((await reset(ctx.app, admin, kid.id)).statusCode, 200)
   assert.equal((await auditOf('parent_code_reset_requested', kid.id)).length, 1)
   assert.equal((await state(kid.id)).parent_code_reset_requested_at.getTime(), after.parent_code_reset_requested_at.getTime())
+  // Même si la famille a perdu depuis son canal écrit, une demande déjà posée reste un 200 sans écriture.
+  await ctx.db.query('UPDATE users SET email_verified_at = NULL WHERE id = $1', [owner.id])
+  assert.equal((await reset(ctx.app, admin, kid.id)).statusCode, 200)
+  assert.equal((await auditOf('parent_code_reset_requested', kid.id)).length, 1)
 })
 
 test('le gestionnaire voit la demande ; son nouveau code l’efface et seul le nouveau code vaut', async () => {
@@ -141,6 +145,10 @@ test('refus : enfant inconnu ou id mal formé 404, sans code parent ou sans gest
   assert.equal(noMail.json().code, 'no_written_channel')
   assert.equal((await state(sms.kid.id)).parent_code_reset_requested_at, null)
   assert.equal((await auditOf('parent_code_reset_requested', sms.kid.id)).length, 0)
+  // Adresse jamais confirmée : pas un canal écrit prouvé.
+  const unconfirmed = await familyWithCode()
+  await ctx.db.query('UPDATE users SET email_verified_at = NULL WHERE id = $1', [unconfirmed.owner.id])
+  assert.equal((await reset(ctx.app, admin, unconfirmed.kid.id)).json().code, 'no_written_channel')
 
   assert.equal((await reset(ctx.app, admin, kid.id, { code: '000000' })).statusCode, 400)
   assert.equal((await call(ctx.app, 'POST', `${resetUrl(kid.id)}?force=1`, { cookie: admin.cookie })).statusCode, 400)

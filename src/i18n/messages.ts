@@ -635,7 +635,7 @@ const fr = {
       child_not_found: 'Cet enfant n’existe plus.',
       family_not_found: 'Cette famille n’existe plus.',
       no_parent_code: 'Aucun code parent défini : rien à remplacer.',
-      no_written_channel: 'Aucun gestionnaire de cette famille n’a d’adresse email : la demande écrite ne peut pas être vérifiée.'
+      no_written_channel: 'Aucun gestionnaire de cette famille n’a d’adresse email confirmée : la demande écrite ne peut pas être vérifiée.'
     },
     stats: {
       title: 'Statistiques',
@@ -1311,7 +1311,7 @@ const mg: Messages = {
       child_not_found: 'Tsy misy intsony io ankizy io.',
       family_not_found: 'Tsy misy intsony io fianakaviana io.',
       no_parent_code: 'Tsy mbola misy kaody ray aman-dreny: tsy misy hosoloina.',
-      no_written_channel: 'Tsy misy mpitantana amin’ity fianakaviana ity manana adiresy email: tsy azo hamarinina ny fangatahana an-tsoratra.'
+      no_written_channel: 'Tsy misy mpitantana amin’ity fianakaviana ity manana adiresy email voamarina: tsy azo hamarinina ny fangatahana an-tsoratra.'
     },
     stats: {
       title: 'Antontanisa',
@@ -1983,7 +1983,7 @@ const en: Messages = {
       child_not_found: 'This child no longer exists.',
       family_not_found: 'This family no longer exists.',
       no_parent_code: 'No parent code set: nothing to replace.',
-      no_written_channel: 'No manager of this family has an email address: the written request cannot be checked.'
+      no_written_channel: 'No manager of this family has a confirmed email address: the written request cannot be checked.'
     },
     stats: {
       title: 'Statistics',

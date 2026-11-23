@@ -240,5 +240,9 @@ test('admin : demande refusée (aucun gestionnaire à adresse) : la feuille se f
   await section.getByRole('button', { name: 'Demander un nouveau code' }).click()
   await confirmSheet(page).getByRole('button', { name: 'Demander un nouveau code' }).click()
   await expect(confirmSheet(page)).toHaveCount(0)
-  await expect(section.getByRole('alert')).toHaveText('Aucun gestionnaire de cette famille n’a d’adresse email : la demande écrite ne peut pas être vérifiée.')
+  await expect(section.getByRole('alert')).toHaveText('Aucun gestionnaire de cette famille n’a d’adresse email confirmée : la demande écrite ne peut pas être vérifiée.')
+  // La feuille suivante s'ouvre sans ce refus.
+  await section.getByRole('button', { name: 'Demander un nouveau code' }).click()
+  await expect(confirmSheet(page)).toBeVisible()
+  await expect(confirmSheet(page).getByRole('alert')).toHaveCount(0)
 })

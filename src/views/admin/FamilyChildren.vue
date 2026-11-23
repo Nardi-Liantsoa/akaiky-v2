@@ -51,6 +51,11 @@ async function request() {
     await reload()
   }
 }
+// Nouvelle feuille : sans le refus d'une demande précédente (autre enfant).
+function ask(k: AdminChild, event: Event) {
+  actionError.value = ''
+  confirming.ask(k, event)
+}
 function closeSheet() {
   confirming.close()
   actionError.value = ''
@@ -76,7 +81,7 @@ function closeSheet() {
           <td>{{ k.codeSet ? t.admin.kids.codeSet : t.admin.kids.codeNotSet }}</td>
           <td>{{ k.newCodeRequestedAt ? t.admin.kids.requestedOn(formatDateTime(k.newCodeRequestedAt, locale)) : '—' }}</td>
           <td>
-            <AppButton v-if="k.codeSet && !k.newCodeRequestedAt" variant="ghost" small :disabled="busy" @click="confirming.ask(k, $event)">
+            <AppButton v-if="k.codeSet && !k.newCodeRequestedAt" variant="ghost" small :disabled="busy" @click="ask(k, $event)">
               {{ t.admin.kids.ask }}
             </AppButton>
           </td>
