@@ -227,3 +227,18 @@ test('admin : enfants d’une famille par référence, puis demander un nouveau 
   await show.click()
   await expect(kidsTable).toHaveCount(0)
 })
+
+test('admin : demande refusée (aucun gestionnaire à adresse) : la feuille se ferme, le refus reste affiché', async ({ page }) => {
+  const KID = 'c3c3c3c3-0000-4000-8000-0000000000c3'
+  await mockApi(page, adminApi({
+    [`GET /api/admin/families/${FAM_A}/children`]: () => ({ body: [{ id: KID, createdAt: '2026-01-12T10:00:00Z', codeSet: true, newCodeRequestedAt: null }] }),
+    [`POST /api/admin/children/${KID}/parent-code/reset`]: () => ({ status: 409, body: { error: '…', code: 'no_written_channel' } })
+  }))
+  await page.goto('/admin')
+  const section = page.getByRole('region', { name: 'Familles' })
+  await section.getByRole('row').filter({ hasText: FAM_A.slice(0, 8) }).getByRole('button').click()
+  await section.getByRole('button', { name: 'Demander un nouveau code' }).click()
+  await confirmSheet(page).getByRole('button', { name: 'Demander un nouveau code' }).click()
+  await expect(confirmSheet(page)).toHaveCount(0)
+  await expect(section.getByRole('alert')).toHaveText('Aucun gestionnaire de cette famille n’a d’adresse email : la demande écrite ne peut pas être vérifiée.')
+})

@@ -130,7 +130,7 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   vérification d'identité de `HANDOFF.md`. `GET /api/admin/families/:id/children` (identifiant, date, `codeSet`,
   `newCodeRequestedAt` ; ni prénom, ni numéro, ni hachage ; inconnue → 404 `family_not_found`) et
   `POST /api/admin/children/:id/parent-code/reset` (aucun champ ni paramètre ; inconnu → 404 `child_not_found`, sans code
-  → 409 `no_parent_code` ; déjà demandée : rien d'écrit ni d'audité ; audit `parent_code_reset_requested`) :
+  → 409 `no_parent_code`, aucun `owner`/`manager` actif avec une adresse → 409 `no_written_channel` ; déjà demandée : rien d'écrit ni d'audité ; audit `parent_code_reset_requested`) :
   `children.parent_code_reset_requested_at` (`029_parent_code_reset.sql`, `UPDATE` de cette seule colonne accordé), hors du
   déclencheur de `config_version` : hachage et configuration du téléphone inchangés, l'ancien code et le déverrouillage
   à distance restent valables. Rendue aux membres (`parentCodeResetRequestedAt`), bandeau pour les gestionnaires dans la

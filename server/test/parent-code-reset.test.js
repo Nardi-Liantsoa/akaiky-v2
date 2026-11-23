@@ -115,7 +115,7 @@ test('le gestionnaire voit la demande ; son nouveau code l’efface et seul le n
   assert.equal((await auditOf('parent_code_reset_requested', kid.id)).length, 2)
 })
 
-test('refus : enfant inconnu ou id mal formé 404, sans code parent 409, paramètre ou champ inconnu 400', async () => {
+test('refus : enfant inconnu ou id mal formé 404, sans code parent ou sans gestionnaire à adresse 409, paramètre ou champ inconnu 400', async () => {
   const admin = await newUser(ctx, { admin: true })
   const { kid } = await familyWithCode()
   for (const id of [randomUUID(), 'pas-un-uuid']) {
@@ -131,6 +131,16 @@ test('refus : enfant inconnu ou id mal formé 404, sans code parent 409, paramè
   assert.equal(none.statusCode, 409)
   assert.equal(none.json().code, 'no_parent_code')
   assert.equal((await state(bare.id)).parent_code_reset_requested_at, null)
+
+  // Famille dont le seul gestionnaire a un compte par numéro : pas de demande écrite vérifiable.
+  const sms = await familyWithCode()
+  await ctx.db.query("UPDATE users SET email = NULL, phone = $2, phone_verified_at = now() WHERE id = $1",
+    [sms.owner.id, `+26134${String(process.pid % 1000).padStart(3, '0')}0001`])
+  const noMail = await reset(ctx.app, admin, sms.kid.id)
+  assert.equal(noMail.statusCode, 409)
+  assert.equal(noMail.json().code, 'no_written_channel')
+  assert.equal((await state(sms.kid.id)).parent_code_reset_requested_at, null)
+  assert.equal((await auditOf('parent_code_reset_requested', sms.kid.id)).length, 0)
 
   assert.equal((await reset(ctx.app, admin, kid.id, { code: '000000' })).statusCode, 400)
   assert.equal((await call(ctx.app, 'POST', `${resetUrl(kid.id)}?force=1`, { cookie: admin.cookie })).statusCode, 400)

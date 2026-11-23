@@ -122,6 +122,7 @@ test('export : toutes les données de la famille déchiffrées, seule l’adress
   assert.equal(child.firstName, 'Fy')
   assert.equal(child.avatarColor, 'violet')
   assert.ok(child.parentCodeSetAt && child.consentAt)
+  assert.equal(child.parentCodeResetRequestedAt, null, 'demande de nouveau code exportée (NAR-200)')
   assert.equal(child.sosSiren, false)
   assert.deepEqual(child.contacts.map((c) => [c.name, c.phone, c.position, c.linkedMember]), [['Maman', '+261341234567', 1, data.members.find((m) => m.isMe).name]])
   assert.deepEqual(child.devices.map((d) => [d.model, d.osVersion, d.appVersion, d.revokedAt]), [['Pixel 3a', '14', '1.0', null]])

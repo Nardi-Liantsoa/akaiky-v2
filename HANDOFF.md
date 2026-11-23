@@ -504,6 +504,6 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   gestionnaires et effacée par leur nouveau code ; un enfant sans code répond 409 `no_parent_code`. Limites : la
   vérification d'identité reste manuelle (rien dans l'app ne la prouve, la feuille de confirmation la rappelle) ;
   une famille dont aucun `owner`/`manager` n'a d'adresse (comptes par numéro, NAR-136) n'a pas de canal écrit
-  vérifiable par l'équipe, qui ne voit jamais le numéro : pas de demande pour elle en v1. Aucune notification push
+  vérifiable par l'équipe, qui ne voit jamais le numéro : la demande est refusée (409 `no_written_channel`) en v1. Aucune notification push
   n'annonce la demande : le gestionnaire la voit en ouvrant la carte Code parent.
 - **Traductions malgaches** : à faire relire par une personne de langue maternelle.

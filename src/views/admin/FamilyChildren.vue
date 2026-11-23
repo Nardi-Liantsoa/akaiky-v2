@@ -3,8 +3,8 @@ import { onMounted, ref } from 'vue'
 import { listAdminFamilyChildren, requestNewParentCode, shortId, type AdminChild } from '../../api/admin'
 import { useConfirm } from '../../composables/useConfirm'
 import { locale, useT } from '../../composables/useT'
+import { ApiError } from '../../api/http'
 import { adminErrorText } from '../../lib/adminErrors'
-import { errorText } from '../../lib/errors'
 import { formatDateTime } from '../../lib/format'
 import AppButton from '../../components/ui/AppButton.vue'
 import ConfirmSheet from '../../components/ui/ConfirmSheet.vue'
@@ -43,6 +43,9 @@ async function request() {
     confirming.close()
   } catch (e) {
     actionError.value = adminErrorText(e, t.value)
+    // Refus définitif (enfant retiré, code effacé, pas de canal écrit) : la feuille se ferme,
+    // l'erreur reste sous la liste, relue.
+    if (e instanceof ApiError && (e.status === 404 || e.status === 409)) confirming.close()
   } finally {
     busy.value = false
     await reload()
@@ -56,7 +59,7 @@ function closeSheet() {
 
 <template>
   <div class="family-children">
-    <StatusBlock v-if="error && !items.length" state="error" :text="errorText(error, t)" @retry="reload" />
+    <StatusBlock v-if="error && !items.length" state="error" :text="adminErrorText(error, t)" @retry="reload" />
     <StatusBlock v-else-if="!loaded" state="loading" />
     <StatusBlock v-else-if="!items.length" state="empty" :text="t.admin.kids.empty" />
     <table v-else class="admin-table">
@@ -80,7 +83,7 @@ function closeSheet() {
         </tr>
       </tbody>
     </table>
-    <p v-if="error && items.length" class="error" role="alert">{{ errorText(error, t) }}</p>
+    <p v-if="error && items.length" class="error" role="alert">{{ adminErrorText(error, t) }}</p>
     <p v-if="actionError && !confirming.target.value" class="error" role="alert">{{ actionError }}</p>
     <ConfirmSheet
       v-if="confirming.target.value" id="admin-new-code"

@@ -175,8 +175,10 @@ export default async function adminRoutes(app) {
   // Une date posée sur l'enfant, montrée aux gestionnaires, effacée par leur nouveau code : le
   // hachage n'est pas touché (l'ancien code déverrouille toujours, le déverrouillage à distance
   // aussi) et config_version n'avance pas (colonne hors du déclencheur). Aucune remise à zéro ne
-  // déverrouille le téléphone. Sans code défini : 409 no_parent_code (rien à remplacer). Demande
-  // déjà en cours : rien d'écrit ni d'audité.
+  // déverrouille le téléphone. Sans code défini : 409 no_parent_code (rien à remplacer). Famille dont
+  // aucun owner/manager actif n'a d'adresse (comptes par numéro, NAR-136) : 409 no_written_channel,
+  // la demande écrite exigée par la vérification d'identité est impossible. Demande déjà en cours :
+  // rien d'écrit ni d'audité.
   app.post('/children/:id/parent-code/reset', ADMIN, async (req) => {
     app.requireAdmin(req)
     noQuery(req.query)
@@ -185,10 +187,15 @@ export default async function adminRoutes(app) {
     if (!isUuid(req.params.id)) throw childNotFound()
     await withTransaction(db, async (conn) => {
       const { rows: [kid] } = await conn.query(
-        `SELECT id, parent_code_hash IS NOT NULL AS has_code, parent_code_reset_requested_at
+        `SELECT id, family_id, parent_code_hash IS NOT NULL AS has_code, parent_code_reset_requested_at
            FROM children WHERE id = $1 FOR UPDATE`, [req.params.id])
       if (!kid) throw childNotFound()
       if (!kid.has_code) throw new HttpError(409, 'Aucun code parent défini : rien à remplacer.', 'no_parent_code')
+      const { rows: [channel] } = await conn.query(
+        `SELECT 1 FROM memberships m JOIN users u ON u.id = m.user_id
+          WHERE m.family_id = $1 AND m.role IN ('owner', 'manager') AND u.email IS NOT NULL AND u.disabled_at IS NULL LIMIT 1`,
+        [kid.family_id])
+      if (!channel) throw new HttpError(409, 'Aucun gestionnaire de la famille n’a d’adresse : la demande écrite est impossible.', 'no_written_channel')
       if (kid.parent_code_reset_requested_at) return
       await conn.query('UPDATE children SET parent_code_reset_requested_at = now() WHERE id = $1', [kid.id])
       await audit(conn, req, 'parent_code_reset_requested', kid.id)
