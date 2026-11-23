@@ -196,7 +196,7 @@ export default async function adminRoutes(app) {
         `SELECT 1 FROM memberships m JOIN users u ON u.id = m.user_id
           WHERE m.family_id = $1 AND m.role IN ('owner', 'manager') AND u.email IS NOT NULL AND u.email_verified_at IS NOT NULL AND u.disabled_at IS NULL LIMIT 1`,
         [kid.family_id])
-      if (!channel) throw new HttpError(409, 'Aucun gestionnaire de la famille n’a d’adresse : la demande écrite est impossible.', 'no_written_channel')
+      if (!channel) throw new HttpError(409, 'Aucun gestionnaire de la famille n’a d’adresse confirmée : la demande écrite est impossible.', 'no_written_channel')
       await conn.query('UPDATE children SET parent_code_reset_requested_at = now() WHERE id = $1', [kid.id])
       await audit(conn, req, 'parent_code_reset_requested', kid.id)
     })

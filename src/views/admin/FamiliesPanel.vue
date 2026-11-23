@@ -45,7 +45,7 @@ defineExpose({ reload: list.reload })
                 <td>{{ formatDateTime(f.createdAt, locale) }}</td>
                 <td>
                   <AppButton
-                    v-if="f.children" variant="ghost" small :aria-expanded="open === f.id" :aria-controls="`family-kids-${f.id}`"
+                    v-if="f.children" variant="ghost" small :aria-expanded="open === f.id" :aria-controls="open === f.id ? `family-kids-${f.id}` : undefined"
                     @click="toggle(f.id)"
                   >{{ open === f.id ? t.admin.kids.hide : t.admin.kids.show }}</AppButton>
                 </td>
