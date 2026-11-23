@@ -389,7 +389,9 @@ const fr = {
     unlock: 'Déverrouiller 15 min',
     unlockHint: 'Le téléphone s’ouvre à sa prochaine connexion (moins d’une minute s’il est allumé et connecté), puis se reverrouille seul.',
     unlockedUntil: (time: string) => `Déverrouillage demandé jusqu’à ${time}.`,
-    unlockNoCode: 'Choisissez d’abord un code parent : sans code, le téléphone n’est pas verrouillé.'
+    unlockNoCode: 'Choisissez d’abord un code parent : sans code, le téléphone n’est pas verrouillé.',
+    // Demande de l'équipe Akaiky (NAR-200) : l'ancien code reste valable jusqu'au nouveau.
+    resetRequested: (date: string) => `L’équipe Akaiky vous demande de choisir un nouveau code (demande du ${date}). L’ancien reste valable jusque-là.`
   },
   allowedApps: {
     title: 'Applications autorisées',
@@ -629,7 +631,10 @@ const fr = {
       self_disable: 'Vous ne pouvez pas désactiver votre propre compte.',
       last_admin: 'Dernier administrateur actif : ce compte ne peut pas être désactivé.',
       user_not_found: 'Ce compte n’existe plus.',
-      device_not_found: 'Ce téléphone est déjà retiré ou n’existe plus.'
+      device_not_found: 'Ce téléphone est déjà retiré ou n’existe plus.',
+      child_not_found: 'Cet enfant n’existe plus.',
+      family_not_found: 'Cette famille n’existe plus.',
+      no_parent_code: 'Aucun code parent défini : rien à remplacer.'
     },
     stats: {
       title: 'Statistiques',
@@ -652,6 +657,26 @@ const fr = {
       devices: 'Téléphones',
       created: 'Créée le',
       empty: 'Aucune famille.'
+    },
+    // Enfants d'une famille et demande d'un nouveau code parent (NAR-200).
+    kids: {
+      show: 'Enfants',
+      hide: 'Masquer',
+      ref: 'Enfant',
+      created: 'Ajouté le',
+      code: 'Code parent',
+      codeSet: 'défini',
+      codeNotSet: 'pas défini',
+      request: 'Nouveau code',
+      requestedOn: (date: string) => `demandé le ${date}`,
+      ask: 'Demander un nouveau code',
+      askTitle: (ref: string) => `Demander un nouveau code parent pour l’enfant ${ref} ?`,
+      askItems: [
+        'seulement après la vérification d’identité : demande écrite depuis l’adresse du compte, questions sans donnée personnelle, accord d’un second gestionnaire s’il y en a un ;',
+        'l’ancien code reste valable et le téléphone de l’enfant n’est pas déverrouillé ;',
+        'les gestionnaires voient « choisissez un nouveau code » jusqu’à ce qu’ils en définissent un.'
+      ],
+      empty: 'Aucun enfant.'
     },
     devices: {
       title: 'Téléphones',
@@ -1046,7 +1071,8 @@ const mg: Messages = {
     unlock: 'Hanokatra 15 min',
     unlockHint: 'Misokatra ny finday rehefa mifandray indray (latsaky ny iray minitra raha mirehitra sy mifandray), dia mihidy ho azy indray.',
     unlockedUntil: (time: string) => `Nangatahina ny fanokafana hatramin’ny ${time}.`,
-    unlockNoCode: 'Misafidiana kaody ray aman-dreny aloha : raha tsy misy kaody dia tsy hidy ny finday.'
+    unlockNoCode: 'Misafidiana kaody ray aman-dreny aloha : raha tsy misy kaody dia tsy hidy ny finday.',
+    resetRequested: (date: string) => `Mangataka anao hisafidy kaody vaovao ny ekipa Akaiky (fangatahana tamin’ny ${date}). Mbola mandeha ny kaody taloha mandra-pahatongan’izany.`
   },
   allowedApps: {
     title: 'Fampiharana nahazoan-dalana',
@@ -1280,7 +1306,10 @@ const mg: Messages = {
       self_disable: 'Tsy azonao ajanona ny kaontinao manokana.',
       last_admin: 'Mpitantana farany mbola mandeha: tsy azo ajanona ity kaonty ity.',
       user_not_found: 'Tsy misy intsony ity kaonty ity.',
-      device_not_found: 'Efa nesorina na tsy misy intsony ity finday ity.'
+      device_not_found: 'Efa nesorina na tsy misy intsony ity finday ity.',
+      child_not_found: 'Tsy misy intsony io ankizy io.',
+      family_not_found: 'Tsy misy intsony io fianakaviana io.',
+      no_parent_code: 'Tsy mbola misy kaody ray aman-dreny: tsy misy hosoloina.'
     },
     stats: {
       title: 'Antontanisa',
@@ -1303,6 +1332,25 @@ const mg: Messages = {
       devices: 'Finday',
       created: 'Noforonina tamin’ny',
       empty: 'Tsy misy fianakaviana.'
+    },
+    kids: {
+      show: 'Ankizy',
+      hide: 'Afeno',
+      ref: 'Ankizy',
+      created: 'Nampidirina tamin’ny',
+      code: 'Kaody ray aman-dreny',
+      codeSet: 'voafaritra',
+      codeNotSet: 'tsy voafaritra',
+      request: 'Kaody vaovao',
+      requestedOn: (date: string) => `nangatahina tamin’ny ${date}`,
+      ask: 'Hangataka kaody vaovao',
+      askTitle: (ref: string) => `Hangataka kaody ray aman-dreny vaovao ho an’ny ankizy ${ref}?`,
+      askItems: [
+        'rehefa voamarina ny maha-izy azy ihany: fangatahana an-tsoratra avy amin’ny adiresin’ny kaonty, fanontaniana tsy misy angona manokana, fanekena avy amin’ny mpitantana faharoa raha misy;',
+        'mbola mandeha ny kaody taloha ary tsy misokatra ny findain’ny ankizy;',
+        'mahita ny hoe « misafidiana kaody vaovao » ny mpitantana mandra-pamaritany kaody vaovao.'
+      ],
+      empty: 'Tsy misy ankizy.'
     },
     devices: {
       title: 'Finday',
@@ -1694,7 +1742,8 @@ const en: Messages = {
     unlock: 'Unlock for 15 min',
     unlockHint: 'The phone opens the next time it connects (under a minute if it is on and online), then locks again by itself.',
     unlockedUntil: (time: string) => `Unlock requested until ${time}.`,
-    unlockNoCode: 'Choose a parent code first: without a code, the phone is not locked.'
+    unlockNoCode: 'Choose a parent code first: without a code, the phone is not locked.',
+    resetRequested: (date: string) => `The Akaiky team asks you to choose a new code (requested on ${date}). The old one still works until then.`
   },
   allowedApps: {
     title: 'Allowed apps',
@@ -1928,7 +1977,10 @@ const en: Messages = {
       self_disable: 'You cannot disable your own account.',
       last_admin: 'Last active administrator: this account cannot be disabled.',
       user_not_found: 'This account no longer exists.',
-      device_not_found: 'This phone is already removed or no longer exists.'
+      device_not_found: 'This phone is already removed or no longer exists.',
+      child_not_found: 'This child no longer exists.',
+      family_not_found: 'This family no longer exists.',
+      no_parent_code: 'No parent code set: nothing to replace.'
     },
     stats: {
       title: 'Statistics',
@@ -1951,6 +2003,25 @@ const en: Messages = {
       devices: 'Phones',
       created: 'Created',
       empty: 'No families.'
+    },
+    kids: {
+      show: 'Children',
+      hide: 'Hide',
+      ref: 'Child',
+      created: 'Added',
+      code: 'Parent code',
+      codeSet: 'set',
+      codeNotSet: 'not set',
+      request: 'New code',
+      requestedOn: (date: string) => `requested on ${date}`,
+      ask: 'Request a new code',
+      askTitle: (ref: string) => `Request a new parent code for child ${ref}?`,
+      askItems: [
+        'only after the identity check: written request from the account’s address, questions with no personal data, agreement of a second manager if there is one;',
+        'the old code keeps working and the child’s phone is not unlocked;',
+        'managers see “choose a new code” until they set one.'
+      ],
+      empty: 'No children.'
     },
     devices: {
       title: 'Phones',

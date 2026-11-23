@@ -90,3 +90,36 @@ test('sans code parent : pas de bouton de déverrouillage', async ({ page }) => 
   await expect(page.getByText('Pas encore défini')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Déverrouiller 15 min' })).toHaveCount(0)
 })
+
+test('nouveau code demandé par l’équipe : bandeau pour le gestionnaire, effacé par le nouveau code ; un contact ne le voit pas', async ({ page }) => {
+  const requested = { ...FY, parentCodeSetAt: '2026-11-17T09:00:00Z', parentCodeResetRequestedAt: '2026-11-20T08:00:00Z' }
+  await mockApi(page, {
+    ...me, ...contacts,
+    'GET /api/families/me': () => ({ body: FAMILY }),
+    'GET /api/children': () => ({ body: [requested] }),
+    [PUT]: () => ({ body: { parentCodeSetAt: '2026-11-21T09:00:00Z' } })
+  })
+  await openSection(page, 'Code parent')
+  const banner = page.getByRole('status').filter({ hasText: 'L’équipe Akaiky vous demande de choisir un nouveau code' })
+  await expect(banner).toContainText('20 novembre')
+  await expect(banner).toContainText('L’ancien reste valable')
+  // Le déverrouillage à distance reste proposé pendant la demande.
+  await expect(page.getByRole('button', { name: 'Déverrouiller 15 min' })).toBeVisible()
+  await page.getByRole('button', { name: 'Changer le code' }).click()
+  await page.getByLabel('Nouveau code (6 chiffres)').fill('305718')
+  await page.getByLabel('Confirmer le code').fill('305718')
+  await page.getByRole('button', { name: 'Enregistrer le code' }).click()
+  await expect(page.getByText('Défini le 21 novembre.')).toBeVisible()
+  await expect(banner).toHaveCount(0)
+
+  const asMember = { ...FAMILY, role: 'member', members: [{ userId: USER.id, name: USER.name, role: 'member', isMe: true }] }
+  await page.unrouteAll({ behavior: 'ignoreErrors' })
+  await mockApi(page, {
+    ...me, ...contacts,
+    'GET /api/families/me': () => ({ body: asMember }),
+    'GET /api/children': () => ({ body: [requested] })
+  })
+  await page.reload()
+  await expect(page.getByText('Défini le 17 novembre.')).toBeVisible()
+  await expect(page.getByText(/L’équipe Akaiky vous demande/)).toHaveCount(0)
+})

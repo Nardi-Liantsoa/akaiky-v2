@@ -98,6 +98,9 @@ test('aucune réponse admin ne contient prénom, nom de famille, numéro, contac
       next = (await get(admin, url)).json().next
     }
   }
+  // Enfants d'une famille (NAR-200), avec une demande de nouveau code en cours.
+  assert.equal((await call(ctx.app, 'POST', `/api/admin/children/${seeded.kid.id}/parent-code/reset`, { cookie: admin.cookie })).statusCode, 200)
+  pages.push(`/api/admin/families/${seeded.familyId}/children`)
   for (const url of pages) {
     const r = await get(admin, url)
     assert.equal(r.statusCode, 200, url)
@@ -116,6 +119,11 @@ test('aucune réponse admin ne contient prénom, nom de famille, numéro, contac
   assert.equal(dev.familyId, seeded.familyId)
   assert.equal(dev.state, 'active')
   assert.ok(dev.statusAt, 'dernier signal présent')
+  const kids = (await get(admin, `/api/admin/families/${seeded.familyId}/children`)).json()
+  assert.equal(kids.length, 1)
+  assert.deepEqual(Object.keys(kids[0]).sort(), ['codeSet', 'createdAt', 'id', 'newCodeRequestedAt'])
+  assert.equal(kids[0].codeSet, true)
+  assert.ok(kids[0].newCodeRequestedAt)
 })
 
 test('pagination : limit 1 à 100, curseur sans doublon ni trou, paramètre inconnu ou mal formé → 400', async () => {

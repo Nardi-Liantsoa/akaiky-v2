@@ -59,7 +59,7 @@ async function save() {
     const res = await setParentCode(child.id, code.value)
     // Appliqué à la liste des enfants (s'il y est encore) : « défini le … » suit sans relecture.
     const current = children.items.find((c) => c.id === child.id)
-    if (current) upsertChild({ ...current, parentCodeSetAt: res.parentCodeSetAt, remoteUnlockUntil: null })
+    if (current) upsertChild({ ...current, parentCodeSetAt: res.parentCodeSetAt, remoteUnlockUntil: null, parentCodeResetRequestedAt: null })
     if (child.id === props.child.id) { close(); saved.value = true }
   } catch (e) {
     if (child.id === props.child.id) error.value = (e instanceof ApiError && problemText(e.code)) || errorText(e, t.value)
@@ -101,6 +101,10 @@ async function unlockNow() {
 
 <template>
   <SectionCard id="code-parent" class="parent-code" tabindex="-1" :title="t.parentCode.title" :help="t.parentCode.hint">
+    <!-- Nouveau code demandé par l'équipe (NAR-200) : aux gestionnaires, qui seuls peuvent le choisir. -->
+    <p v-if="canManage() && child.parentCodeResetRequestedAt" class="reset-requested" role="status">
+      {{ t.parentCode.resetRequested(formatDay(child.parentCodeResetRequestedAt, locale)) }}
+    </p>
     <p class="state" :class="{ missing: !child.parentCodeSetAt }">
       {{ child.parentCodeSetAt ? t.parentCode.setOn(formatDay(child.parentCodeSetAt, locale)) : t.parentCode.notSet }}
     </p>
@@ -156,6 +160,14 @@ async function unlockNow() {
 }
 .state.missing {
   color: var(--danger);
+}
+.reset-requested {
+  margin: 0 0 12px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--warning-bg);
+  color: var(--warning-ink);
+  font-weight: 700;
 }
 .saved {
   margin: 0 0 12px;

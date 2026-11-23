@@ -52,7 +52,7 @@ export const REMOTE_UNLOCK_SQL = 'CASE WHEN remote_unlock_until > now() THEN rem
 // Dernier passage d'un téléphone appairé non révoqué (état « vu à … » de la carte, NAR-174).
 const LAST_SEEN_SQL = `(SELECT max(d.last_seen_at) FROM child_devices d
   WHERE d.child_id = children.id AND d.family_id = children.family_id AND d.revoked_at IS NULL) AS phone_last_seen_at`
-const COLUMNS = `id, first_name_enc, phone_enc, avatar_color, created_at, parent_code_set_at, sos_siren, ${REMOTE_UNLOCK_SQL}, ${LAST_SEEN_SQL}`
+const COLUMNS = `id, first_name_enc, phone_enc, avatar_color, created_at, parent_code_set_at, parent_code_reset_requested_at, sos_siren, ${REMOTE_UNLOCK_SQL}, ${LAST_SEEN_SQL}`
 const firstName = (v) => text(v, { min: 1, max: 40, field: 'Prénom' })
 const notFound = () => new HttpError(404, 'Enfant introuvable.', 'child_not_found')
 const aad = (id) => `children:first_name:${id}`
@@ -73,6 +73,8 @@ export default async function childrenRoutes(app) {
     avatarColor: r.avatar_color,
     createdAt: r.created_at,
     parentCodeSetAt: r.parent_code_set_at ?? null,
+    // Nouveau code demandé par l'équipe (NAR-200) : bandeau pour les gestionnaires, effacé par le nouveau code.
+    parentCodeResetRequestedAt: r.parent_code_reset_requested_at ?? null,
     remoteUnlockUntil: r.remote_unlock_until ?? null,
     sosSiren: r.sos_siren,
     phoneLastSeenAt: r.phone_last_seen_at ?? null
@@ -151,7 +153,8 @@ export default async function childrenRoutes(app) {
       // Rôle relu sous verrou : un gestionnaire rétrogradé pendant le calcul n'écrit rien.
       const locked = await lockOwnFamily(conn, req, MANAGERS)
       const { rows: [updated] } = await conn.query(
-        `UPDATE children SET parent_code_hash = $3, parent_code_set_at = now(), remote_unlock_until = NULL
+        `UPDATE children SET parent_code_hash = $3, parent_code_set_at = now(), remote_unlock_until = NULL,
+                             parent_code_reset_requested_at = NULL
           WHERE id = $1 AND family_id = $2 RETURNING parent_code_set_at`, [id, locked.familyId, hash])
       if (!updated) throw notFound()
       await audit(conn, req, 'parent_code_set', id)

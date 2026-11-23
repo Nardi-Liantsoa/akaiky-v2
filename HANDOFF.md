@@ -109,6 +109,13 @@
   **028** (`users.disabled_at`, la 027 étant prise par la connexion par téléphone), droit aussi dans
   `ops/runtime-role.sql`. La page `admin` de la comparaison visuelle diffère de `main` (colonnes « État » et
   « Action », boutons). Suite : tranche 3, réinitialisation du code parent.
+- Back-office, tranche 3 (NAR-200, 23/11/2026) : demande d'un nouveau code parent par l'équipe. Migration **029**
+  (`children.parent_code_reset_requested_at`, hors du déclencheur de `config_version`), droit aussi dans
+  `ops/runtime-role.sql`. `GET /api/admin/families/:id/children` (référence, date, code défini, demande ; ni prénom
+  ni numéro) et `POST /api/admin/children/:id/parent-code/reset` ; ligne « Enfants » sous chaque famille de `/admin`,
+  bouton confirmé par la feuille commune, qui rappelle la vérification d'identité. Bandeau « choisissez un nouveau
+  code » dans la carte Code parent des gestionnaires, effacé par leur nouveau code. La page `admin` de la comparaison
+  visuelle diffère de `main` (colonne « Action » des familles).
 
 ## Migrations figées
 
@@ -483,7 +490,7 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   encore affiché. Les lectures de l'équipe ne sont pas inscrites au journal d'audit (seules ses actions le sont :
   `account_disabled`, `account_enabled`, `device_revoked` avec `{ by: 'admin' }`). Un compte désactivé peut encore
   réinitialiser son mot de passe par courriel : elle aboutit (aucune session ouverte), la connexion reste refusée ;
-  toute session qu'ouvrirait une future voie (SMS, NAR-201) serait refusée par `SESSION_RULE`. Pages de 50 sans recherche ni filtre. **Code parent, tranche 3 (décision proposée)** : le
+  toute session qu'ouvrirait une future voie (SMS, NAR-201) serait refusée par `SESSION_RULE`. Pages de 50 sans recherche ni filtre. **Code parent, tranche 3 (NAR-200, livrée)** : le
   téléphone de l'enfant ignore un `parentCode` nul (`ChildHomeView.vue` garde le hachage enregistré et reste
   armé), donc effacer le hachage ne déverrouille rien mais casse le déverrouillage à distance (409
   `no_parent_code`) et fait croire au parent qu'il n'y a pas de code ; un hachage impossible enfermerait un
@@ -492,4 +499,11 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   réinitialisation : demande écrite depuis l'adresse du compte `owner`/`manager`, puis réponses que l'équipe peut
   contrôler sans donnée personnelle (nombre d'enfants, modèle du téléphone, mois de création de la famille), et
   confirmation par un second membre `owner`/`manager` s'il existe ; jamais sur la seule preuve d'accès à l'adresse.
+  Livré : la demande ne touche ni le hachage ni `config_version` (le téléphone garde sa configuration, 304 compris),
+  le déverrouillage à distance reste possible, la demande est auditée (`parent_code_reset_requested`), montrée aux
+  gestionnaires et effacée par leur nouveau code ; un enfant sans code répond 409 `no_parent_code`. Limites : la
+  vérification d'identité reste manuelle (rien dans l'app ne la prouve, la feuille de confirmation la rappelle) ;
+  une famille dont aucun `owner`/`manager` n'a d'adresse (comptes par numéro, NAR-136) n'a pas de canal écrit
+  vérifiable par l'équipe, qui ne voit jamais le numéro : pas de demande pour elle en v1. Aucune notification push
+  n'annonce la demande : le gestionnaire la voit en ouvrant la carte Code parent.
 - **Traductions malgaches** : à faire relire par une personne de langue maternelle.

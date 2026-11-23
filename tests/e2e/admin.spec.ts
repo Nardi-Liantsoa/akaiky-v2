@@ -180,3 +180,50 @@ test('admin : retirer un téléphone (feuille de confirmation, annulable) ; un t
   // Le nom choisi par la famille n'apparaît toujours nulle part.
   await expect(page.getByText(FAMILY.name)).toHaveCount(0)
 })
+
+test('admin : enfants d’une famille par référence, puis demander un nouveau code parent (feuille, annulable)', async ({ page }) => {
+  const KID = 'c1c1c1c1-0000-4000-8000-0000000000c1'
+  const BARE = 'c2c2c2c2-0000-4000-8000-0000000000c2'
+  const kids = [
+    { id: KID, createdAt: '2026-01-12T10:00:00Z', codeSet: true, newCodeRequestedAt: null as string | null },
+    { id: BARE, createdAt: '2026-01-13T10:00:00Z', codeSet: false, newCodeRequestedAt: null }
+  ]
+  const calls = await mockApi(page, adminApi({
+    [`GET /api/admin/families/${FAM_A}/children`]: () => ({ body: kids }),
+    [`POST /api/admin/children/${KID}/parent-code/reset`]: () => {
+      kids[0].newCodeRequestedAt = '2026-01-16T08:00:00Z'
+      return { body: { ok: true } }
+    }
+  }))
+  await page.goto('/admin')
+  const section = page.getByRole('region', { name: 'Familles' })
+  // Seul bouton de la ligne de la famille : « Enfants », puis « Masquer » une fois ouverte.
+  const show = section.getByRole('row').filter({ hasText: FAM_A.slice(0, 8) }).getByRole('button')
+  await expect(show).toHaveText('Enfants')
+  await show.click()
+  await expect(show).toHaveAttribute('aria-expanded', 'true')
+  await expect(show).toHaveText('Masquer')
+  const kidsTable = section.locator(`#family-kids-${FAM_A}`).getByRole('table')
+  const row = kidsTable.getByRole('row').filter({ hasText: KID.slice(0, 8) })
+  await expect(row).toContainText('défini')
+  // Sans code défini, rien à remplacer : pas de bouton.
+  await expect(kidsTable.getByRole('row').filter({ hasText: BARE.slice(0, 8) })).toContainText('pas défini')
+  await expect(kidsTable.getByRole('row').filter({ hasText: BARE.slice(0, 8) }).getByRole('button')).toHaveCount(0)
+
+  const isWrite = (r: Request) => r.method() === 'POST' && pathOf(r).startsWith('/api/admin/children/')
+  const ask = row.getByRole('button', { name: 'Demander un nouveau code' })
+  await cancelEveryWay(page, ask, calls, isWrite)
+  await ask.click()
+  const sheet = confirmSheet(page, `Demander un nouveau code parent pour l’enfant ${KID.slice(0, 8)} ?`)
+  await expect(sheet).toContainText('vérification d’identité')
+  await expect(sheet).toContainText('l’ancien code reste valable')
+  await sheet.getByRole('button', { name: 'Demander un nouveau code' }).click()
+  await expect(confirmSheet(page)).toHaveCount(0)
+  await expect(row).toContainText('demandé le')
+  await expect(row.getByRole('button')).toHaveCount(0)
+  expect(calls.filter(isWrite).map(pathOf)).toEqual([`/api/admin/children/${KID}/parent-code/reset`])
+  expect(calls.find(isWrite)!.postData()).toBeNull()
+
+  await show.click()
+  await expect(kidsTable).toHaveCount(0)
+})
