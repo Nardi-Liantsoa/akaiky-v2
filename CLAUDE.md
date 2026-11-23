@@ -88,8 +88,18 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   file. Compte désactivé par l'équipe (NAR-199) : rien ne le distingue (même 202, même 200, mêmes durées), le mot de
   passe est changé comme par `/reset-password`, aucune session n'est ouverte et la connexion reste le 401 générique
   jusqu'à la réactivation. Aucune migration (droits de 001 et 027). Tests : `server/test/phone-reset.test.js`.
-  Tranches suivantes : écran d'inscription, de connexion et de réinitialisation par numéro + e2e (tranche 3, NAR-202) ;
-  fournisseur SMS réel (ticket à part).
+  **Écran (NAR-202, tranche 3, 23/11/2026)** : `AuthView` propose « Email / Téléphone » (`LoginMethodSwitch`, choix de la
+  personne retenu sous `akaiky-v2.login-method`, seulement « phone ») à la connexion, à l'inscription et au mot de passe
+  oublié ; numéro `autocomplete="tel"`, code `autocomplete="one-time-code"` (chiffres seuls envoyés). Inscription → écran
+  du code (`phoneCode`, renvoi) → connexion par numéro ; oubli → code + nouveau mot de passe (`phoneReset`). Refus
+  traduits par code (`src/lib/authErrors.ts` : `phone_unverified`, `sms_unavailable`, `sms_rate_limited`,
+  `invalid_code`, `invalid_phone`) ; `phone_unverified` propose « Recevoir un code » (renvoi, puis saisie) ; un renvoi
+  refusé par `sms_rate_limited` ouvre quand même la saisie. Mot de passe contenant le numéro refusé avant l'envoi
+  (`src/lib/phonePassword.ts`). Inscription en attente (email ou numéro) reprise au rechargement sur `?mode=register`
+  seulement, effacée en revenant à la connexion ou à l'inscription. Limites : l'écran `phoneReset` n'est pas repris
+  au rechargement ; les autres refus de mot de passe du serveur (trivial, trop long) n'ont pas de code et restent en
+  français. Tests : `tests/e2e/phone-auth.spec.ts`. Fournisseur SMS réel : ticket à part (en production, `none` :
+  l'inscription par numéro répond « SMS indisponibles, utilisez une adresse email »).
 - **Organisations : plusieurs** — chaque **famille** est une organisation (modèle
   « Plusieurs organisations » d'`ampy-auth`, posé AVANT la première table métier).
   Rôles : parent principal = `owner`, gestionnaire = `manager`, contact = `member`

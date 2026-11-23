@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 import { api, json, ApiError } from '../api/http'
 import { login as transportLogin, logout as transportLogout } from '../api/transport'
-import type { LoginResult, User } from '../api/types'
+import type { LoginId, LoginResult, User } from '../api/types'
 
 // Session de l'utilisateur, état global. `init()` est attendu par la première
 // garde du routeur : un rechargement sur une route protégée ne renvoie pas
@@ -43,8 +43,8 @@ export function init(): Promise<void> {
   return pending
 }
 
-export async function login(email: string, password: string, rememberDevice = false): Promise<LoginResult> {
-  const result = await transportLogin(json, { email, password, rememberDevice })
+export async function login(id: LoginId, password: string, rememberDevice = false): Promise<LoginResult> {
+  const result = await transportLogin(json, { ...id, password, rememberDevice })
   auth.offline = false
   auth.user = result.user ?? null
   return result
@@ -59,6 +59,12 @@ export function setUser(user: User | null) {
 // consent : case « majeur·e, autorité parentale » cochée (NAR-178).
 export async function register(name: string, email: string, password: string): Promise<void> {
   await api.post('/auth/register', { name, email, password, consent: true })
+}
+
+// Inscription par numéro (NAR-136) : 202 identique que le numéro soit neuf ou pris ; un
+// code de confirmation part par SMS dans la langue de l'écran. Aucune session ouverte.
+export async function registerPhone(name: string, phone: string, password: string, lang: string): Promise<void> {
+  await api.post('/auth/phone/register', { phone, name, password, consent: true, lang })
 }
 
 export async function logout(): Promise<void> {
