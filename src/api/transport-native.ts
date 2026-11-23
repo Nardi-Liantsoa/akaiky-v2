@@ -7,7 +7,7 @@
 // sérialisés (une seule requête à la fois, partagée par tous les appels).
 import { Capacitor } from '@capacitor/core'
 import { SecureStorage } from '@aparajita/capacitor-secure-storage'
-import type { LoginResult } from './types'
+import type { LoginId, LoginResult } from './types'
 
 export const native = true
 
@@ -118,10 +118,11 @@ export async function send(path: string, init: RequestInit = {}): Promise<Respon
   return res
 }
 
-export async function login(json: (path: string, init: RequestInit) => Promise<unknown>, body: { email: string, password: string }): Promise<LoginResult> {
+export async function login(json: (path: string, init: RequestInit) => Promise<unknown>, body: LoginId & { password: string }): Promise<LoginResult> {
+  // Adresse ou numéro, celui qui est donné seulement (`undefined` n'est pas sérialisé).
   const r = await json('/auth/native/login', {
     method: 'POST',
-    body: JSON.stringify({ email: body.email, password: body.password, device: Capacitor.getPlatform() })
+    body: JSON.stringify({ email: body.email, phone: body.phone, password: body.password, device: Capacitor.getPlatform() })
   }) as LoginResult & Tokens
   await store(r)
   return { user: r.user }
