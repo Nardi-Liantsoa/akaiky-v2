@@ -21,12 +21,13 @@ watch(() => auth.user, (user) => {
 </script>
 
 <template>
+  <!-- Onglets seulement quand la famille est connue (ou injoignable) : jamais pendant
+       la création ni pendant le premier chargement. Avant le contenu : premiers au clavier,
+       comme le rail qui les montre en premier sur ordinateur (NAR-208). -->
+  <TabBar v-if="showTabs" />
   <main class="shell" :class="{ 'with-tabs': showTabs }">
     <RouterView />
   </main>
-  <!-- Onglets seulement quand la famille est connue (ou injoignable) : jamais pendant
-       la création ni pendant le premier chargement. -->
-  <TabBar v-if="showTabs" />
 </template>
 
 <style scoped>
@@ -41,7 +42,9 @@ watch(() => auth.user, (user) => {
    la place restante, et le bas n'a plus de barre à éviter. */
 @media (min-width: 1024px) {
   .shell.with-tabs {
-    padding-bottom: 24px;
+    /* Zone sûre de gauche déjà sous le rail : comptée une fois, dans la marge. */
+    padding-left: var(--gutter);
+    padding-bottom: var(--space-5);
     margin-left: calc(var(--rail-width) + var(--safe-left) + max(0px, (100% - var(--rail-width) - var(--safe-left) - 720px) / 2));
     margin-right: auto;
   }

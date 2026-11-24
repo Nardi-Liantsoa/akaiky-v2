@@ -108,7 +108,11 @@ App **enfant** (Android, mode appareil dédié) :
 5. **Plage « école »** — bandeau « C'est l'heure de l'école · Jusqu'à 16:00 », seuls les
    parents restent, « Le reste revient à 16:00 », SOS toujours là.
 
-App **parent** (Android + iOS), barre d'onglets Accueil · Journal · Réglages · Famille :
+App **parent** (Android + iOS), barre d'onglets Accueil · Journal · Réglages · Famille. Selon la
+largeur (NAR-208) : barre du bas sur téléphone ; à partir de 768 px, onglets regroupés au centre
+sous la colonne de contenu (720 px) ; à partir de 1024 px, rail à gauche (`--rail-width`, 96 px),
+onglets empilés en haut, colonne centrée dans la place restante. Mêmes liens et même ordre partout,
+navigation avant le contenu dans l'ordre du clavier :
 
 6. **Accueil** — sélecteur d'enfant en puces (+ ajouter), carte enfant (joignable / vu
    il y a…, mode), tuiles Batterie · Réseau · Carte SIM, « Appeler Fy », « Où est Fy ? »

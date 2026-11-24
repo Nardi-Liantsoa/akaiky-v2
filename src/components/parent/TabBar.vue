@@ -91,14 +91,15 @@ const active = computed(() =>
     justify-content: center;
   }
 }
-/* Ordinateur : rail à gauche, onglets empilés en haut. Mêmes liens, même ordre au clavier. */
+/* Ordinateur : rail à gauche, onglets empilés en haut. Mêmes liens ; la barre précède le
+   contenu dans la page (ParentShell), donc aussi au clavier. */
 @media (min-width: 1024px) {
   .tabbar {
     inset: 0 auto 0 0;
     width: calc(var(--rail-width) + var(--safe-left));
     height: auto;
     grid-template-columns: 1fr;
-    grid-auto-rows: 76px;
+    grid-auto-rows: calc(var(--tap) + var(--space-6) - var(--space-1));
     align-content: start;
     gap: var(--space-1);
     padding: calc(var(--space-5) + var(--safe-top)) 0 var(--safe-bottom) var(--safe-left);
@@ -106,7 +107,7 @@ const active = computed(() =>
     border-right: 1px solid var(--border);
   }
   .tab {
-    gap: 4px;
+    gap: var(--space-1);
   }
 }
 </style>
