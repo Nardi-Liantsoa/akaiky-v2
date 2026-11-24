@@ -30,6 +30,8 @@ export const RETRY_AFTER_MAX_S = 3600
 // Plafond par compte (tous ses jetons confondus) et par téléphone d'enfant : un bug de
 // boucle n'arrose jamais personne.
 export const PER_OWNER_PER_HOUR = 30
+// Réveil `locate` (NAR-203) : plus de nouvelle tentative au-delà d'une consultation.
+export const LOCATE_RETRY_MS = 2 * 60_000
 // Délai de réservation : une instance tuée pendant l'envoi rend la ligne après ce délai.
 const LEASE = '5 minutes'
 
@@ -235,7 +237,8 @@ export async function unregisterToken(db, config, owner, token) {
 // ---------------------------------------------------------------- file d'envoi
 
 // Une ligne par jeton ciblé (`targets` : requête qui renvoie `id` = push_tokens.id et
-// `owner` = 'user:<id>' pour un compte, 'device:<id>' pour un téléphone, écrit dans
+// `owner` = 'user:<id>' pour un compte, 'device:<id>' pour un téléphone ('device:<id>:locate'
+// pour ses réveils `locate`), écrit dans
 // owner_key). Plafond par PROPRIÉTAIRE : au plus PER_OWNER_PER_HOUR lignes par heure, tous
 // jetons du compte (ou du téléphone) confondus, comptées par owner_key (les lignes restent
 // quand le jeton disparaît : se déconnecter puis réenregistrer ne remet pas le compteur à
@@ -285,12 +288,15 @@ export function notifyFamily(conn, familyId, event, ref = null, { exceptUserId =
     [familyId, exceptUserId], event, ref)
 }
 
-// Téléphone de l'enfant (non révoqué). Réveil silencieux `config` : prêt, pas encore branché.
+// Téléphone de l'enfant (non révoqué). Réveils silencieux : `config` (prêt, pas encore branché),
+// `locate` (demande de position, NAR-203) ; reçus par l'app avec NAR-179.
 export function notifyDevice(conn, deviceId, event, ref = null) {
   return enqueue(conn,
-    `SELECT t.id, 'device:' || t.device_id AS owner FROM push_tokens t
+    // `locate` a son propre plafond horaire : une consultation longue n'épuise pas celui des
+    // autres réveils du téléphone.
+    `SELECT t.id, 'device:' || t.device_id || CASE WHEN $2::text = 'locate' THEN ':locate' ELSE '' END AS owner FROM push_tokens t
        JOIN child_devices d ON d.id = t.device_id AND d.family_id = t.family_id
-      WHERE t.device_id = $1 AND d.revoked_at IS NULL`, [deviceId], event, ref)
+      WHERE t.device_id = $1 AND d.revoked_at IS NULL`, [deviceId, event], event, ref)
 }
 
 // La seule session donnée (notification de test).
@@ -320,7 +326,8 @@ export async function runPushWorker(db, provider, config, log, { batch = 50, con
     `UPDATE push_outbox o SET attempts = o.attempts + 1, next_attempt_at = now() + interval '${LEASE}'
       WHERE o.id IN (SELECT id FROM push_outbox WHERE status = 'pending' AND next_attempt_at <= now()
                       ORDER BY next_attempt_at LIMIT $1 FOR UPDATE SKIP LOCKED)
-      RETURNING o.id, o.token_id, o.event, o.ref, o.attempts`, [batch])
+      RETURNING o.id, o.token_id, o.event, o.ref, o.attempts,
+                (o.event = 'locate' AND o.created_at < now() - make_interval(secs => $2)) AS late`, [batch, LOCATE_RETRY_MS / 1000])
   const summary = { claimed: claimed.length, sent: 0, retried: 0, failed: 0, removedTokens: 0 }
   if (!claimed.length) return summary
 
@@ -358,6 +365,9 @@ export async function runPushWorker(db, provider, config, log, { batch = 50, con
     // Jeton supprimé avant la réservation (token_id NULL), entre-temps ou plus tôt dans ce
     // tour : abandon, rien ne part.
     if (!t || deadTokens.has(t.id)) return finish(row, 'failed', 'token_gone')
+    // Réveil `locate` resté en file au-delà de la consultation (worker en retard, Retry-After
+    // long) : il ne réveillerait le téléphone pour rien.
+    if (row.late) return finish(row, 'failed', 'expired')
     let name = null
     if (row.event === 'message' || CHILD_EVENTS.has(row.event)) {
       const m = row.event === 'message' ? messageById.get(row.ref) : childById.get(row.ref)
@@ -385,6 +395,8 @@ export async function runPushWorker(db, provider, config, log, { batch = 50, con
       configAlarm = true
       log.error({ push: row.id, error: result.error }, 'push : configuration FCM refusée (projet Firebase ou compte de service)')
     }
+    // `locate` : retenté seulement pendant la consultation (2 minutes, routes/location.js ;
+    // `late` calculé par la base à la réservation) : un réveil tardif ne sert à rien.
     if (result.outcome === 'retry' && row.attempts < MAX_ATTEMPTS) {
       await db.query(
         `UPDATE push_outbox SET last_error = $2, next_attempt_at = now() + make_interval(secs => $3)

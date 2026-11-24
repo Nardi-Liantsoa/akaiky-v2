@@ -36,7 +36,8 @@ const TEXTS = {
   }
 }
 // Événements silencieux (réveil du téléphone de l'enfant) : aucune partie `notification`.
-const DATA_EVENTS = new Set(['config'])
+// `locate` (NAR-203) : un membre demande la position ; `id` = l'enfant, jamais de position.
+const DATA_EVENTS = new Set(['config', 'locate'])
 // Événements dont `ref` est l'enfant (prénom lu sur l'enfant, NAR-147).
 export const CHILD_EVENTS = new Set(['battery_low', 'sim_absent', 'silent'])
 export const EVENTS = new Set([...Object.keys(TEXTS), ...DATA_EVENTS])
