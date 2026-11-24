@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef, watch } from 'vue'
-import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, RouterLink, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router'
 import { addChild, removeChild, updateChild } from '../../api/children'
 import { ApiError } from '../../api/http'
 import LoadError from '../../components/family/LoadError.vue'
-import ChildAvatar from '../../components/parent/ChildAvatar.vue'
+import ColorPicker from '../../components/parent/ColorPicker.vue'
 import ConsentCheckbox from '../../components/account/ConsentCheckbox.vue'
 import { useConfirm } from '../../composables/useConfirm'
 import { useT } from '../../composables/useT'
-import { AVATAR_COLORS, type AvatarColor } from '../../lib/avatar'
+import type { AvatarColor } from '../../lib/avatar'
 import { errorText } from '../../lib/errors'
+import { backTo } from '../../lib/navigation'
+import { formatPhone, samePhone } from '../../lib/phone'
 import { children, dropChild, loadChildren, selectChild, upsertChild } from '../../store/children'
 import { contacts } from '../../store/contacts'
 import { canManage, family, loadFamily } from '../../store/family'
@@ -45,11 +47,11 @@ const allowed = computed(() => family.status === 'ready' && canManage())
 // remplissage du formulaire, comparées à la saisie. Quitter l'écran (« ‹ Accueil », barre
 // d'onglets, retour Android ou du navigateur) les fait confirmer par la feuille commune ;
 // rien de changé, ou enregistrement réussi : on part sans question.
-const initial = shallowRef<{ name: string, phone: string, color: AvatarColor | null } | null>(null)
+const initial = shallowRef<{ name: string, phone: string | null, color: AvatarColor | null } | null>(null)
 const dirty = computed(() => {
   const base = initial.value
   if (!id.value || !base || !allowed.value || !existing.value) return false
-  return name.value.trim() !== base.name || phone.value.trim() !== base.phone || color.value !== base.color
+  return name.value.trim() !== base.name || !samePhone(phone.value, base.phone) || color.value !== base.color
 })
 // Départ voulu (enregistré, retiré) : la garde laisse passer.
 let leaving = false
@@ -116,9 +118,10 @@ watch(existing, (c) => {
   if (c && c.id !== filledFor) {
     filledFor = c.id
     name.value = c.firstName
-    phone.value = c.phone ?? ''
+    // Forme lisible (+261 34 12 345 67), comme sur l'accueil (NAR-207).
+    phone.value = c.phone ? formatPhone(c.phone) : ''
     color.value = c.avatarColor
-    initial.value = { name: c.firstName.trim(), phone: (c.phone ?? '').trim(), color: c.avatarColor }
+    initial.value = { name: c.firstName.trim(), phone: c.phone, color: c.avatarColor }
   }
 }, { immediate: true })
 
@@ -132,7 +135,7 @@ async function save() {
     // L'adresse décide : /enfant/:id modifie, /enfant/nouveau ajoute.
     // Numéro envoyé seulement s'il change : un numéro inchangé n'est pas réécrit.
     const phoneNow = phone.value.trim() || null
-    const phoneChanged = phoneNow !== (existing.value?.phone ?? null)
+    const phoneChanged = !samePhone(phone.value, existing.value?.phone ?? null)
     const saved = id.value
       ? await updateChild(id.value, { firstName: name.value.trim(), ...(color.value ? { avatarColor: color.value } : {}), ...(phoneChanged ? { phone: phoneNow } : {}) })
       : await addChild(name.value.trim(), color.value ?? undefined, phoneNow)
@@ -187,17 +190,14 @@ async function remove() {
       <FormField id="child-phone" :label="t.children.phoneNumber" :help="t.children.phoneNumberHelp" v-slot="{ control }">
         <input v-bind="control" v-model="phone" class="input" type="tel" inputmode="tel" autocomplete="off" :placeholder="t.contacts.phonePlaceholder[contacts.country]" data-selectable />
       </FormField>
-      <fieldset class="field colors">
-        <legend>{{ t.children.color }}</legend>
-        <label v-for="c in AVATAR_COLORS" :key="c" class="swatch">
-          <input v-model="color" type="radio" name="child-color" :value="c" :aria-label="t.children.colors[c]" />
-          <!-- Prénom encore vide : pastille unie, sans « ? ». -->
-          <ChildAvatar :name="name" :color="c" :size="44" />
-        </label>
-      </fieldset>
+      <ColorPicker v-model="color" name="child-color" :legend="t.children.color" :avatar="name" />
       <ConsentCheckbox v-if="!id" id="child-consent" v-model="consent" :label="t.consent.child" v-model:error="consentError" />
       <div class="actions">
         <AppButton type="submit" :disabled="busy || !valid">{{ t.children.save }}</AppButton>
+        <!-- Même sortie que « ‹ Accueil » : la garde demande confirmation s'il reste des modifications. -->
+        <RouterLink v-slot="{ href }" :to="{ name: 'espace' }" custom>
+          <a :href="href" class="btn btn-ghost" @click.prevent="backTo(router, { name: 'espace' })">{{ t.children.cancel }}</a>
+        </RouterLink>
       </div>
     </form>
 
@@ -220,40 +220,6 @@ async function remove() {
 <style scoped>
 h1 {
   margin: 8px 0 20px;
-}
-.colors {
-  border: none;
-  padding: 0;
-  margin: 0 0 20px;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.colors legend {
-  width: 100%;
-  margin-bottom: 8px;
-}
-.swatch {
-  position: relative;
-  display: inline-flex;
-  padding: 3px;
-  border: 3px solid transparent;
-  border-radius: 50%;
-  cursor: pointer;
-}
-.swatch:has(input:checked) {
-  border-color: var(--ink);
-}
-.swatch:has(input:focus-visible) {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
-}
-.swatch input {
-  position: absolute;
-  opacity: 0;
-  inset: 0;
-  margin: 0;
-  cursor: pointer;
 }
 .actions {
   display: flex;

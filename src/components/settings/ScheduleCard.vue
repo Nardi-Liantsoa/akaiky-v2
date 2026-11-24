@@ -151,8 +151,9 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
               @update:model-value="toggle(s)"
             />
             <div class="row-actions">
-              <AppButton variant="link" :disabled="busy" @click="open(s)">{{ t.schedules.edit }}</AppButton>
-              <AppButton variant="danger-link" :disabled="busy" @click="confirming.ask(s, $event)">{{ t.schedules.remove }}</AppButton>
+              <!-- Mêmes boutons que la liste des membres (NAR-207). -->
+              <AppButton variant="ghost" small :disabled="busy" @click="open(s)">{{ t.schedules.edit }}</AppButton>
+              <AppButton variant="ghost" small :disabled="busy" @click="confirming.ask(s, $event)">{{ t.schedules.remove }}</AppButton>
             </div>
           </template>
           <p v-else class="state">{{ s.enabled ? t.schedules.on : t.schedules.off }}</p>
@@ -251,7 +252,7 @@ h3 {
 .row-actions {
   display: flex;
   flex: 1 0 100%;
-  gap: 16px;
+  gap: 8px;
 }
 .warning {
   margin: 0 0 12px;
