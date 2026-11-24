@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, shallowRef, watch } from 'vue'
-import { onBeforeRouteLeave, onBeforeRouteUpdate, RouterLink, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router'
 import { addChild, removeChild, updateChild } from '../../api/children'
 import { ApiError } from '../../api/http'
 import LoadError from '../../components/family/LoadError.vue'
@@ -10,7 +10,6 @@ import { useConfirm } from '../../composables/useConfirm'
 import { useT } from '../../composables/useT'
 import type { AvatarColor } from '../../lib/avatar'
 import { errorText } from '../../lib/errors'
-import { backTo } from '../../lib/navigation'
 import { formatPhone, samePhone } from '../../lib/phone'
 import { children, dropChild, loadChildren, selectChild, upsertChild } from '../../store/children'
 import { contacts } from '../../store/contacts'
@@ -194,10 +193,6 @@ async function remove() {
       <ConsentCheckbox v-if="!id" id="child-consent" v-model="consent" :label="t.consent.child" v-model:error="consentError" />
       <div class="actions">
         <AppButton type="submit" :disabled="busy || !valid">{{ t.children.save }}</AppButton>
-        <!-- Même sortie que « ‹ Accueil » : la garde demande confirmation s'il reste des modifications. -->
-        <RouterLink v-slot="{ href }" :to="{ name: 'espace' }" custom>
-          <a :href="href" class="btn btn-ghost" @click.prevent="backTo(router, { name: 'espace' })">{{ t.children.cancel }}</a>
-        </RouterLink>
       </div>
     </form>
 

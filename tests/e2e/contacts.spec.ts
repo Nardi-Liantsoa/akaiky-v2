@@ -191,13 +191,13 @@ test('changement d’enfant : la carte des contacts reste en place, estompée, j
   await expect(card).toHaveAttribute('aria-busy', 'false')
 })
 
-test('fiche contact : Annuler, Enregistrer et le retour de l’historique mènent à la section Contacts, pas au résumé', async ({ page }) => {
+test('fiche contact : « ‹ Contacts », Enregistrer et le retour de l’historique mènent à la section Contacts, pas au résumé', async ({ page }) => {
   const api = contactsApi([{ id: cid(1), name: 'Maman', phone: '+261341111111', avatarColor: 'orange', memberUserId: null, memberRole: null }])
   await mockApi(page, { ...common, ...api.handlers })
   await openSection(page, 'Contacts autorisés')
-  // Annuler : retour à la section, sans nouvelle entrée dans l'historique.
+  // « ‹ Contacts » (NAR-207, remplace « Annuler ») : retour à la section, sans nouvelle entrée dans l'historique.
   await page.getByRole('link', { name: '+ Ajouter un contact' }).click()
-  await page.getByRole('link', { name: 'Annuler' }).click()
+  await page.getByRole('link', { name: 'Retour aux contacts autorisés' }).click()
   await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
   await expect(page.getByRole('heading', { level: 1, name: 'Contacts autorisés' })).toBeVisible()
   // Retour de l'historique (bouton Android) depuis la fiche : la section aussi.

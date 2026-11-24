@@ -18,7 +18,21 @@ const api = {
   // Un texte modifié : le bouton « Texte par défaut » s'affiche (débordement d'avant).
   [`GET /api/children/${FY.id}/message-templates`]: () => ({ body: [{ slot: 1, text: 'Viens me chercher à l’école' }, { slot: 2, text: null }, { slot: 3, text: null }, { slot: 4, text: null }] }),
   [`GET /api/children/${FY.id}/schedules`]: () => ({ body: [{ id: '6f1c2b1e-0000-4000-8000-000000000301', label: 'École', days: 31, startMin: 480, endMin: 960, enabled: true }] }),
-  [`GET /api/children/${FY.id}/journal`]: () => ({ body: { items: [], next: null } }),
+  // Journal rempli (message, appel bloqué d'un inconnu, appels) : les lignes les plus larges.
+  [`GET /api/children/${FY.id}/journal`]: () => ({
+    body: {
+      items: [
+        { id: '6f1c2b1e-0000-4000-8000-000000000501', kind: 'message', at: '2026-11-24T09:05:00Z', slot: 1, readBy: [{ name: 'Maman', readAt: '2026-11-24T09:06:00Z' }], readByMe: true },
+        { id: '6f1c2b1e-0000-4000-8000-000000000502', kind: 'call_blocked', at: '2026-11-24T08:40:00Z', contactId: null, name: null, phone: '+261329876543', durationS: null },
+        { id: '6f1c2b1e-0000-4000-8000-000000000503', kind: 'call_in', at: '2026-11-24T07:02:00Z', contactId: CONTACTS[1].id, name: 'Dadabe Rakotomalala', phone: '+261331234567', durationS: 134 },
+        { id: '6f1c2b1e-0000-4000-8000-000000000504', kind: 'unlock', at: '2026-11-23T17:30:00Z', source: 'code', durationS: 900 }
+      ],
+      next: null
+    }
+  }),
+  [`GET /api/children/${FY.id}/apps`]: () => ({
+    body: { max: 4, inventory: [{ package: 'com.android.camera2', label: 'Appareil photo', icon: null, allowed: true }, { package: 'com.example.calculatrice.scientifique', label: 'Calculatrice scientifique', icon: null, allowed: false }], allowed: [{ package: 'com.android.camera2', label: 'Appareil photo', position: 1 }] }
+  }),
   [`GET /api/children/${FY.id}/devices`]: () => ({ body: [] })
 }
 const PAGES = [
@@ -42,13 +56,13 @@ for (const path of PAGES) {
   })
 }
 
-test('formulaires enfant et contact : retour, Enregistrer, Annuler, pastilles sur une ligne', async ({ page }) => {
+test('formulaires enfant et contact : lien retour en tête et jamais « Annuler » (docs/DESIGN.md), pastilles sur une ligne', async ({ page }) => {
   await mockApi(page, api)
-  for (const [path, back] of [[`/espace/enfant/${FY.id}`, 'Retour à l’accueil'], [`/espace/reglages/enfant/${FY.id}/contact/${CONTACTS[0].id}`, 'Retour aux réglages']]) {
+  for (const [path, back] of [[`/espace/enfant/${FY.id}`, 'Retour à l’accueil'], [`/espace/reglages/enfant/${FY.id}/contact/${CONTACTS[0].id}`, 'Retour aux contacts autorisés']]) {
     await page.goto(path)
     await expect(page.getByRole('link', { name: back })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Enregistrer' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Annuler' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Annuler' })).toHaveCount(0)
     const swatches = page.getByRole('radio')
     await expect(swatches).toHaveCount(5)
     const boxes = await Promise.all((await swatches.all()).map((s) => s.locator('..').boundingBox()))
@@ -72,7 +86,10 @@ test('ligne de contact : la fiche s’ouvre par la ligne, Monter et Descendre re
     expect(b.y + b.height).toBeLessThanOrEqual(row.y + row.height + 0.5)
   }
   expect((await open.boundingBox())!.x + (await open.boundingBox())!.width).toBeLessThanOrEqual((await up.boundingBox())!.x)
-  await expect(item.getByText('+261 33 12 345 67')).toBeVisible()
+  // Le numéro, jamais coupé, ne passe pas sous la flèche.
+  const phone = (await item.getByText('+261 33 12 345 67').boundingBox())!
+  const chevron = (await open.locator('svg').last().boundingBox())!
+  expect(phone.x + phone.width).toBeLessThanOrEqual(chevron.x)
   await open.click()
   await expect(page.getByLabel('Nom affiché')).toHaveValue('Dadabe Rakotomalala')
 })

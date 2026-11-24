@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { addContact, removeContact, updateContact, type ContactInput } from '../../api/contacts'
 import { ApiError } from '../../api/http'
 import LoadError from '../../components/family/LoadError.vue'
@@ -56,7 +56,7 @@ let filledFor: string | null = null
 // lu dans l'adresse et vérifié (E.164 seulement) ; le serveur le valide de toute façon.
 const prefilled = () => {
   const q = route.query.phone
-  return !id.value && isE164(q) ? q : ''
+  return !id.value && isE164(q) ? formatPhone(q) : ''
 }
 watch([childId, id], () => { filledFor = null; name.value = ''; phone.value = prefilled(); color.value = null; memberUserId.value = null; confirming.close(); error.value = '' }, { immediate: true })
 watch(existing, (c) => {
@@ -129,7 +129,7 @@ async function remove() {
 
 <template>
   <section>
-    <BackLink :to="{ name: 'reglages-contacts' }" :label="t.parent.settings.back" :aria-label="t.parent.settings.backLabel" :before="pickChild" />
+    <BackLink :to="{ name: 'reglages-contacts' }" :label="t.contacts.back" :aria-label="t.contacts.backLabel" :before="pickChild" />
     <p v-if="child" class="over">{{ t.contacts.phoneOf(child.firstName) }}</p>
     <h1>{{ !id ? t.contacts.addTitle : existing ? t.contacts.editTitle(existing.name) : t.contacts.title }}</h1>
     <LoadError v-if="family.status === 'error'" />
@@ -160,9 +160,6 @@ async function remove() {
         <ColorPicker v-model="color" name="contact-color" :legend="t.contacts.color" :avatar="name" />
         <div class="actions">
           <AppButton type="submit" :disabled="busy || !valid">{{ t.contacts.save }}</AppButton>
-          <RouterLink v-slot="{ href }" :to="{ name: 'reglages-contacts' }" custom>
-            <a :href="href" class="btn btn-ghost" @click.prevent="back">{{ t.contacts.cancel }}</a>
-          </RouterLink>
         </div>
       </form>
       <div v-if="existing" class="danger-zone">

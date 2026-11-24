@@ -58,17 +58,17 @@ async function move(index: number, delta: number) {
     <ol v-if="shown.length" class="list">
       <li v-for="(c, i) in shown" :key="c.id">
         <span class="rank" aria-hidden="true">{{ c.position }}</span>
-        <!-- Gestionnaire : la ligne du contact ouvre sa fiche (« Modifier Maman ») ; le numéro
-             reste lu, en description. Plus de bouton ✎ : la ligne tient à 360 px (NAR-207). -->
+        <!-- Gestionnaire : la ligne du contact ouvre sa fiche (« Modifier Maman ») ; nom, rôle et
+             numéro restent lus, en description. Plus de bouton ✎ : la ligne tient à 360 px (NAR-207). -->
         <component
           :is="canManage() ? RouterLink : 'span'" class="contact"
-          v-bind="canManage() ? { to: { name: 'contact', params: { childId, id: c.id } }, 'aria-label': t.contacts.edit(c.name), 'aria-describedby': `contact-phone-${c.id}` } : {}"
+          v-bind="canManage() ? { to: { name: 'contact', params: { childId, id: c.id } }, 'aria-label': t.contacts.edit(c.name), 'aria-describedby': `contact-about-${c.id}` } : {}"
         >
           <ChildAvatar :name="c.name" :color="c.avatarColor" :size="36" />
-          <span class="who">
+          <span :id="`contact-about-${c.id}`" class="who">
             <span class="name">{{ c.name }}</span>
             <span v-if="c.memberRole" class="role">{{ t.family.roles[c.memberRole] }}</span>
-            <span :id="`contact-phone-${c.id}`" class="phone" data-selectable>{{ formatPhone(c.phone) }}</span>
+            <span class="phone" data-selectable>{{ formatPhone(c.phone) }}</span>
           </span>
           <AppIcon v-if="canManage()" class="go" name="chevron-right" :size="20" />
         </component>
@@ -132,7 +132,8 @@ async function move(index: number, delta: number) {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  min-width: 0;
+  /* Largeur minimale = le numéro entier (jamais coupé) : il ne déborde pas sur la flèche. */
+  min-width: min-content;
 }
 .name {
   font-weight: 800;
