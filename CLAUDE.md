@@ -322,7 +322,7 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   Textes MG/FR/EN côté serveur (`server/src/push-texts.js`), `data` = `{ type, id }`, canal Android `alertes`.
   File `push_outbox` (worker de `jobs.js` toutes les 10 s, tentatives en base, 30 s × 2^n, abandon à 5),
   30 par heure et par compte (tous ses jetons confondus, sous verrou consultatif par compte), 30 par heure
-  et par téléphone d'enfant. Jeton supprimé seulement sur `UNREGISTERED` ou `INVALID_ARGUMENT` qui nomme
+  et par téléphone d'enfant (et 30 de plus pour ses réveils `locate`, NAR-203). Jeton supprimé seulement sur `UNREGISTERED` ou `INVALID_ARGUMENT` qui nomme
   le jeton ; `SENDER_ID_MISMATCH`, 404 sans `UNREGISTERED`, 401/403 = configuration (nouvelle tentative,
   alarme dans les journaux). `last_seen_at` du jeton rafraîchi par l'activité de sa session (au plus une
   fois par heure). Côté app (plugin, permission, toucher) : NAR-179, nouvelle coque.
@@ -375,8 +375,10 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   envoie un relevé unique `POST /api/device/positions` `{ lat, lng, accuracyM, ageS }` (6 par minute) : **refusé
   (409 `no_request`) sans demande ouverte d'un membre actuel**, âge mesuré par le téléphone (`ageS` ≤ 120, horloge monotone,
   jamais son heure ; pris avant la plus ancienne demande ouverte → 409 `stale_position`), enfant lu sur la session. Une
-  demande encore ouverte et sans réponse est prolongée sans changer d'heure ; un réveil par téléphone toutes les 2 min au
-  plus (plafond push propre `device:<id>:locate`). Lecture `GET /api/children/:id/position` (tout membre) : dernière
+  demande encore ouverte et sans réponse est prolongée sans changer d'heure ; un téléphone déjà réveillé pour la demande
+  (réveil en attente ou parti) ne l'est pas deux fois ; `locate` retenté pendant 2 min seulement ; plafond push propre
+  `device:<id>:locate` (30 par heure, en plus des 30 des autres événements du téléphone). `source` `sos` et `sos_id` : réservés,
+  aucune route ne les écrit ; envoyer des positions de SOS au serveur sera décidé avec NAR-149 (le SOS hors ligne, NAR-151, n'en envoie aucune). Lecture `GET /api/children/:id/position` (tout membre) : dernière
   position relevée. **Précision stockée** : coordonnées au millionième de degré, chiffrées (AES-256-GCM, `positions:lat:<id>` et `positions:lng:<id>`),
   précision du relevé en mètres en clair ; **montrée** : exacte, aux seuls membres de la famille de l'enfant (le métier est de
   retrouver l'enfant) ; jamais dans une URL, un journal, l'audit ou une notification ; aucune route admin ; export

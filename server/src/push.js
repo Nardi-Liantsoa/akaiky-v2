@@ -30,6 +30,8 @@ export const RETRY_AFTER_MAX_S = 3600
 // Plafond par compte (tous ses jetons confondus) et par téléphone d'enfant : un bug de
 // boucle n'arrose jamais personne.
 export const PER_OWNER_PER_HOUR = 30
+// Réveil `locate` (NAR-203) : plus de nouvelle tentative au-delà d'une consultation.
+export const LOCATE_RETRY_MS = 2 * 60_000
 // Délai de réservation : une instance tuée pendant l'envoi rend la ligne après ce délai.
 const LEASE = '5 minutes'
 
@@ -324,7 +326,7 @@ export async function runPushWorker(db, provider, config, log, { batch = 50, con
     `UPDATE push_outbox o SET attempts = o.attempts + 1, next_attempt_at = now() + interval '${LEASE}'
       WHERE o.id IN (SELECT id FROM push_outbox WHERE status = 'pending' AND next_attempt_at <= now()
                       ORDER BY next_attempt_at LIMIT $1 FOR UPDATE SKIP LOCKED)
-      RETURNING o.id, o.token_id, o.event, o.ref, o.attempts`, [batch])
+      RETURNING o.id, o.token_id, o.event, o.ref, o.attempts, o.created_at`, [batch])
   const summary = { claimed: claimed.length, sent: 0, retried: 0, failed: 0, removedTokens: 0 }
   if (!claimed.length) return summary
 
@@ -389,8 +391,10 @@ export async function runPushWorker(db, provider, config, log, { batch = 50, con
       configAlarm = true
       log.error({ push: row.id, error: result.error }, 'push : configuration FCM refusée (projet Firebase ou compte de service)')
     }
-    // `locate` : jamais retenté (la consultation dure 2 minutes ; un réveil tardif ne sert à rien).
-    if (result.outcome === 'retry' && row.attempts < MAX_ATTEMPTS && row.event !== 'locate') {
+    // `locate` : retenté seulement pendant la consultation (2 minutes, routes/location.js) ;
+    // un réveil tardif ne sert à rien et userait le plafond du téléphone.
+    const late = row.event === 'locate' && Date.now() - row.created_at.getTime() > LOCATE_RETRY_MS
+    if (result.outcome === 'retry' && row.attempts < MAX_ATTEMPTS && !late) {
       await db.query(
         `UPDATE push_outbox SET last_error = $2, next_attempt_at = now() + make_interval(secs => $3)
           WHERE id = $1 AND status = 'pending'`, [row.id, result.error, retryDelay(row.attempts, result.retryAfterS)])

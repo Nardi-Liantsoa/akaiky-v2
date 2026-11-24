@@ -88,12 +88,16 @@ test('un membre demande la position : réveil du téléphone, « qui regarde »,
   assert.ok((await position(owner, fy.kid.id)).json().watchingUntil)
   assert.equal((await position(member, fy.kid.id)).json().watchingUntil, null)
 
-  // Une nouvelle demande rend un relevé dû à nouveau ; le téléphone réveillé il y a moins
-  // d'une minute ne l'est pas une seconde fois.
+  // Une nouvelle demande rend un relevé dû à nouveau, et réveille le téléphone.
   const second = await locate(member, fy.kid.id)
   assert.equal(second.statusCode, 200)
-  assert.deepEqual([second.json().devices, second.json().woken], [1, 0])
-  assert.equal((await queuedLocates(fy.kid.id)).length, 1)
+  assert.deepEqual([second.json().devices, second.json().woken], [1, 1])
+  // Prolongée sans réponse : pas de second réveil tant que le premier est en attente…
+  assert.deepEqual([(await locate(member, fy.kid.id)).json().woken], [0])
+  // …mais un réveil en échec est remplacé.
+  await ctx.db.query("UPDATE push_outbox SET status = 'failed' WHERE event = 'locate' AND ref = $1", [fy.kid.id])
+  assert.deepEqual([(await locate(member, fy.kid.id)).json().woken], [1])
+  assert.equal((await queuedLocates(fy.kid.id)).length, 3)
   const again = (await pending(fy.device)).json()
   assert.equal(again.pending, true)
   assert.equal(again.watchers.length, 2)
@@ -266,7 +270,7 @@ test('lecture : la position la plus récemment relevée gagne ; une ligne illisi
   assert.equal((await position(owner, kid.id)).json().position.lat, -18.9)
 })
 
-test('réveil locate en échec passager : jamais retenté', async () => {
+test('réveil locate en échec passager : retenté pendant la consultation seulement', async () => {
   const owner = await newUser(ctx)
   await family(owner)
   const fy = await pairedChild(owner, 'Fy')
@@ -274,8 +278,12 @@ test('réveil locate en échec passager : jamais retenté', async () => {
   await ctx.db.query("UPDATE push_outbox SET status = 'failed' WHERE status = 'pending'")
   assert.equal((await locate(owner, fy.kid.id)).statusCode, 200)
   const provider = createFakeProvider()
-  provider.failNext('retry')
   const quiet = { info() {}, error() {}, warn() {} }
+  provider.failNext('retry')
+  assert.deepEqual(Object.values(await runPushWorker(ctx.db, provider, ctx.app.config, quiet)).slice(1, 4), [0, 1, 0], 'retenté')
+  // Trois minutes plus tard : la consultation est finie, plus de nouvelle tentative.
+  await ctx.db.query("UPDATE push_outbox SET created_at = now() - interval '3 minutes', next_attempt_at = now() WHERE event = 'locate' AND ref = $1", [fy.kid.id])
+  provider.failNext('retry')
   const run = await runPushWorker(ctx.db, provider, ctx.app.config, quiet)
   assert.deepEqual([run.sent, run.retried, run.failed], [0, 0, 1])
   const { rows } = await ctx.db.query("SELECT status FROM push_outbox WHERE event = 'locate' AND ref = $1", [fy.kid.id])

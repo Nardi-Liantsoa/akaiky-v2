@@ -5,8 +5,9 @@
 // Parents (session de compte, préfixe /api) :
 //   POST /children/:id/locate    tous les membres : ouvre (ou prolonge) sa demande pour
 //                                WATCH_MS et met en file un réveil silencieux `locate` vers
-//                                les téléphones actifs de l'enfant (pas deux en WAKE_GAP_MS
-//                                pour un même téléphone ; budget push à part de `config`).
+//                                les téléphones actifs de l'enfant, sauf ceux à qui un réveil
+//                                (en attente ou parti, pas en échec) est déjà parti depuis
+//                                cette demande ; budget push à part de `config`.
 //                                Demande encore ouverte et sans réponse : prolongée sans
 //                                changer son heure (un relevé lent en cours reste valable) ;
 //                                répondue ou finie : nouvelle demande, un relevé neuf est dû.
@@ -45,11 +46,6 @@ export const POSITIONS_WINDOW_MS = 60_000
 // Relevé plus vieux qu'une consultation : refusé par le schéma (une position « dernière
 // connue » ancienne tromperait le parent) ; plus vieux que la demande : refusé aussi.
 export const MAX_AGE_S = WATCH_MS / 1000
-// Un réveil `locate` au plus par téléphone dans cet intervalle (deux membres, ou une page
-// qui redemande) : la demande ouverte suffit au téléphone déjà réveillé. Égal à une
-// consultation : 30 réveils par heure au plus, le plafond horaire de `device:<id>:locate`
-// (push.js, PER_OWNER_PER_HOUR), qui n'est donc jamais atteint.
-export const WAKE_GAP_MS = WATCH_MS
 
 export const positionAad = (id, field) => `positions:${field}:${id}`
 const childNotFound = () => new HttpError(404, 'Enfant introuvable.', 'child_not_found')
@@ -119,11 +115,13 @@ export async function locationRoutes(app) {
         'SELECT id FROM child_devices WHERE child_id = $1 AND family_id = $2 AND revoked_at IS NULL', [childId, own.familyId])
       let queued = 0
       for (const d of devices) {
-        const { rowCount: recent } = await conn.query(
+        // Déjà réveillé pour cette demande (par ce membre ou un autre) : la demande ouverte lui
+        // suffit. Un réveil en échec ne compte pas : celui-ci le remplace.
+        const { rowCount: woken } = await conn.query(
           `SELECT 1 FROM push_outbox o JOIN push_tokens t ON t.id = o.token_id
-            WHERE t.device_id = $1 AND o.event = 'locate' AND o.created_at > now() - $2 * interval '1 millisecond' LIMIT 1`,
-          [d.id, WAKE_GAP_MS])
-        if (!recent) queued += (await notifyDevice(conn, d.id, 'locate', childId)).queued
+            WHERE t.device_id = $1 AND o.event = 'locate' AND o.status <> 'failed' AND o.created_at >= $2 LIMIT 1`,
+          [d.id, r.created_at])
+        if (!woken) queued += (await notifyDevice(conn, d.id, 'locate', childId)).queued
       }
       await audit(conn, req, 'position_requested', childId)
       return { requestedAt: r.created_at, watchingUntil: r.watch_until, devices: devices.length, woken: queued }
@@ -140,10 +138,11 @@ export async function locationRoutes(app) {
         WHERE child_id = $1 AND family_id = $2 ORDER BY recorded_at DESC, received_at DESC, id DESC LIMIT 5`, [childId, own.familyId])
     let last = null
     for (const r of recent) if ((last = openPosition(config, r, req.log))) break
+    // Horloge de la base, comme partout ailleurs (téléphone : no_request au même instant).
     const { rows: [mine] } = await db.query(
-      'SELECT created_at, watch_until FROM location_requests WHERE child_id = $1 AND family_id = $2 AND user_id = $3',
+      'SELECT created_at, watch_until, watch_until > now() AS open FROM location_requests WHERE child_id = $1 AND family_id = $2 AND user_id = $3',
       [childId, own.familyId, req.user.id])
-    const open = mine && mine.watch_until > new Date()
+    const open = mine?.open
     return {
       position: last,
       requestedAt: open ? mine.created_at : null,

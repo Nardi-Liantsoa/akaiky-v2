@@ -106,7 +106,7 @@ export async function exportRoutes(app) {
         WHERE n <= $2 ORDER BY child_id, n`, [familyId, JOURNAL_CAP + 1]))
     const positions = byChild(await q(
       `SELECT id, child_id, lat_enc, lng_enc, accuracy_m, source, recorded_at, received_at FROM (
-         SELECT p.*, row_number() OVER (PARTITION BY child_id ORDER BY received_at DESC, id DESC) AS n
+         SELECT p.*, row_number() OVER (PARTITION BY child_id ORDER BY recorded_at DESC, received_at DESC, id DESC) AS n
            FROM positions p WHERE family_id = $1) x
         WHERE n <= $2 ORDER BY child_id, n`, [familyId, POSITIONS_CAP + 1]))
     // Lectures des messages exportés : nom du contact lié s'il existe, sinon nom du compte.
