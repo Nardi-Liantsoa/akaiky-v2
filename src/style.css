@@ -83,6 +83,8 @@
   --focus-ring: 3px solid var(--accent);
   --focus-offset: 2px;
   --tab-height: 64px;
+  /* Rail latéral de l'app parent à partir de 1024 px (NAR-208). */
+  --rail-width: 96px;
   --gutter: clamp(16px, 4vw, 40px);
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 
