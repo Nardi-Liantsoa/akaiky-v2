@@ -199,6 +199,13 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     await assert.rejects(pool.query('DELETE FROM device_alerts'), /permission denied/)
     await assert.rejects(pool.query('UPDATE device_alerts SET kind = kind'), /permission denied/)
     await assert.rejects(pool.query('UPDATE device_alerts SET opened_at = now()'), /permission denied/)
+    // Position à la demande sous le rôle restreint : demande (verrou de l'enfant, upsert),
+    // réveil, relevé, lecture.
+    assert.equal((await call(app, 'POST', `/api/children/${kid.id}/locate`, { cookie: user.cookie })).statusCode, 200)
+    assert.equal((await call(app, 'POST', `/api/children/${kid.id}/locate`, { cookie: user.cookie })).statusCode, 200, 'prolongée')
+    const fix = await native(app, 'POST', '/api/device/positions', { token: renewedPhone.json().accessToken, body: { lat: -18.9, lng: 47.5, accuracyM: 10, ageS: 0 } })
+    assert.equal(fix.statusCode, 200, fix.body)
+    assert.equal((await call(app, 'GET', `/api/children/${kid.id}/position`, { cookie: user.cookie })).json().position.lat, -18.9)
     // Positions (030_positions.sql) : ajout et lecture seuls ; demandes jamais déplacées.
     await assert.rejects(pool.query('UPDATE positions SET accuracy_m = 1'), /permission denied/)
     await assert.rejects(pool.query('UPDATE positions SET lat_enc = lat_enc'), /permission denied/)
