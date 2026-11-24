@@ -58,11 +58,9 @@
   à `plugin.capgo.app` ; la coque minimale du premier OTA de chaque app est donc le
   `versionCode` de cette coque-là ; (2) le serveur OTA auto-hébergé existe (NAR-189 :
   `/api/ota/latest`, `/api/ota/channel`, `/api/ota/bundles/:id`, table `ota_bundles`,
-  publication `server/bin/ota-publish.js`) ; reste à régler `updateUrl` =
-  `https://<domaine>/api/ota/latest` et `channelUrl` = `https://<domaine>/api/ota/channel`
-  dans les coques (encore une coque ; par défaut ils visent Capgo Cloud, appelé seulement si
-  le JavaScript le demande, ce qu'aucun code ne fait), et jouer la migration 024 avant
-  l'image qui en a besoin ;
+  publication `server/bin/ota-publish.js`) ; les coques le visent depuis NAR-190 (`updateUrl`,
+  `channelUrl` de l'origine de l'API ; release impossible tant que le domaine de production
+  n'est pas fixé), et jouer la migration 024 avant l'image qui en a besoin ;
   (3) le runtime est écrit (NAR-191, ci-dessous). Procédure : `docs/MOBILE.md` « Mises à jour OTA ».
 
 - **Runtime OTA (NAR-191, 20/11/2026)** : `src/lib/otaUpdate.ts` (règles) et `src/lib/otaRuntime.ts`
@@ -73,9 +71,9 @@
   `next()`, `set()` 5 s après un passage en arrière-plan, seulement au repos (`AkaikyUpdate.status().busy`,
   natif : SOS ou appel) ; version annulée jamais reprise ; bundles dépassés effacés. **Barrière Capgo** :
   inerte tant que `updateUrl` de `capacitor.config.ts` n'est pas `https://<hôte>/api/ota/latest`
-  (aujourd'hui absent : aucune requête). **Coque** : la coque enfant doit porter `busy` (sinon l'enfant
+  (depuis NAR-190 : l'origine de l'API ; adresse provisoire `.invalid` : aucune requête). **Coque** : la coque enfant doit porter `busy` (sinon l'enfant
   reste « occupé » et ne se met jamais à jour) ; elle part avec celle de NAR-190. **Avant le premier OTA** :
-  NAR-190 (`updateUrl`/`channelUrl` des coques, nouvelle coque parent et enfant), migration 024 jouée,
+  coques de NAR-190 publiées, migration 024 jouée,
   publication à la main (`docs/MOBILE.md`). Limites : `HANDOFF.md` « Limites résiduelles ».
 
 - Réinitialisation du mot de passe par code SMS (NAR-201, tranche 2 de NAR-136, 20/11/2026) : API seule
@@ -245,8 +243,9 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
 
 - **Runtime OTA (NAR-191)** : la barrière Capgo se fie à l'`updateUrl` lu au build dans
   `capacitor.config.ts`, pas à celui de la coque (le greffon ne l'expose pas) ; ils viennent de la même
-  source et un OTA n'atteint qu'une coque qui vise déjà ce serveur, mais une coque construite à la main
-  avec une autre configuration que celle du bundle échapperait à la vérification. App parent : installation
+  source et un OTA n'atteint qu'une coque qui vise déjà ce serveur. Depuis NAR-190, le build Android
+  refuse une coque dont l'origine OTA n'est pas l'API du bundle embarqué ; la coque iOS n'a pas ce
+  contrôle (valeurs de `capacitor.config.ts` copiées par `cap sync ios`, à relire avant une archive). App parent : installation
   au prochain passage en arrière-plan (pas au prochain démarrage à froid) : un formulaire laissé ouvert en
   quittant l'app est perdu. App enfant : bundle installé 5 s après un passage en arrière-plan au repos ; un
   appel qui démarre plus de 5 s après ce passage n'est pas concerné, un appel que Telecom signale en retard

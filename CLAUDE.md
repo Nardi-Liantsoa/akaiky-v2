@@ -278,8 +278,21 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   version du greffon, donc la coque. Même règle que `otaVerdict` (`server/src/ota.js`, testée sur les cas
   partagés). Zips en `bytea` dans `ota_bundles` (10 Mo au plus, ~270 Ko aujourd'hui) plutôt que sur disque :
   l'image ne garde aucun état et une publication ne redéploie rien. Publication par `server/bin/ota-publish.js`
-  (compte propriétaire, à la main). Limites `OTA_RATE_LIMIT`, `OTA_DOWNLOAD_RATE_LIMIT`. Pas encore visé par les
-  coques (`updateUrl`/`channelUrl` à régler : nouvelle coque) ; pas de signature de bundle (SHA-256 + https).
+  (compte propriétaire, à la main). Limites `OTA_RATE_LIMIT`, `OTA_DOWNLOAD_RATE_LIMIT`. Visé par les coques
+  depuis NAR-190 (ci-dessous) ; pas de signature de bundle (SHA-256 + https).
+- **Coques sur le serveur OTA Akaiky (NAR-190, 24/11/2026)** : `capacitor.config.ts` calcule `updateUrl` =
+  `<origine>/api/ota/latest` et `channelUrl` = `<origine>/api/ota/channel` depuis la même origine que l'API du bundle
+  (`VITE_API_ORIGIN`, variable d'environnement puis `.env.production.local`, `.env.production`, `.env.local`, `.env`,
+  sinon l'adresse provisoire) ; `allowModifyUrl`, `persistModifyUrl`, `allowPreview`, `allowHttpsToHttpRedirect` à
+  false, `statsUrl` vide, `httpsOnly` en https. `OtaIdentityTask` (Android) les réécrit et fait échouer le build si les
+  deux adresses n'ont pas la même origine ni les chemins du serveur, visent Capgo, ou si cette origine n'est pas l'API
+  compilée dans le bundle embarqué ; release : https, et avant l'empaquetage (`otaReleaseGuard<Variante>`) jamais
+  l'adresse provisoire `.invalid` ni un nom réservé (**une release exige donc le domaine de production** ; les tests JVM release passent
+  sans) ; debug : https ou `http://127.0.0.1:<port>` (essai par `adb reverse`). Origine canonique exigée (minuscules,
+  sans port par défaut ni « / »). `vite build`
+  refuse un bundle dont l'API diffère de l'origine des coques. iOS : valeurs de `capacitor.config.ts`, sans contrôle au
+  build Xcode. Runtime : aucune requête vers un hôte `.invalid`. Tests : `OtaIdentityTest.kt`, `otaUpdate.test.ts`,
+  chemins partagés `tests/fixtures/ota-target-cases.json` (`server`). Nouvelle coque parent et enfant.
 - **Hors connexion** : appels et SOS par SMS sans Internet (natif enfant). L'app
   parent démarre hors ligne et le dit, sans déconnecter.
 - **Notifications** : FCM (Android) et APNs (iOS), comptes au nom du client. Alertes

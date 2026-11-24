@@ -43,7 +43,7 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 // est lue au build dans capacitor.config.ts (vite.config.ts, __AKAIKY_OTA_UPDATE_URL__), la même
 // source que la configuration native écrite par `cap sync`. Accepté : https://<hôte>/api/ota/latest
 // (jamais capgo.app), ou http://127.0.0.1:<port>/api/ota/latest (test local par adb reverse, que
-// seule la coque debug laisse passer en clair).
+// seule la coque debug laisse passer en clair). Jamais un hôte .invalid (adresse provisoire).
 export function akaikyUpdateUrl(raw: unknown): URL | null {
   if (typeof raw !== 'string' || raw === '') return null
   let u: URL
@@ -51,6 +51,8 @@ export function akaikyUpdateUrl(raw: unknown): URL | null {
   if (u.pathname !== '/api/ota/latest' || u.search || u.hash || u.username || u.password) return null
   const host = u.hostname.toLowerCase()
   if (host === 'capgo.app' || host.endsWith('.capgo.app')) return null
+  // Adresse provisoire (domaine pas encore choisi) : aucune requête vouée à l'échec.
+  if (host.endsWith('.invalid')) return null
   if (u.protocol === 'https:') return u
   if (u.protocol === 'http:' && host === '127.0.0.1' && u.port !== '') return u
   return null

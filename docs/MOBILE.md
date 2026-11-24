@@ -405,11 +405,46 @@ lancement suivant.
 réseau** : un utilisateur hors connexion verrait sa mise à jour annulée à
 chaque démarrage.
 
-**OTA pas encore activé** : le serveur (NAR-189) et le runtime (NAR-191, ci-dessous) existent,
-mais les coques ne visent pas encore le serveur (`updateUrl` / `channelUrl` absents de
-`capacitor.config.ts`, donc Capgo Cloud par défaut). Tant que c'est le cas, la barrière du runtime
-ne fait **aucune** requête : aucun bundle n'est distribué. Capgo Cloud n'est pas utilisé (données de
-mineurs).
+**Serveur OTA des coques (NAR-190)** : `capacitor.config.ts` calcule `updateUrl` =
+`<origine>/api/ota/latest` et `channelUrl` = `<origine>/api/ota/channel` depuis l'origine de l'API
+compilée dans le bundle (`VITE_API_ORIGIN`, lu par `loadEnv` de Vite en mode production : variable
+d'environnement, puis `.env.production.local`, `.env.production`, `.env.local`, `.env` ; sinon
+l'adresse provisoire `https://akaiky.a-definir.invalid`), qui doit déjà être canonique (sinon refusée). Capgo Cloud n'est jamais utilisé (données de mineurs) :
+`statsUrl` vide, et le JavaScript ne peut ni changer ces adresses (`allowModifyUrl: false`), ni en
+garder d'autres (`persistModifyUrl: false`), ni viser une autre app (`allowPreview: false`) ;
+`httpsOnly` suit le schéma de l'origine (faux seulement pour une API locale en http), jamais de
+redirection vers http. Seul le build Android release impose https ; l'origine doit être canonique
+(minuscules, sans port par défaut ni « / » final), sinon `npm run dev`, les tests et les builds
+refusent de démarrer.
+
+- **Android** : `OtaIdentityTask` réécrit ces réglages dans les assets de chaque variante et fait
+  **échouer le build** si `updateUrl` et `channelUrl` n'ont pas la même origine ou pas les chemins du
+  serveur, visent Capgo, ou si l'origine n'apparaît pas comme `<origine>/api` (fermé par un
+  délimiteur de chaîne : l'API du bundle, pas son `updateUrl`) dans les scripts du bundle embarqué (`npm run build` et `npx cap sync` faits avec deux `VITE_API_ORIGIN`). Release
+  (APK et AAB) : https et, avant l'empaquetage (`otaReleaseGuard<Variante>`), **jamais l'adresse
+  provisoire** ni un nom réservé (`.invalid`, `.example`, `.test`, `.localhost`, `example.com`…) : une release, `npm run android:enfant:release` compris, exige le domaine
+  de production. Les tests JVM des variantes release passent avec l'adresse provisoire. Debug : https, ou `http://127.0.0.1:<port>` pour un essai local.
+- **iOS** : `npx cap sync ios` copie les valeurs de `capacitor.config.ts` ; aucun contrôle au build
+  Xcode : relire `ios/App/App/capacitor.config.json` avant une archive.
+- **Web** : `vite build` refuse un bundle dont l'API diffère de l'origine que lit
+  `capacitor.config.ts` (mode qui lirait un autre fichier `.env.*` : passer `VITE_API_ORIGIN` en
+  variable d'environnement).
+- Tant que l'adresse est provisoire, la barrière du runtime ne fait **aucune** requête (hôte
+  `.invalid`).
+- Essai sur émulateur (24/11/2026, `Pixel_9_Pro_XL`, Android 16) : coque parent debug visant
+  `http://127.0.0.1:8099` (`adb reverse`), serveur local qui note chaque requête : au lancement, un
+  `POST /api/ota/latest` (`app_id` `mg.nosytech.akaiky`, canal `parent`) ; capture réseau de
+  l'émulateur (`-tcpdump`) sans aucune mention de `capgo`.
+
+Construire une coque qui vise le serveur :
+
+```sh
+VITE_API_ORIGIN=https://<domaine> npm run build
+VITE_API_ORIGIN=https://<domaine> npx cap sync
+```
+
+Essai local : `VITE_API_ORIGIN=http://127.0.0.1:<port> npx vite build --mode development`, puis
+`VITE_API_ORIGIN=http://127.0.0.1:<port> npx cap sync android`, coque debug, `adb reverse tcp:<port> tcp:<port>`.
 
 ### Une app, un canal (NAR-162)
 
@@ -498,11 +533,11 @@ Rien n'est écrit ni journalisé de ce que l'appareil envoie (`device_id` compri
 
 - **Barrière Capgo** : `updateUrl` est lu au build dans `capacitor.config.ts`
   (`vite.config.ts`, constante `__AKAIKY_OTA_UPDATE_URL__`), la même source que la configuration
-  native écrite par `cap sync`. Le greffon n'a aucune méthode pour lire son `updateUrl`
+  native écrite par `cap sync` (NAR-190 : l'origine de l'API). Le greffon n'a aucune méthode pour lire son `updateUrl`
   (`isAutoUpdateAvailable` ne la regarde pas). Rien n'est demandé au greffon si cette adresse n'est
   pas `https://<hôte>/api/ota/latest` (jamais `capgo.app`) ou `http://127.0.0.1:<port>/api/ota/latest`
-  (test local par `adb reverse`, que seule la coque debug laisse passer en clair). Aujourd'hui elle
-  est vide : zéro requête vers `capgo.app`. Un bundle OTA ne peut atteindre qu'une coque qui vise
+  (test local par `adb reverse`, que seule la coque debug laisse passer en clair), ni un hôte
+  `.invalid` (adresse provisoire) : zéro requête vers `capgo.app`. Un bundle OTA ne peut atteindre qu'une coque qui vise
   déjà ce serveur, donc constante et coque concordent.
 - **Quand** : au démarrage et à chaque retour au premier plan, **au plus une vérification toutes
   les 6 heures** (comme l'APK enfant) : quatre requêtes par jour et par appareil au plus, un
@@ -545,7 +580,7 @@ Rien n'est écrit ni journalisé de ce que l'appareil envoie (`device_id` compri
 - **Nettoyage** : à chaque vérification, tout bundle téléchargé qui n'est ni l'actuel ni celui qui
   attend est effacé (le greffon efface déjà le précédent après un succès et les échecs).
 
-### Publier un OTA (procédure, une fois les coques réglées sur ce serveur)
+### Publier un OTA (procédure, une fois les coques de NAR-190 installées)
 
 1. Vérifier le verdict : changement web seul (JS, CSS, templates, assets). Sinon : coque.
    Pas de bump de `package.json`.

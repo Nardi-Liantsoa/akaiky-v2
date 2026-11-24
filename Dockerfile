@@ -18,9 +18,12 @@ WORKDIR /w
 COPY package.json package-lock.json ./
 # --ignore-scripts : le postinstall installe server/, absent de cette étape.
 RUN npm ci --ignore-scripts --no-audit --no-fund
-COPY index.html vite.config.ts tsconfig.json ./
+# capacitor.config.ts : importé par vite.config.ts (origine du serveur OTA des coques, NAR-190).
+COPY index.html vite.config.ts capacitor.config.ts tsconfig.json ./
 COPY public public
 COPY src src
+# Cas partagés lus par les tests que vue-tsc vérifie au build (src/lib/*.test.ts).
+COPY tests/fixtures tests/fixtures
 RUN npm run build
 
 # --- 2. dépendances de production de l'API ------------------------------------

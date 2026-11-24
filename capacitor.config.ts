@@ -1,4 +1,41 @@
 import type { CapacitorConfig } from '@capacitor/cli'
+import { loadEnv } from 'vite'
+
+// Origine de l'API, donc du serveur OTA (NAR-190) : la même que celle compilée dans le bundle
+// (src/api/base.ts, VITE_API_ORIGIN), lue par Vite comme pour un build de production (variable
+// d'environnement, puis .env.production.local, .env.production, .env.local, .env) ; à défaut
+// l'adresse provisoire, tant que le domaine n'est pas choisi. `cap sync` et `vite build` sont deux
+// processus : chacun relit ces mêmes sources, et le build Android vérifie qu'ils concordent
+// (android/app/build.gradle, OtaIdentityTask : l'origine doit figurer dans le bundle embarqué).
+export const PLACEHOLDER_ORIGIN = 'https://akaiky.a-definir.invalid'
+export function apiOrigin(env: Record<string, string | undefined> = loadEnv('production', process.cwd(), 'VITE_')): string {
+  return env.VITE_API_ORIGIN || PLACEHOLDER_ORIGIN
+}
+// Origine http(s) canonique, sinon refus (au chargement : `npm run dev` et les tests aussi), comme
+// Capgo Cloud. La forme que vérifient vite.config.ts et le build Android.
+export function normalizeOrigin(raw: string): string {
+  let u: URL
+  try { u = new URL(raw) } catch { throw new Error(`Origine de l'API invalide : ${raw}`) }
+  // Forme canonique exigée telle quelle (minuscules, sans port par défaut ni « / ») : le bundle compile
+  // la valeur brute (src/api/base.ts), qui doit donc être exactement l'origine des coques.
+  if ((u.protocol !== 'https:' && u.protocol !== 'http:') || u.origin !== raw) {
+    throw new Error(`Origine de l'API invalide : ${raw} (https://<hôte>, sans chemin)`)
+  }
+  const host = u.hostname
+  if (host === 'capgo.app' || host.endsWith('.capgo.app')) throw new Error('Le serveur OTA ne peut pas être Capgo Cloud')
+  return u.origin
+}
+// Adresses du serveur OTA (server/src/routes/ota.js). Le chargement de ce fichier (aussi par
+// `npm run dev` et les tests) accepte une API locale en http ; le build Android décide de ce qu'une
+// coque peut embarquer : release, https et jamais l'adresse provisoire ; debug, https ou
+// http://127.0.0.1:<port> (seul hôte en clair de la coque debug, essai par adb reverse).
+export const OTA_UPDATE_PATH = '/api/ota/latest'
+export const OTA_CHANNEL_PATH = '/api/ota/channel'
+export function otaUrls(raw: string) {
+  const origin = normalizeOrigin(raw)
+  return { updateUrl: `${origin}${OTA_UPDATE_PATH}`, channelUrl: `${origin}${OTA_CHANNEL_PATH}`, httpsOnly: origin.startsWith('https://') }
+}
+const ota = otaUrls(apiOrigin())
 
 const config: CapacitorConfig = {
   appId: 'mg.nosytech.akaiky',
@@ -48,7 +85,17 @@ const config: CapacitorConfig = {
       allowModifyAppId: false,
       // Statistiques désactivées : par défaut le greffon envoie chaque lancement, avec
       // l'identifiant d'appareil, à plugin.capgo.app (service tiers, téléphones d'enfants).
-      statsUrl: ''
+      statsUrl: '',
+      // Serveur OTA Akaiky (NAR-189, NAR-190), jamais Capgo Cloud (plugin.capgo.app par défaut).
+      // Le JavaScript ne peut ni les changer (setUpdateUrl, setChannelUrl, setStatsUrl refusés), ni
+      // en garder une autre au redémarrage, ni demander les mises à jour d'une autre app (aperçu).
+      updateUrl: ota.updateUrl,
+      channelUrl: ota.channelUrl,
+      allowModifyUrl: false,
+      persistModifyUrl: false,
+      allowPreview: false,
+      httpsOnly: ota.httpsOnly,
+      allowHttpsToHttpRedirect: false
     }
   }
 }

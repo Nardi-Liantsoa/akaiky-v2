@@ -47,8 +47,8 @@ const info = (appId, build, defaultChannel, extra = {}) => ({
 })
 
 let dbh, ctx, dir
-const latest = (body, extra = {}) => ctx.app.inject({ method: 'POST', url: '/api/ota/latest', payload: body, ...extra })
-const channelOf = (body) => ctx.app.inject({ method: 'PUT', url: '/api/ota/channel', payload: body })
+const latest = (body, extra = {}) => ctx.app.inject({ method: 'POST', url: FIXTURE.server.updatePath, payload: body, ...extra })
+const channelOf = (body) => ctx.app.inject({ method: 'PUT', url: FIXTURE.server.channelPath, payload: body })
 const insert = (t, version = 'v1', bundle = ZIP) => ctx.db.query(
   'INSERT INTO ota_bundles(app, channel, version, min_native_build, bundle, sha256) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
   [t.app, t.channel, version, t.minNativeBuild, bundle, createHash('sha256').update(bundle).digest('hex')]).then((r) => r.rows[0].id)
