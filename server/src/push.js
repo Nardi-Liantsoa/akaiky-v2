@@ -326,7 +326,8 @@ export async function runPushWorker(db, provider, config, log, { batch = 50, con
     `UPDATE push_outbox o SET attempts = o.attempts + 1, next_attempt_at = now() + interval '${LEASE}'
       WHERE o.id IN (SELECT id FROM push_outbox WHERE status = 'pending' AND next_attempt_at <= now()
                       ORDER BY next_attempt_at LIMIT $1 FOR UPDATE SKIP LOCKED)
-      RETURNING o.id, o.token_id, o.event, o.ref, o.attempts, o.created_at`, [batch])
+      RETURNING o.id, o.token_id, o.event, o.ref, o.attempts,
+                (o.event = 'locate' AND o.created_at < now() - make_interval(secs => $2)) AS late`, [batch, LOCATE_RETRY_MS / 1000])
   const summary = { claimed: claimed.length, sent: 0, retried: 0, failed: 0, removedTokens: 0 }
   if (!claimed.length) return summary
 
@@ -364,6 +365,9 @@ export async function runPushWorker(db, provider, config, log, { batch = 50, con
     // Jeton supprimé avant la réservation (token_id NULL), entre-temps ou plus tôt dans ce
     // tour : abandon, rien ne part.
     if (!t || deadTokens.has(t.id)) return finish(row, 'failed', 'token_gone')
+    // Réveil `locate` resté en file au-delà de la consultation (worker en retard, Retry-After
+    // long) : il ne réveillerait le téléphone pour rien.
+    if (row.late) return finish(row, 'failed', 'expired')
     let name = null
     if (row.event === 'message' || CHILD_EVENTS.has(row.event)) {
       const m = row.event === 'message' ? messageById.get(row.ref) : childById.get(row.ref)
@@ -391,10 +395,9 @@ export async function runPushWorker(db, provider, config, log, { batch = 50, con
       configAlarm = true
       log.error({ push: row.id, error: result.error }, 'push : configuration FCM refusée (projet Firebase ou compte de service)')
     }
-    // `locate` : retenté seulement pendant la consultation (2 minutes, routes/location.js) ;
-    // un réveil tardif ne sert à rien et userait le plafond du téléphone.
-    const late = row.event === 'locate' && Date.now() - row.created_at.getTime() > LOCATE_RETRY_MS
-    if (result.outcome === 'retry' && row.attempts < MAX_ATTEMPTS && !late) {
+    // `locate` : retenté seulement pendant la consultation (2 minutes, routes/location.js ;
+    // `late` calculé par la base à la réservation) : un réveil tardif ne sert à rien.
+    if (result.outcome === 'retry' && row.attempts < MAX_ATTEMPTS) {
       await db.query(
         `UPDATE push_outbox SET last_error = $2, next_attempt_at = now() + make_interval(secs => $3)
           WHERE id = $1 AND status = 'pending'`, [row.id, result.error, retryDelay(row.attempts, result.retryAfterS)])

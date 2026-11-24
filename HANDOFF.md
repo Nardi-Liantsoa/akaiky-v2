@@ -215,6 +215,13 @@ Développement : la version debug garde le débogage USB. Pour réinstaller, app
 
 Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une limite tue est une faille.
 
+- **Position à la demande (NAR-203, serveur seul)** : aucune app ne la demande ni n'y répond encore (téléphone : NAR-204,
+  carte : NAR-205 ; réception du réveil push : NAR-179). **Réveil perdu** : un réveil `locate` parti vers FCM mais jamais
+  reçu par le téléphone (Doze, processus tué) n'est pas renvoyé tant que la demande reste ouverte et sans réponse ; seul un
+  réveil en échec est remplacé. À trancher avec NAR-204 quand le comportement réel du téléphone sera mesurable (l'écran de
+  l'enfant au premier plan peut aussi relire `GET /api/device/locate`). **Plafond** : au-delà de 30 réveils `locate` par heure
+  pour un téléphone, la demande répond 200 avec `woken: 0`, sans autre signal ; la page parent (NAR-205) devra le montrer.
+  Revue du diff arrêtée au 4e tour sur ces deux points (même famille de défauts trois tours de suite).
 - **Connexion par téléphone (NAR-136, tranches 1 et 2)** : pas encore de fournisseur SMS réel (`SMS_PROVIDER=none` en
   production : inscription, renvoi et réinitialisation par numéro répondent 503, la connexion par numéro marche) ;
   pas encore d'écran (tranche 3, NAR-202 : les routes de réinitialisation n'ont aucune interface). **Numéro occupé

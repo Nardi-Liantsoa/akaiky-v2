@@ -23,8 +23,9 @@
 //   POST /positions              { lat, lng, accuracyM, ageS } : un relevé pour SON enfant
 //                                (lu sur la session), accepté pendant une demande ouverte
 //                                seulement (sinon 409 `no_request`), et pris après la plus
-//                                ancienne demande ouverte (sinon 409 `stale_position` : une
-//                                position d'avant toute demande n'en est pas la réponse). `ageS` : âge du relevé
+//                                ancienne demande ouverte et plus récent que la dernière
+//                                position de l'enfant (sinon 409 `stale_position` : il ne
+//                                répond à rien, ou n'apprend rien au parent). `ageS` : âge du relevé
 //                                mesuré par l'horloge monotone du téléphone, jamais son heure
 //                                (souvent fausse sur un téléphone bas de gamme).
 // Les coordonnées ne sont écrites ni dans un journal, ni dans l'audit, ni dans une
@@ -169,9 +170,12 @@ export async function deviceLocationRoutes(app) {
     const { rows } = await openRequests(db, req.device)
     // Dernière position de l'enfant, quel que soit le téléphone qui l'a envoyée : un relevé
     // fait par l'un suffit, l'autre ne refait pas le sien.
-    const { rows: [last] } = await db.query(
-      'SELECT max(recorded_at) AS at FROM positions WHERE child_id = $1 AND family_id = $2', [req.device.childId, req.device.familyId])
-    const latest = rows.reduce((t, r) => (r.created_at > t ? r.created_at : t), new Date(0))
+    // Comparé en SQL, à la microseconde (une Date JavaScript n'a que la milliseconde).
+    const { rows: [due] } = await db.query(
+      `SELECT EXISTS (SELECT 1 FROM location_requests r
+                       WHERE r.child_id = $1 AND r.family_id = $2 AND r.watch_until > now() AND r.user_id = ANY($3::uuid[])
+                         AND r.created_at > COALESCE((SELECT max(recorded_at) FROM positions WHERE child_id = $1 AND family_id = $2), '-infinity')) AS pending`,
+      [req.device.childId, req.device.familyId, rows.map((r) => r.user_id)])
     // Un contact lié au membre donne son nom (« Maman »), sinon le nom du compte ; jamais
     // d'identifiant de compte ni d'adresse vers le téléphone.
     const watchers = rows.map((r) => {
@@ -180,7 +184,7 @@ export async function deviceLocationRoutes(app) {
       return { name }
     })
     return {
-      pending: rows.length > 0 && (!last.at || latest > last.at),
+      pending: due.pending,
       watchers,
       watchingUntil: rows.length ? rows.reduce((t, r) => (r.watch_until > t ? r.watch_until : t), new Date(0)) : null
     }
@@ -191,22 +195,27 @@ export async function deviceLocationRoutes(app) {
     if (!limit(`device:${req.device.id}`)) throw new HttpError(429, 'Trop d’envois. Réessayez dans une minute.', 'positions_rate_limited')
     return withTransaction(db, async (conn) => {
       // Aucune demande ouverte : pas de suivi, le relevé n'est pas gardé.
+      // Comparaisons en SQL (horloge et précision de la base). Refusé aussi : un relevé qui
+      // n'est pas plus récent que la dernière position de l'enfant (le même relevé renvoyé,
+      // ou celui d'un autre téléphone, plus ancien) : il n'apprend rien au parent.
       const { rows: [open] } = await conn.query(
-        `SELECT min(r.created_at) AS oldest, now() - $3 * interval '1 second' AS taken
+        `SELECT min(r.created_at) IS NOT NULL AS open,
+                now() - $3 * interval '1 second' < min(r.created_at) AS before_request,
+                now() - $3 * interval '1 second' <= (SELECT max(recorded_at) FROM positions WHERE child_id = $1 AND family_id = $2) AS not_newer
            FROM location_requests r
            JOIN memberships m ON m.user_id = r.user_id AND m.family_id = r.family_id
            JOIN users u ON u.id = r.user_id AND u.disabled_at IS NULL
           WHERE r.child_id = $1 AND r.family_id = $2 AND r.watch_until > now()`, [req.device.childId, req.device.familyId, ageS])
-      if (!open.oldest) throw new HttpError(409, 'Aucune demande de position en cours.', 'no_request')
-      if (open.taken < open.oldest) throw new HttpError(409, 'Position prise avant la demande.', 'stale_position')
+      if (!open.open) throw new HttpError(409, 'Aucune demande de position en cours.', 'no_request')
+      if (open.before_request || open.not_newer) throw new HttpError(409, 'Position prise avant la demande ou déjà dépassée.', 'stale_position')
       const { rows: [{ id }] } = await conn.query('SELECT gen_random_uuid() AS id')
       await conn.query(
         `INSERT INTO positions(id, family_id, child_id, device_id, lat_enc, lng_enc, accuracy_m, source, recorded_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'on_demand', $8)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'on_demand', now() - $8 * interval '1 second')`,
         [id, req.device.familyId, req.device.childId, req.device.id,
           sealField(coord(lat), config.dataKey, positionAad(id, 'lat')),
           sealField(coord(lng), config.dataKey, positionAad(id, 'lng')),
-          Math.round(accuracyM), open.taken])
+          Math.round(accuracyM), ageS])
       return { ok: true }
     })
   })

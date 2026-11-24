@@ -252,22 +252,25 @@ test('membre désactivé par l’équipe : il ne regarde plus, sa demande n’ou
   assert.equal((await report(fy.device, HERE)).statusCode, 409)
 })
 
-test('lecture : la position la plus récemment relevée gagne ; une ligne illisible ne masque pas les précédentes', async () => {
+test('lecture : la position la plus récemment relevée gagne ; un relevé pas plus récent est refusé ; une ligne illisible ne masque pas les précédentes', async () => {
   const owner = await newUser(ctx)
   await family(owner)
   const kid = await child(owner, 'Fy')
   const one = await pair(owner, kid), two = await pair(owner, kid)
   assert.equal((await locate(owner, kid.id)).statusCode, 200)
   await ctx.db.query("UPDATE location_requests SET created_at = created_at - interval '100 seconds' WHERE child_id = $1", [kid.id])
-  assert.equal((await report(one, { ...HERE, lat: -18.9, ageS: 0 })).statusCode, 200)
-  // Reçu après, mais relevé 90 s plus tôt par l'autre téléphone.
-  assert.equal((await report(two, { ...HERE, lat: -19.1, ageS: 90 })).statusCode, 200)
+  assert.equal((await report(one, { ...HERE, lat: -19.1, ageS: 90 })).statusCode, 200)
+  assert.equal((await report(two, { ...HERE, lat: -18.9, ageS: 0 })).statusCode, 200)
   assert.equal((await position(owner, kid.id)).json().position.lat, -18.9)
+  // Envoi retardé d'un relevé plus ancien que la dernière position, ou le même renvoyé : refusé.
+  for (const [d, ageS] of [[one, 60], [two, 2]]) {
+    const late = await report(d, { ...HERE, lat: -20, ageS })
+    assert.equal(late.statusCode, 409)
+    assert.equal(late.json().code, 'stale_position')
+  }
   // La plus récente devient illisible : la précédente est rendue.
-  await ctx.db.query("UPDATE positions SET recorded_at = now() + interval '1 minute' WHERE child_id = $1 AND device_id = $2", [kid.id, two.device.id])
+  await ctx.db.query('UPDATE positions SET lat_enc = lng_enc WHERE child_id = $1 AND device_id = $2', [kid.id, two.device.id])
   assert.equal((await position(owner, kid.id)).json().position.lat, -19.1)
-  await ctx.db.query("UPDATE positions SET lat_enc = lng_enc WHERE child_id = $1 AND device_id = $2", [kid.id, two.device.id])
-  assert.equal((await position(owner, kid.id)).json().position.lat, -18.9)
 })
 
 test('réveil locate en échec passager : retenté pendant la consultation seulement', async () => {
