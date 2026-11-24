@@ -27,6 +27,8 @@ export const ICONS = {
   'quick-home': { shapes: [path('M3 11l9-7 9 7'), path('M5 10v10h14V10'), path('M10 20v-6h4v6')] },
   car: { shapes: [path('M5 16l1.5-6h11L19 16'), rect({ x: 3, y: 16, width: 18, height: 4, rx: 1 }), circle(7.5, 20, 1.5), circle(16.5, 20, 1.5)] },
   clock: { shapes: [circle(12, 12, 9), path('M12 7v5l3 2')] },
+  // Position (NAR-204) : épingle de carte.
+  pin: { shapes: [path('M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z'), circle(12, 9.5, 2.5)] },
   smile: { shapes: [circle(12, 12, 9), path('M8 14a5 5 0 0 0 8 0'), path('M9 9.5h.01M15 9.5h.01')] },
   // Pastille d'appel des contacts de l'enfant (pleine).
   call: {

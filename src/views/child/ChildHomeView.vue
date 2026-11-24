@@ -34,6 +34,9 @@ import { setOtaScreenBusy } from '../../lib/otaRuntime'
 import { formatClock } from '../../lib/format'
 import { activeWindow, safeTimeZone, visibleContacts } from '../../lib/schedule'
 import AppButton from '../../components/ui/AppButton.vue'
+import WatchingBadge from '../../components/child/WatchingBadge.vue'
+import { AkaikyLocation } from '../../native/akaikyLocation'
+import { LOCATE_POLL_MS, createLocateWatch } from '../../lib/locateWatch'
 
 // Écran de l'app enfant : échange du jeton reçu au provisionnement (NAR-164), puis
 // accueil (NAR-142, maquette écran 1) : heure, contacts à appeler en un appui, SOS.
@@ -89,7 +92,7 @@ onMounted(async () => {
     foreground = isActive
     if (isActive) startClock(); else stopClock()
     if (isActive) { void refreshKiosk().catch(() => {}).then(() => applyRemoteUnlock()); void readScreening(); void readSos() }
-    if (isActive && state.value.kind === 'paired') { resume(); startStatus(); syncJournal(); void backgroundStatus.ensure(); void syncApps(); checkUpdate() } else { pause(); stopStatus(); clearTimeout(journalRetry) }
+    if (isActive && state.value.kind === 'paired') { resume(); startStatus(); startLocate(); syncJournal(); void backgroundStatus.ensure(); void syncApps(); checkUpdate() } else { pause(); stopStatus(); stopLocate(); clearTimeout(journalRetry) }
   })
   // SOS en cours (NAR-151) : état poussé par le service natif quand la WebView est éveillée,
   // relu à chaque reprise (écran rallumé pendant la cascade).
@@ -101,7 +104,7 @@ onMounted(async () => {
   // État réel au moment de l'écoute : lancée en arrière-plan, l'app ne relève rien.
   foreground = (await App.getState()).isActive
   if (!foreground) stopClock()
-  if (foreground && state.value.kind === 'paired') { resume(); startStatus() }
+  if (foreground && state.value.kind === 'paired') { resume(); startStatus(); startLocate() }
 })
 // Chaque nouvel état (même « appairé » → « appairé » pour un autre enfant) repart de zéro.
 watch(state, async (s) => {
@@ -192,6 +195,31 @@ function startStatus() {
   statusTimer = setInterval(() => { void readStatus(); syncJournal(); void pushAllowed() }, 60_000)
 }
 watch(() => state.value.kind === 'paired', startStatus)
+
+// Position à la demande (NAR-204) : tant que l'accueil est au premier plan, l'écran demande au
+// serveur toutes les 15 s si un membre regarde ; si un relevé est dû, un relevé unique part
+// (natif, 20 s au plus). Rien en arrière-plan : le réveil push `locate` viendra avec NAR-179.
+// Coque plus ancienne sans le greffon : le relevé est refusé, seul l'indicateur s'affiche.
+const locateWatch = createLocateWatch({
+  get: (path) => session.get(path),
+  post: (path, body) => session.post(path, body),
+  fix: () => AkaikyLocation.currentPosition()
+})
+const watchers = ref<string[]>([])
+let locateTimer: ReturnType<typeof setInterval> | undefined
+async function readLocate() {
+  if (state.value.kind !== 'paired') return
+  await locateWatch.tick()
+  watchers.value = locateWatch.watchers(Date.now())
+}
+function stopLocate() { clearInterval(locateTimer); locateTimer = undefined }
+function startLocate() {
+  stopLocate()
+  if (state.value.kind !== 'paired' || !foreground || !Capacitor.isNativePlatform()) { locateWatch.clear(); watchers.value = []; return }
+  void readLocate()
+  locateTimer = setInterval(() => { void readLocate() }, LOCATE_POLL_MS)
+}
+watch(() => state.value.kind === 'paired', startLocate)
 
 const contacts = computed(() => [...(deviceConfig.config?.contacts ?? [])].sort((a, b) => a.position - b.position))
 
@@ -531,7 +559,7 @@ function checkUpdate() {
 watch(() => deviceConfig.config?.apk, checkUpdate)
 // Téléphone retiré pendant l'usage : l'écran le dit.
 watch(() => deviceConfig.status, (s) => { if (s === 'lost') state.value = { kind: 'revoked' } })
-onBeforeUnmount(() => { setOtaScreenBusy(() => true); unmounted = true; clearInterval(sosWatch); clearInterval(schoolWatch); stopClock(); pause(); stopStatus(); clearTimeout(journalRetry); void lifecycle?.remove(); void sosListener?.remove() })
+onBeforeUnmount(() => { setOtaScreenBusy(() => true); unmounted = true; clearInterval(sosWatch); clearInterval(schoolWatch); stopClock(); pause(); stopStatus(); stopLocate(); clearTimeout(journalRetry); void lifecycle?.remove(); void sosListener?.remove() })
 
 const text = computed(() => {
   const c = t.value.child
@@ -553,6 +581,7 @@ const text = computed(() => {
     <!-- Contenu défilant au-dessus du pied fixe : SOS et secours toujours visibles (NAR-187). -->
     <div class="content">
       <ChildStatusBar :status="status" />
+      <WatchingBadge v-if="watchers.length" :names="watchers" />
       <section v-if="school" class="school-banner" role="status">
         <p class="school-title">{{ t.child.school.title(school.label) }}</p>
         <p>{{ schoolEnd ? t.child.school.until(schoolEnd) : t.child.school.noEnd }}</p>

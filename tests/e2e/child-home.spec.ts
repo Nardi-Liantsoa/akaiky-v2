@@ -27,7 +27,8 @@ function schoolNow() {
   return [{ label: 'École', days: 127, startMin: (min + 1380) % 1440, endMin: (min + 120) % 1440 }]
 }
 
-async function openChild(page: Page, scenario: Scenario, opts: { school?: boolean, offline?: boolean } = {}) {
+async function openChild(page: Page, scenario: Scenario, opts: { school?: boolean, offline?: boolean, locate?: boolean } = {}) {
+  const positions: unknown[] = []
   await page.addInitScript((s: Scenario) => {
     const store: Record<string, string> = {
       'capacitor-storage_device-refresh-token': JSON.stringify('rt-test'),
@@ -37,7 +38,7 @@ async function openChild(page: Page, scenario: Scenario, opts: { school?: boolea
     // Méthodes natives de SecureStorage seulement (le reste est sa couche JS).
     const secure = ['setSynchronizeKeychain', 'internalGetItem', 'internalSetItem', 'internalRemoveItem', 'internalClearItemsWithPrefix', 'internalGetPrefixedKeys']
     const all = { find: () => ({ name: '*', rtype: 'promise' }) }
-    const plugins = ['App', 'StatusBar', 'CapacitorUpdater', 'SecureStorage', 'AkaikyKiosk', 'AkaikyCall', 'AkaikyDevice', 'AkaikySos', 'AkaikyUpdate', 'AkaikyBackground']
+    const plugins = ['App', 'StatusBar', 'CapacitorUpdater', 'SecureStorage', 'AkaikyKiosk', 'AkaikyCall', 'AkaikyDevice', 'AkaikySos', 'AkaikyUpdate', 'AkaikyBackground', 'AkaikyLocation']
     const headers = plugins.map((name) => ({ name, methods: name === 'SecureStorage' ? secure.map((m) => ({ name: m, rtype: 'promise' })) : all }))
     const w = window as unknown as Record<string, unknown>
     w.androidBridge = { postMessage() {} }
@@ -66,6 +67,7 @@ async function openChild(page: Page, scenario: Scenario, opts: { school?: boolea
           case 'AkaikyDevice.getProvisioning': return {}
           case 'AkaikyDevice.getInfo': return { deviceOwner: true, model: 'test', osVersion: '14', appVersion: '1.0.0' }
           case 'AkaikySos.state': return { active: false }
+          case 'AkaikyLocation.currentPosition': return { lat: -18.9, lng: 47.5, accuracyM: 12, ageS: 1 }
         }
         if (plugin === 'AkaikyKiosk') return s.kiosk
         return {}
@@ -89,10 +91,17 @@ async function openChild(page: Page, scenario: Scenario, opts: { school?: boolea
       }, 200, { ETag: '"v1"' })
     }
     if (path === '/device/messages' && route.request().method() === 'GET') return json([])
+    // Position à la demande (NAR-204) : Papa regarde, un relevé est dû jusqu'au premier envoi.
+    if (path === '/device/locate') {
+      if (!opts.locate) return json({ pending: false, watchers: [], watchingUntil: null })
+      return json({ pending: positions.length === 0, watchers: [{ name: 'Papa' }], watchingUntil: new Date(Date.now() + 120_000).toISOString() })
+    }
+    if (path === '/device/positions') { positions.push(route.request().postDataJSON()); return json({ ok: true }) }
     return json({})
   })
   await page.goto('/')
   await page.waitForURL('**/enfant')
+  return positions
 }
 
 // Hauteur rendue de chaque cible tactile visible.
@@ -217,4 +226,26 @@ test.describe('écran couché 640×360', () => {
     const code = (await page.locator('.actions .parent-code').boundingBox())!
     expect(code.y + code.height).toBeLessThanOrEqual(page.viewportSize()!.height)
   })
+})
+
+test('un parent regarde : « Papa regarde où tu es », un relevé unique envoyé, SOS toujours visible', async ({ page }) => {
+  const positions = await openChild(page, {
+    kiosk: { deviceOwner: true, armed: true, locked: true },
+    screening: { available: true, held: true }
+  }, { locate: true })
+  await expect(page.getByRole('status').filter({ hasText: 'Papa regarde où tu es' })).toBeVisible()
+  await expect.poll(() => positions.length).toBe(1)
+  expect(positions[0]).toEqual({ lat: -18.9, lng: 47.5, accuracyM: 12, ageS: 1 })
+  await expectSosVisible(page)
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/enfant-regarde.png` })
+})
+
+test('personne ne regarde : aucun indicateur, aucun relevé', async ({ page }) => {
+  const positions = await openChild(page, {
+    kiosk: { deviceOwner: true, armed: true, locked: true },
+    screening: { available: true, held: true }
+  })
+  await expect(page.locator('.grid .tile')).toHaveCount(4)
+  await expect(page.getByText('regarde où tu es')).toHaveCount(0)
+  expect(positions).toEqual([])
 })
