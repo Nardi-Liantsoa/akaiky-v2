@@ -26,7 +26,7 @@ test('une position de plus de 30 jours est supprimée, une plus récente reste @
 
   // Le parent demande la position, le téléphone répond par un relevé unique.
   expect((await api(page, 'POST', `/children/${fy.id}/locate`)).ok()).toBe(true)
-  expect((await device(page, 'POST', '/positions', { token: accessToken, data: { lat: -18.8792, lng: 47.5079, accuracyM: 15, ageS: 3 } })).ok()).toBe(true)
+  expect((await device(page, 'POST', '/positions', { token: accessToken, data: { lat: -18.8792, lng: 47.5079, accuracyM: 15, ageS: 0 } })).ok()).toBe(true)
   const shown = async () => (await (await api(page, 'GET', `/children/${fy.id}/position`)).json()).position
   expect(await shown()).toMatchObject({ lat: -18.8792, lng: 47.5079, accuracyM: 15 })
 

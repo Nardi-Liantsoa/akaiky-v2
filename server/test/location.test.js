@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { startDb, startApp, call, native, newUser, tokenIn } from './helpers.js'
 import { openField } from '../src/crypto-fields.js'
 import { LOCATE_MAX, positionAad } from '../src/routes/location.js'
+import { createFakeProvider, runPushWorker } from '../src/push.js'
 
 const APK = { DEVICE_APK_URL: 'https://akaiky.test/downloads/akaiky-enfant.apk', DEVICE_APK_SIGNATURE_SHA256: 'A'.repeat(43) }
 let dbh, ctx
@@ -16,7 +17,7 @@ const locate = (u, childId, body) => call(ctx.app, 'POST', `/api/children/${chil
 const position = (u, childId) => call(ctx.app, 'GET', `/api/children/${childId}/position`, { cookie: u.cookie })
 const report = (device, body) => native(ctx.app, 'POST', '/api/device/positions', { token: device.accessToken, body })
 const pending = (device) => native(ctx.app, 'GET', '/api/device/locate', { token: device.accessToken })
-const HERE = { lat: -18.879190, lng: 47.507905, accuracyM: 12.4, ageS: 5 }
+const HERE = { lat: -18.879190, lng: 47.507905, accuracyM: 12.4, ageS: 0 }
 
 async function join(owner, role) {
   const guest = await newUser(ctx)
@@ -61,8 +62,9 @@ test('un membre demande la position : réveil du téléphone, « qui regarde »,
   assert.ok(until > Date.now() + 60_000 && until <= Date.now() + 121_000, 'consultation de 2 minutes')
   assert.deepEqual([asked.json().devices, asked.json().woken], [1, 1])
   assert.deepEqual(await queuedLocates(fy.kid.id), [fy.device.device.id], 'réveil silencieux mis en file pour le téléphone de Fy')
-  const { rows: [push] } = await ctx.db.query("SELECT kind FROM push_outbox WHERE event = 'locate' AND ref = $1", [fy.kid.id])
+  const { rows: [push] } = await ctx.db.query("SELECT kind, owner_key FROM push_outbox WHERE event = 'locate' AND ref = $1", [fy.kid.id])
   assert.equal(push.kind, 'data', 'réveil silencieux : aucune notification affichée')
+  assert.equal(push.owner_key, `device:${fy.device.device.id}:locate`, 'plafond horaire propre aux réveils locate')
 
   // Le téléphone voit qu'on le regarde : nom du contact lié, rien d'autre.
   const seen = (await pending(fy.device)).json()
@@ -70,7 +72,9 @@ test('un membre demande la position : réveil du téléphone, « qui regarde »,
   assert.deepEqual(seen.watchers, [{ name: 'Maman' }])
   assert.equal(Date.parse(seen.watchingUntil), until)
 
-  const sent = await report(fy.device, HERE)
+  // Le téléphone réveillé prend son relevé 10 s après la demande et l'envoie 5 s plus tard.
+  await ctx.db.query("UPDATE location_requests SET created_at = created_at - interval '15 seconds' WHERE child_id = $1", [fy.kid.id])
+  const sent = await report(fy.device, { ...HERE, ageS: 5 })
   assert.equal(sent.statusCode, 200, sent.body)
   assert.equal((await pending(fy.device)).json().pending, false, 'relevé fait : plus rien de dû')
 
@@ -84,8 +88,12 @@ test('un membre demande la position : réveil du téléphone, « qui regarde »,
   assert.ok((await position(owner, fy.kid.id)).json().watchingUntil)
   assert.equal((await position(member, fy.kid.id)).json().watchingUntil, null)
 
-  // Une nouvelle demande rend un relevé dû à nouveau.
-  assert.equal((await locate(member, fy.kid.id)).statusCode, 200)
+  // Une nouvelle demande rend un relevé dû à nouveau ; le téléphone réveillé il y a moins
+  // d'une minute ne l'est pas une seconde fois.
+  const second = await locate(member, fy.kid.id)
+  assert.equal(second.statusCode, 200)
+  assert.deepEqual([second.json().devices, second.json().woken], [1, 0])
+  assert.equal((await queuedLocates(fy.kid.id)).length, 1)
   const again = (await pending(fy.device)).json()
   assert.equal(again.pending, true)
   assert.equal(again.watchers.length, 2)
@@ -99,6 +107,11 @@ test('aucun suivi : un relevé sans demande ouverte, ou après la consultation, 
   assert.equal(none.statusCode, 409)
   assert.equal(none.json().code, 'no_request')
   assert.equal((await locate(owner, fy.kid.id)).statusCode, 200)
+  // Position « dernière connue » prise avant la demande : ne répond pas à la demande.
+  const stale = await report(fy.device, { ...HERE, ageS: 30 })
+  assert.equal(stale.statusCode, 409)
+  assert.equal(stale.json().code, 'stale_position')
+  assert.equal((await pending(fy.device)).json().pending, true, 'toujours dû')
   await ctx.db.query("UPDATE location_requests SET created_at = now() - interval '3 minutes', watch_until = now() - interval '1 minute' WHERE child_id = $1", [fy.kid.id])
   assert.equal((await report(fy.device, HERE)).statusCode, 409, 'consultation finie')
   assert.deepEqual((await pending(fy.device)).json(), { pending: false, watchers: [], watchingUntil: null })
@@ -158,7 +171,7 @@ test('entrées : bornes, champs connus seulement, relevé trop vieux refusé ; d
   assert.equal((await locate(owner, fy.kid.id)).statusCode, 200)
   for (const body of [
     { ...HERE, lat: 91 }, { ...HERE, lat: -90.5 }, { ...HERE, lng: 180.1 }, { ...HERE, accuracyM: -1 }, { ...HERE, accuracyM: 100001 },
-    { ...HERE, ageS: 601 }, { ...HERE, ageS: -1 }, { ...HERE, ageS: 1.5 }, { ...HERE, lat: '-18.8' },
+    { ...HERE, ageS: 121 }, { ...HERE, ageS: -1 }, { ...HERE, ageS: 1.5 }, { ...HERE, lat: '-18.8' },
     { lat: HERE.lat, lng: HERE.lng, accuracyM: 10 }, { ...HERE, recordedAt: new Date().toISOString() }, { ...HERE, source: 'sos' }
   ]) assert.equal((await report(fy.device, body)).statusCode, 400, JSON.stringify(body))
   assert.equal((await native(ctx.app, 'POST', '/api/device/positions', { body: HERE })).statusCode, 401)
@@ -178,6 +191,7 @@ test('limites : demandes par membre et par enfant, relevés par téléphone', as
   const codes = []
   for (let i = 0; i < 7; i++) codes.push((await report(fy.device, HERE)).statusCode)
   assert.deepEqual(codes, [200, 200, 200, 200, 200, 200, 429])
+  assert.equal((await report(fy.device, HERE)).json().code, 'positions_rate_limited')
 })
 
 test('membre parti : il ne regarde plus, sa demande n’ouvre plus de relevé', async () => {
@@ -221,4 +235,49 @@ test('chiffrement au repos, rien dans l’audit ; l’export du gestionnaire con
   const adminRoutes = ctx.app.printRoutes({ commonPrefix: false }).split('\n').filter((l) => l.includes('admin'))
   assert.ok(adminRoutes.length > 0)
   assert.ok(!adminRoutes.some((l) => /position|locat/i.test(l)), adminRoutes.join('\n'))
+})
+
+test('membre désactivé par l’équipe : il ne regarde plus, sa demande n’ouvre plus de relevé', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const member = await join(owner, 'member')
+  const fy = await pairedChild(owner, 'Fy')
+  assert.equal((await locate(member, fy.kid.id)).statusCode, 200)
+  await ctx.db.query('UPDATE users SET disabled_at = now() WHERE id = $1', [member.id])
+  assert.deepEqual((await pending(fy.device)).json(), { pending: false, watchers: [], watchingUntil: null })
+  assert.equal((await report(fy.device, HERE)).statusCode, 409)
+})
+
+test('lecture : la position la plus récemment relevée gagne ; une ligne illisible ne masque pas les précédentes', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const kid = await child(owner, 'Fy')
+  const one = await pair(owner, kid), two = await pair(owner, kid)
+  assert.equal((await locate(owner, kid.id)).statusCode, 200)
+  await ctx.db.query("UPDATE location_requests SET created_at = created_at - interval '100 seconds' WHERE child_id = $1", [kid.id])
+  assert.equal((await report(one, { ...HERE, lat: -18.9, ageS: 0 })).statusCode, 200)
+  // Reçu après, mais relevé 90 s plus tôt par l'autre téléphone.
+  assert.equal((await report(two, { ...HERE, lat: -19.1, ageS: 90 })).statusCode, 200)
+  assert.equal((await position(owner, kid.id)).json().position.lat, -18.9)
+  // La plus récente devient illisible : la précédente est rendue.
+  await ctx.db.query("UPDATE positions SET recorded_at = now() + interval '1 minute' WHERE child_id = $1 AND device_id = $2", [kid.id, two.device.id])
+  assert.equal((await position(owner, kid.id)).json().position.lat, -19.1)
+  await ctx.db.query("UPDATE positions SET lat_enc = lng_enc WHERE child_id = $1 AND device_id = $2", [kid.id, two.device.id])
+  assert.equal((await position(owner, kid.id)).json().position.lat, -18.9)
+})
+
+test('réveil locate en échec passager : jamais retenté', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const fy = await pairedChild(owner, 'Fy')
+  assert.equal((await pushToken(fy.device, 'fcm-retry')).statusCode, 200)
+  await ctx.db.query("UPDATE push_outbox SET status = 'failed' WHERE status = 'pending'")
+  assert.equal((await locate(owner, fy.kid.id)).statusCode, 200)
+  const provider = createFakeProvider()
+  provider.failNext('retry')
+  const quiet = { info() {}, error() {}, warn() {} }
+  const run = await runPushWorker(ctx.db, provider, ctx.app.config, quiet)
+  assert.deepEqual([run.sent, run.retried, run.failed], [0, 0, 1])
+  const { rows } = await ctx.db.query("SELECT status FROM push_outbox WHERE event = 'locate' AND ref = $1", [fy.kid.id])
+  assert.deepEqual(rows, [{ status: 'failed' }])
 })

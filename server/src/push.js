@@ -235,7 +235,8 @@ export async function unregisterToken(db, config, owner, token) {
 // ---------------------------------------------------------------- file d'envoi
 
 // Une ligne par jeton ciblé (`targets` : requête qui renvoie `id` = push_tokens.id et
-// `owner` = 'user:<id>' pour un compte, 'device:<id>' pour un téléphone, écrit dans
+// `owner` = 'user:<id>' pour un compte, 'device:<id>' pour un téléphone ('device:<id>:locate'
+// pour ses réveils `locate`), écrit dans
 // owner_key). Plafond par PROPRIÉTAIRE : au plus PER_OWNER_PER_HOUR lignes par heure, tous
 // jetons du compte (ou du téléphone) confondus, comptées par owner_key (les lignes restent
 // quand le jeton disparaît : se déconnecter puis réenregistrer ne remet pas le compteur à
@@ -289,9 +290,11 @@ export function notifyFamily(conn, familyId, event, ref = null, { exceptUserId =
 // `locate` (demande de position, NAR-203) ; reçus par l'app avec NAR-179.
 export function notifyDevice(conn, deviceId, event, ref = null) {
   return enqueue(conn,
-    `SELECT t.id, 'device:' || t.device_id AS owner FROM push_tokens t
+    // `locate` a son propre plafond horaire : une consultation longue n'épuise pas celui des
+    // autres réveils du téléphone.
+    `SELECT t.id, 'device:' || t.device_id || CASE WHEN $2::text = 'locate' THEN ':locate' ELSE '' END AS owner FROM push_tokens t
        JOIN child_devices d ON d.id = t.device_id AND d.family_id = t.family_id
-      WHERE t.device_id = $1 AND d.revoked_at IS NULL`, [deviceId], event, ref)
+      WHERE t.device_id = $1 AND d.revoked_at IS NULL`, [deviceId, event], event, ref)
 }
 
 // La seule session donnée (notification de test).
@@ -386,7 +389,8 @@ export async function runPushWorker(db, provider, config, log, { batch = 50, con
       configAlarm = true
       log.error({ push: row.id, error: result.error }, 'push : configuration FCM refusée (projet Firebase ou compte de service)')
     }
-    if (result.outcome === 'retry' && row.attempts < MAX_ATTEMPTS) {
+    // `locate` : jamais retenté (la consultation dure 2 minutes ; un réveil tardif ne sert à rien).
+    if (result.outcome === 'retry' && row.attempts < MAX_ATTEMPTS && row.event !== 'locate') {
       await db.query(
         `UPDATE push_outbox SET last_error = $2, next_attempt_at = now() + make_interval(secs => $3)
           WHERE id = $1 AND status = 'pending'`, [row.id, result.error, retryDelay(row.attempts, result.retryAfterS)])

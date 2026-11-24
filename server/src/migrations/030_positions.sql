@@ -48,6 +48,11 @@ CREATE INDEX positions_received ON positions(received_at);
 ALTER TABLE push_outbox DROP CONSTRAINT push_outbox_event_check;
 ALTER TABLE push_outbox ADD CONSTRAINT push_outbox_event_check
   CHECK (event IN ('message', 'test', 'config', 'battery_low', 'sim_absent', 'silent', 'locate'));
+-- Plafond horaire à part pour les réveils `locate` d'un téléphone ('device:<id>:locate') : une
+-- consultation longue n'épuise pas celui de ses autres réveils (`config`).
+ALTER TABLE push_outbox DROP CONSTRAINT push_outbox_owner_key_check;
+ALTER TABLE push_outbox ADD CONSTRAINT push_outbox_owner_key_check
+  CHECK (owner_key ~ '^(user:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|device:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(:locate)?)$');
 
 -- Purge (NAR-153) : reprise de 027, plus les positions reçues depuis 30 jours (C20) et les
 -- demandes échues depuis un jour.

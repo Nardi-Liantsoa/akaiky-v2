@@ -5,16 +5,20 @@
 // Parents (session de compte, préfixe /api) :
 //   POST /children/:id/locate    tous les membres : ouvre (ou prolonge) sa demande pour
 //                                WATCH_MS et met en file un réveil silencieux `locate` vers
-//                                les téléphones actifs de l'enfant. Audité, sans position.
-//                                LOCATE_MAX par LOCATE_WINDOW_MS, par membre et par enfant.
-//   GET  /children/:id/position  tous les membres : dernière position reçue (lat, lng,
+//                                les téléphones actifs de l'enfant (pas deux en WAKE_GAP_MS
+//                                pour un même téléphone ; budget push à part de `config`).
+//                                Audité, sans position. LOCATE_MAX par LOCATE_WINDOW_MS, par
+//                                membre et par enfant.
+//   GET  /children/:id/position  tous les membres : dernière position relevée (lat, lng,
 //                                précision, heure du relevé), sa demande en cours.
 // Téléphone (session d'appareil, préfixe /api/device) :
 //   GET  /locate                 relevé dû (`pending`) et qui regarde (`watchers`, noms
 //                                affichés seulement) : indicateur « ton parent regarde ».
 //   POST /positions              { lat, lng, accuracyM, ageS } : un relevé pour SON enfant
 //                                (lu sur la session), accepté pendant une demande ouverte
-//                                seulement (sinon 409 `no_request`). `ageS` : âge du relevé
+//                                seulement (sinon 409 `no_request`), et pris après la plus
+//                                récente (sinon 409 `stale_position` : une position d'avant la
+//                                demande ne répond pas à la demande). `ageS` : âge du relevé
 //                                mesuré par l'horloge monotone du téléphone, jamais son heure
 //                                (souvent fausse sur un téléphone bas de gamme).
 // Les coordonnées ne sont écrites ni dans un journal, ni dans l'audit, ni dans une
@@ -33,8 +37,12 @@ export const LOCATE_MAX = 10
 export const LOCATE_WINDOW_MS = 10 * 60_000
 export const POSITIONS_MAX = 6
 export const POSITIONS_WINDOW_MS = 60_000
-// Relevé plus vieux : refusé (une position « dernière connue » ancienne tromperait le parent).
-export const MAX_AGE_S = 600
+// Relevé plus vieux qu'une consultation : refusé par le schéma (une position « dernière
+// connue » ancienne tromperait le parent) ; plus vieux que la demande : refusé aussi.
+export const MAX_AGE_S = WATCH_MS / 1000
+// Un réveil `locate` au plus par téléphone dans cet intervalle (deux membres, ou une page
+// qui redemande) : la demande ouverte suffit au téléphone déjà réveillé.
+export const WAKE_GAP_MS = 60_000
 
 export const positionAad = (id, field) => `positions:${field}:${id}`
 const childNotFound = () => new HttpError(404, 'Enfant introuvable.', 'child_not_found')
@@ -95,7 +103,13 @@ export async function locationRoutes(app) {
       const { rows: devices } = await conn.query(
         'SELECT id FROM child_devices WHERE child_id = $1 AND family_id = $2 AND revoked_at IS NULL', [childId, own.familyId])
       let queued = 0
-      for (const d of devices) queued += (await notifyDevice(conn, d.id, 'locate', childId)).queued
+      for (const d of devices) {
+        const { rowCount: recent } = await conn.query(
+          `SELECT 1 FROM push_outbox o JOIN push_tokens t ON t.id = o.token_id
+            WHERE t.device_id = $1 AND o.event = 'locate' AND o.created_at > now() - $2 * interval '1 millisecond' LIMIT 1`,
+          [d.id, WAKE_GAP_MS])
+        if (!recent) queued += (await notifyDevice(conn, d.id, 'locate', childId)).queued
+      }
       await audit(conn, req, 'position_requested', childId)
       return { requestedAt: r.created_at, watchingUntil: r.watch_until, devices: devices.length, woken: queued }
     })
@@ -104,15 +118,19 @@ export async function locationRoutes(app) {
   app.get('/children/:id/position', async (req) => {
     const own = await requireOwnFamily(db, req, ROLES)
     const childId = await childOf(db, own.familyId, req.params.id)
-    const { rows: [last] } = await db.query(
+    // Ordre du relevé (deux téléphones, envoi retardé) ; un chiffré illisible ne masque pas
+    // les précédents (quelques lignes lues, la première lisible gagne).
+    const { rows: recent } = await db.query(
       `SELECT id, lat_enc, lng_enc, accuracy_m, source, recorded_at FROM positions
-        WHERE child_id = $1 AND family_id = $2 ORDER BY received_at DESC, id DESC LIMIT 1`, [childId, own.familyId])
+        WHERE child_id = $1 AND family_id = $2 ORDER BY recorded_at DESC, received_at DESC, id DESC LIMIT 5`, [childId, own.familyId])
+    let last = null
+    for (const r of recent) if ((last = openPosition(config, r, req.log))) break
     const { rows: [mine] } = await db.query(
       'SELECT created_at, watch_until FROM location_requests WHERE child_id = $1 AND family_id = $2 AND user_id = $3',
       [childId, own.familyId, req.user.id])
     const open = mine && mine.watch_until > new Date()
     return {
-      position: last ? openPosition(config, last, req.log) : null,
+      position: last,
       requestedAt: open ? mine.created_at : null,
       watchingUntil: open ? mine.watch_until : null
     }
@@ -128,7 +146,7 @@ export async function deviceLocationRoutes(app) {
     `SELECT r.user_id, r.created_at, r.watch_until, u.name, c.id AS contact_id, c.name_enc
        FROM location_requests r
        JOIN memberships m ON m.user_id = r.user_id AND m.family_id = r.family_id
-       JOIN users u ON u.id = r.user_id
+       JOIN users u ON u.id = r.user_id AND u.disabled_at IS NULL
        LEFT JOIN allowed_contacts c ON c.member_user_id = r.user_id AND c.child_id = r.child_id AND c.family_id = r.family_id
       WHERE r.child_id = $1 AND r.family_id = $2 AND r.watch_until > now()
       ORDER BY r.created_at`, [device.childId, device.familyId])
@@ -136,7 +154,7 @@ export async function deviceLocationRoutes(app) {
   app.get('/locate', { config: { device: true } }, async (req) => {
     const { rows } = await openRequests(db, req.device)
     const { rows: [last] } = await db.query(
-      'SELECT max(received_at) AS at FROM positions WHERE device_id = $1', [req.device.id])
+      'SELECT max(recorded_at) AS at FROM positions WHERE device_id = $1', [req.device.id])
     const latest = rows.reduce((t, r) => (r.created_at > t ? r.created_at : t), new Date(0))
     // Un contact lié au membre donne son nom (« Maman »), sinon le nom du compte ; jamais
     // d'identifiant de compte ni d'adresse vers le téléphone.
@@ -154,21 +172,25 @@ export async function deviceLocationRoutes(app) {
 
   app.post('/positions', { config: { device: true }, schema: { body: POSITION } }, async (req) => {
     const { lat, lng, accuracyM, ageS } = req.body
-    if (!limit(`device:${req.device.id}`)) throw new HttpError(429, 'Trop d’envois. Réessayez dans une minute.')
+    if (!limit(`device:${req.device.id}`)) throw new HttpError(429, 'Trop d’envois. Réessayez dans une minute.', 'positions_rate_limited')
     return withTransaction(db, async (conn) => {
       // Aucune demande ouverte : pas de suivi, le relevé n'est pas gardé.
       const { rows: [open] } = await conn.query(
-        `SELECT 1 FROM location_requests r JOIN memberships m ON m.user_id = r.user_id AND m.family_id = r.family_id
-          WHERE r.child_id = $1 AND r.family_id = $2 AND r.watch_until > now() LIMIT 1`, [req.device.childId, req.device.familyId])
-      if (!open) throw new HttpError(409, 'Aucune demande de position en cours.', 'no_request')
+        `SELECT max(r.created_at) AS latest, now() - $3 * interval '1 second' AS taken
+           FROM location_requests r
+           JOIN memberships m ON m.user_id = r.user_id AND m.family_id = r.family_id
+           JOIN users u ON u.id = r.user_id AND u.disabled_at IS NULL
+          WHERE r.child_id = $1 AND r.family_id = $2 AND r.watch_until > now()`, [req.device.childId, req.device.familyId, ageS])
+      if (!open.latest) throw new HttpError(409, 'Aucune demande de position en cours.', 'no_request')
+      if (open.taken < open.latest) throw new HttpError(409, 'Position prise avant la demande.', 'stale_position')
       const { rows: [{ id }] } = await conn.query('SELECT gen_random_uuid() AS id')
       await conn.query(
         `INSERT INTO positions(id, family_id, child_id, device_id, lat_enc, lng_enc, accuracy_m, source, recorded_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, 'on_demand', now() - $8 * interval '1 second')`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'on_demand', $8)`,
         [id, req.device.familyId, req.device.childId, req.device.id,
           sealField(coord(lat), config.dataKey, positionAad(id, 'lat')),
           sealField(coord(lng), config.dataKey, positionAad(id, 'lng')),
-          Math.round(accuracyM), ageS])
+          Math.round(accuracyM), open.taken])
       return { ok: true }
     })
   })
