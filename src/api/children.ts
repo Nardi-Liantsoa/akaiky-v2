@@ -10,6 +10,9 @@ export interface Child {
   createdAt: string
   // Date du dernier code parent défini (NAR-139) ; le code et son hachage ne sont jamais envoyés.
   parentCodeSetAt: string | null
+  // Nouveau code demandé par l'équipe Akaiky (NAR-200) ; effacé dès qu'un code est défini.
+  // Facultatif : absent d'une réponse plus ancienne, il vaut « aucune demande ».
+  parentCodeResetRequestedAt?: string | null
   // Fin d'un déverrouillage demandé à distance (NAR-168), absente une fois passée.
   remoteUnlockUntil: string | null
   // Dernier passage du téléphone de l'enfant (NAR-174) ; null sans téléphone relié.

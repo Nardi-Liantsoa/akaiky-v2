@@ -20,6 +20,9 @@ export interface AdminAccount {
 }
 export interface AdminAuditEntry { at: string, action: string, target: string | null, actor: string | null }
 export interface AdminFamily { id: string, members: number, children: number, devices: number, createdAt: string }
+// Enfant d'une famille vu par l'équipe (NAR-200) : identifiant, date, code défini, demande de
+// nouveau code en cours. Jamais le prénom, le numéro ni le code.
+export interface AdminChild { id: string, createdAt: string, codeSet: boolean, newCodeRequestedAt: string | null }
 export type AdminDeviceState = 'active' | 'silent' | 'revoked'
 export interface AdminDevice {
   id: string
@@ -59,6 +62,9 @@ export const listAdminAudit = () => api.get<AdminAuditEntry[]>('/admin/audit')
 const enc = encodeURIComponent
 export const disableAdminUser = (id: string) => api.post<{ ok: true }>(`/admin/users/${enc(id)}/disable`)
 export const enableAdminUser = (id: string) => api.post<{ ok: true }>(`/admin/users/${enc(id)}/enable`)
+export const listAdminFamilyChildren = (familyId: string) => api.get<AdminChild[]>(`/admin/families/${enc(familyId)}/children`)
+// Demande d'un nouveau code parent (NAR-200) : l'ancien reste valable, rien n'est déverrouillé.
+export const requestNewParentCode = (childId: string) => api.post<{ ok: true }>(`/admin/children/${enc(childId)}/parent-code/reset`)
 export const revokeAdminDevice = (id: string) => api.post<{ ok: true }>(`/admin/devices/${enc(id)}/revoke`)
 // Référence courte d'une famille ou d'un téléphone pour l'affichage (8 premiers caractères de l'id).
 export const shortId = (id: string) => id.slice(0, 8)

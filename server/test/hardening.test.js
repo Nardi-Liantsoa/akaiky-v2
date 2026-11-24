@@ -93,7 +93,7 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
       `SELECT column_name FROM information_schema.column_privileges
         WHERE grantee = 'app_runtime' AND table_name = 'children' AND privilege_type = 'UPDATE' ORDER BY column_name`)
     assert.deepEqual(childGrants.map((r) => r.column_name),
-      ['avatar_color', 'first_name_enc', 'parent_code_hash', 'parent_code_set_at', 'phone_enc', 'remote_unlock_until', 'sos_siren'])
+      ['avatar_color', 'first_name_enc', 'parent_code_hash', 'parent_code_reset_requested_at', 'parent_code_set_at', 'phone_enc', 'remote_unlock_until', 'sos_siren'])
     await assert.rejects(pool.query('UPDATE children SET consent_by = consent_by'), /permission denied/)
     assert.equal((await call(app, 'DELETE', `/api/children/${child.json().id}`, { cookie: user.cookie })).statusCode, 200)
     await assert.rejects(pool.query('UPDATE children SET family_id = family_id'), /permission denied/)

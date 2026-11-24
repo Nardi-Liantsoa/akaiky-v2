@@ -34,6 +34,8 @@ GRANT INSERT, DELETE ON children TO app_runtime;
 GRANT UPDATE (first_name_enc, avatar_color) ON children TO app_runtime;
 -- Code parent (009_parent_code.sql) : hachage et date seulement ; config_version suit par déclencheur.
 GRANT UPDATE (parent_code_hash, parent_code_set_at) ON children TO app_runtime;
+-- Demande d'un nouveau code par l'équipe (029_parent_code_reset.sql) : date seulement, hors déclencheur.
+GRANT UPDATE (parent_code_reset_requested_at) ON children TO app_runtime;
 -- Déverrouillage à distance (010_unlocks.sql) : échéance seulement.
 GRANT UPDATE (remote_unlock_until) ON children TO app_runtime;
 -- Sirène pendant un SOS (022_sos_siren.sql) : config_version suit par déclencheur.

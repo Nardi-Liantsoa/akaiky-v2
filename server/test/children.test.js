@@ -28,7 +28,7 @@ test('l’owner ajoute deux enfants ; tous les membres les voient, dans l’ordr
   await family(owner)
   const fy = await add(owner, '  Fy ')
   assert.equal(fy.statusCode, 201, fy.body)
-  assert.deepEqual(Object.keys(fy.json()).sort(), ['avatarColor', 'createdAt', 'firstName', 'id', 'parentCodeSetAt', 'phone', 'phoneLastSeenAt', 'remoteUnlockUntil', 'sosSiren'])
+  assert.deepEqual(Object.keys(fy.json()).sort(), ['avatarColor', 'createdAt', 'firstName', 'id', 'parentCodeResetRequestedAt', 'parentCodeSetAt', 'phone', 'phoneLastSeenAt', 'remoteUnlockUntil', 'sosSiren'])
   assert.equal(fy.json().firstName, 'Fy')
   const tiana = (await add(owner, 'Tiana', { avatarColor: 'violet' })).json()
   assert.equal(tiana.avatarColor, 'violet')
