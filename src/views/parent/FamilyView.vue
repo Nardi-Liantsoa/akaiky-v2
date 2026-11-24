@@ -181,14 +181,14 @@ h1 {
 .account-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
 }
 .account-title {
   font-weight: 800;
 }
 .account-summary {
   color: var(--text-soft);
-  font-size: 0.9rem;
+  font-size: var(--fs-small);
 }
 .account-link :deep(svg) {
   flex: none;

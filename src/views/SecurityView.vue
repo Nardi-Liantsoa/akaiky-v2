@@ -84,7 +84,7 @@ onMounted(() => { load(); void loadFamily() })
        endroit. Dans la coquille parent (onglet Famille) : son <main> l'enveloppe. Retour vers
        Famille, ou vers l'accueil (création de la famille) quand il n'y en a pas. -->
   <section>
-    <BackLink v-if="family.data" :to="{ name: 'famille' }" :label="t.parent.family.back" :aria-label="t.parent.family.backLabel" />
+    <BackLink v-if="family.status !== 'none'" :to="{ name: 'famille' }" :label="t.parent.family.back" :aria-label="t.parent.family.backLabel" />
     <BackLink v-else :to="{ name: 'espace' }" :label="t.parent.home.back" :aria-label="t.parent.home.backLabel" />
     <h1>{{ t.parent.account.title }}</h1>
     <AccountSection on-account-page />

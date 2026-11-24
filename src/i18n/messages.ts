@@ -598,7 +598,7 @@ const fr = {
   },
   dataExport: {
     title: 'Données de la famille',
-    lead: 'Membres, enfants, contacts, plages, messages et journal, dans un fichier.',
+    lead: 'Membres, enfants, contacts, téléphones, positions, plages, messages et journal, dans un fichier.',
     action: 'Exporter les données de la famille',
     busy: 'Préparation du fichier…',
     tooMany: 'Trop d’exports : réessayez dans une heure.',
@@ -1278,7 +1278,7 @@ const mg: Messages = {
   },
   dataExport: {
     title: 'Ny angon’ny fianakaviana',
-    lead: 'Mpikambana, ankizy, mpifandray, fotoana, hafatra ary tantara, ao anaty rakitra iray.',
+    lead: 'Mpikambana, ankizy, mpifandray, finday, toerana, fotoana, hafatra ary tantara, ao anaty rakitra iray.',
     action: 'Haondrana ny angon’ny fianakaviana',
     busy: 'Manomana ny rakitra…',
     tooMany: 'Be loatra ny fanondranana: andramo indray afaka iray ora.',
@@ -1953,7 +1953,7 @@ const en: Messages = {
   },
   dataExport: {
     title: 'Family data',
-    lead: 'Members, children, contacts, schedules, messages and log, in one file.',
+    lead: 'Members, children, contacts, phones, locations, schedules, messages and log, in one file.',
     action: 'Export family data',
     busy: 'Preparing the file…',
     tooMany: 'Too many exports: try again in an hour.',
