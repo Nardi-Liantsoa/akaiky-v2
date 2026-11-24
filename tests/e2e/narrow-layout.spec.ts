@@ -88,8 +88,22 @@ test('ligne de contact : la fiche s’ouvre par la ligne, Monter et Descendre re
   expect((await open.boundingBox())!.x + (await open.boundingBox())!.width).toBeLessThanOrEqual((await up.boundingBox())!.x)
   // Le numéro, jamais coupé, ne passe pas sous la flèche.
   const phone = (await item.getByText('+261 33 12 345 67').boundingBox())!
-  const chevron = (await open.locator('svg').last().boundingBox())!
-  expect(phone.x + phone.width).toBeLessThanOrEqual(chevron.x)
+  expect(phone.x + phone.width).toBeLessThanOrEqual((await up.boundingBox())!.x)
   await open.click()
   await expect(page.getByLabel('Nom affiché')).toHaveValue('Dadabe Rakotomalala')
+})
+
+test('320 px (police agrandie, petit écran) : le numéro, jamais coupé, ne passe pas sous Monter et Descendre', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 })
+  await mockApi(page, api)
+  await page.goto('/espace/reglages/contacts')
+  const item = page.getByRole('listitem').filter({ hasText: 'Dadabe Rakotomalala' })
+  const phone = (await item.getByText('+261 33 12 345 67').boundingBox())!
+  for (const button of await item.getByRole('button').all()) {
+    const b = (await button.boundingBox())!
+    const apart = phone.x + phone.width <= b.x || b.y >= phone.y + phone.height || b.y + b.height <= phone.y
+    expect(apart, 'numéro et bouton séparés').toBe(true)
+  }
+  const { scroll, inner } = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, inner: innerWidth }))
+  expect(scroll).toBeLessThanOrEqual(inner)
 })

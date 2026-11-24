@@ -176,7 +176,7 @@ async function remove() {
 
 <style scoped>
 .over {
-  /* Sous « ‹ Réglages », comme les sections de Réglages. */
+  /* Sous « ‹ Contacts », comme sous « ‹ Réglages » dans les sections de Réglages. */
   margin: 0 0 var(--space-3);
   color: var(--text-soft);
   font-weight: 700;

@@ -62,13 +62,13 @@ async function move(index: number, delta: number) {
              numéro restent lus, en description. Plus de bouton ✎ : la ligne tient à 360 px (NAR-207). -->
         <component
           :is="canManage() ? RouterLink : 'span'" class="contact"
-          v-bind="canManage() ? { to: { name: 'contact', params: { childId, id: c.id } }, 'aria-label': t.contacts.edit(c.name), 'aria-describedby': `contact-about-${c.id}` } : {}"
+          v-bind="canManage() ? { to: { name: 'contact', params: { childId, id: c.id } }, 'aria-label': t.contacts.edit(c.name), 'aria-describedby': `${c.memberRole ? `contact-role-${c.id} ` : ''}contact-phone-${c.id}` } : {}"
         >
           <ChildAvatar :name="c.name" :color="c.avatarColor" :size="36" />
-          <span :id="`contact-about-${c.id}`" class="who">
+          <span class="who">
             <span class="name">{{ c.name }}</span>
-            <span v-if="c.memberRole" class="role">{{ t.family.roles[c.memberRole] }}</span>
-            <span class="phone" data-selectable>{{ formatPhone(c.phone) }}</span>
+            <span v-if="c.memberRole" :id="`contact-role-${c.id}`" class="role">{{ t.family.roles[c.memberRole] }}</span>
+            <span :id="`contact-phone-${c.id}`" class="phone" data-selectable>{{ formatPhone(c.phone) }}</span>
           </span>
           <AppIcon v-if="canManage()" class="go" name="chevron-right" :size="20" />
         </component>
@@ -102,6 +102,7 @@ async function move(index: number, delta: number) {
 }
 .list li {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 12px 0;
@@ -115,10 +116,11 @@ async function move(index: number, delta: number) {
 }
 .contact {
   display: flex;
-  flex: 1 1 auto;
+  /* Base 0 : la ligne ne passe à la suivante que si le contact ne tient pas à sa largeur
+     minimale (numéro entier), pas dès que le nom est long. */
+  flex: 1 1 0;
   align-items: center;
   gap: 8px;
-  min-width: 0;
   min-height: var(--tap);
   border-radius: var(--radius-sm);
   color: inherit;
@@ -132,8 +134,6 @@ async function move(index: number, delta: number) {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  /* Largeur minimale = le numéro entier (jamais coupé) : il ne déborde pas sur la flèche. */
-  min-width: min-content;
 }
 .name {
   font-weight: 800;
@@ -153,12 +153,19 @@ async function move(index: number, delta: number) {
   display: flex;
   flex: none;
   gap: 2px;
+  /* Place trop juste (police agrandie, 320 px) : les boutons passent sous le contact, à
+     droite, plutôt que le numéro, jamais coupé, ne passe dessous. */
+  margin-left: auto;
 }
 /* Téléphone étroit : Monter au-dessus de Descendre, la ligne garde sa largeur pour le
    nom et le numéro (cibles de 48 px gardées). */
 @media (max-width: 400px) {
   .actions {
     flex-direction: column;
+  }
+  /* Ses 28 px vont au numéro entier : la ligne reste un lien (« Modifier Maman »). */
+  .go {
+    display: none;
   }
 }
 .icon {
