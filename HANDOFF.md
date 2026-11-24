@@ -389,7 +389,7 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   Dernier tour et nombres supprimés : `SELECT * FROM job_runs`. Changer une durée = une
   nouvelle migration (jamais depuis l'application). Les sauvegardes gardent les données
   supprimées jusqu'à leur rotation : durée à écrire dans la politique de confidentialité
-  (NAR-178). Positions (30 jours) : avec leur table, NAR-146. Une purge de plus de 10 minutes
+  (NAR-178). Positions : 30 jours après réception, demandes de position un jour après leur fin (NAR-203). Une purge de plus de 10 minutes
   est annulée et retentée chaque heure : avant la production avec un gros historique, vérifier
   le volume (ou purger par lots).
 - **Suppression du compte et de la famille (NAR-177, C21)** : immédiate, par cascade en base

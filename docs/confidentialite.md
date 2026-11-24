@@ -35,8 +35,10 @@ service.
   chaque message envoyé par l'enfant (emplacement, date, texte en vigueur, qui l'a vu).
 - **Le journal du téléphone** : appels passés, reçus et refusés (nom et numéro chiffrés,
   durée), sorties du mode verrouillé (code ou à distance, durée).
-- **Les positions** : pas encore collectées. Quand cette fonction existera, elles seront
-  décrites ici.
+- **Les positions** : une position unique, prise seulement quand un membre de la famille
+  demande où est l'enfant (jamais de suivi continu), avec sa précision et son heure. Chiffrée,
+  vue par les seuls membres de la famille, jamais par l'équipe Akaiky. Fonction en cours de
+  construction : le serveur est prêt, le téléphone de l'enfant et la carte arrivent ensuite.
 - **Le journal de sécurité** : connexions, changements sensibles et adresse IP, pour détecter
   et comprendre une attaque.
 
@@ -60,7 +62,7 @@ Aucune donnée n'est vendue, ni utilisée pour de la publicité ou du profilage.
 | Journal de sécurité | 1 an ; l'adresse IP en est effacée au bout de 90 jours |
 | Sessions | 30 jours après la fin de leur renouvellement |
 | Liens de confirmation et de réinitialisation | jusqu'à leur expiration |
-| Positions (fonction à venir) | 30 jours |
+| Positions | 30 jours après leur réception |
 | Compte, famille, enfants, contacts, réglages | tant que le compte ou la famille existe |
 
 ## 5. Suppression
