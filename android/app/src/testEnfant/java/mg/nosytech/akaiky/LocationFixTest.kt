@@ -30,12 +30,14 @@ class LocationFixTest {
         assertEquals(at(4, 80f), LocationFix.better(a, at(4, 80f)))
         assertEquals(a, LocationFix.better(a, at(5, null)))
         assertEquals(at(5, null), LocationFix.better(null, at(5, null)))
+        // Précision connue, même mauvaise, avant une précision inconnue (seule envoyable).
+        assertEquals(at(6, 150_000f), LocationFix.better(at(5, null), at(6, 150_000f)))
     }
 
     @Test fun ageEtPrecisionEnvoyes() {
-        // Âge et précision arrondis au-dessus : jamais rajeuni, jamais plus précis qu'il n'est.
+        // Âge en secondes entières ; précision au mètre supérieur (jamais plus précis qu'il n'est).
         val r = LocationFix.result(at(10, 12.2f), 13 * s + 600_000_000L)!!
-        assertEquals(4L, r.ageS)
+        assertEquals(3L, r.ageS)
         assertEquals(13, r.accuracyM)
         assertEquals(3L, LocationFix.result(at(10, 5f), 13 * s)!!.ageS)
         assertEquals(0L, LocationFix.result(at(10, 5f), 9 * s)!!.ageS)

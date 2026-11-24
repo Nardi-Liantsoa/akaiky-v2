@@ -53,7 +53,7 @@ test('un membre demande la position : réveil du téléphone, « qui regarde »,
   assert.equal((await pushToken(fy.device, 'fcm-enfant-fy')).statusCode, 200)
 
   // Rien de demandé : aucun relevé dû, aucune position.
-  assert.deepEqual((await pending(fy.device)).json(), { pending: false, watchers: [], watchingUntil: null })
+  assert.deepEqual((await pending(fy.device)).json(), { pending: false, watchers: [], watchingUntil: null, watchingForMs: 0 })
   assert.deepEqual((await position(member, fy.kid.id)).json(), { position: null, requestedAt: null, watchingUntil: null })
 
   const asked = await locate(owner, fy.kid.id)
@@ -71,6 +71,7 @@ test('un membre demande la position : réveil du téléphone, « qui regarde »,
   assert.equal(seen.pending, true)
   assert.deepEqual(seen.watchers, [{ name: 'Maman' }])
   assert.equal(Date.parse(seen.watchingUntil), until)
+  assert.ok(seen.watchingForMs > 100_000 && seen.watchingForMs <= 120_000, `durée restante (${seen.watchingForMs} ms)`)
 
   // Le téléphone réveillé prend son relevé 10 s après la demande et l'envoie 5 s plus tard.
   await ctx.db.query("UPDATE location_requests SET created_at = created_at - interval '15 seconds' WHERE child_id = $1", [fy.kid.id])
@@ -118,7 +119,7 @@ test('aucun suivi : un relevé sans demande ouverte, ou après la consultation, 
   assert.equal((await pending(fy.device)).json().pending, true, 'toujours dû')
   await ctx.db.query("UPDATE location_requests SET created_at = now() - interval '3 minutes', watch_until = now() - interval '1 minute' WHERE child_id = $1", [fy.kid.id])
   assert.equal((await report(fy.device, HERE)).statusCode, 409, 'consultation finie')
-  assert.deepEqual((await pending(fy.device)).json(), { pending: false, watchers: [], watchingUntil: null })
+  assert.deepEqual((await pending(fy.device)).json(), { pending: false, watchers: [], watchingUntil: null, watchingForMs: 0 })
   assert.equal((await ctx.db.query('SELECT 1 FROM positions WHERE child_id = $1', [fy.kid.id])).rowCount, 0)
 })
 
@@ -207,7 +208,7 @@ test('membre parti : il ne regarde plus, sa demande n’ouvre plus de relevé', 
   assert.equal((await pending(fy.device)).json().watchers.length, 1)
   const me = (await call(ctx.app, 'GET', '/api/auth/me', { cookie: member.cookie })).json().user
   assert.equal((await call(ctx.app, 'DELETE', `/api/families/me/members/${me.id}`, { cookie: owner.cookie })).statusCode, 200)
-  assert.deepEqual((await pending(fy.device)).json(), { pending: false, watchers: [], watchingUntil: null })
+  assert.deepEqual((await pending(fy.device)).json(), { pending: false, watchers: [], watchingUntil: null, watchingForMs: 0 })
   assert.equal((await report(fy.device, HERE)).statusCode, 409)
 })
 
@@ -248,7 +249,7 @@ test('membre désactivé par l’équipe : il ne regarde plus, sa demande n’ou
   const fy = await pairedChild(owner, 'Fy')
   assert.equal((await locate(member, fy.kid.id)).statusCode, 200)
   await ctx.db.query('UPDATE users SET disabled_at = now() WHERE id = $1', [member.id])
-  assert.deepEqual((await pending(fy.device)).json(), { pending: false, watchers: [], watchingUntil: null })
+  assert.deepEqual((await pending(fy.device)).json(), { pending: false, watchers: [], watchingUntil: null, watchingForMs: 0 })
   assert.equal((await report(fy.device, HERE)).statusCode, 409)
 })
 

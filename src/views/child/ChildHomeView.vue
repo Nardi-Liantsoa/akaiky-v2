@@ -125,6 +125,8 @@ watch(state, async (s) => {
   // jeton « signal de vie » émis par la session d'appareil (hors ligne : au retour au premier plan).
   void backgroundStatus.ensure()
   await startDeviceConfig(configSync, s.childId)
+  // Nouvel appairage (autre enfant, réappairage) : la position repart de zéro aussi.
+  startLocate()
   syncJournal()
   void syncApps()
   if (!unmounted && foreground && state.value === s) resume()
@@ -204,11 +206,11 @@ const watchers = ref<string[]>([])
 let watchEnd: ReturnType<typeof setTimeout> | undefined
 // Indicateur affiché dès que l'écran sait qu'on regarde (avant le relevé), effacé à la fin de
 // la consultation même sans nouveau tour (hors ligne).
-function showWatching(w: { names: string[], until: number } | null) {
+// Durée restante donnée par le serveur, décomptée ici (minuteur) : jamais l'heure du téléphone.
+function showWatching(w: { names: string[], forMs: number } | null) {
   clearTimeout(watchEnd)
-  const left = w ? w.until - Date.now() : 0
-  watchers.value = w && left > 0 ? w.names : []
-  if (w && left > 0) watchEnd = setTimeout(() => { watchers.value = [] }, left)
+  watchers.value = w ? w.names : []
+  if (w) watchEnd = setTimeout(() => { watchers.value = [] }, w.forMs)
 }
 const locateWatch = createLocateWatch({
   get: (path) => session.get(path),

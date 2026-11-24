@@ -27,17 +27,27 @@ object LocationFix {
     fun good(s: Sample): Boolean = accuracy(s) <= GOOD_M
     fun valid(s: Sample): Boolean = !s.lat.isNaN() && !s.lng.isNaN() && s.lat in -90.0..90.0 && s.lng in -180.0..180.0
 
-    /** Le meilleur entre deux relevés acceptés : le plus précis, à précision égale le plus récent. */
-    fun better(a: Sample?, b: Sample): Sample =
-        if (a == null || accuracy(b) < accuracy(a) || (accuracy(b) == accuracy(a) && b.elapsedNs > a.elapsedNs)) b else a
+    private fun known(s: Sample) = s.accuracyM?.let { it >= 0f && !it.isNaN() } == true
+
+    /**
+     * Le meilleur entre deux relevés acceptés : précision connue d'abord (seule envoyable), puis
+     * le plus précis, à précision égale le plus récent.
+     */
+    fun better(a: Sample?, b: Sample): Sample = when {
+        a == null -> b
+        known(a) != known(b) -> if (known(b)) b else a
+        accuracy(b) < accuracy(a) || (accuracy(b) == accuracy(a) && b.elapsedNs > a.elapsedNs) -> b
+        else -> a
+    }
 
     /**
      * Résultat envoyé au serveur ; null sans précision connue, ou trop vieux (il ne l'est pas,
-     * sauf horloge folle). Âge arrondi au-dessus : le relevé n'est jamais rajeuni.
+     * sauf horloge folle). Âge en secondes entières (arrondi inférieur, comme l'écran qui y
+     * ajoute l'attente avant l'envoi) ; précision arrondie au mètre supérieur.
      */
     fun result(s: Sample, nowNs: Long): Result? {
         val acc = s.accuracyM?.takeIf { it >= 0f && !it.isNaN() } ?: return null
-        val age = (Math.max(0L, nowNs - s.elapsedNs) + 999_999_999L) / 1_000_000_000L
+        val age = Math.max(0L, nowNs - s.elapsedNs) / 1_000_000_000L
         if (age > MAX_AGE_S) return null
         return Result(s.lat, s.lng, Math.ceil(Math.min(100_000f, acc).toDouble()).toInt(), age)
     }

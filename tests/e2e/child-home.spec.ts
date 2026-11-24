@@ -94,8 +94,8 @@ async function openChild(page: Page, scenario: Scenario, opts: { school?: boolea
     if (path === '/device/messages' && route.request().method() === 'GET') return json([])
     // Position à la demande (NAR-204) : Papa regarde, un relevé est dû jusqu'au premier envoi.
     if (path === '/device/locate') {
-      if (!opts.locate) return json({ pending: false, watchers: [], watchingUntil: null })
-      return json({ pending: positions.length === 0, watchers: [{ name: 'Papa' }], watchingUntil: new Date(Date.now() + 120_000).toISOString() })
+      if (!opts.locate) return json({ pending: false, watchers: [], watchingUntil: null, watchingForMs: 0 })
+      return json({ pending: positions.length === 0, watchers: [{ name: 'Papa' }], watchingUntil: new Date(Date.now() + 120_000).toISOString(), watchingForMs: 120_000 })
     }
     if (path === '/device/positions') { positions.push(route.request().postDataJSON()); return json({ ok: true }) }
     return json({})
