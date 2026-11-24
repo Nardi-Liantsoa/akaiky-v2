@@ -411,15 +411,19 @@ compilée dans le bundle (`VITE_API_ORIGIN`, lu par `loadEnv` de Vite en mode pr
 d'environnement, puis `.env.production.local`, `.env.production`, `.env.local`, `.env` ; sinon
 l'adresse provisoire `https://akaiky.a-definir.invalid`), mise sous forme canonique (minuscules). Capgo Cloud n'est jamais utilisé (données de mineurs) :
 `statsUrl` vide, et le JavaScript ne peut ni changer ces adresses (`allowModifyUrl: false`), ni en
-garder d'autres (`persistModifyUrl: false`), ni viser une autre app (`allowPreview: false`) ; https
-obligatoire (`httpsOnly`), jamais de redirection vers http.
+garder d'autres (`persistModifyUrl: false`), ni viser une autre app (`allowPreview: false`) ;
+`httpsOnly` suit le schéma de l'origine (faux seulement pour une API locale en http), jamais de
+redirection vers http. Seul le build Android release impose https ; l'origine doit être canonique
+(minuscules, sans port par défaut ni « / » final), sinon `npm run dev`, les tests et les builds
+refusent de démarrer.
 
 - **Android** : `OtaIdentityTask` réécrit ces réglages dans les assets de chaque variante et fait
   **échouer le build** si `updateUrl` et `channelUrl` n'ont pas la même origine ou pas les chemins du
-  serveur, visent Capgo, ou si l'origine n'apparaît pas comme `<origine>/api` dans les scripts du
-  bundle embarqué (`npm run build` et `npx cap sync` faits avec deux `VITE_API_ORIGIN`). Release
-  (APK et AAB) : https et **jamais l'adresse provisoire** (`.invalid`) : une release exige le domaine
-  de production. Debug : https, ou `http://127.0.0.1:<port>` pour un essai local.
+  serveur, visent Capgo, ou si l'origine n'apparaît pas comme `<origine>/api` (fermé par un
+  délimiteur de chaîne : l'API du bundle, pas son `updateUrl`) dans les scripts du bundle embarqué (`npm run build` et `npx cap sync` faits avec deux `VITE_API_ORIGIN`). Release
+  (APK et AAB) : https et, avant l'empaquetage (`otaReleaseGuard<Variante>`), **jamais l'adresse
+  provisoire** (`.invalid`) : une release, `npm run android:enfant:release` compris, exige le domaine
+  de production. Les tests JVM des variantes release passent avec l'adresse provisoire. Debug : https, ou `http://127.0.0.1:<port>` pour un essai local.
 - **iOS** : `npx cap sync ios` copie les valeurs de `capacitor.config.ts` ; aucun contrôle au build
   Xcode : relire `ios/App/App/capacitor.config.json` avant une archive.
 - **Web** : `vite build` refuse un bundle dont l'API diffère de l'origine que lit

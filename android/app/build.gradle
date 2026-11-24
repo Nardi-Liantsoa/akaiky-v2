@@ -95,9 +95,10 @@ android {
 // à la règle de src/lib/appKind.ts (préfixe de l'app enfant), ou si le bloc CapacitorUpdater manque.
 // Serveur OTA (NAR-190) : updateUrl et channelUrl (écrits par `cap sync` depuis capacitor.config.ts)
 // doivent viser la même origine, sur les chemins du serveur Akaiky, jamais Capgo ; release : https
-// et domaine réel (pas l'adresse provisoire .invalid) ; debug : https ou http://127.0.0.1:<port>.
-// L'origine doit être celle de l'API compilée dans le bundle embarqué (« <origine>/api » présent
-// dans ses scripts) : un `cap sync` et un `vite build` faits avec deux origines échouent ici. Le
+// (et, avant l'empaquetage, jamais l'adresse provisoire .invalid : OtaReleaseGuardTask) ; debug :
+// https ou http://127.0.0.1:<port>, seul hôte en clair de la coque debug.
+// L'origine doit être celle de l'API compilée dans le bundle embarqué (« <origine>/api » fermé par
+// un délimiteur de chaîne dans ses scripts) : un `cap sync` et un `vite build` faits avec deux origines échouent ici. Le
 // JavaScript ne peut ni les changer ni en garder d'autres (allowModifyUrl, persistModifyUrl,
 // allowPreview forcés à false, localApi retiré).
 // Vérifié par OtaIdentityTest.kt contre tests/fixtures/ota-target-cases.json.
@@ -133,8 +134,10 @@ abstract class OtaIdentityTask extends DefaultTask {
         def origin = otaOrigin(updater, release.get())
         def bundle = new File(out, 'public/assets')
         def scripts = bundle.isDirectory() ? bundle.listFiles().findAll { it.name.endsWith('.js') } : []
-        def api = "${origin}/api".toString()
-        if (!scripts.any { it.text.contains(api) }) {
+        // API_BASE (src/api/base.ts) compilée telle quelle : « <origine>/api » fermé par un délimiteur
+        // de chaîne ; l'updateUrl du bundle (« <origine>/api/ota/latest ») ne compte pas.
+        def apis = ['`', '"', "'"].collect { "${origin}/api${it}".toString() }
+        if (!scripts.any { f -> def t = f.text; apis.any { t.contains(it) } }) {
             throw new GradleException("Le bundle embarqué n'appelle pas l'API ${origin} du serveur OTA : refaire `npm run build` puis `npx cap sync android` avec le même VITE_API_ORIGIN")
         }
         updater.allowModifyUrl = false
@@ -160,8 +163,23 @@ abstract class OtaIdentityTask extends DefaultTask {
         def host = new URI(origin).host.toLowerCase()
         if (host == 'capgo.app' || host.endsWith('.capgo.app')) throw new GradleException("Le serveur OTA ne peut pas être Capgo Cloud")
         if (release && !origin.startsWith('https://')) throw new GradleException("Build release : serveur OTA en https seulement (${origin})")
-        if (release && host.endsWith('.invalid')) throw new GradleException("Build release avec l'adresse provisoire ${origin} : fixer VITE_API_ORIGIN (domaine de production) avant `npm run build` et `npx cap sync`")
         return origin
+    }
+}
+
+// Release empaquetée (APK, AAB) : jamais l'adresse provisoire (.invalid) : une coque publiée ne
+// recevrait aucune mise à jour et n'atteindrait pas l'API. Contrôlé avant l'empaquetage seulement :
+// les tests JVM des variantes release passent avec l'adresse provisoire (NAR-190).
+abstract class OtaReleaseGuardTask extends DefaultTask {
+    @InputDirectory abstract DirectoryProperty getAssets()
+
+    @TaskAction
+    void check() {
+        def config = new groovy.json.JsonSlurper().parse(new File(assets.get().asFile, 'capacitor.config.json'))
+        def host = new URI(config.plugins.CapacitorUpdater.updateUrl).host
+        if (host.endsWith('.invalid')) {
+            throw new GradleException("Release avec l'adresse provisoire ${host} : fixer VITE_API_ORIGIN (domaine de production) avant `npm run build` et `npx cap sync`")
+        }
     }
 }
 
@@ -184,6 +202,13 @@ androidComponents {
         variant.artifacts.use(task)
             .wiredWithDirectories({ it.inputAssets }, { it.outputAssets })
             .toTransform(com.android.build.api.artifact.SingleArtifact.ASSETS.INSTANCE)
+        if (variant.buildType != 'debug') {
+            def guard = project.tasks.register("otaReleaseGuard${name}", OtaReleaseGuardTask) {
+                assets.set(task.flatMap { it.outputAssets })
+                outputs.upToDateWhen { false }
+            }
+            project.tasks.matching { it.name == "package${name}" || it.name == "package${name}Bundle" }.configureEach { it.dependsOn(guard) }
+        }
         // Le test JVM lit les assets que la variante embarque réellement, et les cas partagés.
         def fixture = rootProject.file('../tests/fixtures/ota-target-cases.json')
         project.tasks.matching { it.name == "test${name}UnitTest" }.configureEach { t ->

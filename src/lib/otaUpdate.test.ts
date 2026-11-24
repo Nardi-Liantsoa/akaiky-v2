@@ -337,14 +337,12 @@ describe('coques : serveur OTA Akaiky (NAR-190)', () => {
     expect(apiOrigin({ VITE_API_ORIGIN: 'https://env.example' })).toBe('https://env.example')
     expect(apiOrigin({})).toBe(PLACEHOLDER_ORIGIN)
   })
-  it('origine canonique ; http accepté au chargement (le build Android tranche) ; chemin, identifiants ou Capgo refusés', () => {
+  it('origine canonique exigée ; http accepté au chargement (le build Android tranche) ; chemin, identifiants ou Capgo refusés', () => {
     expect(otaUrls('https://akaiky.example:8443')).toEqual({
       updateUrl: 'https://akaiky.example:8443/api/ota/latest', channelUrl: 'https://akaiky.example:8443/api/ota/channel', httpsOnly: true
     })
-    expect(otaUrls('HTTPS://Akaiky.Example').updateUrl).toBe('https://akaiky.example/api/ota/latest')
-    expect(otaUrls('HTTPS://Akaiky.Example').httpsOnly).toBe(true)
     expect(otaUrls('http://192.168.1.20:8787').httpsOnly).toBe(false)
-    for (const bad of ['https://akaiky.example/', 'https://akaiky.example/api', 'https://u:p@akaiky.example', 'https://akaiky.example?x=1',
+    for (const bad of ['HTTPS://Akaiky.Example', 'https://akaiky.example:443', 'https://akaiky.example/', 'https://akaiky.example/api', 'https://u:p@akaiky.example', 'https://akaiky.example?x=1',
       'https://plugin.capgo.app', 'https://capgo.app', 'ftp://x', '', 'akaiky.example']) {
       expect(() => otaUrls(bad), bad).toThrow()
     }

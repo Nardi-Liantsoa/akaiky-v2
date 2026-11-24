@@ -286,8 +286,10 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   sinon l'adresse provisoire) ; `allowModifyUrl`, `persistModifyUrl`, `allowPreview`, `allowHttpsToHttpRedirect` à
   false, `statsUrl` vide, `httpsOnly` en https. `OtaIdentityTask` (Android) les réécrit et fait échouer le build si les
   deux adresses n'ont pas la même origine ni les chemins du serveur, visent Capgo, ou si cette origine n'est pas l'API
-  compilée dans le bundle embarqué ; release : https et jamais l'adresse provisoire `.invalid` (**une release exige
-  donc le domaine de production**) ; debug : https ou `http://127.0.0.1:<port>` (essai par `adb reverse`). `vite build`
+  compilée dans le bundle embarqué ; release : https, et avant l'empaquetage (`otaReleaseGuard<Variante>`) jamais
+  l'adresse provisoire `.invalid` (**une release exige donc le domaine de production** ; les tests JVM release passent
+  sans) ; debug : https ou `http://127.0.0.1:<port>` (essai par `adb reverse`). Origine canonique exigée (minuscules,
+  sans port par défaut ni « / »). `vite build`
   refuse un bundle dont l'API diffère de l'origine des coques. iOS : valeurs de `capacitor.config.ts`, sans contrôle au
   build Xcode. Runtime : aucune requête vers un hôte `.invalid`. Tests : `OtaIdentityTest.kt`, `otaUpdate.test.ts`,
   chemins partagés `tests/fixtures/ota-target-cases.json` (`server`). Nouvelle coque parent et enfant.

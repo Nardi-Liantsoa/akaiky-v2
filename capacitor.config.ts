@@ -11,13 +11,14 @@ export const PLACEHOLDER_ORIGIN = 'https://akaiky.a-definir.invalid'
 export function apiOrigin(env: Record<string, string | undefined> = loadEnv('production', process.cwd(), 'VITE_')): string {
   return env.VITE_API_ORIGIN || PLACEHOLDER_ORIGIN
 }
-// Origine canonique (minuscules, sans port par défaut) : la forme que vérifient vite.config.ts et
-// le build Android. Refusée : autre chose qu'une origine http(s) sans chemin, ou Capgo Cloud.
+// Origine http(s) canonique, sinon refus (au chargement : `npm run dev` et les tests aussi), comme
+// Capgo Cloud. La forme que vérifient vite.config.ts et le build Android.
 export function normalizeOrigin(raw: string): string {
   let u: URL
   try { u = new URL(raw) } catch { throw new Error(`Origine de l'API invalide : ${raw}`) }
-  if ((u.protocol !== 'https:' && u.protocol !== 'http:') || u.username || u.password || u.search || u.hash
-    || u.origin !== raw.replace(/\/$/, '').toLowerCase().replace(/:443$|:80$/, '') || raw.endsWith('/')) {
+  // Forme canonique exigée telle quelle (minuscules, sans port par défaut ni « / ») : le bundle compile
+  // la valeur brute (src/api/base.ts), qui doit donc être exactement l'origine des coques.
+  if ((u.protocol !== 'https:' && u.protocol !== 'http:') || u.origin !== raw) {
     throw new Error(`Origine de l'API invalide : ${raw} (https://<hôte>, sans chemin)`)
   }
   const host = u.hostname
