@@ -99,7 +99,6 @@ const fr = {
     recoverySaved: 'Je les ai notés'
   },
   security: {
-    title: 'Sécurité du compte',
     mfaOn: 'Double authentification activée.',
     mfaOff: 'Double authentification non activée.',
     remaining: (n: number) => `${n} code(s) de secours restant(s).`,
@@ -143,6 +142,8 @@ const fr = {
     removeTitle: (name: string) => `Retirer ${name} de la famille ?`,
     removeItems: ['son accès à la famille et à ses enfants est coupé tout de suite ;', 'son compte est conservé.'],
     leaveTitle: 'Quitter la famille ?',
+    // Seul owner : départ refusé par le serveur (last_owner), « Quitter » remplacé par ce texte (NAR-209).
+    lastOwnerLeave: 'Seul parent principal : pour partir, cédez ce rôle ou supprimez la famille.',
     leaveItems: ['vous n’aurez plus accès aux enfants de la famille ;', 'votre compte est conservé ; pour revenir, il faudra une nouvelle invitation.'],
     lastOwner: 'La famille doit garder au moins un parent principal.',
     alreadyMember: 'Cette personne fait déjà partie de la famille.',
@@ -585,8 +586,10 @@ const fr = {
         templatesCustom: (n: number, max: number) => `${n} sur ${max} ${n === 1 ? 'personnalisé' : 'personnalisés'}`
       }
     },
-    family: { title: 'Famille', empty: 'Les membres de votre famille apparaîtront ici.' },
-    account: { title: 'Mon compte', security: 'Sécurité', admin: 'Administration', language: 'Langue', logout: 'Déconnexion' }
+    // back / backLabel : lien « ‹ Famille » en tête de Mon compte (NAR-209).
+    family: { title: 'Famille', empty: 'Les membres de votre famille apparaîtront ici.', back: 'Famille', backLabel: 'Retour à la famille' },
+    // summary : sous le lien « Mon compte » de l'écran Famille ; session : carte langue et déconnexion de la page.
+    account: { title: 'Mon compte', security: 'Sécurité', admin: 'Administration', language: 'Langue', logout: 'Déconnexion', summary: 'Sécurité, langue, déconnexion', session: 'Langue et session' }
   },
   consent: {
     signup: 'Je suis majeur·e et titulaire de l’autorité parentale sur les enfants que j’ajouterai.',
@@ -595,11 +598,10 @@ const fr = {
   },
   dataExport: {
     title: 'Données de la famille',
-    lead: 'Téléchargez un fichier avec toutes les données de la famille : membres, enfants, contacts, téléphones, plages, messages et journal.',
+    lead: 'Membres, enfants, contacts, plages, messages et journal, dans un fichier.',
     action: 'Exporter les données de la famille',
     busy: 'Préparation du fichier…',
     tooMany: 'Trop d’exports : réessayez dans une heure.',
-    memberHint: 'Le parent principal ou un gestionnaire de la famille peut exporter ses données.',
     nativeHint: 'L’export se fait depuis la version web d’Akaiky (navigateur).'
   },
   admin: {
@@ -795,7 +797,6 @@ const mg: Messages = {
     recoverySaved: 'Efa voasoratro'
   },
   security: {
-    title: 'Fiarovana ny kaonty',
     mfaOn: 'Mandeha ny fanamarinana roa sosona.',
     mfaOff: 'Tsy mandeha ny fanamarinana roa sosona.',
     remaining: (n: number) => `Kaody famonjena ${n} sisa.`,
@@ -839,6 +840,7 @@ const mg: Messages = {
     removeTitle: (name: string) => `Hanaisotra an’i ${name} amin’ny fianakaviana ?`,
     removeItems: ['tapaka avy hatrany ny fidirany amin’ny fianakaviana sy ny ankizy;', 'tsy voafafa ny kaontiny.'],
     leaveTitle: 'Hiala amin’ny fianakaviana ?',
+    lastOwnerLeave: 'Ianao irery no ray aman-dreny lehibe: raha hiala, omeo hafa io andraikitra io na fafao ny fianakaviana.',
     leaveItems: ['tsy ho afaka hiditra amin’ny ankizin’ny fianakaviana intsony ianao;', 'tsy voafafa ny kaontinao; mila fanasana vaovao raha hiverina.'],
     lastOwner: 'Tsy maintsy misy ray aman-dreny lehibe iray farafahakeliny ny fianakaviana.',
     alreadyMember: 'Efa mpikambana ao amin’ny fianakaviana io olona io.',
@@ -1266,8 +1268,8 @@ const mg: Messages = {
         templatesCustom: (n: number, max: number) => `${n} amin’ny ${max} novaina`
       }
     },
-    family: { title: 'Fianakaviana', empty: 'Eto no hiseho ireo mpikambana ao amin’ny fianakavianao.' },
-    account: { title: 'Ny kaontiko', security: 'Fiarovana', admin: 'Fitantanana', language: 'Fiteny', logout: 'Hivoaka' }
+    family: { title: 'Fianakaviana', empty: 'Eto no hiseho ireo mpikambana ao amin’ny fianakavianao.', back: 'Fianakaviana', backLabel: 'Hiverina amin’ny fianakaviana' },
+    account: { title: 'Ny kaontiko', security: 'Fiarovana', admin: 'Fitantanana', language: 'Fiteny', logout: 'Hivoaka', summary: 'Fiarovana, fiteny, fivoahana', session: 'Fiteny sy fidirana' }
   },
   consent: {
     signup: 'Efa olon-dehibe aho ary manana ny fahefana ray aman-dreny amin’ireo ankizy hampidiriko.',
@@ -1276,11 +1278,10 @@ const mg: Messages = {
   },
   dataExport: {
     title: 'Ny angon’ny fianakaviana',
-    lead: 'Alaivo ny rakitra misy ny angon’ny fianakaviana rehetra: mpikambana, ankizy, mpifandray, finday, fotoana, hafatra ary tantara.',
+    lead: 'Mpikambana, ankizy, mpifandray, fotoana, hafatra ary tantara, ao anaty rakitra iray.',
     action: 'Haondrana ny angon’ny fianakaviana',
     busy: 'Manomana ny rakitra…',
     tooMany: 'Be loatra ny fanondranana: andramo indray afaka iray ora.',
-    memberHint: 'Ny ray aman-dreny lehibe na mpitantana ny fianakaviana no afaka manondrana ny angony.',
     nativeHint: 'Ny dikan’i Akaiky amin’ny tranonkala (navigateur) no anaovana ny fanondranana.'
   },
   admin: {
@@ -1472,7 +1473,6 @@ const en: Messages = {
     recoverySaved: 'I have saved them'
   },
   security: {
-    title: 'Account security',
     mfaOn: 'Two-factor authentication is on.',
     mfaOff: 'Two-factor authentication is off.',
     remaining: (n: number) => `${n} recovery code(s) left.`,
@@ -1516,6 +1516,7 @@ const en: Messages = {
     removeTitle: (name: string) => `Remove ${name} from the family?`,
     removeItems: ['their access to the family and its children ends right away;', 'their account is kept.'],
     leaveTitle: 'Leave the family?',
+    lastOwnerLeave: 'Only main parent: to leave, hand this role over or delete the family.',
     leaveItems: ['you will no longer have access to the family’s children;', 'your account is kept; to come back, you will need a new invitation.'],
     lastOwner: 'The family must keep at least one main parent.',
     alreadyMember: 'This person is already in the family.',
@@ -1942,8 +1943,8 @@ const en: Messages = {
         templatesCustom: (n: number, max: number) => `${n} of ${max} customised`
       }
     },
-    family: { title: 'Family', empty: 'Your family members will appear here.' },
-    account: { title: 'My account', security: 'Security', admin: 'Administration', language: 'Language', logout: 'Sign out' }
+    family: { title: 'Family', empty: 'Your family members will appear here.', back: 'Family', backLabel: 'Back to the family' },
+    account: { title: 'My account', security: 'Security', admin: 'Administration', language: 'Language', logout: 'Sign out', summary: 'Security, language, sign out', session: 'Language and session' }
   },
   consent: {
     signup: 'I am an adult and hold parental authority over the children I will add.',
@@ -1952,11 +1953,10 @@ const en: Messages = {
   },
   dataExport: {
     title: 'Family data',
-    lead: 'Download a file with all the family’s data: members, children, contacts, phones, schedules, messages and log.',
+    lead: 'Members, children, contacts, schedules, messages and log, in one file.',
     action: 'Export family data',
     busy: 'Preparing the file…',
     tooMany: 'Too many exports: try again in an hour.',
-    memberHint: 'The family’s main parent or a manager can export its data.',
     nativeHint: 'Export is done from the web version of Akaiky (browser).'
   },
   admin: {

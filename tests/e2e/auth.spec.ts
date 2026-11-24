@@ -45,9 +45,10 @@ test('second facteur demandé puis vérifié', async ({ page }) => {
   await page.fill('#code', '123456')
   await page.getByRole('button', { name: 'Vérifier' }).click()
   await expect(page).toHaveURL(/\/espace$/)
-  // Administrateur : le back-office s'ouvre depuis « Mon compte » (onglet Famille).
+  // Administrateur : le back-office s'ouvre depuis « Mon compte » (onglet Famille, NAR-209).
   await page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link', { name: 'Famille' }).click()
-  await expect(page.getByRole('region', { name: 'Mon compte' }).getByRole('link', { name: 'Administration' })).toBeVisible()
+  await page.getByRole('link', { name: /^Mon compte/ }).click()
+  await expect(page.getByRole('region', { name: 'Langue et session' }).getByRole('link', { name: 'Administration' })).toBeVisible()
 })
 
 test('lien de réinitialisation : jeton retiré de la barre d’adresse et envoyé au serveur', async ({ page }) => {

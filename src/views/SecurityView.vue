@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { Capacitor } from '@capacitor/core'
 import { RouterLink, useRouter } from 'vue-router'
 import { api, ApiError } from '../api/http'
 import DeleteConfirm from '../components/account/DeleteConfirm.vue'
@@ -8,9 +7,10 @@ import { isAdmin, logout } from '../store/auth'
 import { notice } from '../store/notice'
 import { useT, locale } from '../composables/useT'
 import { errorText } from '../lib/errors'
-import { exportFamily } from '../api/families'
-import { canManage, family, loadFamily } from '../store/family'
+import { family, loadFamily } from '../store/family'
+import AccountSection from '../components/parent/AccountSection.vue'
 import AppButton from '../components/ui/AppButton.vue'
+import BackLink from '../components/ui/BackLink.vue'
 import SectionCard from '../components/ui/SectionCard.vue'
 
 interface Device { id: string, label: string | null, last_used_at?: string, last_seen_at?: string, current: boolean }
@@ -76,43 +76,18 @@ function resetDelete() {
   mustTransfer.value = false
 }
 
-// Export des données de la famille (NAR-178, droit d'accès) : owner et manager.
-// Fichier construit par le serveur, enregistré par un lien de téléchargement temporaire.
-// Pas d'export dans l'app native : la WebView ignore ce téléchargement (Filesystem/Share
-// demanderait une nouvelle coque) ; on renvoie vers la version web.
-const nativeApp = Capacitor.isNativePlatform()
-const exporting = ref(false)
-const exportError = ref('')
-async function downloadExport() {
-  if (nativeApp || exporting.value) return
-  exporting.value = true
-  exportError.value = ''
-  try {
-    const data = await exportFamily()
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `akaiky-famille-${new Date().toISOString().slice(0, 10)}.json`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 10_000)
-  } catch (e) {
-    exportError.value = e instanceof ApiError && e.status === 429 ? t.value.dataExport.tooMany : errorText(e, t.value)
-    if (e instanceof ApiError && e.code === 'family_role') void loadFamily(true)
-  } finally {
-    exporting.value = false
-  }
-}
-
 onMounted(() => { load(); void loadFamily() })
 </script>
 
 <template>
-  <!-- Dans la coquille parent (onglet Famille, « Mon compte ») : son <main> l'enveloppe. -->
+  <!-- « Mon compte » (NAR-209) : langue, déconnexion, sécurité et suppression du compte, à un seul
+       endroit. Dans la coquille parent (onglet Famille) : son <main> l'enveloppe. Retour vers
+       Famille, ou vers l'accueil (création de la famille) quand il n'y en a pas. -->
   <section>
-    <h1>{{ t.security.title }}</h1>
+    <BackLink v-if="family.data" :to="{ name: 'famille' }" :label="t.parent.family.back" :aria-label="t.parent.family.backLabel" />
+    <BackLink v-else :to="{ name: 'espace' }" :label="t.parent.home.back" :aria-label="t.parent.home.backLabel" />
+    <h1>{{ t.parent.account.title }}</h1>
+    <AccountSection on-account-page />
     <p v-if="error" class="error" role="alert">{{ error }}</p>
 
     <SectionCard v-if="state" :title="t.mfa.title">
@@ -152,18 +127,6 @@ onMounted(() => { load(); void loadFamily() })
           <AppButton variant="ghost" :disabled="busy" @click="revokeApp(d.id)">{{ t.security.revoke }}</AppButton>
         </li>
       </ul>
-    </SectionCard>
-
-    <SectionCard v-if="family.status === 'ready' && family.data" :title="t.dataExport.title">
-      <template v-if="canManage()">
-        <p class="help">{{ t.dataExport.lead }}</p>
-        <p v-if="nativeApp" class="help">{{ t.dataExport.nativeHint }}</p>
-        <template v-else>
-          <p v-if="exportError" class="error" role="alert">{{ exportError }}</p>
-          <AppButton variant="ghost" :disabled="exporting" @click="downloadExport">{{ exporting ? t.dataExport.busy : t.dataExport.action }}</AppButton>
-        </template>
-      </template>
-      <p v-else class="help">{{ t.dataExport.memberHint }}</p>
     </SectionCard>
 
     <DeleteConfirm v-if="state" id="delete-account" :title="t.deletion.accountTitle" :lead="t.deletion.accountLead"

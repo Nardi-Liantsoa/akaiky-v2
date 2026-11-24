@@ -40,7 +40,8 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       { path: 'famille', name: 'famille', component: () => import('./views/parent/FamilyView.vue'), meta: { requiresFamily: true } },
-      // « Mon compte » de l'onglet Famille (NAR-156) : la sécurité garde la barre d'onglets,
+      // « Mon compte » (NAR-156, NAR-209 : langue, déconnexion, sécurité, suppression), ouvert depuis
+      // l’onglet Famille : la page garde la barre d’onglets,
       // Famille y reste signalé. Sans requiresFamily : ouverte aussi avant la création.
       { path: 'compte/securite', name: 'securite', component: () => import('./views/SecurityView.vue') },
       { path: 'enfant/nouveau', name: 'enfant-nouveau', component: () => import('./views/parent/ChildFormView.vue'), meta: { requiresFamily: true } },

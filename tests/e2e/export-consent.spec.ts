@@ -33,10 +33,10 @@ test('inscription : case de consentement exigée, puis envoyée avec le formulai
   expect(calls.find((r) => r.url().endsWith('/api/auth/register'))!.postDataJSON()).toEqual({ name: 'Camille', email: 'camille@exemple.fr', password: 'une phrase de passe longue', consent: true })
 })
 
-test('sécurité : le parent principal télécharge le fichier JSON de la famille', async ({ page }) => {
+test('famille : le parent principal télécharge le fichier JSON de la famille', async ({ page }) => {
   const data = { exportedAt: '2026-11-19T10:00:00.000Z', family: { name: 'Famille Rabe' }, members: [], invitations: [], children: [] }
-  await mockApi(page, { ...signedIn, 'GET /api/families/me': () => ({ body: FAMILY }), 'GET /api/families/me/export': () => ({ body: data }) })
-  await page.goto('/securite')
+  await mockApi(page, { ...signedIn, 'GET /api/families/me': () => ({ body: FAMILY }), 'GET /api/families/me/invitations': () => ({ body: [] }), 'GET /api/families/me/export': () => ({ body: data }) })
+  await page.goto('/espace/famille')
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Exporter les données de la famille' }).click()
   const file = await download
@@ -46,16 +46,30 @@ test('sécurité : le parent principal télécharge le fichier JSON de la famill
   expect(JSON.parse(await readFile(path, 'utf8'))).toEqual(data)
 })
 
-test('sécurité : trop d’exports, message traduit', async ({ page }) => {
-  await mockApi(page, { ...signedIn, 'GET /api/families/me': () => ({ body: FAMILY }), 'GET /api/families/me/export': () => ({ status: 429, body: { error: '…' } }) })
-  await page.goto('/securite')
+test('famille : trop d’exports, message traduit', async ({ page }) => {
+  await mockApi(page, { ...signedIn, 'GET /api/families/me': () => ({ body: FAMILY }), 'GET /api/families/me/invitations': () => ({ body: [] }), 'GET /api/families/me/export': () => ({ status: 429, body: { error: '…' } }) })
+  await page.goto('/espace/famille')
   await page.getByRole('button', { name: 'Exporter les données de la famille' }).click()
-  await expect(page.getByRole('alert')).toHaveText('Trop d’exports : réessayez dans une heure.')
+  await expect(page.getByRole('region', { name: 'Données de la famille' }).getByRole('alert')).toHaveText('Trop d’exports : réessayez dans une heure.')
 })
 
-test('sécurité : un contact ne voit pas le bouton, seulement qui peut exporter', async ({ page }) => {
-  await mockApi(page, { ...signedIn, 'GET /api/families/me': () => ({ body: { ...FAMILY, role: 'member' } }) })
-  await page.goto('/securite')
-  await expect(page.getByText('Le parent principal ou un gestionnaire de la famille peut exporter ses données.')).toBeVisible()
+test('export rangé dans Famille (NAR-209) : un contact ne le voit pas, la page du compte non plus', async ({ page }) => {
+  const calls = await mockApi(page, { ...signedIn, 'GET /api/families/me': () => ({ body: { ...FAMILY, role: 'member' } }) })
+  await page.goto('/espace/famille')
+  await expect(page.getByRole('heading', { name: 'Membres' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Données de la famille' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Exporter les données de la famille' })).toHaveCount(0)
+  await page.goto('/espace/compte/securite')
+  await expect(page.getByRole('heading', { name: 'Mon compte', level: 1 })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Données de la famille' })).toHaveCount(0)
+  expect(calls.some((r) => r.url().endsWith('/api/families/me/export'))).toBe(false)
+})
+
+test('gestionnaire : l’export est proposé dans Famille, absent de la page du compte', async ({ page }) => {
+  await mockApi(page, { ...signedIn, 'GET /api/families/me': () => ({ body: { ...FAMILY, role: 'manager' } }), 'GET /api/families/me/invitations': () => ({ body: [] }) })
+  await page.goto('/espace/famille')
+  await expect(page.getByRole('region', { name: 'Données de la famille' }).getByRole('button', { name: 'Exporter les données de la famille' })).toBeVisible()
+  await page.goto('/espace/compte/securite')
+  await expect(page.getByRole('heading', { name: 'Mon compte', level: 1 })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Exporter les données de la famille' })).toHaveCount(0)
 })
