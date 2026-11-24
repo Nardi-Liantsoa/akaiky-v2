@@ -22,6 +22,8 @@ RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY index.html vite.config.ts capacitor.config.ts tsconfig.json ./
 COPY public public
 COPY src src
+# Cas partagés lus par les tests que vue-tsc vérifie au build (src/lib/*.test.ts).
+COPY tests/fixtures tests/fixtures
 RUN npm run build
 
 # --- 2. dépendances de production de l'API ------------------------------------
