@@ -409,7 +409,7 @@ chaque démarrage.
 `<origine>/api/ota/latest` et `channelUrl` = `<origine>/api/ota/channel` depuis l'origine de l'API
 compilée dans le bundle (`VITE_API_ORIGIN`, lu par `loadEnv` de Vite en mode production : variable
 d'environnement, puis `.env.production.local`, `.env.production`, `.env.local`, `.env` ; sinon
-l'adresse provisoire `https://akaiky.a-definir.invalid`), mise sous forme canonique (minuscules). Capgo Cloud n'est jamais utilisé (données de mineurs) :
+l'adresse provisoire `https://akaiky.a-definir.invalid`), qui doit déjà être canonique (sinon refusée). Capgo Cloud n'est jamais utilisé (données de mineurs) :
 `statsUrl` vide, et le JavaScript ne peut ni changer ces adresses (`allowModifyUrl: false`), ni en
 garder d'autres (`persistModifyUrl: false`), ni viser une autre app (`allowPreview: false`) ;
 `httpsOnly` suit le schéma de l'origine (faux seulement pour une API locale en http), jamais de
@@ -422,7 +422,7 @@ refusent de démarrer.
   serveur, visent Capgo, ou si l'origine n'apparaît pas comme `<origine>/api` (fermé par un
   délimiteur de chaîne : l'API du bundle, pas son `updateUrl`) dans les scripts du bundle embarqué (`npm run build` et `npx cap sync` faits avec deux `VITE_API_ORIGIN`). Release
   (APK et AAB) : https et, avant l'empaquetage (`otaReleaseGuard<Variante>`), **jamais l'adresse
-  provisoire** (`.invalid`) : une release, `npm run android:enfant:release` compris, exige le domaine
+  provisoire** ni un nom réservé (`.invalid`, `.example`, `.test`, `.localhost`, `example.com`…) : une release, `npm run android:enfant:release` compris, exige le domaine
   de production. Les tests JVM des variantes release passent avec l'adresse provisoire. Debug : https, ou `http://127.0.0.1:<port>` pour un essai local.
 - **iOS** : `npx cap sync ios` copie les valeurs de `capacitor.config.ts` ; aucun contrôle au build
   Xcode : relire `ios/App/App/capacitor.config.json` avant une archive.

@@ -167,7 +167,7 @@ abstract class OtaIdentityTask extends DefaultTask {
     }
 }
 
-// Release empaquetée (APK, AAB) : jamais l'adresse provisoire (.invalid) : une coque publiée ne
+// Release empaquetée (APK, AAB) : jamais l'adresse provisoire (.invalid) ni un autre nom réservé : une coque publiée ne
 // recevrait aucune mise à jour et n'atteindrait pas l'API. Contrôlé avant l'empaquetage seulement :
 // les tests JVM des variantes release passent avec l'adresse provisoire (NAR-190).
 abstract class OtaReleaseGuardTask extends DefaultTask {
@@ -177,8 +177,11 @@ abstract class OtaReleaseGuardTask extends DefaultTask {
     void check() {
         def config = new groovy.json.JsonSlurper().parse(new File(assets.get().asFile, 'capacitor.config.json'))
         def host = new URI(config.plugins.CapacitorUpdater.updateUrl).host
-        if (host.endsWith('.invalid')) {
-            throw new GradleException("Release avec l'adresse provisoire ${host} : fixer VITE_API_ORIGIN (domaine de production) avant `npm run build` et `npx cap sync`")
+        // Noms réservés (RFC 2606, 6761) : jamais un serveur réel.
+        def reserved = ['invalid', 'example', 'test', 'localhost'].any { host == it || host.endsWith(".${it}") } ||
+            ['example.com', 'example.net', 'example.org'].any { host == it || host.endsWith(".${it}") }
+        if (reserved) {
+            throw new GradleException("Release avec une adresse provisoire ou réservée (${host}) : fixer VITE_API_ORIGIN (domaine de production) avant `npm run build` et `npx cap sync`")
         }
     }
 }
