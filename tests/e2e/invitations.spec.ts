@@ -42,7 +42,7 @@ test('contact : ni invitation ni gestion des autres, seulement « Quitter »', a
   await expect(page.getByRole('button', { name: 'Quitter la famille' })).toHaveCount(1)
 })
 
-test('owner : changer un rôle, retirer en deux temps ; refus « dernier owner » affiché', async ({ page }) => {
+test('owner : changer un rôle, retirer en deux temps ; devenu seul owner, « Quitter » laisse place à l’explication', async ({ page }) => {
   let members = [FAMILY.members[0], RIVO]
   await mockApi(page, {
     ...me,
@@ -58,9 +58,20 @@ test('owner : changer un rôle, retirer en deux temps ; refus « dernier owner �
   await page.getByRole('button', { name: 'Retirer' }).click()
   await page.getByRole('button', { name: 'Confirmer le retrait' }).click()
   await expect(page.getByText('Rivo')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Quitter la famille' }).click()
-  await page.getByRole('button', { name: 'Confirmer : quitter la famille' }).click()
-  await expect(page.getByRole('alert')).toHaveText('La famille doit garder au moins un parent principal.')
+  // NAR-209 : le serveur refuserait ce départ (last_owner), il n'est plus proposé.
+  await expect(page.getByRole('button', { name: 'Quitter la famille' })).toHaveCount(0)
+  await expect(page.getByText('Seul parent principal : pour partir, cédez ce rôle ou supprimez la famille.')).toBeVisible()
+})
+
+test('owner qui n’est pas le seul : « Quitter » proposé, sans l’explication', async ({ page }) => {
+  await mockApi(page, {
+    ...me,
+    'GET /api/families/me': () => ({ body: { ...FAMILY, members: [FAMILY.members[0], { ...RIVO, role: 'owner' }] } }),
+    'GET /api/families/me/invitations': () => ({ body: [] })
+  })
+  await page.goto('/espace/famille')
+  await expect(page.getByRole('button', { name: 'Quitter la famille' })).toHaveCount(1)
+  await expect(page.getByText(/seul parent principal/)).toHaveCount(0)
 })
 
 test('lien d’invitation sans session : jeton retiré de l’adresse, connexion puis acceptation', async ({ page }) => {

@@ -92,7 +92,7 @@ test('app parent (web) : l’écran de l’app enfant n’est pas atteignable', 
 })
 
 // NAR-156 : une seule navigation pour le parent connecté, la barre d'onglets.
-test('parent connecté : pas d’en-tête global, compte, langue et sécurité depuis Famille', async ({ page }) => {
+test('parent connecté : pas d’en-tête global ; Famille mène à « Mon compte » (langue, sécurité, retour)', async ({ page }) => {
   await mockApi(page, {
     ...connected,
     'GET /api/auth/security': () => ({ body: { devices: [], mfaEnabled: false, recoveryCodesRemaining: 0 } }),
@@ -102,21 +102,27 @@ test('parent connecté : pas d’en-tête global, compte, langue et sécurité d
   const tabs = page.getByRole('navigation', { name: 'Navigation principale' })
   await expect(page.getByRole('heading', { name: 'Famille', exact: true })).toBeVisible()
   await expect(page.getByRole('banner')).toHaveCount(0)
-  const account = page.getByRole('region', { name: 'Mon compte' })
-  // Administration réservée aux administrateurs.
-  await expect(account.getByRole('link', { name: 'Administration' })).toHaveCount(0)
+  // NAR-209 : le compte n'est plus répété sur Famille, un seul lien y mène.
+  await expect(page.getByRole('region', { name: 'Mon compte' })).toHaveCount(0)
+  await expect(page.getByLabel('Langue')).toHaveCount(0)
+  await page.getByRole('link', { name: /^Mon compte/ }).click()
+  await expect(page).toHaveURL(/\/espace\/compte\/securite$/)
+  await expect(page.getByRole('heading', { name: 'Mon compte', level: 1 })).toBeVisible()
+  await expect(page.getByRole('banner')).toHaveCount(0)
+  await expect(tabs.getByRole('link', { name: 'Famille' })).toHaveAttribute('aria-current', 'page')
+  await expect(tabs.locator('[aria-current="page"]')).toHaveCount(1)
+  const account = page.getByRole('region', { name: 'Langue et session' })
+  // Administration réservée aux administrateurs ; pas de lien de la page vers elle-même.
+  await expect(account.getByRole('link')).toHaveCount(0)
 
   // Langue : toute l'interface suit, la barre d'onglets comprise.
   await account.getByLabel('Langue').selectOption('en')
   await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
-  await page.getByRole('region', { name: 'My account' }).getByLabel('Language').selectOption('fr')
+  await page.getByRole('region', { name: 'Language and session' }).getByLabel('Language').selectOption('fr')
 
-  await account.getByRole('link', { name: 'Sécurité' }).click()
-  await expect(page).toHaveURL(/\/espace\/compte\/securite$/)
-  await expect(page.getByRole('heading', { name: 'Sécurité du compte', level: 1 })).toBeVisible()
-  await expect(page.getByRole('banner')).toHaveCount(0)
-  await expect(tabs.getByRole('link', { name: 'Famille' })).toHaveAttribute('aria-current', 'page')
-  await expect(tabs.locator('[aria-current="page"]')).toHaveCount(1)
+  // Lien retour vers Famille.
+  await page.getByRole('link', { name: 'Retour à la famille' }).click()
+  await expect(page).toHaveURL(/\/espace\/famille$/)
 
   // Ancienne adresse : même écran, dans la coquille.
   await page.goto('/securite')
@@ -133,7 +139,8 @@ test('déconnexion depuis Famille : retour à l’accueil public, avec son en-t�
     'POST /api/auth/logout': () => { user = null; return { body: { ok: true } } }
   })
   await page.goto('/espace/famille')
-  await page.getByRole('region', { name: 'Mon compte' }).getByRole('button', { name: 'Déconnexion' }).click()
+  await page.getByRole('link', { name: /^Mon compte/ }).click()
+  await page.getByRole('region', { name: 'Langue et session' }).getByRole('button', { name: 'Déconnexion' }).click()
   await expect(page).toHaveURL(/\/$/)
   expect(calls.some((r) => r.method() === 'POST' && r.url().endsWith('/api/auth/logout'))).toBe(true)
   // Visiteur : l'en-tête global revient, sans les liens du compte.
@@ -151,7 +158,8 @@ test('administrateur parent : Administration dans « Mon compte », en-tête sur
     'GET /api/admin/audit': () => ({ body: [] })
   })
   await page.goto('/espace/famille')
-  await page.getByRole('region', { name: 'Mon compte' }).getByRole('link', { name: 'Administration' }).click()
+  await page.getByRole('link', { name: /^Mon compte/ }).click()
+  await page.getByRole('region', { name: 'Langue et session' }).getByRole('link', { name: 'Administration' }).click()
   await expect(page).toHaveURL(/\/admin$/)
   const header = page.getByRole('banner')
   await expect(header.getByRole('link', { name: 'Sécurité' })).toBeVisible()

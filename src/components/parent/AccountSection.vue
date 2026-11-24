@@ -8,8 +8,12 @@ import FormField from '../ui/FormField.vue'
 import SectionCard from '../ui/SectionCard.vue'
 
 // « Mon compte » (NAR-156) : ce que portait l'en-tête global pour un parent connecté
-// (sécurité, langue, déconnexion, administration), dans l'onglet Famille et sur
-// l'écran de création de la famille, seul écran parent sans onglets.
+// (sécurité, langue, déconnexion, administration). Sur l'écran de création de la famille,
+// seul écran parent sans onglets, et dans la page du compte (NAR-209) ; l'écran Famille
+// n'a plus qu'un lien vers cette page.
+// onAccountPage : rendu dans la page du compte (NAR-209), sans le lien vers elle-même,
+// sous le titre « Langue et session » (la page s'appelle déjà « Mon compte »).
+defineProps<{ onAccountPage?: boolean }>()
 const t = useT()
 const router = useRouter()
 
@@ -20,9 +24,9 @@ async function onLogout() {
 </script>
 
 <template>
-  <SectionCard :title="t.parent.account.title" class="account">
-    <div class="links">
-      <RouterLink class="link" :to="{ name: 'securite' }">
+  <SectionCard :title="onAccountPage ? t.parent.account.session : t.parent.account.title" class="account">
+    <div v-if="!onAccountPage || isAdmin()" class="links">
+      <RouterLink v-if="!onAccountPage" class="link" :to="{ name: 'securite' }">
         <span>{{ t.parent.account.security }}</span>
         <AppIcon name="chevron-right" :size="20" />
       </RouterLink>

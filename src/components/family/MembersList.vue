@@ -22,6 +22,10 @@ const myRole = computed(() => family.data?.role)
 // Mêmes règles que le serveur, pour n'afficher que les actions possibles :
 // owner touche à tout ; manager entre manager et member, jamais un owner.
 const canEdit = (m: FamilyMember) => !m.isMe && (myRole.value === 'owner' || (myRole.value === 'manager' && m.role !== 'owner'))
+// Le serveur refuse le départ du dernier owner (last_owner) : « Quitter » n'est pas proposé,
+// un texte dit quoi faire à la place (NAR-209).
+const lastOwner = computed(() => myRole.value === 'owner' && (family.data?.members.filter((m) => m.role === 'owner').length ?? 0) <= 1)
+const canLeave = (m: FamilyMember) => m.isMe && !lastOwner.value
 const roleChoices = computed<FamilyRole[]>(() => myRole.value === 'owner' ? ['owner', 'manager', 'member'] : ['manager', 'member'])
 
 async function run(task: () => Promise<unknown>) {
@@ -65,7 +69,7 @@ function remove() {
             <option v-for="r in roleChoices" :key="r" :value="r">{{ t.family.roles[r] }}</option>
           </select>
           <span v-else class="role">{{ t.family.roles[m.role] }}</span>
-          <template v-if="canEdit(m) || m.isMe">
+          <template v-if="canEdit(m) || canLeave(m)">
             <AppButton variant="ghost" small :disabled="busy" @click="confirming.ask(m, $event)">
               {{ m.isMe ? t.family.leave : t.family.remove }}
             </AppButton>
@@ -73,6 +77,7 @@ function remove() {
         </span>
       </li>
     </ul>
+    <p v-if="family.data && lastOwner" class="help last-owner">{{ t.family.lastOwnerLeave }}</p>
     <ConfirmSheet
       v-if="confirming.target.value" id="member-remove"
       :title="confirming.target.value.isMe ? t.family.leaveTitle : t.family.removeTitle(confirming.target.value.name)"
@@ -100,6 +105,9 @@ function remove() {
 }
 .members li:last-child {
   border-bottom: none;
+}
+.last-owner {
+  margin: var(--space-3) 0 0;
 }
 .name {
   font-weight: 800;

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { deleteFamily, renameFamily } from '../../api/families'
 import DeleteConfirm from '../../components/account/DeleteConfirm.vue'
 import { ApiError } from '../../api/http'
@@ -14,7 +14,8 @@ import { errorText } from '../../lib/errors'
 import { canManage, family, loadFamily, setFamilyName, setNoFamily } from '../../store/family'
 import { notice } from '../../store/notice'
 import AppButton from '../../components/ui/AppButton.vue'
-import AccountSection from '../../components/parent/AccountSection.vue'
+import AppIcon from '../../components/ui/AppIcon.vue'
+import FamilyExport from '../../components/family/FamilyExport.vue'
 
 const t = useT()
 const router = useRouter()
@@ -108,10 +109,19 @@ async function save() {
         <div class="invite">
           <InviteForm @sent="sent++" />
         </div>
+        <!-- Export de la famille (NAR-178), rangé ici depuis la sécurité du compte (NAR-209). -->
+        <FamilyExport class="export" />
       </template>
     </template>
-    <!-- Compte de la session, famille lisible ou non (NAR-156) ; la zone sensible reste la dernière. -->
-    <AccountSection class="account" />
+    <!-- Le compte de la session a sa page (NAR-209) : un seul lien ici, famille lisible ou non ;
+         la zone sensible reste la dernière. -->
+    <RouterLink class="card account-link" :to="{ name: 'securite' }">
+      <span class="account-text">
+        <span class="account-title">{{ t.parent.account.title }}</span>
+        <span class="account-summary">{{ t.parent.account.summary }}</span>
+      </span>
+      <AppIcon name="chevron-right" :size="20" />
+    </RouterLink>
     <template v-if="family.status !== 'error' && family.data?.role === 'owner'">
       <h2 class="section">{{ t.deletion.zone }}</h2>
       <DeleteConfirm id="delete-family" :title="t.deletion.familyAction" :lead="t.deletion.familyLead"
@@ -145,12 +155,43 @@ h1 {
   gap: 8px;
 }
 .section {
-  margin: 28px 0 12px;
+  margin: var(--space-5) 0 var(--space-3);
 }
 .invite {
   margin-top: 28px;
 }
-.account {
-  margin-top: 28px;
+.export {
+  margin-top: var(--space-5);
+}
+.account-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--tap);
+  margin-top: var(--space-5);
+  padding-block: var(--space-4);
+  color: var(--text);
+  text-decoration: none;
+}
+.account-link:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+.account-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.account-title {
+  font-weight: 800;
+}
+.account-summary {
+  color: var(--text-soft);
+  font-size: var(--fs-small);
+}
+.account-link :deep(svg) {
+  flex: none;
+  color: var(--text-soft);
 }
 </style>

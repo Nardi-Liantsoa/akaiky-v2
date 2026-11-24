@@ -71,7 +71,7 @@ const PARENT = {
   'GET /api/children/6f1c2b1e-0000-4000-8000-000000000101/devices': [
     { id: '6f1c2b1e-0000-4000-8000-0000000000d1', model: 'Samsung Galaxy A10', osVersion: '11', appVersion: '1.0', createdAt: '2026-01-12T10:00:00Z', lastSeenAt: '2026-01-14T10:00:00Z' }
   ],
-  // Sécurité du compte (« Mon compte », NAR-156).
+  // « Mon compte » (NAR-156, NAR-209).
   'GET /api/auth/security': {
     mfaEnabled: false, recoveryCodesRemaining: 0,
     devices: [{ id: '6f1c2b1e-0000-4000-8000-0000000000e1', label: 'Chrome · macOS', last_used_at: '2026-01-15T09:00:00Z', current: true }]
