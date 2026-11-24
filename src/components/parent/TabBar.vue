@@ -80,7 +80,7 @@ const active = computed(() =>
   font-weight: 800;
 }
 .tab:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: var(--focus-ring);
   outline-offset: -3px;
 }
 /* Grands écrans (NAR-208). Tablette : onglets regroupés au centre, sous la colonne de
@@ -91,8 +91,7 @@ const active = computed(() =>
     justify-content: center;
   }
 }
-/* Ordinateur : rail à gauche, onglets empilés en haut. Mêmes liens ; la barre précède le
-   contenu dans la page (ParentShell), donc aussi au clavier. */
+/* Ordinateur : rail à gauche, onglets empilés en haut. Mêmes liens, même ordre. */
 @media (min-width: 1024px) {
   .tabbar {
     inset: 0 auto 0 0;

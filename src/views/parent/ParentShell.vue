@@ -21,19 +21,19 @@ watch(() => auth.user, (user) => {
 </script>
 
 <template>
-  <!-- Onglets seulement quand la famille est connue (ou injoignable) : jamais pendant
-       la création ni pendant le premier chargement. Avant le contenu : premiers au clavier,
-       comme le rail qui les montre en premier sur ordinateur (NAR-208). -->
-  <TabBar v-if="showTabs" />
   <main class="shell" :class="{ 'with-tabs': showTabs }">
     <RouterView />
   </main>
+  <!-- Onglets seulement quand la famille est connue (ou injoignable) : jamais pendant
+       la création ni pendant le premier chargement. Après le contenu, comme la barre du
+       bas qui les montre en dernier sur téléphone. -->
+  <TabBar v-if="showTabs" />
 </template>
 
 <style scoped>
 .shell {
   /* Zones sûres en natif comme sur le web (viewport-fit=cover) : --safe-* vaut 0 sans encoche. */
-  padding: 24px calc(var(--gutter) + var(--safe-right)) calc(var(--tab-height) + var(--safe-bottom) + 24px)
+  padding: var(--space-5) calc(var(--gutter) + var(--safe-right)) calc(var(--tab-height) + var(--safe-bottom) + var(--space-5))
     calc(var(--gutter) + var(--safe-left));
   max-width: 720px;
   margin: 0 auto;
@@ -43,8 +43,9 @@ watch(() => auth.user, (user) => {
 @media (min-width: 1024px) {
   .shell.with-tabs {
     /* Zone sûre de gauche déjà sous le rail : comptée une fois, dans la marge. */
+    padding-top: calc(var(--space-5) + var(--safe-top));
     padding-left: var(--gutter);
-    padding-bottom: var(--space-5);
+    padding-bottom: calc(var(--space-5) + var(--safe-bottom));
     margin-left: calc(var(--rail-width) + var(--safe-left) + max(0px, (100% - var(--rail-width) - var(--safe-left) - 720px) / 2));
     margin-right: auto;
   }
