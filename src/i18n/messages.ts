@@ -431,6 +431,10 @@ const fr = {
     hint: 'Un parent va le configurer depuis son application.',
     hello: (name: string) => `Bonjour ${name} !`,
     pairedHint: 'Ce téléphone est relié à ta famille.',
+    // Indicateur de consultation de la position (NAR-204, maquette écran 1).
+    watching: (names: string[]) => names.length > 1
+      ? `${names.slice(0, -1).join(', ')} et ${names[names.length - 1]} regardent où tu es`
+      : `${names[0]} regarde où tu es`,
     connecting: 'Connexion du téléphone…',
     expired: 'Le QR code a expiré ou a déjà servi.',
     expiredHint: 'Un parent doit afficher un nouveau QR code, puis réinitialiser ce téléphone et le scanner à nouveau.',
@@ -1113,6 +1117,9 @@ const mg: Messages = {
     hint: 'Ray aman-dreny iray no handrindra azy avy amin’ny rindranasany.',
     hello: (name: string) => `Salama ${name} !`,
     pairedHint: 'Mifandray amin’ny fianakavianao ity finday ity.',
+    watching: (names: string[]) => names.length > 1
+      ? `Mijery ny toerana misy anao i ${names.slice(0, -1).join(', ')} sy ${names[names.length - 1]}`
+      : `Mijery ny toerana misy anao i ${names[0]}`,
     connecting: 'Mampifandray ny finday…',
     expired: 'Lany daty na efa nampiasaina ny QR code.',
     expiredHint: 'Tokony hampiseho QR code vaovao ny ray aman-dreny iray, dia haverina amin’ny toerana niaviany ity finday ity ary hoscannena indray.',
@@ -1785,6 +1792,9 @@ const en: Messages = {
     hint: 'A parent will set it up from their app.',
     hello: (name: string) => `Hello ${name}!`,
     pairedHint: 'This phone is linked to your family.',
+    watching: (names: string[]) => names.length > 1
+      ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]} are checking where you are`
+      : `${names[0]} is checking where you are`,
     connecting: 'Connecting the phone…',
     expired: 'The QR code has expired or was already used.',
     expiredHint: 'A parent needs to show a new QR code, then reset this phone and scan it again.',

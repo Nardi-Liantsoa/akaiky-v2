@@ -18,8 +18,8 @@
 // Téléphone (session d'appareil, préfixe /api/device) :
 //   GET  /locate                 relevé dû (`pending` : une demande ouverte plus récente que
 //                                la dernière position de l'enfant, tous téléphones confondus)
-//                                et qui regarde (`watchers`, noms affichés seulement) :
-//                                indicateur « ton parent regarde ».
+//                                et qui regarde (`watchers`, noms affichés seulement ;
+//                                `watchingForMs`, durée restante) : indicateur « ton parent regarde ».
 //   POST /positions              { lat, lng, accuracyM, ageS } : un relevé pour SON enfant
 //                                (lu sur la session), accepté pendant une demande ouverte
 //                                seulement (sinon 409 `no_request`), et pris après la plus
@@ -158,7 +158,8 @@ export async function deviceLocationRoutes(app) {
 
   // Demandes ouvertes des membres actuels de la famille (un membre parti ne regarde plus).
   const openRequests = (conn, device) => conn.query(
-    `SELECT r.user_id, r.created_at, r.watch_until, u.name, c.id AS contact_id, c.name_enc
+    `SELECT r.user_id, r.created_at, r.watch_until, u.name, c.id AS contact_id, c.name_enc,
+            ceil(extract(epoch FROM r.watch_until - now()) * 1000)::bigint AS left_ms
        FROM location_requests r
        JOIN memberships m ON m.user_id = r.user_id AND m.family_id = r.family_id
        JOIN users u ON u.id = r.user_id AND u.disabled_at IS NULL
@@ -186,7 +187,10 @@ export async function deviceLocationRoutes(app) {
     return {
       pending: due.pending,
       watchers,
-      watchingUntil: rows.length ? rows.reduce((t, r) => (r.watch_until > t ? r.watch_until : t), new Date(0)) : null
+      watchingUntil: rows.length ? rows.reduce((t, r) => (r.watch_until > t ? r.watch_until : t), new Date(0)) : null,
+      // Durée restante en millisecondes, horloge du serveur : le téléphone la décompte avec son
+      // horloge monotone (son heure est souvent fausse).
+      watchingForMs: rows.length ? Math.max(...rows.map((r) => Number(r.left_ms))) : 0
     }
   })
 
