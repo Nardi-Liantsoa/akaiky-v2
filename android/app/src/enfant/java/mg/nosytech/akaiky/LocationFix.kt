@@ -8,6 +8,8 @@ package mg.nosytech.akaiky
  * `elapsedRealtimeNanos`, jamais l'heure du téléphone) : une « dernière position connue »
  * plus ancienne ne répond pas à la demande (le serveur la refuserait, `stale_position`).
  * Le premier relevé assez précis (GOOD_M) arrête l'attente ; sinon, au délai, le plus précis.
+ * Un relevé sans précision connue n'est jamais envoyé : il répondrait à la demande avec un
+ * cercle inutile, et aucun meilleur relevé ne serait plus demandé pendant la consultation.
  */
 object LocationFix {
     const val TIMEOUT_MS = 20_000L
@@ -29,10 +31,14 @@ object LocationFix {
     fun better(a: Sample?, b: Sample): Sample =
         if (a == null || accuracy(b) < accuracy(a) || (accuracy(b) == accuracy(a) && b.elapsedNs > a.elapsedNs)) b else a
 
-    /** Résultat envoyé au serveur ; null si le relevé est trop vieux (il ne l'est pas, sauf horloge folle). */
+    /**
+     * Résultat envoyé au serveur ; null sans précision connue, ou trop vieux (il ne l'est pas,
+     * sauf horloge folle). Âge arrondi au-dessus : le relevé n'est jamais rajeuni.
+     */
     fun result(s: Sample, nowNs: Long): Result? {
-        val age = Math.max(0L, (nowNs - s.elapsedNs) / 1_000_000_000L)
+        val acc = s.accuracyM?.takeIf { it >= 0f && !it.isNaN() } ?: return null
+        val age = (Math.max(0L, nowNs - s.elapsedNs) + 999_999_999L) / 1_000_000_000L
         if (age > MAX_AGE_S) return null
-        return Result(s.lat, s.lng, Math.min(100_000f, accuracy(s)).toInt(), age)
+        return Result(s.lat, s.lng, Math.ceil(Math.min(100_000f, acc).toDouble()).toInt(), age)
     }
 }

@@ -33,12 +33,18 @@ class LocationFixTest {
     }
 
     @Test fun ageEtPrecisionEnvoyes() {
-        val r = LocationFix.result(at(10, 12.7f), 13 * s + 600_000_000L)!!
-        assertEquals(3L, r.ageS)
-        assertEquals(12, r.accuracyM)
-        assertEquals(100_000, LocationFix.result(at(10, null), 10 * s)!!.accuracyM)
+        // Âge et précision arrondis au-dessus : jamais rajeuni, jamais plus précis qu'il n'est.
+        val r = LocationFix.result(at(10, 12.2f), 13 * s + 600_000_000L)!!
+        assertEquals(4L, r.ageS)
+        assertEquals(13, r.accuracyM)
+        assertEquals(3L, LocationFix.result(at(10, 5f), 13 * s)!!.ageS)
         assertEquals(0L, LocationFix.result(at(10, 5f), 9 * s)!!.ageS)
         assertNull(LocationFix.result(at(10, 5f), 131 * s))
+    }
+
+    @Test fun sansPrecisionJamaisEnvoye() {
+        assertNull(LocationFix.result(at(10, null), 10 * s))
+        assertNull(LocationFix.result(LocationFix.Sample(10 * s, -18.9, 47.5, Float.NaN), 10 * s))
     }
 
     @Test fun coordonneesValides() {

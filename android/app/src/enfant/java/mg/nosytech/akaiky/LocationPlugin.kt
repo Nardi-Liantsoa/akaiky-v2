@@ -30,8 +30,16 @@ import com.getcapacitor.annotation.CapacitorPlugin
 class LocationPlugin : Plugin() {
     private val handler = Handler(Looper.getMainLooper())
     private var running = false
+    /** Relevé en cours : arrêté (GPS rendu, appel refusé) par `cancel` et à la destruction du greffon. */
+    private var stopCurrent: (() -> Unit)? = null
 
-    /** { lat, lng, accuracyM, ageS } ; refus : `busy`, `denied`, `unavailable`, `timeout`. */
+    /** Relevé en cours abandonné (écran passé en arrière-plan, session perdue) : GPS rendu tout de suite. */
+    @PluginMethod
+    fun cancel(call: PluginCall) {
+        handler.post { stopCurrent?.invoke(); call.resolve() }
+    }
+
+    /** { lat, lng, accuracyM, ageS } ; refus : `busy`, `denied`, `unavailable`, `timeout`, `cancelled`. */
     @PluginMethod
     fun currentPosition(call: PluginCall) {
         handler.post { start(call) }
@@ -73,17 +81,22 @@ class LocationPlugin : Plugin() {
         var over = false
         lateinit var listener: LocationListener
         lateinit var timeout: Runnable
-        val finish = {
+        val stop = { cancelled: Boolean ->
             if (!over) {
                 over = true
                 running = false
+                stopCurrent = null
                 handler.removeCallbacks(timeout)
                 try { lm.removeUpdates(listener) } catch (e: Exception) { }
-                val r = best?.let { LocationFix.result(it, SystemClock.elapsedRealtimeNanos()) }
-                if (r == null) call.reject("Aucune position dans le délai.", "timeout")
-                else call.resolve(JSObject().put("lat", r.lat).put("lng", r.lng).put("accuracyM", r.accuracyM).put("ageS", r.ageS))
+                val r = if (cancelled) null else best?.let { LocationFix.result(it, SystemClock.elapsedRealtimeNanos()) }
+                when {
+                    cancelled -> call.reject("Relevé abandonné.", "cancelled")
+                    r == null -> call.reject("Aucune position dans le délai.", "timeout")
+                    else -> call.resolve(JSObject().put("lat", r.lat).put("lng", r.lng).put("accuracyM", r.accuracyM).put("ageS", r.ageS))
+                }
             }
         }
+        val finish = { stop(false) }
         timeout = Runnable { finish() }
         // Toutes les méthodes écrites : abstraites jusqu'à Android 10 (AbstractMethodError sinon).
         listener = object : LocationListener {
@@ -97,16 +110,19 @@ class LocationPlugin : Plugin() {
             override fun onProviderEnabled(provider: String) {}
             override fun onProviderDisabled(provider: String) {}
         }
+        stopCurrent = { stop(true) }
         var requested = 0
         for (p in providers) {
             try { lm.requestLocationUpdates(p, 1000L, 0f, listener, Looper.getMainLooper()); requested++ } catch (e: Exception) { }
         }
-        if (requested == 0) { running = false; over = true; return call.reject("Position indisponible.", "unavailable") }
+        if (requested == 0) { running = false; over = true; stopCurrent = null; return call.reject("Position indisponible.", "unavailable") }
         val wanted = call.getLong("timeoutMs") ?: LocationFix.TIMEOUT_MS
         handler.postDelayed(timeout, wanted.coerceIn(1_000L, LocationFix.TIMEOUT_MS))
     }
 
+    // Activité détruite pendant un relevé : GPS rendu (jamais d'écoute laissée en place).
     override fun handleOnDestroy() {
+        stopCurrent?.invoke()
         handler.removeCallbacksAndMessages(null)
         running = false
     }

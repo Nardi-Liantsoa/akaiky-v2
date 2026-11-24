@@ -68,6 +68,7 @@ async function openChild(page: Page, scenario: Scenario, opts: { school?: boolea
           case 'AkaikyDevice.getInfo': return { deviceOwner: true, model: 'test', osVersion: '14', appVersion: '1.0.0' }
           case 'AkaikySos.state': return { active: false }
           case 'AkaikyLocation.currentPosition': return { lat: -18.9, lng: 47.5, accuracyM: 12, ageS: 1 }
+          case 'AkaikyLocation.cancel': return {}
         }
         if (plugin === 'AkaikyKiosk') return s.kiosk
         return {}
@@ -241,10 +242,12 @@ test('un parent regarde : « Papa regarde où tu es », un relevé unique envoy�
 })
 
 test('personne ne regarde : aucun indicateur, aucun relevé', async ({ page }) => {
+  const asked = page.waitForResponse((r) => r.url().endsWith('/api/device/locate'))
   const positions = await openChild(page, {
     kiosk: { deviceOwner: true, armed: true, locked: true },
     screening: { available: true, held: true }
   })
+  await asked
   await expect(page.locator('.grid .tile')).toHaveCount(4)
   await expect(page.getByText('regarde où tu es')).toHaveCount(0)
   expect(positions).toEqual([])

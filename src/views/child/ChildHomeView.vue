@@ -200,24 +200,37 @@ watch(() => state.value.kind === 'paired', startStatus)
 // serveur toutes les 15 s si un membre regarde ; si un relevé est dû, un relevé unique part
 // (natif, 20 s au plus). Rien en arrière-plan : le réveil push `locate` viendra avec NAR-179.
 // Coque plus ancienne sans le greffon : le relevé est refusé, seul l'indicateur s'affiche.
+const watchers = ref<string[]>([])
+let watchEnd: ReturnType<typeof setTimeout> | undefined
+// Indicateur affiché dès que l'écran sait qu'on regarde (avant le relevé), effacé à la fin de
+// la consultation même sans nouveau tour (hors ligne).
+function showWatching(w: { names: string[], until: number } | null) {
+  clearTimeout(watchEnd)
+  const left = w ? w.until - Date.now() : 0
+  watchers.value = w && left > 0 ? w.names : []
+  if (w && left > 0) watchEnd = setTimeout(() => { watchers.value = [] }, left)
+}
 const locateWatch = createLocateWatch({
   get: (path) => session.get(path),
   post: (path, body) => session.post(path, body),
-  fix: () => AkaikyLocation.currentPosition()
+  fix: () => AkaikyLocation.currentPosition(),
+  cancelFix: () => AkaikyLocation.cancel(),
+  onWatching: showWatching
 })
-const watchers = ref<string[]>([])
 let locateTimer: ReturnType<typeof setInterval> | undefined
-async function readLocate() {
-  if (state.value.kind !== 'paired') return
-  await locateWatch.tick()
-  watchers.value = locateWatch.watchers(Date.now())
+function readLocate() {
+  if (state.value.kind === 'paired') void locateWatch.tick()
 }
-function stopLocate() { clearInterval(locateTimer); locateTimer = undefined }
+function stopLocate() {
+  if (locateTimer === undefined) return
+  clearInterval(locateTimer); locateTimer = undefined
+  locateWatch.stop()
+}
 function startLocate() {
   stopLocate()
-  if (state.value.kind !== 'paired' || !foreground || !Capacitor.isNativePlatform()) { locateWatch.clear(); watchers.value = []; return }
-  void readLocate()
-  locateTimer = setInterval(() => { void readLocate() }, LOCATE_POLL_MS)
+  if (state.value.kind !== 'paired' || !foreground || !Capacitor.isNativePlatform()) { showWatching(null); return }
+  readLocate()
+  locateTimer = setInterval(readLocate, LOCATE_POLL_MS)
 }
 watch(() => state.value.kind === 'paired', startLocate)
 
