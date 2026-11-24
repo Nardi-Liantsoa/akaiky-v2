@@ -215,11 +215,16 @@ Développement : la version debug garde le débogage USB. Pour réinstaller, app
 
 Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une limite tue est une faille.
 
-- **Position à la demande (NAR-203, serveur seul)** : aucune app ne la demande ni n'y répond encore (téléphone : NAR-204,
-  carte : NAR-205 ; réception du réveil push : NAR-179). **Réveil perdu** : un réveil `locate` parti vers FCM mais jamais
+- **Position à la demande (NAR-203, NAR-204)** : le téléphone de l'enfant ne répond qu'au premier plan (écran allumé,
+  app devant : le cas normal du verrou), en relisant la demande toutes les 15 s ; écran éteint, rien ne part tant que le
+  réveil push (NAR-179) n'est pas reçu par l'app. Délai typique : 15 s au plus pour voir la demande, plus le relevé
+  (quelques secondes dehors, jusqu'à 20 s à l'intérieur, alors au plus précis obtenu). À mesurer sur un vrai téléphone,
+  dehors et dedans. Carte du parent : NAR-205. **Réveil perdu** : un réveil `locate` parti vers FCM mais jamais
   reçu par le téléphone (Doze, processus tué) n'est pas renvoyé tant que la demande reste ouverte et sans réponse ; seul un
-  réveil en échec est remplacé. À trancher avec NAR-204 quand le comportement réel du téléphone sera mesurable (l'écran de
-  l'enfant au premier plan peut aussi relire `GET /api/device/locate`). **Plafond** : au-delà de 30 réveils `locate` par heure
+  réveil en échec est remplacé. Décidé avec NAR-204 : écran allumé, l'écran relit `GET /api/device/locate` toutes
+  les 15 s, ce qui couvre un réveil perdu ; écran éteint, le cas reste ouvert jusqu'à NAR-179. Âge du relevé : à la
+  seconde près, sans le trajet réseau (non mesurable par le téléphone) ; l'heure gardée par le serveur peut donc être
+  récente de quelques secondes de trop. Dedans sans GPS : un essai de 20 s, puis repos de trois tours (~60 s par essai). **Plafond** : au-delà de 30 réveils `locate` par heure
   pour un téléphone, la demande répond 200 avec `woken: 0`, sans autre signal ; la page parent (NAR-205) devra le montrer.
   Revue du diff arrêtée au 4e tour sur ces deux points (même famille de défauts trois tours de suite).
 - **Connexion par téléphone (NAR-136, tranches 1 et 2)** : pas encore de fournisseur SMS réel (`SMS_PROVIDER=none` en

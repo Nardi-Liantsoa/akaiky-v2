@@ -382,7 +382,18 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   position relevée. **Précision stockée** : coordonnées au millionième de degré, chiffrées (AES-256-GCM, `positions:lat:<id>` et `positions:lng:<id>`),
   précision du relevé en mètres en clair ; **montrée** : exacte, aux seuls membres de la famille de l'enfant (le métier est de
   retrouver l'enfant) ; jamais dans une URL, un journal, l'audit ou une notification ; aucune route admin ; export
-  `owner`/`manager` (1000 dernières par enfant). Carte et relevé natif : NAR-204, NAR-205. Tests : `server/test/location.test.js`.
+  `owner`/`manager` (1000 dernières par enfant). Carte : NAR-205. Tests : `server/test/location.test.js`.
+- **Position à la demande, téléphone (NAR-204, 24/11/2026)** : au premier plan seulement, l'écran de l'enfant lit
+  `GET /api/device/locate` toutes les 15 s (`src/lib/locateWatch.ts`) ; si un relevé est dû, le greffon `AkaikyLocation`
+  (`LocationPlugin.kt`, règles pures `LocationFix.kt`) prend **un** relevé GPS/réseau/fused pris après l'appel (horloge
+  monotone ; jamais la « dernière position connue »), arrête au premier ≤ 25 m, sinon garde le plus précis à 20 s (jamais un relevé sans
+  précision connue ; après un échec, trois tours sans relevé), puis l'écran l'envoie (`POST /api/device/positions`, âge en
+  secondes entières, sans le trajet réseau). Permission de position accordée d'office en Device Owner. Indicateur
+  « Papa regarde où tu es » (`WatchingBadge.vue`) dès la lecture de la demande, effacé à la fin de la consultation
+  (`watchingForMs` du serveur décompté par un minuteur, jamais l'heure du téléphone). `AkaikyLocation.cancel` rend le GPS
+  au passage en arrière-plan ; la destruction du greffon aussi. Rien en arrière-plan ni écran éteint :
+  le réveil push `locate` arrive avec NAR-179. Aucune position gardée sur le téléphone ni écrite dans les journaux.
+  Nouvelle coque enfant.
 - **Domaine** : inconnu. Provisoire `akaiky.a-definir.invalid` (`.env.example`,
   `NOSYHOST.md`, `server/src/config.js`, `src/api/transport-native.ts`, `docs/MOBILE.md`).
 - **Noms techniques** : image, paquet npm et client NosyHost s'appellent `akaiky-v2` /
