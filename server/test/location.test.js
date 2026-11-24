@@ -281,3 +281,36 @@ test('réveil locate en échec passager : jamais retenté', async () => {
   const { rows } = await ctx.db.query("SELECT status FROM push_outbox WHERE event = 'locate' AND ref = $1", [fy.kid.id])
   assert.deepEqual(rows, [{ status: 'failed' }])
 })
+
+test('GPS lent : une demande prolongée ou une autre demande ne rendent pas le relevé en cours trop vieux', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const member = await join(owner, 'member')
+  const fy = await pairedChild(owner, 'Fy')
+  assert.equal((await locate(owner, fy.kid.id)).statusCode, 200)
+  // La demande date de 70 s ; le parent la prolonge et un autre membre demande aussi.
+  await ctx.db.query("UPDATE location_requests SET created_at = created_at - interval '70 seconds' WHERE child_id = $1", [fy.kid.id])
+  const { rows: [{ created_at: first }] } = await ctx.db.query('SELECT created_at FROM location_requests WHERE child_id = $1', [fy.kid.id])
+  assert.equal((await locate(owner, fy.kid.id)).statusCode, 200)
+  assert.equal((await locate(member, fy.kid.id)).statusCode, 200)
+  const { rows: [{ created_at: kept }] } = await ctx.db.query('SELECT created_at FROM location_requests WHERE child_id = $1 AND user_id = $2', [fy.kid.id, owner.id])
+  assert.equal(kept.getTime(), first.getTime(), 'demande sans réponse : heure gardée')
+  // Relevé commencé il y a 65 s : après la première demande, accepté.
+  assert.equal((await report(fy.device, { ...HERE, ageS: 65 })).statusCode, 200)
+  // Répondue : redemander rouvre un relevé dû.
+  assert.equal((await locate(owner, fy.kid.id)).statusCode, 200)
+  const { rows: [{ created_at: fresh }] } = await ctx.db.query('SELECT created_at FROM location_requests WHERE child_id = $1 AND user_id = $2', [fy.kid.id, owner.id])
+  assert.ok(fresh > first)
+  assert.equal((await pending(fy.device)).json().pending, true)
+})
+
+test('deux téléphones : quand l’un répond, l’autre n’a plus de relevé à faire', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const kid = await child(owner, 'Fy')
+  const one = await pair(owner, kid), two = await pair(owner, kid)
+  assert.equal((await locate(owner, kid.id)).statusCode, 200)
+  assert.equal((await pending(two)).json().pending, true)
+  assert.equal((await report(one, HERE)).statusCode, 200)
+  assert.equal((await pending(two)).json().pending, false)
+})
