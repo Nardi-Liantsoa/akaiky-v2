@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { BundleInfo } from '@capgo/capacitor-updater'
-import capacitorConfig from '../../capacitor.config.ts'
+import capacitorConfig, { apiOrigin, otaUrls, PLACEHOLDER_ORIGIN } from '../../capacitor.config.ts'
+import shared from '../../tests/fixtures/ota-target-cases.json'
 import { akaikyUpdateUrl, CHECK_EVERY_MS, createOtaUpdater, DOWNLOAD_TIMEOUT_MS, dueForCheck, targetFromLatest } from './otaUpdate'
 
 // Frontière simulée : le greffon @capgo/capacitor-updater (et la coque lue par App.getInfo).
@@ -62,6 +63,7 @@ describe('barrière Capgo : aucune requête tant que updateUrl n’est pas le se
     ['Capgo, même chemin', 'https://plugin.capgo.app/api/ota/latest'],
     ['capgo.app nu', 'https://capgo.app/api/ota/latest'],
     ['http distant', 'http://akaiky.example/api/ota/latest'],
+    ['adresse provisoire', 'https://akaiky.a-definir.invalid/api/ota/latest'],
     ['autre chemin', 'https://akaiky.example/updates'],
     ['requête', 'https://akaiky.example/api/ota/latest?x=1'],
     ['identifiants', 'https://u:p@akaiky.example/api/ota/latest'],
@@ -316,5 +318,36 @@ describe('app enfant : seulement au repos (aucun appel, aucun SOS)', () => {
   it('app parent : jamais bloquée par l’état « occupé »', async () => {
     const { ota } = setup({ busy: true })
     expect(await ota.check()).toBe('staged')
+  })
+})
+
+describe('coques : serveur OTA Akaiky (NAR-190)', () => {
+  const updater = capacitorConfig.plugins?.CapacitorUpdater as Record<string, unknown>
+  it('updateUrl et channelUrl : la même origine que l’API du bundle, aux chemins du serveur', () => {
+    const origin = apiOrigin()
+    expect(updater.updateUrl).toBe(`${origin}${shared.server.updatePath}`)
+    expect(updater.channelUrl).toBe(`${origin}${shared.server.channelPath}`)
+    expect(updater.statsUrl).toBe('')
+  })
+  it('le JavaScript ne peut ni changer ni garder une autre adresse, ni viser une autre app', () => {
+    expect(updater).toMatchObject({ allowModifyUrl: false, persistModifyUrl: false, allowPreview: false, allowHttpsToHttpRedirect: false })
+    expect(updater).not.toHaveProperty('localApi')
+  })
+  it('origine : variable d’environnement, puis fichiers .env dans l’ordre de Vite (production), sinon l’adresse provisoire', () => {
+    const files: Record<string, string> = { '.env.local': 'https://local.example', '.env': 'https://base.example' }
+    const read = (f: string) => files[f]
+    expect(apiOrigin({ VITE_API_ORIGIN: 'https://env.example' }, read)).toBe('https://env.example')
+    expect(apiOrigin({}, read)).toBe('https://local.example')
+    expect(apiOrigin({}, (f) => ({ ...files, '.env.production': 'https://prod.example' })[f])).toBe('https://prod.example')
+    expect(apiOrigin({}, () => undefined)).toBe(PLACEHOLDER_ORIGIN)
+  })
+  it('origine refusée : http distant, chemin, Capgo ; https seulement hors essai local', () => {
+    expect(otaUrls('https://akaiky.example:8443')).toEqual({
+      updateUrl: 'https://akaiky.example:8443/api/ota/latest', channelUrl: 'https://akaiky.example:8443/api/ota/channel', httpsOnly: true
+    })
+    expect(otaUrls('http://127.0.0.1:8099').httpsOnly).toBe(false)
+    for (const bad of ['http://akaiky.example', 'https://akaiky.example/', 'https://akaiky.example/api', 'https://plugin.capgo.app', 'https://capgo.app', 'ftp://x', '']) {
+      expect(() => otaUrls(bad), bad).toThrow()
+    }
   })
 })

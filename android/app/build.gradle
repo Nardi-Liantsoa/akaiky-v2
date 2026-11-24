@@ -93,12 +93,20 @@ android {
 // canal et appId non modifiables depuis le JavaScript, statistiques Capgo coupées (statsUrl
 // vide). Échec du build si l'identité écrite ne correspond pas
 // à la règle de src/lib/appKind.ts (préfixe de l'app enfant), ou si le bloc CapacitorUpdater manque.
+// Serveur OTA (NAR-190) : updateUrl et channelUrl (écrits par `cap sync` depuis capacitor.config.ts)
+// doivent viser la même origine, sur les chemins du serveur Akaiky, jamais Capgo ; release : https
+// et domaine réel (pas l'adresse provisoire .invalid) ; debug : https ou http://127.0.0.1:<port>.
+// L'origine doit être celle de l'API compilée dans le bundle embarqué (« <origine>/api » présent
+// dans ses scripts) : un `cap sync` et un `vite build` faits avec deux origines échouent ici. Le
+// JavaScript ne peut ni les changer ni en garder d'autres (allowModifyUrl, persistModifyUrl,
+// allowPreview forcés à false, localApi retiré).
 // Vérifié par OtaIdentityTest.kt contre tests/fixtures/ota-target-cases.json.
 abstract class OtaIdentityTask extends DefaultTask {
     @InputDirectory abstract DirectoryProperty getInputAssets()
     @OutputDirectory abstract DirectoryProperty getOutputAssets()
     @Input abstract Property<String> getAppId()
     @Input abstract Property<String> getChannel()
+    @Input abstract Property<Boolean> getRelease()
     // Opérations sur fichiers injectées (pas de Task.project à l'exécution : cache de configuration).
     @javax.inject.Inject abstract FileSystemOperations getFs()
 
@@ -122,7 +130,38 @@ abstract class OtaIdentityTask extends DefaultTask {
         updater.allowSetDefaultChannel = false
         updater.allowModifyAppId = false
         updater.statsUrl = ''
+        def origin = otaOrigin(updater, release.get())
+        def bundle = new File(out, 'public/assets')
+        def scripts = bundle.isDirectory() ? bundle.listFiles().findAll { it.name.endsWith('.js') } : []
+        def api = "${origin}/api".toString()
+        if (!scripts.any { it.text.contains(api) }) {
+            throw new GradleException("Le bundle embarqué n'appelle pas l'API ${origin} du serveur OTA : refaire `npm run build` puis `npx cap sync android` avec le même VITE_API_ORIGIN")
+        }
+        updater.allowModifyUrl = false
+        updater.persistModifyUrl = false
+        updater.allowPreview = false
+        updater.allowHttpsToHttpRedirect = false
+        updater.httpsOnly = origin.startsWith('https://')
+        updater.remove('localApi')
+        updater.remove('localApiFiles')
         file.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(config))
+    }
+
+    // Origine commune de updateUrl et channelUrl, sinon échec du build.
+    static String otaOrigin(Map updater, boolean release) {
+        def update = updater.updateUrl, channel = updater.channelUrl
+        if (!(update instanceof String) || !(channel instanceof String)) {
+            throw new GradleException("updateUrl ou channelUrl absent de CapacitorUpdater : le greffon viserait Capgo Cloud (capacitor.config.ts, npx cap sync android)")
+        }
+        def m = (update =~ /^(https:\/\/[a-z0-9.-]+(?::\d+)?|http:\/\/127\.0\.0\.1:\d+)\/api\/ota\/latest$/)
+        if (!m.matches()) throw new GradleException("updateUrl inattendue : ${update} (https://<hôte>/api/ota/latest)")
+        String origin = m.group(1)
+        if (channel != "${origin}/api/ota/channel".toString()) throw new GradleException("channelUrl ${channel} : attendue ${origin}/api/ota/channel")
+        def host = new URI(origin).host.toLowerCase()
+        if (host == 'capgo.app' || host.endsWith('.capgo.app')) throw new GradleException("Le serveur OTA ne peut pas être Capgo Cloud")
+        if (release && !origin.startsWith('https://')) throw new GradleException("Build release : serveur OTA en https seulement (${origin})")
+        if (release && host.endsWith('.invalid')) throw new GradleException("Build release avec l'adresse provisoire ${origin} : fixer VITE_API_ORIGIN (domaine de production) avant `npm run build` et `npx cap sync`")
+        return origin
     }
 }
 
@@ -140,6 +179,7 @@ androidComponents {
         def task = project.tasks.register("otaIdentity${name}", OtaIdentityTask) {
             appId.set(variant.applicationId)
             channel.set(variant.flavorName)
+            release.set(variant.buildType != 'debug')
         }
         variant.artifacts.use(task)
             .wiredWithDirectories({ it.inputAssets }, { it.outputAssets })
