@@ -407,9 +407,9 @@ chaque démarrage.
 
 **Serveur OTA des coques (NAR-190)** : `capacitor.config.ts` calcule `updateUrl` =
 `<origine>/api/ota/latest` et `channelUrl` = `<origine>/api/ota/channel` depuis l'origine de l'API
-compilée dans le bundle (`VITE_API_ORIGIN` : variable d'environnement, puis `.env.production.local`,
-`.env.production`, `.env.local`, `.env`, comme Vite en production ; sinon l'adresse provisoire
-`https://akaiky.a-definir.invalid`). Capgo Cloud n'est jamais utilisé (données de mineurs) :
+compilée dans le bundle (`VITE_API_ORIGIN`, lu par `loadEnv` de Vite en mode production : variable
+d'environnement, puis `.env.production.local`, `.env.production`, `.env.local`, `.env` ; sinon
+l'adresse provisoire `https://akaiky.a-definir.invalid`), mise sous forme canonique (minuscules). Capgo Cloud n'est jamais utilisé (données de mineurs) :
 `statsUrl` vide, et le JavaScript ne peut ni changer ces adresses (`allowModifyUrl: false`), ni en
 garder d'autres (`persistModifyUrl: false`), ni viser une autre app (`allowPreview: false`) ; https
 obligatoire (`httpsOnly`), jamais de redirection vers http.

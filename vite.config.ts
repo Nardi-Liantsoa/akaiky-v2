@@ -2,7 +2,7 @@
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import legacy from '@vitejs/plugin-legacy'
-import capacitorConfig, { PLACEHOLDER_ORIGIN } from './capacitor.config.ts'
+import capacitorConfig, { normalizeOrigin, PLACEHOLDER_ORIGIN } from './capacitor.config.ts'
 
 // En développement, /api est relayé vers l'API locale (`npm run dev:api`, port 8787).
 const API = process.env.VITE_API_PROXY || 'http://127.0.0.1:8787'
@@ -47,7 +47,7 @@ export default defineConfig(({ command, mode }) => {
   // Serveur OTA des coques (NAR-190) : capacitor.config.ts relit la même origine que le bundle.
   // Un mode qui lirait un autre fichier (.env.staging…) donnerait deux adresses : refusé.
   const otaUpdateUrl = capacitorConfig.plugins?.CapacitorUpdater?.updateUrl ?? ''
-  if (command === 'build' && !otaUpdateUrl.startsWith(`${origin || PLACEHOLDER_ORIGIN}/api/`)) {
+  if (command === 'build' && !otaUpdateUrl.startsWith(`${normalizeOrigin(origin || PLACEHOLDER_ORIGIN)}/api/`)) {
     throw new Error(`Serveur OTA des coques (${otaUpdateUrl}) et API du bundle (${origin || PLACEHOLDER_ORIGIN}) diffèrent : passer VITE_API_ORIGIN en variable d'environnement`)
   }
 

@@ -333,20 +333,19 @@ describe('coques : serveur OTA Akaiky (NAR-190)', () => {
     expect(updater).toMatchObject({ allowModifyUrl: false, persistModifyUrl: false, allowPreview: false, allowHttpsToHttpRedirect: false })
     expect(updater).not.toHaveProperty('localApi')
   })
-  it('origine : variable d’environnement, puis fichiers .env dans l’ordre de Vite (production), sinon l’adresse provisoire', () => {
-    const files: Record<string, string> = { '.env.local': 'https://local.example', '.env': 'https://base.example' }
-    const read = (f: string) => files[f]
-    expect(apiOrigin({ VITE_API_ORIGIN: 'https://env.example' }, read)).toBe('https://env.example')
-    expect(apiOrigin({}, read)).toBe('https://local.example')
-    expect(apiOrigin({}, (f) => ({ ...files, '.env.production': 'https://prod.example' })[f])).toBe('https://prod.example')
-    expect(apiOrigin({}, () => undefined)).toBe(PLACEHOLDER_ORIGIN)
+  it('origine : celle que lit Vite (VITE_API_ORIGIN), sinon l’adresse provisoire', () => {
+    expect(apiOrigin({ VITE_API_ORIGIN: 'https://env.example' })).toBe('https://env.example')
+    expect(apiOrigin({})).toBe(PLACEHOLDER_ORIGIN)
   })
-  it('origine refusée : http distant, chemin, Capgo ; https seulement hors essai local', () => {
+  it('origine canonique ; http accepté au chargement (le build Android tranche) ; chemin, identifiants ou Capgo refusés', () => {
     expect(otaUrls('https://akaiky.example:8443')).toEqual({
       updateUrl: 'https://akaiky.example:8443/api/ota/latest', channelUrl: 'https://akaiky.example:8443/api/ota/channel', httpsOnly: true
     })
-    expect(otaUrls('http://127.0.0.1:8099').httpsOnly).toBe(false)
-    for (const bad of ['http://akaiky.example', 'https://akaiky.example/', 'https://akaiky.example/api', 'https://plugin.capgo.app', 'https://capgo.app', 'ftp://x', '']) {
+    expect(otaUrls('HTTPS://Akaiky.Example').updateUrl).toBe('https://akaiky.example/api/ota/latest')
+    expect(otaUrls('HTTPS://Akaiky.Example').httpsOnly).toBe(true)
+    expect(otaUrls('http://192.168.1.20:8787').httpsOnly).toBe(false)
+    for (const bad of ['https://akaiky.example/', 'https://akaiky.example/api', 'https://u:p@akaiky.example', 'https://akaiky.example?x=1',
+      'https://plugin.capgo.app', 'https://capgo.app', 'ftp://x', '', 'akaiky.example']) {
       expect(() => otaUrls(bad), bad).toThrow()
     }
   })

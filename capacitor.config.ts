@@ -1,40 +1,37 @@
 import type { CapacitorConfig } from '@capacitor/cli'
-import { existsSync, readFileSync } from 'node:fs'
+import { loadEnv } from 'vite'
 
 // Origine de l'API, donc du serveur OTA (NAR-190) : la même que celle compilée dans le bundle
-// (src/api/base.ts, VITE_API_ORIGIN), lue comme Vite la lit pour un build de production :
-// variable d'environnement, puis .env.production.local, .env.production, .env.local, .env ; à
-// défaut l'adresse provisoire, tant que le domaine n'est pas choisi. `cap sync` et `vite build`
-// sont deux processus : chacun relit ces mêmes sources, et le build Android vérifie qu'ils
-// concordent (android/app/build.gradle, OtaIdentityTask : l'origine doit figurer dans le bundle).
+// (src/api/base.ts, VITE_API_ORIGIN), lue par Vite comme pour un build de production (variable
+// d'environnement, puis .env.production.local, .env.production, .env.local, .env) ; à défaut
+// l'adresse provisoire, tant que le domaine n'est pas choisi. `cap sync` et `vite build` sont deux
+// processus : chacun relit ces mêmes sources, et le build Android vérifie qu'ils concordent
+// (android/app/build.gradle, OtaIdentityTask : l'origine doit figurer dans le bundle embarqué).
 export const PLACEHOLDER_ORIGIN = 'https://akaiky.a-definir.invalid'
-const ENV_FILES = ['.env.production.local', '.env.production', '.env.local', '.env']
-function fromEnvFile(file: string): string | undefined {
-  if (!existsSync(file)) return undefined
-  const line = readFileSync(file, 'utf8').split(/\r?\n/).find((l) => /^\s*VITE_API_ORIGIN\s*=/.test(l))
-  const value = line?.slice(line.indexOf('=') + 1).trim().replace(/^(['"])(.*)\1$/, '$2')
-  return value || undefined
+export function apiOrigin(env: Record<string, string | undefined> = loadEnv('production', process.cwd(), 'VITE_')): string {
+  return env.VITE_API_ORIGIN || PLACEHOLDER_ORIGIN
 }
-export function apiOrigin(env: Record<string, string | undefined> = process.env, read = fromEnvFile): string {
-  if (env.VITE_API_ORIGIN) return env.VITE_API_ORIGIN
-  for (const file of ENV_FILES) {
-    const value = read(file)
-    if (value) return value
+// Origine canonique (minuscules, sans port par défaut) : la forme que vérifient vite.config.ts et
+// le build Android. Refusée : autre chose qu'une origine http(s) sans chemin, ou Capgo Cloud.
+export function normalizeOrigin(raw: string): string {
+  let u: URL
+  try { u = new URL(raw) } catch { throw new Error(`Origine de l'API invalide : ${raw}`) }
+  if ((u.protocol !== 'https:' && u.protocol !== 'http:') || u.username || u.password || u.search || u.hash
+    || u.origin !== raw.replace(/\/$/, '').toLowerCase().replace(/:443$|:80$/, '') || raw.endsWith('/')) {
+    throw new Error(`Origine de l'API invalide : ${raw} (https://<hôte>, sans chemin)`)
   }
-  return PLACEHOLDER_ORIGIN
+  const host = u.hostname
+  if (host === 'capgo.app' || host.endsWith('.capgo.app')) throw new Error('Le serveur OTA ne peut pas être Capgo Cloud')
+  return u.origin
 }
-// Adresses du serveur OTA (server/src/routes/ota.js) : https, ou une API locale en http
-// (127.0.0.1, localhost, 10.0.2.2 : `npm run dev` relit ce fichier). Le build Android décide de ce
-// qu'une coque peut embarquer : release, https seulement ; debug, https ou http://127.0.0.1:<port>
-// (essai local par adb reverse).
+// Adresses du serveur OTA (server/src/routes/ota.js). Le chargement de ce fichier (aussi par
+// `npm run dev` et les tests) accepte une API locale en http ; le build Android décide de ce qu'une
+// coque peut embarquer : release, https et jamais l'adresse provisoire ; debug, https ou
+// http://127.0.0.1:<port> (seul hôte en clair de la coque debug, essai par adb reverse).
 export const OTA_UPDATE_PATH = '/api/ota/latest'
 export const OTA_CHANNEL_PATH = '/api/ota/channel'
-export function otaUrls(origin: string) {
-  if (!/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(origin) && !/^http:\/\/(127\.0\.0\.1|localhost|10\.0\.2\.2)(:\d+)?$/.test(origin)) {
-    throw new Error(`Origine du serveur OTA invalide : ${origin} (https://<hôte>, ou http://127.0.0.1:<port> en essai local)`)
-  }
-  const host = new URL(origin).hostname.toLowerCase()
-  if (host === 'capgo.app' || host.endsWith('.capgo.app')) throw new Error('Le serveur OTA ne peut pas être Capgo Cloud')
+export function otaUrls(raw: string) {
+  const origin = normalizeOrigin(raw)
   return { updateUrl: `${origin}${OTA_UPDATE_PATH}`, channelUrl: `${origin}${OTA_CHANNEL_PATH}`, httpsOnly: origin.startsWith('https://') }
 }
 const ota = otaUrls(apiOrigin())
