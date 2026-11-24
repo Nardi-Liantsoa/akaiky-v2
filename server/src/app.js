@@ -22,6 +22,7 @@ import { devicePushRoutes, pushRoutes } from './routes/push.js'
 import { childStatusRoutes, deviceStatusRoutes } from './routes/device-status.js'
 import { appsRoutes, deviceAppsRoutes } from './routes/apps.js'
 import otaRoutes from './routes/ota.js'
+import { deviceLocationRoutes, locationRoutes } from './routes/location.js'
 
 // Politique de contenu : tout vient de la même origine, aucun script en ligne,
 // aucun tiers (polices hébergées sur place).
@@ -378,6 +379,8 @@ export async function buildApp({ config, db, mailer, sms, logger = true, dbReady
   await app.register(deviceStatusRoutes, { prefix: '/api/device' })
   await app.register(appsRoutes, { prefix: '/api' })
   await app.register(deviceAppsRoutes, { prefix: '/api/device' })
+  await app.register(locationRoutes, { prefix: '/api' })
+  await app.register(deviceLocationRoutes, { prefix: '/api/device' })
   await app.register(otaRoutes, { prefix: '/api/ota' })
 
   // APK de l'app enfant (NAR-165) : lu une fois au démarrage, servi tel quel, sans

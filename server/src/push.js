@@ -285,7 +285,8 @@ export function notifyFamily(conn, familyId, event, ref = null, { exceptUserId =
     [familyId, exceptUserId], event, ref)
 }
 
-// Téléphone de l'enfant (non révoqué). Réveil silencieux `config` : prêt, pas encore branché.
+// Téléphone de l'enfant (non révoqué). Réveils silencieux : `config` (prêt, pas encore branché),
+// `locate` (demande de position, NAR-203) ; reçus par l'app avec NAR-179.
 export function notifyDevice(conn, deviceId, event, ref = null) {
   return enqueue(conn,
     `SELECT t.id, 'device:' || t.device_id AS owner FROM push_tokens t

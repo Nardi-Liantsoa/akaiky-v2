@@ -199,6 +199,13 @@ test('PostgreSQL : parcours restreint, élévation et DDL refusés', async () =>
     await assert.rejects(pool.query('DELETE FROM device_alerts'), /permission denied/)
     await assert.rejects(pool.query('UPDATE device_alerts SET kind = kind'), /permission denied/)
     await assert.rejects(pool.query('UPDATE device_alerts SET opened_at = now()'), /permission denied/)
+    // Positions (030_positions.sql) : ajout et lecture seuls ; demandes jamais déplacées.
+    await assert.rejects(pool.query('UPDATE positions SET accuracy_m = 1'), /permission denied/)
+    await assert.rejects(pool.query('UPDATE positions SET lat_enc = lat_enc'), /permission denied/)
+    await assert.rejects(pool.query('DELETE FROM positions'), /permission denied/)
+    await assert.rejects(pool.query('UPDATE location_requests SET user_id = user_id'), /permission denied/)
+    await assert.rejects(pool.query('UPDATE location_requests SET child_id = child_id'), /permission denied/)
+    await assert.rejects(pool.query('DELETE FROM location_requests'), /permission denied/)
     // Jeton « signal de vie » du natif (021_heartbeat_tokens.sql) : émis, remplacé, utilisé sans origine.
     const hbToken = async () => (await native(app, 'POST', '/api/device/heartbeat-token', { token: renewedPhone.json().accessToken, body: {} })).json().token
     const oldHb = await hbToken(), hb = await hbToken()

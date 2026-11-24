@@ -143,3 +143,24 @@ test('tâche planifiée : lancée au démarrage, arrêtée proprement ; un éche
   const down = { connect: async () => { throw new Error('pool épuisé') } }
   assert.equal(await runRetention(down, { info() {}, error: (o) => errors.push(o) }), null)
 })
+
+test('positions reçues depuis plus de 30 jours et demandes de position échues : purgées ; le reste gardé (C20)', async () => {
+  const { ids, owner } = await pairedChild()
+  const position = async (days) => {
+    const { rows: [r] } = await ctx.db.query(
+      `INSERT INTO positions(family_id, child_id, device_id, lat_enc, lng_enc, accuracy_m, source, recorded_at, received_at)
+       VALUES ($1, $2, $3, '\\x00', '\\x00', 10, 'on_demand', $4, $4) RETURNING id`, [ids.family_id, ids.child_id, ids.id, daysAgo(days)])
+    return r.id
+  }
+  const old = await position(31), kept = await position(29)
+  const request = async (userId, days) => (await ctx.db.query(
+    `INSERT INTO location_requests(family_id, child_id, user_id, created_at, watch_until)
+     VALUES ($1, $2, $3, $4, $4::timestamptz + interval '2 minutes') ON CONFLICT (child_id, user_id) DO UPDATE SET created_at = EXCLUDED.created_at, watch_until = EXCLUDED.watch_until
+     RETURNING id`, [ids.family_id, ids.child_id, userId, daysAgo(days)])).rows[0].id
+  const oldRequest = await request(owner.id, 2)
+  const result = await runRetention(ctx.db, silent)
+  assert.ok(result.positions >= 1 && result.locationRequests >= 1, JSON.stringify(result))
+  assert.equal(await exists('positions', old), false)
+  assert.equal(await exists('positions', kept), true)
+  assert.equal(await exists('location_requests', oldRequest), false)
+})

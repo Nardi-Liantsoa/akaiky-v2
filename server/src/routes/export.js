@@ -19,10 +19,13 @@ import { messageTextAad, templateAad } from './messages.js'
 import { scheduleAad } from './schedules.js'
 import { allowedAppAad } from './apps.js'
 import { childPhoneAad } from './children.js'
+import { positionAad } from './location.js'
 
 export const EXPORTS_PER_HOUR = 5
 export const JOURNAL_CAP = 5000
 export const MESSAGES_CAP = 2000
+// Positions (NAR-203) : 30 jours au plus en base (purge), relevés à la demande seulement.
+export const POSITIONS_CAP = 1000
 const childAad = (id) => `children:first_name:${id}`
 
 // Regroupe des lignes par enfant, en gardant l'ordre de la requête.
@@ -101,6 +104,11 @@ export async function exportRoutes(app) {
          SELECT e.*, row_number() OVER (PARTITION BY child_id ORDER BY created_at DESC, id DESC) AS n
            FROM device_events e WHERE family_id = $1) x
         WHERE n <= $2 ORDER BY child_id, n`, [familyId, JOURNAL_CAP + 1]))
+    const positions = byChild(await q(
+      `SELECT id, child_id, lat_enc, lng_enc, accuracy_m, source, recorded_at, received_at FROM (
+         SELECT p.*, row_number() OVER (PARTITION BY child_id ORDER BY received_at DESC, id DESC) AS n
+           FROM positions p WHERE family_id = $1) x
+        WHERE n <= $2 ORDER BY child_id, n`, [familyId, POSITIONS_CAP + 1]))
     // Lectures des messages exportés : nom du contact lié s'il existe, sinon nom du compte.
     const messageIds = [...messages.values()].flatMap((rows) => rows.slice(0, MESSAGES_CAP).map((m) => m.id))
     const readers = new Map()
@@ -172,7 +180,16 @@ export async function exportRoutes(app) {
           source: r.unlock_source ?? null,
           ...(r.emergency_window ? { emergencyWindow: true } : {})
         })),
-        journalTruncated: evts.length > JOURNAL_CAP
+        journalTruncated: evts.length > JOURNAL_CAP,
+        positions: (positions.get(c.id) ?? []).slice(0, POSITIONS_CAP).map((r) => {
+          const lat = open(r.lat_enc, positionAad(r.id, 'lat'), 'positions', r.id)
+          const lng = open(r.lng_enc, positionAad(r.id, 'lng'), 'positions', r.id)
+          return {
+            lat: lat === null ? null : Number(lat), lng: lng === null ? null : Number(lng),
+            accuracyM: r.accuracy_m, source: r.source, recordedAt: r.recorded_at, receivedAt: r.received_at
+          }
+        }),
+        positionsTruncated: (positions.get(c.id) ?? []).length > POSITIONS_CAP
       }
     })
 
