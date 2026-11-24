@@ -109,6 +109,8 @@ onMounted(async () => {
 // Chaque nouvel état (même « appairé » → « appairé » pour un autre enfant) repart de zéro.
 watch(state, async (s) => {
   if (s.kind !== 'paired') {
+    stopLocate()
+    showWatching(null)
     stopDeviceConfig()
     clearTimeout(journalRetry)
     // Pas de levée automatique du verrou (un refus ponctuel du serveur ne doit pas rendre
@@ -126,7 +128,7 @@ watch(state, async (s) => {
   void backgroundStatus.ensure()
   await startDeviceConfig(configSync, s.childId)
   // Nouvel appairage (autre enfant, réappairage) : la position repart de zéro aussi.
-  startLocate()
+  if (!unmounted && state.value === s) startLocate()
   syncJournal()
   void syncApps()
   if (!unmounted && foreground && state.value === s) resume()
@@ -230,11 +232,12 @@ function stopLocate() {
 }
 function startLocate() {
   stopLocate()
-  if (state.value.kind !== 'paired' || !foreground || !Capacitor.isNativePlatform()) { showWatching(null); return }
+  if (unmounted || state.value.kind !== 'paired' || !foreground || !Capacitor.isNativePlatform()) { showWatching(null); return }
   readLocate()
   locateTimer = setInterval(readLocate, LOCATE_POLL_MS)
 }
-watch(() => state.value.kind === 'paired', startLocate)
+// Lancée à chaque appairage (watch(state) ci-dessous) et à chaque reprise, arrêtée en
+// arrière-plan et hors de l'état « appairé » : un seul point de départ par événement.
 
 const contacts = computed(() => [...(deviceConfig.config?.contacts ?? [])].sort((a, b) => a.position - b.position))
 

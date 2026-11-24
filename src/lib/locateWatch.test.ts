@@ -10,9 +10,8 @@ function setup(status: LocateStatus | Error) {
   const fix = vi.fn(async () => FIX)
   const cancelFix = vi.fn(async () => {})
   const seen: (Watching | null)[] = []
-  let now = 0
-  const watch = createLocateWatch({ get, post, fix, cancelFix, onWatching: (w) => seen.push(w), clock: () => now })
-  return { get, post, fix, cancelFix, seen, watch, advance: (ms: number) => { now += ms } }
+  const watch = createLocateWatch({ get, post, fix, cancelFix, onWatching: (w) => seen.push(w) })
+  return { get, post, fix, cancelFix, seen, watch }
 }
 
 describe('position à la demande (téléphone)', () => {
@@ -25,15 +24,6 @@ describe('position à la demande (téléphone)', () => {
     await t.watch.tick()
     expect(t.fix).toHaveBeenCalledTimes(1)
     expect(t.post).toHaveBeenCalledWith('/device/positions', FIX)
-  })
-
-  it('envoi retardé : l’âge du relevé grandit des secondes entières écoulées', async () => {
-    const t = setup({ pending: true, watchers: [{ name: 'Papa' }], watchingUntil: until(120_000), watchingForMs: 120_000 })
-    // Horloge monotone : 1,2 s entre le relevé rendu et l'envoi.
-    let n = 0
-    const watch = createLocateWatch({ get: t.get, post: t.post, fix: t.fix, cancelFix: t.cancelFix, onWatching: () => {}, clock: () => (n += 1200) })
-    await watch.tick()
-    expect(t.post.mock.calls[0][1]).toEqual({ ...FIX, ageS: FIX.ageS + 1 })
   })
 
   it('rien de dû : aucun relevé, mais l’indicateur', async () => {
@@ -107,6 +97,20 @@ describe('position à la demande (téléphone)', () => {
     expect(t.get).toHaveBeenCalledTimes(2)
     releaseSecond()
     await Promise.all([second, third])
+  })
+
+  it('relevé abandonné par un arrêt : pas de repos du GPS au tour suivant', async () => {
+    const t = setup({ pending: true, watchers: [{ name: 'Papa' }], watchingUntil: until(120_000), watchingForMs: 120_000 })
+    let reject!: (e: unknown) => void
+    t.fix.mockImplementationOnce(() => new Promise((_, r) => { reject = r }))
+    const run = t.watch.tick()
+    await vi.waitFor(() => expect(t.fix).toHaveBeenCalled())
+    t.watch.stop()
+    reject(Object.assign(new Error('cancelled'), { code: 'cancelled' }))
+    await run
+    await t.watch.tick()
+    expect(t.fix).toHaveBeenCalledTimes(2)
+    expect(t.post).toHaveBeenCalledTimes(1)
   })
 
   it('réponse mal formée : ni relevé ni indicateur', async () => {

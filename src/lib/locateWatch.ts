@@ -15,7 +15,7 @@ export interface Watching { names: string[], forMs: number }
 // (relevé de 20 s au plus toutes les ~60 s au lieu de toutes les 15 s).
 export const FIX_BACKOFF_TICKS = 3
 
-export function createLocateWatch({ get, post, fix, cancelFix, onWatching, clock = () => performance.now() }: {
+export function createLocateWatch({ get, post, fix, cancelFix, onWatching }: {
   get(path: string): Promise<LocateStatus>
   post(path: string, body: Fix): Promise<unknown>
   fix(): Promise<Fix>
@@ -23,8 +23,6 @@ export function createLocateWatch({ get, post, fix, cancelFix, onWatching, clock
   cancelFix(): Promise<unknown>
   // Qui regarde, dès la lecture de l'état (avant le relevé) : l'enfant le voit tout de suite.
   onWatching(w: Watching | null): void
-  // Horloge monotone de l'écran (ms), pour vieillir le relevé jusqu'à son envoi.
-  clock?: () => number
 }) {
   let running: Promise<void> | null = null
   // Chaque arrêt change de génération : un tour commencé avant ne publie ni n'envoie plus rien.
@@ -42,13 +40,17 @@ export function createLocateWatch({ get, post, fix, cancelFix, onWatching, clock
     if (status.pending !== true) { resting = 0; return }
     if (resting > 0) { resting--; return }
     let reading: Fix
-    try { reading = await fix() } catch { resting = FIX_BACKOFF_TICKS; return }
-    const takenAt = clock()
+    try { reading = await fix() } catch (e) {
+      // Repos du GPS seulement après un vrai échec de relevé de ce tour-ci : un relevé
+      // abandonné par un arrêt (`cancelled`) ou déjà en cours (`busy`) n'en est pas un.
+      const code = (e as { code?: string } | null)?.code
+      if (gen === generation && code !== 'cancelled' && code !== 'busy') resting = FIX_BACKOFF_TICKS
+      return
+    }
     if (gen !== generation) return
-    // Secondes entières écoulées avant l'envoi ajoutées à l'âge (même arrondi que le natif,
-    // à la seconde inférieure). Le trajet réseau, lui, n'est pas mesurable d'ici : l'heure
-    // du relevé gardée par le serveur peut être récente de quelques secondes de trop.
-    const body = { ...reading, ageS: reading.ageS + Math.floor(Math.max(0, clock() - takenAt) / 1000) }
+    // Âge mesuré par le natif (secondes entières). Le trajet réseau n'est pas mesurable d'ici :
+    // l'heure du relevé gardée par le serveur peut être récente de quelques secondes de trop.
+    const body = reading
     // Refus du serveur (consultation finie, relevé dépassé ou trop vieux, limite) : rien à
     // refaire ici, le tour suivant relit l'état.
     await post('/device/positions', body).catch(() => {})

@@ -32,6 +32,8 @@ class LocationPlugin : Plugin() {
     private var running = false
     /** Relevé en cours : arrêté (GPS rendu, appel refusé) par `cancel` et à la destruction du greffon. */
     private var stopCurrent: (() -> Unit)? = null
+    /** Greffon détruit : un appel arrivé après est refusé, jamais laissé sans réponse. */
+    private var destroyed = false
 
     /** Relevé en cours abandonné (écran passé en arrière-plan, session perdue) : GPS rendu tout de suite. */
     @PluginMethod
@@ -63,8 +65,10 @@ class LocationPlugin : Plugin() {
     private fun sample(l: Location) = LocationFix.Sample(l.elapsedRealtimeNanos, l.latitude, l.longitude, if (l.hasAccuracy()) l.accuracy else null)
 
     private fun start(call: PluginCall) {
+        if (destroyed) return call.reject("Relevé abandonné.", "cancelled")
         if (running) return call.reject("Relevé déjà en cours.", "busy")
-        if (!granted(Manifest.permission.ACCESS_FINE_LOCATION)) grant()
+        if (!granted(Manifest.permission.ACCESS_FINE_LOCATION) || !granted(Manifest.permission.ACCESS_COARSE_LOCATION)) grant()
+        if (!granted(Manifest.permission.ACCESS_FINE_LOCATION)) Logger.warn("AkaikyLocation", "Position précise non accordée : réseau seulement")
         if (!granted(Manifest.permission.ACCESS_FINE_LOCATION) && !granted(Manifest.permission.ACCESS_COARSE_LOCATION)) {
             return call.reject("Position non autorisée.", "denied")
         }
@@ -120,10 +124,10 @@ class LocationPlugin : Plugin() {
         handler.postDelayed(timeout, wanted.coerceIn(1_000L, LocationFix.TIMEOUT_MS))
     }
 
-    // Activité détruite pendant un relevé : GPS rendu (jamais d'écoute laissée en place).
+    // Activité détruite pendant un relevé : GPS rendu (jamais d'écoute laissée en place). Les
+    // appels déjà en file passent encore par start(), qui les refuse : aucun laissé sans réponse.
     override fun handleOnDestroy() {
-        stopCurrent?.invoke()
-        handler.removeCallbacksAndMessages(null)
-        running = false
+        destroyed = true
+        handler.post { stopCurrent?.invoke() }
     }
 }
