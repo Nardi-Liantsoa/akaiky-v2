@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import TabBar from '../../components/parent/TabBar.vue'
 import { auth } from '../../store/auth'
@@ -7,6 +7,7 @@ import { family } from '../../store/family'
 
 const route = useRoute()
 const router = useRouter()
+const showTabs = computed(() => family.status === 'ready' || family.status === 'error')
 // Famille disparue en cours de route (rechargement → no_family, membre retiré) :
 // retour à l'accueil, qui présente la création, plutôt qu'un écran vide sans onglets.
 watch(() => family.status, (status) => {
@@ -20,12 +21,12 @@ watch(() => auth.user, (user) => {
 </script>
 
 <template>
-  <main class="shell">
+  <main class="shell" :class="{ 'with-tabs': showTabs }">
     <RouterView />
   </main>
   <!-- Onglets seulement quand la famille est connue (ou injoignable) : jamais pendant
        la création ni pendant le premier chargement. -->
-  <TabBar v-if="family.status === 'ready' || family.status === 'error'" />
+  <TabBar v-if="showTabs" />
 </template>
 
 <style scoped>
@@ -35,5 +36,14 @@ watch(() => auth.user, (user) => {
     calc(var(--gutter) + var(--safe-left));
   max-width: 720px;
   margin: 0 auto;
+}
+/* Ordinateur (NAR-208) : les onglets sont un rail à gauche. La colonne est centrée dans
+   la place restante, et le bas n'a plus de barre à éviter. */
+@media (min-width: 1024px) {
+  .shell.with-tabs {
+    padding-bottom: 24px;
+    margin-left: calc(var(--rail-width) + var(--safe-left) + max(0px, (100% - var(--rail-width) - var(--safe-left) - 720px) / 2));
+    margin-right: auto;
+  }
 }
 </style>
