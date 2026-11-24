@@ -71,7 +71,7 @@ test('gestionnaire : numéro saisi, refusé s’il est invalide, puis « Appeler
 
   // Rouvert : le numéro enregistré est affiché ; renommer sans y toucher ne le renvoie pas.
   await page.goto(`/espace/enfant/${fy.id}`)
-  await expect(field).toHaveValue('+261341234567')
+  await expect(field).toHaveValue('+261 34 12 345 67')
   await page.getByLabel('Prénom').fill('Fy')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page).toHaveURL(/\/espace$/)

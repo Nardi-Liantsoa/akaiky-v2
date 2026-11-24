@@ -1,20 +1,21 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { addContact, removeContact, updateContact, type ContactInput } from '../../api/contacts'
 import { ApiError } from '../../api/http'
 import LoadError from '../../components/family/LoadError.vue'
-import ChildAvatar from '../../components/parent/ChildAvatar.vue'
+import ColorPicker from '../../components/parent/ColorPicker.vue'
 import { useConfirm } from '../../composables/useConfirm'
 import { useT } from '../../composables/useT'
-import { AVATAR_COLORS, type AvatarColor } from '../../lib/avatar'
+import type { AvatarColor } from '../../lib/avatar'
 import { contactErrorText } from '../../lib/contactErrors'
 import { backTo } from '../../lib/navigation'
-import { isE164 } from '../../lib/phone'
+import { formatPhone, isE164, samePhone } from '../../lib/phone'
 import { children, loadChildren, selectChild } from '../../store/children'
 import { contacts, loadContacts } from '../../store/contacts'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
+import BackLink from '../../components/ui/BackLink.vue'
 import ConfirmSheet from '../../components/ui/ConfirmSheet.vue'
 import FormField from '../../components/ui/FormField.vue'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
@@ -55,14 +56,15 @@ let filledFor: string | null = null
 // lu dans l'adresse et vérifié (E.164 seulement) ; le serveur le valide de toute façon.
 const prefilled = () => {
   const q = route.query.phone
-  return !id.value && isE164(q) ? q : ''
+  return !id.value && isE164(q) ? formatPhone(q) : ''
 }
 watch([childId, id], () => { filledFor = null; name.value = ''; phone.value = prefilled(); color.value = null; memberUserId.value = null; confirming.close(); error.value = '' }, { immediate: true })
 watch(existing, (c) => {
   if (c && c.id !== filledFor) {
     filledFor = c.id
     name.value = c.name
-    phone.value = c.phone
+    // Forme lisible (+261 34 12 345 67), comme dans la liste (NAR-207).
+    phone.value = formatPhone(c.phone)
     color.value = c.avatarColor
     memberUserId.value = c.memberUserId
   }
@@ -70,7 +72,8 @@ watch(existing, (c) => {
 
 // Retour sur la section Contacts de l'enfant de l'adresse, même s'il n'était pas celui
 // affiché (NAR-185) : retour dans l'historique si l'on en vient, sinon elle remplace la fiche.
-const back = () => { selectChild(childId.value); return backTo(router, { name: 'reglages-contacts' }) }
+const pickChild = () => selectChild(childId.value)
+const back = () => { pickChild(); return backTo(router, { name: 'reglages-contacts' }) }
 
 async function save() {
   if (busy.value || !valid.value) return
@@ -85,7 +88,7 @@ async function save() {
   const nameNow = name.value.trim(), phoneNow = phone.value.trim()
   const input: Partial<ContactInput> = {
     ...(changed(nameNow, before?.name) ? { name: nameNow } : {}),
-    ...(changed(phoneNow, before?.phone) ? { phone: phoneNow } : {}),
+    ...(!before || !samePhone(phoneNow, before.phone) ? { phone: phoneNow } : {}),
     ...(before ? (memberUserId.value !== before.memberUserId ? { memberUserId: memberUserId.value } : {}) : (memberUserId.value !== null ? { memberUserId: memberUserId.value } : {})),
     ...(color.value && changed(color.value, before?.avatarColor) ? { avatarColor: color.value } : {})
   }
@@ -126,6 +129,7 @@ async function remove() {
 
 <template>
   <section>
+    <BackLink :to="{ name: 'reglages-contacts' }" :label="t.contacts.back" :aria-label="t.contacts.backLabel" :before="pickChild" />
     <p v-if="child" class="over">{{ t.contacts.phoneOf(child.firstName) }}</p>
     <h1>{{ !id ? t.contacts.addTitle : existing ? t.contacts.editTitle(existing.name) : t.contacts.title }}</h1>
     <LoadError v-if="family.status === 'error'" />
@@ -153,19 +157,9 @@ async function remove() {
             <option v-for="m in family.data?.members ?? []" :key="m.userId" :value="m.userId">{{ m.name }} · {{ t.family.roles[m.role] }}</option>
           </select>
         </FormField>
-        <fieldset class="field colors">
-          <legend>{{ t.contacts.color }}</legend>
-          <label v-for="c in AVATAR_COLORS" :key="c" class="swatch">
-            <input v-model="color" type="radio" name="contact-color" :value="c" :aria-label="t.children.colors[c]" />
-            <!-- Nom encore vide : pastille unie, sans « ? ». -->
-            <ChildAvatar :name="name" :color="c" :size="44" />
-          </label>
-        </fieldset>
+        <ColorPicker v-model="color" name="contact-color" :legend="t.contacts.color" :avatar="name" />
         <div class="actions">
           <AppButton type="submit" :disabled="busy || !valid">{{ t.contacts.save }}</AppButton>
-          <RouterLink v-slot="{ href }" :to="{ name: 'reglages-contacts' }" custom>
-            <a :href="href" class="btn btn-ghost" @click.prevent="back">{{ t.contacts.cancel }}</a>
-          </RouterLink>
         </div>
       </form>
       <div v-if="existing" class="danger-zone">
@@ -182,46 +176,13 @@ async function remove() {
 
 <style scoped>
 .over {
-  margin: 8px 0 0;
+  /* Sous « ‹ Contacts », comme sous « ‹ Réglages » dans les sections de Réglages. */
+  margin: 0 0 var(--space-3);
   color: var(--text-soft);
   font-weight: 700;
 }
 h1 {
   margin: 0 0 20px;
-}
-.colors {
-  border: none;
-  padding: 0;
-  margin: 0 0 20px;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.colors legend {
-  width: 100%;
-  margin-bottom: 8px;
-}
-.swatch {
-  position: relative;
-  display: inline-flex;
-  padding: 3px;
-  border: 3px solid transparent;
-  border-radius: 50%;
-  cursor: pointer;
-}
-.swatch:has(input:checked) {
-  border-color: var(--ink);
-}
-.swatch:has(input:focus-visible) {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
-}
-.swatch input {
-  position: absolute;
-  opacity: 0;
-  inset: 0;
-  margin: 0;
-  cursor: pointer;
 }
 .actions {
   display: flex;

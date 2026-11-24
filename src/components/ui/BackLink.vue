@@ -7,9 +7,10 @@ import AppIcon from './AppIcon.vue'
 // vrai lien (adresse visible, ouverture dans un onglet), mais le clic passe par backTo :
 // retour de l'historique si l'écran précédent est la cible, sinon remplacement.
 // label : texte affiché ; ariaLabel : nom complet lu (« Retour à l'accueil »).
-const props = defineProps<{ to: RouteLocationRaw, label: string, ariaLabel?: string }>()
+// before : appelé juste avant le retour (choisir l'enfant affiché à l'arrivée, NAR-207).
+const props = defineProps<{ to: RouteLocationRaw, label: string, ariaLabel?: string, before?: () => void }>()
 const router = useRouter()
-const back = () => backTo(router, props.to)
+const back = () => { props.before?.(); return backTo(router, props.to) }
 </script>
 
 <template>

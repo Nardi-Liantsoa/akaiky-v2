@@ -159,8 +159,9 @@ function reset(slot: QuickSlot) {
   font-weight: 700;
 }
 .reset {
-  flex: 1 0 100%;
-  /* Aligné sous le champ : icône (48) + écart (12). */
+  /* Ligne à lui, aligné sous le champ : icône (48) + écart (12). La base retire cette
+     marge, sinon le bouton dépasse la carte de 60 px (débordement à 360 px, NAR-207). */
+  flex: 1 0 calc(100% - 60px);
   justify-content: flex-start;
   margin-left: 60px;
   padding: 0;

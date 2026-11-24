@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { ApiError } from '../../api/http'
 import { reorderContacts } from '../../api/contacts'
 import ChildAvatar from '../parent/ChildAvatar.vue'
+import AppIcon from '../ui/AppIcon.vue'
 import SectionCard from '../ui/SectionCard.vue'
 import StatusBlock from '../ui/StatusBlock.vue'
 import { useT } from '../../composables/useT'
@@ -57,16 +58,23 @@ async function move(index: number, delta: number) {
     <ol v-if="shown.length" class="list">
       <li v-for="(c, i) in shown" :key="c.id">
         <span class="rank" aria-hidden="true">{{ c.position }}</span>
-        <ChildAvatar :name="c.name" :color="c.avatarColor" :size="36" />
-        <span class="who">
-          <span class="name">{{ c.name }}</span>
-          <span v-if="c.memberRole" class="role">{{ t.family.roles[c.memberRole] }}</span>
-          <span class="phone" data-selectable>{{ formatPhone(c.phone) }}</span>
-        </span>
+        <!-- Gestionnaire : la ligne du contact ouvre sa fiche (« Modifier Maman ») ; nom, rôle et
+             numéro restent lus, en description. Plus de bouton ✎ : la ligne tient à 360 px (NAR-207). -->
+        <component
+          :is="canManage() ? RouterLink : 'span'" class="contact"
+          v-bind="canManage() ? { to: { name: 'contact', params: { childId, id: c.id } }, 'aria-label': t.contacts.edit(c.name), 'aria-describedby': `${c.memberRole ? `contact-role-${c.id} ` : ''}contact-phone-${c.id}` } : {}"
+        >
+          <ChildAvatar :name="c.name" :color="c.avatarColor" :size="36" />
+          <span class="who">
+            <span class="name">{{ c.name }}</span>
+            <span v-if="c.memberRole" :id="`contact-role-${c.id}`" class="role">{{ t.family.roles[c.memberRole] }}</span>
+            <span :id="`contact-phone-${c.id}`" class="phone" data-selectable>{{ formatPhone(c.phone) }}</span>
+          </span>
+          <AppIcon v-if="canManage()" class="go" name="chevron-right" :size="20" />
+        </component>
         <span v-if="canManage()" class="actions">
           <button class="icon" type="button" :disabled="busy || i === 0" :aria-label="t.contacts.moveUp(c.name)" @click="move(i, -1)">↑</button>
           <button class="icon" type="button" :disabled="busy || i === shown.length - 1" :aria-label="t.contacts.moveDown(c.name)" @click="move(i, 1)">↓</button>
-          <RouterLink class="icon" :to="{ name: 'contact', params: { childId, id: c.id } }" :aria-label="t.contacts.edit(c.name)">✎</RouterLink>
         </span>
       </li>
     </ol>
@@ -96,7 +104,7 @@ async function move(index: number, delta: number) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 12px 0;
   border-bottom: 1px solid var(--border);
 }
@@ -106,9 +114,25 @@ async function move(index: number, delta: number) {
   font-weight: 800;
   text-align: center;
 }
+.contact {
+  display: flex;
+  /* Base 0 : la ligne ne passe à la suivante que si le contact ne tient pas à sa largeur
+     minimale (numéro entier), pas dès que le nom est long. */
+  flex: 1 1 0;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  text-decoration: none;
+}
+.go {
+  flex: none;
+  color: var(--text-soft);
+}
 .who {
   display: flex;
-  flex: 1 0 auto;
+  flex: 1 1 auto;
   flex-direction: column;
 }
 .name {
@@ -129,8 +153,20 @@ async function move(index: number, delta: number) {
   display: flex;
   flex: none;
   gap: 2px;
-  /* Écran étroit : les boutons passent sous le contact, alignés à droite. */
+  /* Place trop juste (police agrandie, 320 px) : les boutons passent sous le contact, à
+     droite, plutôt que le numéro, jamais coupé, ne passe dessous. */
   margin-left: auto;
+}
+/* Téléphone étroit : Monter au-dessus de Descendre, la ligne garde sa largeur pour le
+   nom et le numéro (cibles de 48 px gardées). */
+@media (max-width: 400px) {
+  .actions {
+    flex-direction: column;
+  }
+  /* Ses 28 px vont au numéro entier : la ligne reste un lien (« Modifier Maman »). */
+  .go {
+    display: none;
+  }
 }
 .icon {
   display: inline-flex;
@@ -152,6 +188,7 @@ async function move(index: number, delta: number) {
   cursor: default;
 }
 .icon:focus-visible,
+.contact:focus-visible,
 .add:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;

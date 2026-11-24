@@ -106,7 +106,7 @@ test('sans enfant : Réglages invite à en ajouter un', async ({ page }) => {
   await expect(page.getByRole('navigation', { name: 'Navigation principale' }).getByRole('link', { name: 'Réglages' })).toHaveAttribute('aria-current', 'page')
 })
 
-test('modifier le nom d’un contact lié : le membre lié n’est pas renvoyé', async ({ page }) => {
+test('modifier le nom d’un contact lié : ni le membre lié ni le numéro affiché lisible ne sont renvoyés', async ({ page }) => {
   const linked = { id: cid(1), name: 'Papa', phone: '+261341111111', avatarColor: 'blue', memberUserId: '6f1c2b1e-0000-4000-8000-0000000000aa', memberRole: 'manager' }
   const calls = await mockApi(page, {
     ...common,
@@ -115,6 +115,8 @@ test('modifier le nom d’un contact lié : le membre lié n’est pas renvoyé'
   })
   await page.goto(`/espace/reglages/enfant/${FY.id}/contact/${cid(1)}`)
   await expect(page.getByLabel('Nom affiché')).toHaveValue('Papa')
+  // Numéro sous sa forme lisible, comme dans la liste (NAR-207) ; inchangé, il ne part pas.
+  await expect(page.getByLabel('Numéro de téléphone')).toHaveValue('+261 34 11 111 11')
   await page.getByLabel('Nom affiché').fill('Papa Rakoto')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
@@ -189,13 +191,13 @@ test('changement d’enfant : la carte des contacts reste en place, estompée, j
   await expect(card).toHaveAttribute('aria-busy', 'false')
 })
 
-test('fiche contact : Annuler, Enregistrer et le retour de l’historique mènent à la section Contacts, pas au résumé', async ({ page }) => {
+test('fiche contact : « ‹ Contacts », Enregistrer et le retour de l’historique mènent à la section Contacts, pas au résumé', async ({ page }) => {
   const api = contactsApi([{ id: cid(1), name: 'Maman', phone: '+261341111111', avatarColor: 'orange', memberUserId: null, memberRole: null }])
   await mockApi(page, { ...common, ...api.handlers })
   await openSection(page, 'Contacts autorisés')
-  // Annuler : retour à la section, sans nouvelle entrée dans l'historique.
+  // « ‹ Contacts » (NAR-207, remplace « Annuler ») : retour à la section, sans nouvelle entrée dans l'historique.
   await page.getByRole('link', { name: '+ Ajouter un contact' }).click()
-  await page.getByRole('link', { name: 'Annuler' }).click()
+  await page.getByRole('link', { name: 'Retour aux contacts autorisés' }).click()
   await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
   await expect(page.getByRole('heading', { level: 1, name: 'Contacts autorisés' })).toBeVisible()
   // Retour de l'historique (bouton Android) depuis la fiche : la section aussi.

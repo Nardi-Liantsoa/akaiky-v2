@@ -65,7 +65,7 @@ test('journal : groupé par jour, compteur « Bloqués », filtres, « Autoriser
   await expect(page.getByRole('link', { name: 'Autoriser ce numéro' })).toHaveCount(1)
   await page.getByRole('link', { name: 'Autoriser ce numéro' }).click()
   await expect(page).toHaveURL(new RegExp(`/contact/nouveau\\?phone=%2B261329876543$`))
-  await expect(page.getByLabel('Numéro de téléphone')).toHaveValue('+261329876543')
+  await expect(page.getByLabel('Numéro de téléphone')).toHaveValue('+261 32 98 765 43')
 })
 
 test('journal : un contact (member) ne voit pas « Autoriser »', async ({ page }) => {
