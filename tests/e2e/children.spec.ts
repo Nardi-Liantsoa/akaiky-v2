@@ -42,7 +42,7 @@ test('owner sans enfant : ajouter deux enfants, cartes empilées, sélection gar
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page).toHaveURL(/\/espace$/)
   await expect(cardButton(page, 'Fy')).toBeVisible()
-  await expect(cardButton(page, 'Fy')).toContainText('Téléphone non relié')
+  await expect(cardButton(page, 'Fy')).toContainText('Aucun téléphone')
   // Couleur proposée d'office (NAR-222) mais pas envoyée tant qu'on ne la change pas : la
   // rotation reste celle du serveur, sous son verrou.
   expect(calls.find((r) => r.method() === 'POST' && r.url().endsWith('/api/children'))!.postDataJSON()).toEqual({ firstName: 'Fy', parentalConsent: true })

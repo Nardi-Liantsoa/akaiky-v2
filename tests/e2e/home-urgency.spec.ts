@@ -97,7 +97,7 @@ test('sans téléphone : un gestionnaire relie le téléphone en un toucher, san
   await page.setViewportSize({ width: 360, height: 640 })
   await home(page, [kid(1, 'Andry', false)])
   await page.goto('/espace')
-  await expect(page.getByText('Reliez son téléphone en 3 étapes pour l’appeler et recevoir ses alertes.')).toBeVisible()
+  await expect(page.getByText('Le téléphone de Andry n’est pas encore relié.')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Aujourd’hui' })).toHaveCount(0)
   const pair = page.getByRole('button', { name: 'Relier le téléphone' })
   const box = await pair.boundingBox()
@@ -116,7 +116,7 @@ test('sans téléphone, en malgache : « Ampifandraiso ny finday »', async ({ p
 test('sans téléphone : un contact (member) ne voit que le texte', async ({ page }) => {
   await home(page, [kid(1, 'Andry', false), kid(3, 'Fy')], { [id(3)]: () => ({ body: device(3) }) }, 'member')
   await page.goto('/espace')
-  await expect(page.getByText('Reliez son téléphone en 3 étapes pour l’appeler et recevoir ses alertes.')).toBeVisible()
+  await expect(page.getByText('Le téléphone de Andry n’est pas encore relié.')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Relier le téléphone' })).toHaveCount(0)
 })
 
