@@ -1,14 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { locale, useT } from '../../composables/useT'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { locale } from '../../composables/useT'
 import { formatClock, formatLongDate } from '../../lib/format'
-import type { DeviceStatus } from '../../native/akaikyDevice'
-import AppIcon from '../ui/AppIcon.vue'
 
-// Heure et date en grand, réseau et batterie (maquette écran 1). Valeurs natives
-// relues par le parent de ce composant ; l'heure avance ici, chaque seconde utile.
-const props = defineProps<{ status: DeviceStatus | null }>()
-const t = useT()
+// Heure et date (maquette allégée, NAR-237) : 44 px, alignées à gauche ; ni réseau ni batterie,
+// déjà dans la barre système. L'emplacement par défaut se place à droite (cadenas du code parent).
 const now = ref(new Date())
 // Mise à jour au changement de minute, et dès que l'écran revient au premier plan.
 let tick: ReturnType<typeof setTimeout> | undefined
@@ -21,59 +17,37 @@ const onVisible = () => { if (document.visibilityState === 'visible') schedule()
 onMounted(() => { schedule(); document.addEventListener('visibilitychange', onVisible) })
 onBeforeUnmount(() => { clearTimeout(tick); document.removeEventListener('visibilitychange', onVisible) })
 
-const network = computed(() => {
-  const n = props.status?.network
-  // Sans réseau de données, rien d'affiché : les appels passent quand même par la SIM,
-  // un « Pas de réseau » ferait croire le contraire.
-  return n === 'wifi' ? t.value.child.status.wifi : n === 'cellular' ? t.value.child.status.cellular : ''
-})
 </script>
 
 <template>
   <header class="status">
-    <div class="system" aria-live="off">
-      <span v-if="network" class="network">{{ network }}</span>
-      <span v-if="status?.battery !== undefined" class="battery" :class="{ low: status.battery < 15 }">
-        <AppIcon name="battery" :size="22"><rect x="2" y="2" :width="Math.max(1, (status.battery / 100) * 17)" height="8" rx="1.5" fill="currentColor" stroke="none" /></AppIcon>
-        {{ t.child.status.battery(status.battery) }}
-      </span>
+    <div>
+      <p class="clock">{{ formatClock(now) }}</p>
+      <p class="date">{{ formatLongDate(now, locale) }}</p>
     </div>
-    <p class="clock">{{ formatClock(now) }}</p>
-    <p class="date">{{ formatLongDate(now, locale) }}</p>
+    <slot />
   </header>
 </template>
 
 <style scoped>
 .status {
-  text-align: center;
-}
-.system {
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 12px;
-  font-size: 0.9rem;
-  font-weight: 800;
-  color: var(--text-soft);
-}
-.battery {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.battery.low {
-  color: var(--sos);
 }
 .clock {
-  margin: 8px 0 0;
-  font-size: 4.2rem;
+  margin: 0;
+  font-size: 2.75rem;
   font-weight: 900;
   line-height: 1;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 .date {
   margin: 4px 0 0;
-  font-size: 1.15rem;
-  font-weight: 800;
+  font-size: 0.95rem;
+  font-weight: 700;
   color: var(--text-soft);
 }
 </style>

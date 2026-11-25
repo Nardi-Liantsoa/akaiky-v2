@@ -48,6 +48,8 @@ export const ICONS = {
   // Information (indication du journal, NAR-235).
   info: { shapes: [circle(12, 12, 9), path('M12 11v5M12 8h.01')] },
   // Ordre des contacts (maquette 05, NAR-232).
+  // Cadenas fermé : code parent de l'accueil enfant (NAR-237).
+  lock: { shapes: [rect({ x: 4, y: 11, width: 16, height: 10, rx: 2 }), path('M8 11V7a4 4 0 0 1 8 0v4')] },
   'chevron-up': { shapes: [path('M6 15l6-6 6 6')] },
   'chevron-down': { shapes: [path('M6 9l6 6 6-6')] },
   // Sélecteur de jour du journal (NAR-233).

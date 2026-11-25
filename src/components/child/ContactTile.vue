@@ -4,8 +4,8 @@ import { useT } from '../../composables/useT'
 import { accentToken, initial, tintToken } from '../../lib/avatar'
 import AppIcon from '../ui/AppIcon.vue'
 
-// Vignette d'un contact autorisé : un appui appelle (maquette écran 1). Tout est
-// porté par l'image (initiale, couleur, pastille verte) : l'enfant de 6 ans ne lit pas.
+// Vignette d'un contact autorisé : un appui appelle (maquette allégée, NAR-237). Une seule
+// action, dite sous le nom (« Appeler » et son icône) ; l'initiale et la couleur portent le reste.
 const props = defineProps<{ name: string, color: string, busy?: boolean }>()
 defineEmits<{ call: [] }>()
 const t = useT()
@@ -17,22 +17,19 @@ const badge = computed(() => ({ background: accentToken(props.color) }))
   <button class="tile" type="button" :style="style" :disabled="busy" :aria-label="t.child.callContact(name)" @click="$emit('call')">
     <span class="avatar" :style="badge" aria-hidden="true">{{ initial(name) }}</span>
     <span class="name">{{ name }}</span>
-    <span class="dial" aria-hidden="true">
-      <AppIcon name="call" :size="22" />
-    </span>
+    <span class="call" aria-hidden="true"><AppIcon name="call" :size="16" />{{ t.child.callAction }}</span>
   </button>
 </template>
 
 <style scoped>
 .tile {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   min-height: 140px;
-  padding: 16px 8px;
+  padding: 18px 10px 14px;
   border: none;
   border-radius: 24px;
   color: var(--ink);
@@ -50,29 +47,24 @@ const badge = computed(() => ({ background: accentToken(props.color) }))
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 72px;
-  height: 72px;
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
   color: var(--on-color);
-  font-size: 2.2rem;
+  font-size: 1.9rem;
   font-weight: 900;
 }
 .name {
-  font-size: 1.25rem;
-  font-weight: 900;
+  font-size: 1.2rem;
+  font-weight: 800;
   overflow-wrap: anywhere;
 }
-.dial {
-  position: absolute;
-  top: 12px;
-  right: 12px;
+.call {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--call);
-  color: var(--on-color);
+  gap: 5px;
+  color: var(--call);
+  font-size: 0.85rem;
+  font-weight: 800;
 }
 </style>

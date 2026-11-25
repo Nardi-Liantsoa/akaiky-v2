@@ -481,10 +481,12 @@ const fr = {
     offlineHint: 'Vérifiez le Wi-Fi ou le réseau, puis réessayez.',
     retry: 'Réessayer',
     callContact: (name: string) => `Appeler ${name}`,
+    // Mention sous le nom d’une vignette de contact (NAR-237).
+    callAction: 'Appeler',
     noContacts: 'Aucun contact pour l’instant.',
     noContactsHint: 'Un parent va les ajouter depuis son application.',
     sosLabel: 'SOS : appuie 3 secondes pour appeler',
-    sosHint: 'Appuie 3 secondes',
+    sosHint: 'Garde le doigt 3 secondes',
     emergency: (n: string) => `Secours · ${n}`,
     callFailed: 'L’appel n’a pas pu partir.',
     // SOS hors ligne (NAR-151). SMS : apostrophe droite et « ~ » (alphabet GSM 7 bits,
@@ -525,7 +527,6 @@ const fr = {
       noParents: 'Le SOS reste là si tu as besoin d’aide.'
     },
     quick: {
-      open: 'Messages',
       title: 'Dire à mes parents',
       texts: ['Je suis arrivé', 'Viens me chercher', 'Je suis en retard', 'Tout va bien'],
       sent: (text: string) => `« ${text} » envoyé`,
@@ -1233,10 +1234,11 @@ const mg: Messages = {
     offlineHint: 'Jereo ny Wi-Fi na ny tambajotra, dia andramo indray.',
     retry: 'Andramo indray',
     callContact: (name: string) => `Antsoy i ${name}`,
+    callAction: 'Antsoy',
     noContacts: 'Mbola tsy misy olona azo antsoina.',
     noContactsHint: 'Ray aman-dreny iray no hanampy azy avy amin’ny rindranasany.',
     sosLabel: 'SOS : tsindrio 3 segondra hiantsoana',
-    sosHint: 'Tsindrio 3 segondra',
+    sosHint: 'Tsindrio ela 3 segondra',
     emergency: (n: string) => `Vonjy maika · ${n}`,
     callFailed: 'Tsy lasa ny antso.',
     sos: {
@@ -1274,7 +1276,6 @@ const mg: Messages = {
       noParents: 'Eo foana ny SOS raha mila fanampiana ianao.'
     },
     quick: {
-      open: 'Hafatra',
       title: 'Hilaza amin’ny ray aman-dreniko',
       texts: ['Tonga aho', 'Avia haka ahy', 'Tara aho', 'Tsara ny zava-drehetra'],
       sent: (text: string) => `Lasa ny « ${text} »`,
@@ -1963,10 +1964,11 @@ const en: Messages = {
     offlineHint: 'Check the Wi-Fi or network, then try again.',
     retry: 'Try again',
     callContact: (name: string) => `Call ${name}`,
+    callAction: 'Call',
     noContacts: 'No contacts yet.',
     noContactsHint: 'A parent will add them from their app.',
     sosLabel: 'SOS: hold 3 seconds to call',
-    sosHint: 'Hold for 3 seconds',
+    sosHint: 'Keep your finger down for 3 seconds',
     emergency: (n: string) => `Emergency · ${n}`,
     callFailed: 'The call couldn’t go through.',
     sos: {
@@ -2004,7 +2006,6 @@ const en: Messages = {
       noParents: 'SOS is still here if you need help.'
     },
     quick: {
-      open: 'Messages',
       title: 'Tell my parents',
       texts: ['I have arrived', 'Come and pick me up', 'I am running late', 'All is well'],
       sent: (text: string) => `“${text}” sent`,
