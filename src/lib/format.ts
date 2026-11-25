@@ -1,6 +1,8 @@
-import type { Locale } from '../i18n/messages'
+import type { Locale, Messages } from '../i18n/messages'
 
-// Dates à l'heure de Madagascar. Les noms de mois malgaches sont écrits ici :
+// Seul module de formatage des dates, heures et durées de l'app (NAR-212) : aucun autre
+// fichier n'appelle Intl ni toLocale* pour afficher une date (vérifié par format.test.ts).
+// Dates à l'heure de Madagascar. Les noms de mois et de jours malgaches sont écrits ici :
 // Intl ne les fournit pas partout (WebView anciennes, iOS).
 export const TZ = 'Indian/Antananarivo'
 const MG_MONTHS = ['Janoary', 'Febroary', 'Martsa', 'Aprily', 'Mey', 'Jona', 'Jolay', 'Aogositra', 'Septambra', 'Oktobra', 'Novambra', 'Desambra']
@@ -38,13 +40,42 @@ export function formatLongDate(date: Date, locale: Locale): string {
   return new Intl.DateTimeFormat(locale === 'fr' ? 'fr-FR' : 'en-GB', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(date)
 }
 
-// Date et heure du back-office (NAR-144), à l'heure de Madagascar : « 15 janv. 2026, 13:00 ».
-// Malgache : chiffres seuls (Intl n'a pas les mois malgaches partout).
+// Date et heure (back-office NAR-144, appareils de « Mon compte »), à l'heure de Madagascar :
+// « 15 janv. 2026, 13:00 », « 15 Jan 2026, 13:00 », « 15 Janoary 2026, 13:00 ».
 export function formatDateTime(iso: string, locale: Locale): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
   if (locale === 'mg') {
-    return new Intl.DateTimeFormat('fr-FR', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
+    const parts = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: 'numeric', month: 'numeric', year: 'numeric' }).formatToParts(date)
+    const part = (type: string) => Number(parts.find((p) => p.type === type)?.value)
+    return `${part('day')} ${MG_MONTHS[part('month') - 1]} ${part('year')}, ${formatClock(date)}`
   }
   return new Intl.DateTimeFormat(locale === 'fr' ? 'fr-FR' : 'en-GB', { timeZone: TZ, day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
+}
+
+// Jour (AAAA-MM-JJ) à l'heure de Madagascar, pour regrouper par jour (journal, NAR-152) ;
+// formateur créé une fois : coûteux sur les WebView anciennes.
+const DAY = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
+export const dayKey = (date: Date) => DAY.format(date)
+
+// Durée écoulée en clair (« il y a 2 minutes », « 2 minitra lasa izay »), NAR-147.
+// Français et anglais : Intl.RelativeTimeFormat quand la WebView l'a (Chrome 71+) ;
+// malgache, ou Intl absent : textes de messages.ts (`relative`). Moins d'une minute :
+// « à l'instant » ; une date dans le futur (horloge du téléphone en avance) aussi.
+type Unit = 'minutes' | 'hours' | 'days'
+const INTL_UNIT = { minutes: 'minute', hours: 'hour', days: 'day' } as const
+
+export function relativeTime(iso: string | null, t: Messages, locale: Locale, now: Date = new Date(), intl = globalThis.Intl): string {
+  const at = iso ? Date.parse(iso) : Number.NaN
+  if (Number.isNaN(at)) return ''
+  const minutes = Math.floor((now.getTime() - at) / 60_000)
+  if (minutes < 1) return t.relative.justNow
+  const [unit, n]: [Unit, number] = minutes < 60 ? ['minutes', minutes]
+    : minutes < 24 * 60 ? ['hours', Math.floor(minutes / 60)] : ['days', Math.floor(minutes / (24 * 60))]
+  if (locale !== 'mg' && typeof intl?.RelativeTimeFormat === 'function') {
+    try {
+      return new intl.RelativeTimeFormat(locale === 'fr' ? 'fr-FR' : 'en-GB', { numeric: 'always' }).format(-n, INTL_UNIT[unit])
+    } catch { /* langue refusée : textes ci-dessous */ }
+  }
+  return t.relative[unit](n)
 }
