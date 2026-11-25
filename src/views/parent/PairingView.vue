@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import AppIcon from '../../components/ui/AppIcon.vue'
+import type { IconName } from '../../components/ui/icons'
+import { DESKTOP, useMediaQuery } from '../../composables/useMediaQuery'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import QRCode from 'qrcode'
@@ -72,6 +75,18 @@ async function refreshDevices(quiet = false) {
     forgetIfGone(e)
   }
 }
+
+// Icônes des trois étapes : réinitialiser, toucher l'écran de bienvenue, scanner le QR.
+const STEP_ICONS: readonly IconName[] = ['refresh', 'smartphone', 'qr']
+// Ordinateur (NAR-229) : le QR s'affiche sans clic, une fois par ouverture de la page (un jeton
+// de 15 min ; à l'échéance, « Nouveau QR code » comme sur téléphone).
+const desktop = useMediaQuery(DESKTOP)
+let autoShown = false
+watch(() => [desktop.value, child.value?.id, family.status, children.status] as const, ([wide, id, fs, cs]) => {
+  if (!wide || !id || fs !== 'ready' || cs !== 'ready' || autoShown || qr.value || expiresAt.value) return
+  autoShown = true
+  void show()
+}, { immediate: true })
 
 async function show() {
   if (busy.value) return
@@ -160,10 +175,16 @@ watch(childId, () => {
     <StatusBlock v-else-if="family.status !== 'ready' || children.status !== 'ready'" state="loading" fill />
     <p v-else-if="!child" class="error" role="alert">{{ t.children.notFound }}</p>
     <template v-else>
+      <!-- Étapes en pastilles numérotées avec icône, QR à côté sur ordinateur (NAR-229, design
+           créé sans maquette d'après les cartes de l'accueil). -->
+      <div class="setup">
       <ol class="steps card">
         <li v-for="(s, i) in t.pairing.steps" :key="i">
-          <span class="step">{{ t.pairing.step(i + 1, t.pairing.steps.length) }}</span>
-          <span>{{ s }}</span>
+          <span class="num" aria-hidden="true">{{ i + 1 }}</span>
+          <span class="step-icon" aria-hidden="true"><AppIcon :name="STEP_ICONS[i] ?? 'qr'" :size="22" /></span>
+          <span class="step-text">
+            <span class="visually-hidden">{{ t.pairing.step(i + 1, t.pairing.steps.length) }} : </span>{{ s }}
+          </span>
         </li>
       </ol>
 
@@ -178,8 +199,9 @@ watch(childId, () => {
         </template>
         <p v-else-if="expired" class="help" role="status">{{ t.pairing.expired }}</p>
         <AppButton v-if="!qr" :disabled="busy" @click="show">
-          {{ expiresAt || justPaired ? t.pairing.renew : t.pairing.show }}
+          <AppIcon :name="expiresAt || justPaired ? 'refresh' : 'qr'" :size="20" />{{ expiresAt || justPaired ? t.pairing.renew : t.pairing.show }}
         </AppButton>
+      </div>
       </div>
 
       <p class="warning">{{ t.pairing.warning }}</p>
@@ -189,11 +211,12 @@ watch(childId, () => {
       <p v-else-if="devicesStatus === 'ready' && !devices.length" class="help">{{ t.pairing.none }}</p>
       <ul v-else-if="devicesStatus === 'ready'" class="devices">
         <li v-for="d in devices" :key="d.id" class="card device">
-          <div>
+          <span class="step-icon" aria-hidden="true"><AppIcon name="smartphone" :size="22" /></span>
+          <div class="device-text">
             <strong>{{ d.model || t.pairing.unknownModel }}</strong>
             <span class="meta">{{ t.pairing.since(formatDay(d.createdAt, locale)) }}</span>
           </div>
-          <AppButton variant="ghost" :disabled="busy" @click="confirming.ask(d, $event)">{{ t.pairing.revoke }}</AppButton>
+          <AppButton variant="ghost" :disabled="busy" @click="confirming.ask(d, $event)"><AppIcon name="cross" :size="18" />{{ t.pairing.revoke }}</AppButton>
         </li>
       </ul>
       <ConfirmSheet
@@ -221,14 +244,44 @@ h2 {
 }
 .steps li {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: var(--space-3);
 }
-.step {
-  font-size: 0.78rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-mute);
+.num {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 900;
+}
+.step-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: var(--ink);
+}
+.step-text {
+  font-weight: 700;
+}
+/* Ordinateur : étapes à gauche, QR à droite. */
+@media (min-width: 1024px) {
+  .setup {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+    align-items: start;
+    gap: var(--space-5);
+  }
+  .setup .steps {
+    margin: 0;
+  }
 }
 .qr-card {
   display: flex;
@@ -272,6 +325,9 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+.device-text {
+  flex: 1;
 }
 .device div {
   display: flex;
