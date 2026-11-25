@@ -151,6 +151,10 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   sorties du verrou `--tint-butter`), nombre puis libellé ; nombre de bloqués en rouge dès 1 ;
   tuile active : bord `--accent`, fond `--accent-soft`, coche dans la pastille `--accent`. « Aujourd'hui » défile dans sa
   carte (440 px ou la moitié de l'écran au plus ; au bout, le défilement passe à la page) ; numéro d'un appel bloqué jamais coupé (heure en haut à droite de la ligne).
+  Sélecteur de jour (NAR-233) sous le titre : ‹ · [calendrier] jour affiché · ›, pastilles de 48 px
+  bordées comme le sélecteur d'enfant ; « Aujourd'hui », « Hier », sinon la date en toutes lettres ;
+  le bouton du milieu ouvre le calendrier natif ; 90 jours au plus, jamais demain (› grisé). Une
+  seule carte par jour affiché, sans titre de jour (le sélecteur le dit) ; « Rien ce jour-là. »
   Sélecteur d'enfant (dès deux enfants) à droite du titre, sur la même ligne (position de la
   maquette 05 ; les onglets avatars de la maquette viendront avec Réglages, NAR-232). Réglages au
   téléphone : même place, à droite du titre ou du retour « ‹ Réglages » dans une section.

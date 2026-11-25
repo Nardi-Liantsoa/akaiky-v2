@@ -1,6 +1,8 @@
 // Journal de l'enfant (NAR-152) : appels sortants, reçus et bloqués, déverrouillages
 // (device_events) et messages rapides (quick_messages), du plus récent au plus ancien.
-//   GET /children/:id/journal?kind=all|calls|blocked|messages|unlocks&before=<curseur>&limit=&counts=1
+//   GET /children/:id/journal?kind=all|calls|blocked|messages|unlocks&before=<curseur>&limit=&counts=1&day=AAAA-MM-JJ
+// day (NAR-233) : un seul jour, à l'heure de Madagascar, comme les nombres du jour ; sans lui,
+// tous les jours (accueil) et nombres d'aujourd'hui.
 // Tous les membres de la famille ; jamais l'admin de la plateforme (pas membre). Pages
 // par curseur (date, identifiant) : ni doublon ni trou si de nouveaux événements arrivent
 // pendant la lecture. Numéros et noms déchiffrés ici seulement, champ par champ.
@@ -19,6 +21,13 @@ const KINDS = {
   unlocks: { events: ['unlock'], messages: false }
 }
 const childNotFound = () => new HttpError(404, 'Enfant introuvable.', 'child_not_found')
+// Jour « AAAA-MM-JJ » qui existe vraiment (pas de 2026-02-30 ramené au 2 mars), année 2000 à 2999
+// (l'an 0 ferait échouer PostgreSQL : 400, jamais 500).
+export function parseDay(raw) {
+  if (typeof raw !== 'string' || !/^2\d{3}-\d{2}-\d{2}$/.test(raw)) return null
+  const d = new Date(`${raw}T00:00:00Z`)
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === raw ? raw : null
+}
 
 export async function journalRoutes(app) {
   const { db, config } = app
@@ -30,6 +39,12 @@ export async function journalRoutes(app) {
     if (!child) throw childNotFound()
 
     const kind = KINDS[typeof req.query.kind === 'string' && KINDS[req.query.kind] ? req.query.kind : 'all']
+    // Jour demandé : validé avant toute lecture ; mal formé → 400 (jamais « tous les jours »).
+    let day = null
+    if (req.query.day !== undefined) {
+      day = parseDay(req.query.day)
+      if (!day) throw new HttpError(400, 'Jour invalide.', 'invalid_day')
+    }
     const limit = Math.min(50, Math.max(1, Number.parseInt(String(req.query.limit ?? '30'), 10) || 30))
     // Curseur « date_identifiant » du dernier élément de la page précédente.
     let cursor = [null, null]
@@ -53,8 +68,10 @@ export async function journalRoutes(app) {
            FROM quick_messages WHERE child_id = $1 AND family_id = $2 AND $4
        ) j
        WHERE ($5::timestamptz IS NULL OR (at, id) < ($5, $6::uuid))
+         AND ($8::date IS NULL OR (at >= ($8::date::timestamp AT TIME ZONE 'Indian/Antananarivo')
+                                AND at < (($8::date + 1)::timestamp AT TIME ZONE 'Indian/Antananarivo')))
        ORDER BY at DESC, id DESC LIMIT $7`,
-      [child.id, own.familyId, kind.events, kind.messages, cursor[0], cursor[1], limit + 1])
+      [child.id, own.familyId, kind.events, kind.messages, cursor[0], cursor[1], limit + 1, day])
     const page = rows.slice(0, limit)
     const readers = await readersOf(db, config, own.familyId, child.id, page.filter((r) => r.source === 'message').map((r) => r.id))
 
@@ -82,11 +99,13 @@ export async function journalRoutes(app) {
     if (cursor[0] || req.query.counts !== '1') return { items, next }
     // Nombres du jour (tuiles de synthèse, NAR-175) : jour de Madagascar, borné des deux
     // côtés (un téléphone en avance ne compte jamais demain dans aujourd'hui). Seulement sur
-    // demande et en première page : ils ne dépendent ni du filtre ni de la page.
+    // demande et en première page : ils ne dépendent ni du filtre ni de la page. Jour choisi
+    // (day, NAR-233) : ses nombres, rendus sous la même clé « today ».
     const { rows: [c] } = await db.query(
-      `WITH day AS (
-         SELECT date_trunc('day', now() AT TIME ZONE 'Indian/Antananarivo') AT TIME ZONE 'Indian/Antananarivo' AS start,
-                (date_trunc('day', now() AT TIME ZONE 'Indian/Antananarivo') + interval '1 day') AT TIME ZONE 'Indian/Antananarivo' AS stop)
+      `WITH d AS (SELECT COALESCE($3::date, (now() AT TIME ZONE 'Indian/Antananarivo')::date) AS v),
+       day AS (
+         SELECT d.v::timestamp AT TIME ZONE 'Indian/Antananarivo' AS start,
+                (d.v + 1)::timestamp AT TIME ZONE 'Indian/Antananarivo' AS stop FROM d)
        SELECT
          count(*) FILTER (WHERE e.kind IN ('call_out', 'call_in'))::int AS calls,
          count(*) FILTER (WHERE e.kind = 'call_blocked')::int AS blocked,
@@ -94,7 +113,7 @@ export async function journalRoutes(app) {
          (SELECT count(*)::int FROM quick_messages q, day WHERE q.child_id = $1 AND q.family_id = $2 AND q.created_at >= day.start AND q.created_at < day.stop) AS messages
        FROM day LEFT JOIN device_events e
          ON e.child_id = $1 AND e.family_id = $2 AND e.started_at >= day.start AND e.started_at < day.stop`,
-      [child.id, own.familyId])
+      [child.id, own.familyId, day])
     return { items, next, today: { calls: c.calls, blocked: c.blocked, messages: c.messages, unlocks: c.unlocks } }
   })
 }

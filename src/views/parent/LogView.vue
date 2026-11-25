@@ -1,22 +1,23 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getJournal, JOURNAL_FILTERS, type JournalFilter, type JournalItem, type JournalToday } from '../../api/journal'
 import { markShownAsRead } from '../../api/messages'
 import LoadError from '../../components/family/LoadError.vue'
 import LogSummary from '../../components/log/LogSummary.vue'
 import LogItem from '../../components/log/LogItem.vue'
+import DayPicker from '../../components/log/DayPicker.vue'
 import ChildSwitcher from '../../components/parent/ChildSwitcher.vue'
 import { locale, useT } from '../../composables/useT'
-import { formatLongDate } from '../../lib/format'
-import { groupByDay } from '../../lib/groupByDay'
+import { dayKey, formatLongDate } from '../../lib/format'
+import { dayName } from '../../lib/journalDay'
 import { children, loadChildren, selectedChild } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
 
 // Journal de l'enfant (NAR-152, maquette écran 9) : appels, appels bloqués, déverrouillages
-// et messages, groupés par jour, filtrables, par pages. Messages affichés = vus.
+// et messages d'un jour choisi (NAR-233), filtrables, par pages. Messages affichés = vus.
 const t = useT()
 const current = computed(selectedChild)
 // Filtre ouvert depuis l'accueil (« Message » de la carte, NAR-227) : ?kind=messages, lu une
@@ -37,6 +38,26 @@ async function takeQueryFilter() {
 }
 onMounted(takeQueryFilter)
 watch(() => route.query.kind, (k) => { if (k !== undefined) void takeQueryFilter() })
+// Jour affiché (NAR-233). null = aujourd'hui, décidé par le serveur (son horloge, jamais celle du
+// téléphone) : rien n'est envoyé. Un autre jour est envoyé en « AAAA-MM-JJ ». todayKey (horloge
+// du téléphone) ne sert qu'aux bornes et aux noms ; relu chaque minute et au retour sur l'écran :
+// passé minuit, « aujourd'hui » suit tout seul.
+const todayKey = ref(dayKey(new Date()))
+const refreshToday = () => { todayKey.value = dayKey(new Date()) }
+const tick = setInterval(refreshToday, 60_000)
+document.addEventListener('visibilitychange', refreshToday)
+onBeforeUnmount(() => { clearInterval(tick); document.removeEventListener('visibilitychange', refreshToday) })
+const day = ref<string | null>(null)
+const isToday = computed(() => day.value === null)
+const shownDay = computed({
+  get: () => day.value ?? todayKey.value,
+  set: (key: string) => { day.value = key === todayKey.value ? null : key }
+})
+// Minuit passé : un jour choisi qui devient aujourd'hui repasse à null ; aujourd'hui est relu.
+watch(todayKey, (key, old) => {
+  if (day.value === key) day.value = null
+  else if (day.value === null && key !== old) void load()
+})
 const items = ref<JournalItem[]>([])
 const next = ref<string | null>(null)
 // Nombres du jour (tuiles) ; null pendant le chargement d'un autre enfant.
@@ -66,7 +87,7 @@ async function load() {
   try {
     // Nombres du jour relus à chaque chargement (une seule requête légère) : les tuiles
     // restent d'accord avec la liste, y compris après minuit.
-    const page = await getJournal(childId, { kind: filter.value, counts: true })
+    const page = await getJournal(childId, { kind: filter.value, counts: true, day: day.value ?? undefined })
     if (mine !== generation) return
     items.value = page.items
     next.value = page.next
@@ -77,7 +98,7 @@ async function load() {
     if (await markShownAsRead(page.items) && mine === generation) {
       // « Vu par » relu : chaque élément déjà affiché est mis à jour par identifiant, la
       // liste et le curseur ne bougent pas (rien de perdu, rien de doublé).
-      const fresh = await getJournal(childId, { kind: filter.value }).catch(() => null)
+      const fresh = await getJournal(childId, { kind: filter.value, day: day.value ?? undefined }).catch(() => null)
       if (fresh && mine === generation) {
         const byId = new Map(fresh.items.map((i) => [i.id, i]))
         items.value = items.value.map((i) => byId.get(i.id) ?? i)
@@ -92,7 +113,9 @@ async function load() {
 // Autre enfant : la liste précédente reste affichée, estompée et inactive, jusqu'à la
 // nouvelle (pas de clignement) ; nombres du jour et curseur repartent de zéro.
 watch(() => current.value?.id, () => { next.value = null; today.value = null; loadingMore.value = false; refreshing.value = true })
-watch(() => [current.value?.id, filter.value] as const, () => { void load() }, { immediate: true })
+// Autre jour : même règle que le filtre (liste gardée estompée, curseur oublié).
+watch(day, () => { next.value = null; loadingMore.value = false })
+watch(() => [current.value?.id, filter.value, day.value] as const, () => { void load() }, { immediate: true })
 
 async function more() {
   const childId = current.value?.id
@@ -101,7 +124,7 @@ async function more() {
   const mine = generation
   loadingMore.value = true
   try {
-    const page = await getJournal(childId, { kind: filter.value, before: next.value })
+    const page = await getJournal(childId, { kind: filter.value, before: next.value, day: day.value ?? undefined })
     if (mine !== generation) return
     items.value = [...items.value, ...page.items]
     next.value = page.next
@@ -113,9 +136,8 @@ async function more() {
   }
 }
 
-const groups = computed(() => groupByDay(items.value, (i) => i.at))
-const dayLabel = (g: { when: string, date: Date }) =>
-  g.when === 'today' ? t.value.parent.log.today : g.when === 'yesterday' ? t.value.parent.log.yesterday : formatLongDate(g.date, locale.value)
+// Nom du jour pour la liste (lecteurs d'écran) : le même que celui du sélecteur.
+const listLabel = computed(() => dayName(shownDay.value, todayKey.value, t.value.parent.log, (d) => formatLongDate(d, locale.value)))
 </script>
 
 <template>
@@ -128,7 +150,8 @@ const dayLabel = (g: { when: string, date: Date }) =>
       <span v-if="listed && current && children.items.length > 1" class="head-switch"><ChildSwitcher /></span>
     </div>
     <template v-if="listed && current">
-      <LogSummary v-model="filter" :today="today" />
+      <DayPicker v-model="shownDay" :today-key="todayKey" />
+      <LogSummary v-model="filter" :today="today" :title="isToday ? t.parent.log.summaryTitle : t.parent.log.summaryTitleDay" />
       <!-- Zone annoncée toujours présente (une zone insérée déjà remplie n'est pas lue) ;
            le bouton est à côté, pas dedans. -->
       <div class="active-filter">
@@ -139,18 +162,14 @@ const dayLabel = (g: { when: string, date: Date }) =>
     <StatusBlock v-if="loading" state="loading" fill />
     <template v-else-if="listed && current">
       <StatusBlock v-if="status === 'error'" state="error" :text="t.parent.log.loadError" @retry="load" />
-      <StatusBlock v-else-if="!items.length" state="empty" card :text="t.parent.log.empty" />
-      <!-- Une carte par jour, sous un titre bien visible (NAR-175). -->
+      <StatusBlock v-else-if="!items.length" state="empty" card :text="isToday && filter === 'all' ? t.parent.log.empty : t.parent.log.emptyDay" />
+      <!-- Un seul jour (NAR-233) : une carte qui défile (NAR-231), nommée pour les lecteurs
+           d'écran ; atteignable au clavier. Clé avec jour, filtre et enfant : un autre contenu
+           repart en haut. -->
       <div v-else class="days" :class="{ refreshing }" :aria-busy="refreshing">
-        <section v-for="g in groups" :key="g.key" class="day">
-          <h2>{{ dayLabel(g) }}</h2>
-          <!-- « Aujourd'hui » défile dans sa carte (demande utilisateur, NAR-231) : la liste du jour
-               ne repousse pas les jours précédents ; zone atteignable au clavier (même courte : un
-               arrêt de plus, assumé). Clé avec filtre et enfant : un autre contenu repart en haut. -->
-          <ul :key="`${g.key}-${filter}-${current.id}`" class="card list" :class="{ bounded: g.when === 'today' }" v-bind="g.when === 'today' ? { tabindex: 0, 'aria-label': dayLabel(g) } : {}">
-            <LogItem v-for="i in g.items" :key="i.id" :item="i" :child-id="current.id" :can-allow="canManage()" />
-          </ul>
-        </section>
+        <ul :key="`${shownDay}-${filter}-${current.id}`" class="card list bounded" tabindex="0" :aria-label="listLabel">
+          <LogItem v-for="i in items" :key="i.id" :item="i" :child-id="current.id" :can-allow="canManage()" />
+        </ul>
         <AppButton v-if="next" variant="ghost" class="more" :disabled="loadingMore || refreshing" @click="more">{{ t.parent.log.more }}</AppButton>
       </div>
     </template>
@@ -187,14 +206,6 @@ h1 {
 }
 .filter-status {
   margin: 0;
-}
-.day + .day {
-  margin-top: 20px;
-}
-.day h2 {
-  margin: 0 0 8px;
-  font-size: 1.25rem;
-  font-weight: 900;
 }
 .list {
   list-style: none;

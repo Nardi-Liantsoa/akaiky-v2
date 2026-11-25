@@ -7,7 +7,8 @@ import type { IconName } from '../ui/icons'
 // Tuiles de synthèse du journal (NAR-175, design A) : nombres du jour, et filtres.
 // Toucher une tuile filtre la liste ; la retoucher revient à « Tout ». Grille 2 × 2 sur
 // téléphone (rien n'est coupé à 320 px), 4 colonnes au-delà.
-const props = defineProps<{ modelValue: JournalFilter, today: JournalToday | null }>()
+// title : « Aujourd'hui en bref » ou « Ce jour en bref » (jour choisi, NAR-233), lu seulement.
+const props = defineProps<{ modelValue: JournalFilter, today: JournalToday | null, title: string }>()
 const emit = defineEmits<{ 'update:modelValue': [JournalFilter] }>()
 const t = useT()
 const TILES = ['calls', 'blocked', 'messages', 'unlocks'] as const
@@ -19,7 +20,7 @@ const toggle = (key: JournalFilter) => emit('update:modelValue', props.modelValu
 <template>
   <section class="summary-block">
     <!-- Les nombres sont ceux du jour ; une tuile touchée filtre tout le journal. -->
-    <h2 id="log-summary-title" class="visually-hidden">{{ t.parent.log.summaryTitle }}</h2>
+    <h2 id="log-summary-title" class="visually-hidden">{{ title }}</h2>
     <p id="log-summary-help" class="visually-hidden">{{ t.parent.log.summary.label }}</p>
     <div class="summary" role="group" aria-labelledby="log-summary-title" aria-describedby="log-summary-help">
       <button
