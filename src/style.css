@@ -57,6 +57,8 @@
   --text-mute: var(--ink-mute);
   --accent: var(--call);
   --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  /* Encre d'un bouton teinté (--accent-soft) : ≥ 4.5:1 sur la teinte posée sur --surface (NAR-227). */
+  --accent-deep: #075a44;
   --accent-ink: var(--on-color);
   --danger: var(--sos);
 

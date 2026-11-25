@@ -128,7 +128,7 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
           <AppIcon name="call" :size="20" />{{ t.children.call }}
         </a>
         <RouterLink
-          v-else-if="canManage() && c.phoneLastSeenAt" class="btn call" :to="{ name: 'enfant', params: { id: c.id } }"
+          v-else-if="canManage() && c.phoneLastSeenAt" class="btn call" :to="{ name: 'enfant', params: { id: c.id }, query: { focus: 'phone' } }"
           :aria-label="t.children.addPhoneToCall(c.firstName)"
         >
           <AppIcon name="call" :size="20" />{{ t.children.call }}
@@ -167,10 +167,10 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
 .actions:empty {
   display: none;
 }
-/* Action secondaire teintée (maquette 01) : fond --accent-soft, encre --accent. */
+/* Action secondaire teintée (maquette 01) : fond --accent-soft, encre --accent-deep (≥ 4.5:1). */
 .btn-soft {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-deep);
 }
 .cards {
   display: flex;

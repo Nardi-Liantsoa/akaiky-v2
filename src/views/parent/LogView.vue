@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import { getJournal, type JournalFilter, type JournalItem, type JournalToday } from '../../api/journal'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { getJournal, JOURNAL_FILTERS, type JournalFilter, type JournalItem, type JournalToday } from '../../api/journal'
 import { markShownAsRead } from '../../api/messages'
 import LoadError from '../../components/family/LoadError.vue'
 import LogSummary from '../../components/log/LogSummary.vue'
@@ -19,13 +19,24 @@ import StatusBlock from '../../components/ui/StatusBlock.vue'
 // et messages, groupés par jour, filtrables, par pages. Messages affichés = vus.
 const t = useT()
 const current = computed(selectedChild)
-// Filtre ouvert depuis l'accueil (« Message » de la carte, NAR-227) : ?kind=messages ; une
-// valeur inconnue est ignorée (entrée non fiable).
-const FILTERS: readonly JournalFilter[] = ['all', 'calls', 'blocked', 'messages', 'unlocks']
+// Filtre ouvert depuis l'accueil (« Message » de la carte, NAR-227) : ?kind=messages, lu une
+// fois puis retiré de l'adresse (le filtre vit ensuite à l'écran seulement : un rechargement ne
+// le rétablit pas). Valeur inconnue ignorée (entrée non fiable). Appliqué après le premier
+// rendu : la zone role=status existe déjà, le filtre est annoncé.
 const route = useRoute()
-const fromQuery = (): JournalFilter => (FILTERS as readonly string[]).includes(String(route.query.kind)) ? route.query.kind as JournalFilter : 'all'
-const filter = ref<JournalFilter>(fromQuery())
-watch(() => route.query.kind, () => { filter.value = fromQuery() })
+const router = useRouter()
+const filter = ref<JournalFilter>('all')
+async function takeQueryFilter() {
+  const raw = Array.isArray(route.query.kind) ? route.query.kind[0] : route.query.kind
+  if (raw === undefined) return
+  const kind = (JOURNAL_FILTERS as readonly string[]).includes(String(raw)) ? String(raw) as JournalFilter : 'all'
+  const { kind: _drop, ...rest } = route.query
+  void router.replace({ query: rest })
+  await nextTick()
+  filter.value = kind
+}
+onMounted(takeQueryFilter)
+watch(() => route.query.kind, (k) => { if (k !== undefined) void takeQueryFilter() })
 const items = ref<JournalItem[]>([])
 const next = ref<string | null>(null)
 // Nombres du jour (tuiles) ; null pendant le chargement d'un autre enfant.

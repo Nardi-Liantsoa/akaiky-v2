@@ -24,15 +24,20 @@ test('Appeler : tel: avec un numéro ; sans numéro, la saisie du numéro ; Mess
   await page.goto('/espace')
   await expect(page.getByRole('link', { name: 'Appeler Fy' })).toHaveAttribute('href', 'tel:+261340000001')
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/accueil-360.png`, fullPage: true })
-  await page.getByRole('link', { name: 'Ajouter le numéro de Tiana pour l’appeler' }).click()
-  await expect(page).toHaveURL(new RegExp(`/espace/enfant/${TIANA.id}$`))
+  await page.getByRole('link', { name: 'Appeler Tiana : ajouter son numéro' }).click()
+  await expect(page).toHaveURL(new RegExp(`/espace/enfant/${TIANA.id}\\?focus=phone$`))
+  await expect(page.getByLabel('Numéro de l’enfant (facultatif)')).toBeFocused()
   await page.goto('/espace')
   // Téléphone pas encore relié : « Relier le téléphone » seul, ni Appeler ni Message (maquette 01).
   await expect(page.getByRole('link', { name: /Noé/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Relier le téléphone' })).toBeVisible()
   await page.getByRole('link', { name: 'Messages de Fy' }).click()
-  await expect(page).toHaveURL(/\/espace\/journal\?kind=messages$/)
+  // Filtre appliqué et annoncé, puis retiré de l'adresse : « Tout afficher » puis un rechargement ne le remet pas.
   await expect(page.getByRole('status').filter({ hasText: 'Messages' })).toBeVisible()
+  await expect(page).toHaveURL(/\/espace\/journal$/)
+  await page.getByRole('button', { name: 'Tout afficher' }).click()
+  await page.reload()
+  await expect(page.getByRole('status').filter({ hasText: 'Messages' })).toHaveCount(0)
 })
 
 test('contact (member) sans numéro : aucun bouton Appeler sans effet', async ({ page }) => {
@@ -40,5 +45,5 @@ test('contact (member) sans numéro : aucun bouton Appeler sans effet', async ({
   await mockApi(page, api(asMember))
   await page.goto('/espace')
   await expect(page.getByRole('link', { name: 'Appeler Fy' })).toBeVisible()
-  await expect(page.getByRole('link', { name: /Tiana pour l’appeler/ })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: /Tiana : ajouter son numéro/ })).toHaveCount(0)
 })
