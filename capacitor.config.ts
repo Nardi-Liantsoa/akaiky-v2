@@ -72,6 +72,11 @@ const config: CapacitorConfig = {
     SystemBars: {
       style: 'LIGHT'
     },
+    // Notifications push (NAR-179) : au premier plan, aucune notification système ; l'app
+    // parent montre sa propre bannière (PushBanner.vue).
+    FirebaseMessaging: {
+      presentationOptions: []
+    },
     // Mises à jour OTA (@capgo/capacitor-updater) pilotées par le code ; un
     // bundle qui n'appelle pas notifyAppReady() à temps est annulé au lancement suivant.
     // Canal par app (NAR-162, docs/MOBILE.md « Mises à jour OTA ») : valeurs de l'app parent

@@ -347,6 +347,25 @@ par `npm audit` (GHSA-w5hq-g745-h8pq, v3/v5/v6 avec tampon ; `xcode` n'appelle
 que `v4`). L'override impose `uuid@11.1.1` ; vérifié : `cap add ios` fonctionne.
 À retirer dès qu'une `@capacitor/cli` corrigée sort (`npm ls uuid`).
 
+## Notifications push : fichiers Firebase (NAR-179)
+
+Les coques se construisent et démarrent sans eux (pas de notification, carte « indisponibles »). Une fois le projet
+Firebase créé **au nom du client** (sur ordre) :
+
+1. Déclarer dans le projet les deux apps Android, `mg.nosytech.akaiky` et `mg.nosytech.akaiky.enfant`, avec l'empreinte
+   SHA-256 de leur keystore, et l'app iOS `mg.nosytech.akaiky`.
+2. Télécharger `google-services.json` (il contient les deux apps Android) dans `android/app/`, et
+   `GoogleService-Info.plist` dans `ios/App/App/` (à ajouter à la cible App dans Xcode). `android/app/build.gradle`
+   n'applique le greffon `google-services` que si le fichier est là.
+3. Déposer la clé APNs `.p8` dans Firebase (Paramètres du projet → Cloud Messaging), et activer la capacité
+   « Push Notifications » de l'identifiant d'app chez Apple (`ios/App/App/App.entitlements` la déclare).
+4. Restreindre la clé API de ces fichiers dans la console Google Cloud (paquets Android et empreinte, bundle iOS).
+5. Serveur : `PUSH_PROVIDER=fcm` et `FCM_SERVICE_ACCOUNT` (compte de service, jamais dans le dépôt), `NOSYHOST.md`.
+6. Vérifier sur un Android et un iPhone réels : Mon compte → Notifications → Activer, puis « Envoyer une notification de
+   test » ; la toucher ouvre l'accueil.
+
+iOS : Firebase iOS SDK 12 exige Xcode 16.3 ou plus.
+
 ## Publier
 
 ```bash
