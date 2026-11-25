@@ -200,7 +200,8 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin: 0;
+  /* Respire entre les tuiles et la liste (demande utilisateur). */
+  margin: var(--space-3) var(--space-1) var(--space-4);
   color: var(--text-soft);
   font-size: var(--fs-small);
   font-weight: 600;
