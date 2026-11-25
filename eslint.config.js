@@ -15,13 +15,20 @@ export default defineConfig(
   // garde l'argument de la fonction, NAR-210).
   { rules: { '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }] } },
   // Aucun texte d'interface en dur dans un template (NAR-210) : tout passe par useT()
-  // dans les trois langues (texte, aria-label, title, placeholder, alt). Restent permis
+  // dans les trois langues (texte, aria-label, title, placeholder, alt, props de texte). Restent permis
   // la ponctuation, les symboles et les chiffres du pavé, et deux noms invariants :
   // la marque « Akaiky » et « SOS », compris tel quel en malgache, français et anglais.
   {
     files: ['src/**/*.vue'],
     rules: {
       'vue/no-bare-strings-in-template': ['error', {
+        // Attributs vérifiés : ceux d'HTML (défaut de la règle) et les props de texte de nos
+        // composants (SectionCard, StatusBlock, BackLink, FormField, ConfirmSheet…). Un texte
+        // dans une liaison (:title="'…'", {{ '…' }}) échappe à la règle : la revue s'en charge.
+        attributes: {
+          '/.+/': ['title', 'aria-label', 'aria-placeholder', 'aria-roledescription', 'aria-valuetext', 'label', 'text', 'help', 'lead', 'legend', 'confirm', 'action', 'placeholder'],
+          img: ['alt']
+        },
         allowlist: [
           '(', ')', ',', '.', '&', '+', '-', '=', '*', '/', '#', '%', '!', '?', ':', ';', '[', ']', '{', '}', '<', '>',
           '·', '•', '‐', '–', '—', '−', '|', '…', '«', '»', '’',
