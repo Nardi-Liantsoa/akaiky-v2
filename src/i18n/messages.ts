@@ -194,7 +194,8 @@ const fr = {
   },
   invite: {
     title: 'Invitation',
-    join: (family: string, role: string) => `Vous êtes invité à rejoindre « ${family} » comme ${role}.`,
+    // Qui invite, dans quelle famille, comme quoi (NAR-230) ; noms vus du seul compte invité.
+    joinBy: (inviter: string, family: string, role: string) => `${inviter} vous invite dans « ${family} » comme ${role}.`,
     accept: 'Rejoindre la famille',
     signedOut: 'Pour accepter, connectez-vous ou créez votre compte avec l’adresse qui a reçu l’invitation. Nouveau compte : après avoir confirmé votre adresse, rouvrez le lien de l’invitation.',
     login: 'Se connecter',
@@ -947,7 +948,7 @@ const mg: Messages = {
   },
   invite: {
     title: 'Fanasana',
-    join: (family: string, role: string) => `Asaina hiditra ao amin’ny « ${family} » ho ${role} ianao.`,
+    joinBy: (inviter: string, family: string, role: string) => `Asain’i ${inviter} hiditra ao amin’ny « ${family} » ho ${role} ianao.`,
     accept: 'Hiditra ao amin’ny fianakaviana',
     signedOut: 'Mba hanekena, midira na mamorona kaonty amin’ny adiresy nahazo ny fanasana. Kaonty vaovao: rehefa voamarina ny adiresinao, sokafy indray ny rohin’ny fanasana.',
     login: 'Hiditra',
@@ -1668,7 +1669,7 @@ const en: Messages = {
   },
   invite: {
     title: 'Invitation',
-    join: (family: string, role: string) => `You are invited to join “${family}” as ${role}.`,
+    joinBy: (inviter: string, family: string, role: string) => `${inviter} invites you to join “${family}” as ${role}.`,
     accept: 'Join the family',
     signedOut: 'To accept, sign in or create your account with the address that received the invitation. New account: once your address is confirmed, open the invitation link again.',
     login: 'Sign in',

@@ -19,19 +19,22 @@ export default async function invitationsRoutes(app) {
   const perUser = createLimiter({ max: 20, windowMs: 15 * 60 * 1000 })
   const limit = (user) => { if (!perUser(user.id)) throw new HttpError(429, 'Trop de tentatives. Réessayez dans quelques minutes.') }
 
-  // Le nom de la famille n'est montré qu'au compte invité.
+  // Le nom de la famille et celui de l'invitant (NAR-230) ne sont montrés qu'au compte invité,
+  // connecté, dont l'adresse est celle de l'invitation, et seulement pour une invitation encore
+  // acceptable : textes libres d'un tiers, jamais dans le courriel ni pour un autre compte.
   app.post('/preview', { schema: { body: TOKEN } }, async (req) => {
     const user = app.requireUser(req)
     limit(user)
     // Mêmes conditions que l'acceptation, invitant toujours gestionnaire compris.
     const { rows: [inv] } = await db.query(
-      `SELECT i.email, i.role, f.name FROM invitations i
+      `SELECT i.email, i.role, f.name, u.name AS inviter FROM invitations i
          JOIN families f ON f.id = i.family_id
+         JOIN users u ON u.id = i.invited_by
          JOIN memberships m ON m.family_id = i.family_id AND m.user_id = i.invited_by AND m.role = ANY($2::text[])
         WHERE i.token_hash = $1 AND i.used_at IS NULL AND i.expires_at > now()`, [tokenHash(req.body.token), MANAGERS])
     if (!inv) throw invalid()
     if (inv.email !== user.email) return { forThisAccount: false }
-    return { forThisAccount: true, familyName: inv.name, role: inv.role }
+    return { forThisAccount: true, familyName: inv.name, role: inv.role, invitedBy: inv.inviter }
   })
 
   app.post('/accept', { schema: { body: TOKEN } }, async (req) => {
