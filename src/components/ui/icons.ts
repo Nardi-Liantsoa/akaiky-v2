@@ -47,6 +47,9 @@ export const ICONS = {
   'chevron-left': { shapes: [path('M15 6l-6 6 6 6')] },
   // Lignes du résumé de Réglages (NAR-185) : applications (grille), SOS (sirène).
   grid: { shapes: [rect({ x: 4, y: 4, width: 6, height: 6, rx: 1.5 }), rect({ x: 14, y: 4, width: 6, height: 6, rx: 1.5 }), rect({ x: 4, y: 14, width: 6, height: 6, rx: 1.5 }), rect({ x: 14, y: 14, width: 6, height: 6, rx: 1.5 })] },
+  // Page d'accueil publique (NAR-225) : choix de la langue, applications bloquées.
+  globe: { shapes: [circle(12, 12, 9), path('M3 12h18'), path('M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18')] },
+  shield: { shapes: [path('M12 3l7 3v5c0 4.5-3 8.5-7 10c-4-1.5-7-5.5-7-10V6z')] },
   siren: { shapes: [path('M7 18v-6a5 5 0 0 1 10 0v6'), path('M5 21h14v-3H5z'), path('M12 2v2M4.2 5.2l1.4 1.4M19.8 5.2l-1.4 1.4')] },
   // État du téléphone sur l'accueil parent (NAR-192) : pastille, bandeaux, tuiles en défaut.
   check: { shapes: [path('M5 12.5l4.5 4.5L19 7')] },

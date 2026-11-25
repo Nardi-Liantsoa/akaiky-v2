@@ -5,8 +5,11 @@ import { auth, isAdmin, logout } from './store/auth'
 import { useT, locale, LOCALE_LIST } from './composables/useT'
 import { currentKind } from './lib/appKind'
 import AppButton from './components/ui/AppButton.vue'
+import AppIcon from './components/ui/AppIcon.vue'
 
 const t = useT()
+// Nom de l'app, le même dans les trois langues.
+const APP_NAME = 'Akaiky'
 const router = useRouter()
 const route = useRoute()
 
@@ -29,17 +32,24 @@ async function onLogout() {
        /auth/me ; jamais dans l'app enfant, pas même pendant la lecture de l'identifiant,
        ni dans la coquille parent (barre d'onglets). -->
   <header v-if="currentKind === 'parent' && !inShell" class="nav">
-    <RouterLink class="brand" :to="{ name: 'accueil' }">Akaiky</RouterLink>
+    <RouterLink class="brand" :to="{ name: 'accueil' }"><span class="logo" aria-hidden="true">{{ APP_NAME[0] }}</span>{{ APP_NAME }}</RouterLink>
     <nav>
       <template v-if="auth.user">
         <RouterLink :to="{ name: 'securite' }">{{ t.nav.security }}</RouterLink>
         <RouterLink v-if="isAdmin()" :to="{ name: 'admin' }">{{ t.nav.admin }}</RouterLink>
         <AppButton variant="link" class="logout" @click="onLogout">{{ t.nav.logout }}</AppButton>
       </template>
-      <RouterLink v-else :to="{ name: 'connexion' }">{{ t.nav.login }}</RouterLink>
-      <select v-model="locale" class="lang" :aria-label="t.lang.label">
-        <option v-for="l in LOCALE_LIST" :key="l" :value="l">{{ t.lang[l] }}</option>
-      </select>
+      <!-- Pas de lien vers la page où l'on est déjà (NAR-225). -->
+      <RouterLink v-else-if="route.name !== 'connexion'" class="btn btn-ghost login" :to="{ name: 'connexion' }">{{ t.nav.login }}</RouterLink>
+      <!-- Langue (NAR-225, maquettes 03 et 04) : pastille globe + code ; le vrai <select>, transparent
+           par-dessus, garde le clavier, le lecteur d'écran et le sélecteur natif du téléphone. -->
+      <label class="lang">
+        <AppIcon name="globe" :size="20" />
+        <span aria-hidden="true">{{ locale.toUpperCase() }}</span>
+        <select v-model="locale" :aria-label="t.lang.label">
+          <option v-for="l in LOCALE_LIST" :key="l" :value="l">{{ t.lang[l] }}</option>
+        </select>
+      </label>
     </nav>
   </header>
 
@@ -57,6 +67,9 @@ async function onLogout() {
   border-bottom: 1px solid var(--border);
 }
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   font-size: 1.25rem;
   font-weight: 900;
   letter-spacing: -0.01em;
@@ -73,12 +86,39 @@ nav {
 .logout {
   margin-block: calc((1.5em - var(--tap)) / 2);
 }
+.logo {
+  display: grid;
+  place-items: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.brand:hover {
+  text-decoration: none;
+}
 .lang {
-  padding: 4px 8px;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--text-soft);
+  font-weight: 800;
+}
+.lang select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.lang:focus-within {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 </style>
