@@ -355,8 +355,9 @@ Firebase créé **au nom du client** (sur ordre) :
 1. Déclarer dans le projet les deux apps Android, `mg.nosytech.akaiky` et `mg.nosytech.akaiky.enfant`, avec l'empreinte
    SHA-256 de leur keystore, et l'app iOS `mg.nosytech.akaiky`.
 2. Télécharger `google-services.json` (il contient les deux apps Android) dans `android/app/`, et
-   `GoogleService-Info.plist` dans `ios/App/App/` (à ajouter à la cible App dans Xcode). `android/app/build.gradle`
-   n'applique le greffon `google-services` que si le fichier est là.
+   `GoogleService-Info.plist` dans `ios/App/App/`, sans l'ajouter au projet Xcode : l'étape de build « Copier
+   GoogleService-Info.plist » le copie dans l'app s'il est là (absent : avertissement en debug, build refusé en release).
+   `android/app/build.gradle` n'applique le greffon `google-services` que si le fichier est là.
 3. Déposer la clé APNs `.p8` dans Firebase (Paramètres du projet → Cloud Messaging), et activer la capacité
    « Push Notifications » de l'identifiant d'app chez Apple (`ios/App/App/App.entitlements` la déclare).
 4. Restreindre la clé API de ces fichiers dans la console Google Cloud (paquets Android et empreinte, bundle iOS).

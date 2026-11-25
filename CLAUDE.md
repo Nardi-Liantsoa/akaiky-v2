@@ -336,7 +336,9 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   réactiver dans les réglages du téléphone, notification de test. Toucher : `src/lib/pushRoute.ts`, liste fermée (`message` →
   journal, état du téléphone et `test` → accueil, tout le reste → accueil, jamais une URL). Premier plan : bannière de
   l'app (`PushBanner.vue`), `presentationOptions: []`. Canal Android `alertes` (importance haute) créé par l'app parent,
-  canal par défaut dans le manifeste. iOS : `App.entitlements` (`aps-environment`), jeton APNs transmis par l'AppDelegate.
+  canal par défaut dans le manifeste. iOS : `App.entitlements` (`aps-environment`), jeton APNs transmis par l'AppDelegate ; `GoogleService-Info.plist`
+  copié par une étape de build seulement s'il est là (jamais référencé par le projet : un poste sans lui construit
+  quand même), release iOS refusée sans lui.
   App enfant : réveils `locate` et `config` reçus **au premier plan seulement** (un message « data » seul ne réveille pas
   le JavaScript d'une app fermée ; réveil natif écran éteint : ticket à part). Un seul `google-services.json` pour les deux
   variantes (`mg.nosytech.akaiky` et `mg.nosytech.akaiky.enfant` déclarées dans le même projet Firebase). **Comptes
