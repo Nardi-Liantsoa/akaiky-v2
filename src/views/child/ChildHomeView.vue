@@ -16,6 +16,7 @@ import { AkaikyCall, type ScreeningState } from '../../native/akaikyCall'
 import { canRequestRedirection, canRequestScreening, incomingFilterOff, outgoingFilterOff } from '../../lib/callScreening'
 import { AkaikyDevice, type DeviceStatus } from '../../native/akaikyDevice'
 import ChildStatusBar from '../../components/child/ChildStatusBar.vue'
+import AppIcon from '../../components/ui/AppIcon.vue'
 import ContactTile from '../../components/child/ContactTile.vue'
 import SosButton from '../../components/child/SosButton.vue'
 import UnlockPanel from '../../components/child/UnlockPanel.vue'
@@ -651,9 +652,16 @@ const text = computed(() => {
 
 <template>
   <main v-if="state.kind === 'paired'" class="home" :class="{ school }">
-    <!-- Contenu défilant au-dessus du pied fixe : SOS et secours toujours visibles (NAR-187). -->
+    <!-- Contenu défilant au-dessus du pied fixe : SOS toujours visible (NAR-187) ; secours depuis
+         l'écran du SOS (NAR-237). -->
     <div class="content">
-      <ChildStatusBar :status="status" />
+      <!-- Heure à gauche, cadenas du code parent à droite (maquette allégée, NAR-237) : discret,
+           réservé aux parents, jamais pris pour une action de l'enfant. -->
+      <ChildStatusBar>
+        <button v-if="canUnlock" class="parent-code" type="button" :aria-label="t.child.lock.open" @click="unlocking = true">
+          <span class="lock" aria-hidden="true"><AppIcon name="lock" :size="20" /></span>
+        </button>
+      </ChildStatusBar>
       <WatchingBadge v-if="watchers.length" :names="watchers" />
       <section v-if="school" class="school-banner" role="status">
         <p class="school-title">{{ t.child.school.title(school.label) }}</p>
@@ -686,15 +694,17 @@ const text = computed(() => {
       </section>
       <p v-if="schoolEnd" class="school-rest">{{ t.child.school.rest(schoolEnd) }}</p>
       <template v-if="!school">
-        <AppsRow :apps="tiles" @messages="messaging = true" @launch="launch" />
+        <button class="say" type="button" @click="messaging = true"><AppIcon name="mail" :size="22" />{{ t.child.quick.title }}</button>
+        <AppsRow v-if="tiles.length" :apps="tiles" @launch="launch" />
         <p v-if="launchError" class="call-error" role="alert">{{ t.child.apps.failed }}</p>
         <QuickMessagesPanel v-if="messaging" @close="messaging = false" />
       </template>
     </div>
+    <!-- Pied compact (NAR-237) : le SOS seul, au même endroit. Les secours (117) ne sont plus sur
+         l'accueil (décision utilisateur du 25/11/2026) : écran du SOS en cours, alerte envoyée,
+         écrans d'attente ou d'erreur. -->
     <footer class="actions">
       <SosButton @trigger="sos" />
-      <button class="emergency" type="button" @click="callEmergency">{{ t.child.emergency(emergency) }}</button>
-      <button v-if="canUnlock" class="parent-code" type="button" @click="unlocking = true">{{ t.child.lock.open }}</button>
     </footer>
     <UnlockPanel v-if="unlocking" :hash="parentHash" @close="unlocking = false" @unlocked="onUnlocked" />
     <SosSentView v-if="sosOpen" :state="sosState" :planned-calls="plannedCalls" :emergency="emergency" @cancel="cancelSos" @close="closeSos" @emergency="sosEmergency" />
@@ -810,21 +820,39 @@ h1 {
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
+  /* Pied compact (maquette allégée, NAR-237) : environ 14 % de la hauteur. */
   padding: var(--space-3) calc(var(--gutter) + var(--safe-right)) calc(var(--safe-bottom) + var(--space-3)) calc(var(--gutter) + var(--safe-left));
   border-top: 1px solid var(--border);
   background: inherit;
 }
+/* « Dire à mes parents » : un vrai bouton pleine largeur (plus la tuile coupée par le pied). */
+.say {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: var(--tap-child);
+  border: 0;
+  border-radius: 18px;
+  background: var(--tint-butter);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.say:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
 /* Écran couché ou très court : pied sur une ligne, pour laisser au contenu la hauteur
  * d'une vignette entière (sinon le pied en colonne en prend les trois quarts). */
+/* Écran couché ou très court : pied compact resserré (le paysage aura sa mise en page, NAR-242). */
 @media (max-height: 480px) {
   .actions {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  .actions .sos {
-    flex: 1 1 200px;
-    width: auto;
+    gap: var(--space-1);
+    padding-top: var(--space-2);
+    padding-bottom: calc(var(--safe-bottom) + var(--space-2));
   }
 }
 /* Zones tactiles de l'app enfant : ≥ --tap-child (64 px, CdC §7.3), boutons communs compris. */
@@ -858,7 +886,8 @@ h1 {
   justify-content: center;
   gap: var(--space-2);
 }
-/* Discret : réservé aux parents, protégé par le code. */
+/* Discret : réservé aux parents, protégé par le code. Écrans d'attente : lien souligné ;
+ * accueil : cadenas rond de 44 px en haut à droite, cible de 64 px (NAR-237). */
 .parent-code {
   min-height: var(--tap-child);
   padding: 0 var(--space-4);
@@ -868,6 +897,41 @@ h1 {
   font: inherit;
   font-weight: 700;
   text-decoration: underline;
+}
+.content > :deep(.status) {
+  /* En-tête collant (NAR-237) : le cadenas du code parent reste à l'écran quand le contenu défile. */
+  position: sticky;
+  top: calc(-1 * (var(--safe-top) + var(--space-3)));
+  z-index: 2;
+  margin: calc(-1 * (var(--safe-top) + var(--space-3))) calc(-1 * (var(--gutter) + var(--safe-right))) 0 calc(-1 * (var(--gutter) + var(--safe-left)));
+  padding: calc(var(--safe-top) + var(--space-3)) calc(var(--gutter) + var(--safe-right)) var(--space-2) calc(var(--gutter) + var(--safe-left));
+  background: var(--bg-child);
+}
+.home.school .content > :deep(.status) {
+  background: var(--bg-child-school);
+}
+.status .parent-code {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--tap-child);
+  height: var(--tap-child);
+  margin: -10px -10px 0 0;
+  padding: 0;
+}
+.lock {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-soft);
+}
+.parent-code:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 .call-error {
   margin: 0;

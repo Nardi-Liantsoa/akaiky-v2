@@ -114,11 +114,11 @@ async function expectSosVisible(page: Page) {
   const vh = page.viewportSize()!.height
   // La page elle-même ne défile pas : seul le contenu, au-dessus du pied.
   expect(await page.evaluate(() => document.scrollingElement!.scrollHeight <= window.innerHeight)).toBe(true)
-  for (const sel of ['.actions .sos', '.actions .emergency']) {
-    const box = (await page.locator(sel).boundingBox())!
-    expect(box.y).toBeGreaterThanOrEqual(0)
-    expect(box.y + box.height).toBeLessThanOrEqual(vh)
-  }
+  const box = (await page.locator('.actions .sos').boundingBox())!
+  expect(box.y).toBeGreaterThanOrEqual(0)
+  expect(box.y + box.height).toBeLessThanOrEqual(vh)
+  // Maquette allégée (NAR-237) : plus de 117 sur l'accueil (secours dans l'écran du SOS).
+  await expect(page.locator('.home .emergency')).toHaveCount(0)
   // Le pied ne cache aucune vignette : chacune, amenée à l'écran, finit au-dessus de lui.
   const footerTop = (await page.locator('.actions').boundingBox())!.y
   const tiles = page.locator('.grid .tile')
@@ -146,7 +146,7 @@ test('accueil déverrouillé : bandeaux, erreur d’appel, 4 contacts, SOS visib
   await expect(page.locator('.unlocked-actions .btn')).toHaveCount(2)
   await expect(page.locator('.unlocked > .btn')).toHaveCount(1)
   await expectSosVisible(page)
-  for (const sel of ['.unlocked-actions .btn', '.unlocked > .btn', '.actions .emergency', '.actions .sos']) {
+  for (const sel of ['.unlocked-actions .btn', '.unlocked > .btn', '.actions .sos', '.say', '.status .parent-code']) {
     for (const h of await heights(page, sel)) expect(h, sel).toBeGreaterThanOrEqual(TAP_CHILD)
   }
   if (SHOTS) {
@@ -163,13 +163,13 @@ test('accueil déverrouillé : bandeaux, erreur d’appel, 4 contacts, SOS visib
   const outline = await page.locator('.actions .sos').evaluate((e) => getComputedStyle(e).outlineStyle + ' ' + getComputedStyle(e).outlineWidth)
   expect(outline).toBe('solid 3px')
 
-  // Messages rapides : Fermer ≥ 64 px.
-  await page.locator('.apps .messages').click()
+  // Messages rapides par « Dire à mes parents » (NAR-237) : Fermer ≥ 64 px.
+  await page.getByRole('button', { name: 'Dire à mes parents' }).click()
   await expect(page.locator('.quick')).toBeVisible()
   for (const h of await heights(page, '.quick .close, .quick .tile')) expect(h).toBeGreaterThanOrEqual(TAP_CHILD)
 })
 
-test('plage « école », verrouillé : bandeau, erreur d’appel, 4 parents, SOS et code parent visibles', async ({ page }) => {
+test('plage « école », verrouillé : bandeau, erreur d’appel, 4 parents, SOS et cadenas visibles', async ({ page }) => {
   await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: true }, screening: { available: true, held: true } }, { school: true })
   await expect(page.locator('.school-banner')).toBeVisible()
   await expect(page.locator('.grid .tile')).toHaveCount(4)
@@ -177,15 +177,19 @@ test('plage « école », verrouillé : bandeau, erreur d’appel, 4 parents, SO
   await expect(page.locator('.call-error')).toBeVisible()
   await expectSosVisible(page)
   const vh = page.viewportSize()!.height
-  const code = (await page.locator('.actions .parent-code').boundingBox())!
+  const code = (await page.locator('.status .parent-code').boundingBox())!
   expect(code.y + code.height).toBeLessThanOrEqual(vh)
-  for (const sel of ['.actions .parent-code', '.actions .emergency', '.actions .sos']) {
+  // En-tête collant (NAR-237) : contenu défilé jusqu'en bas, le cadenas reste à l'écran.
+  await page.locator('.content').evaluate((e) => { e.scrollTop = e.scrollHeight })
+  await expect(page.locator('.status .parent-code')).toBeInViewport({ ratio: 1 })
+  await page.locator('.content').evaluate((e) => { e.scrollTop = 0 })
+  for (const sel of ['.status .parent-code', '.actions .sos']) {
     for (const h of await heights(page, sel)) expect(h, sel).toBeGreaterThanOrEqual(TAP_CHILD)
   }
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/2-ecole-verrouille-erreur-4-contacts.png` })
 
   // Clavier du code parent : touches et Fermer ≥ 64 px.
-  await page.locator('.actions .parent-code').click()
+  await page.getByRole('button', { name: 'Code parent' }).click()
   await expect(page.locator('.unlock')).toBeVisible()
   const keys = await heights(page, '.unlock .key')
   expect(keys).toHaveLength(12)
@@ -219,12 +223,12 @@ test('écran d’erreur verrouillé : code parent ≥ 64 px', async ({ page }) =
 // (SOS, secours, code parent) tient encore, le contenu défile au-dessus.
 test.describe('écran couché 640×360', () => {
   test.use({ viewport: { width: 640, height: 360 } })
-  test('verrouillé : SOS, secours et code parent à l’écran, vignettes au-dessus du pied', async ({ page }) => {
+  test('verrouillé : SOS et code parent à l’écran, vignettes au-dessus du pied', async ({ page }) => {
     await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: true }, screening: { available: true, held: true } })
     await expect(page.locator('.grid .tile')).toHaveCount(4)
-    await expect(page.locator('.actions .parent-code')).toBeVisible()
+    await expect(page.locator('.status .parent-code')).toBeVisible()
     await expectSosVisible(page)
-    const code = (await page.locator('.actions .parent-code').boundingBox())!
+    const code = (await page.locator('.status .parent-code').boundingBox())!
     expect(code.y + code.height).toBeLessThanOrEqual(page.viewportSize()!.height)
   })
 })

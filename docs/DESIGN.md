@@ -194,12 +194,18 @@ spécificité nulle (`:where(button, a, …):focus-visible`).
 
 ## Écrans
 
-App **enfant** (Android, mode appareil dédié) :
+App **enfant** (Android, mode appareil dédié). Maquette allégée du 25/11/2026 (12 planches
+avant/après et note) : `docs/maquettes/2026-11-enfant/`, appliquée écran par écran (NAR-236).
 
-1. **Accueil** — heure et date en grand, réseau et batterie ; indicateur « Papa regarde
-   où tu es » ; grille 2×2 de contacts (initiale ou photo, prénom, pastille d'appel,
-   une teinte par contact) ; rangée d'apps autorisées (Messages, Photo, Calcul, École) ;
-   bouton SOS « Appuie fort 3 secondes ».
+1. **Accueil** (NAR-237, planche 01) — heure 44 px alignée à gauche et date dessous (ni réseau
+   ni batterie : déjà dans la barre système) ; cadenas du code parent en haut à droite (rond de
+   44 px, cible 64 px) ; indicateur « Papa regarde où tu es » ; grille 2×2 de contacts (avatar
+   68 px, prénom, « Appeler » et son icône : une seule action, toute la vignette appelle) ;
+   « Dire à mes parents » en bouton pleine largeur (`--tint-butter`) ; rangée d'apps
+   autorisées ; pied compact : SOS de 172 px de large (64 px de haut, cible de l'enfant, au lieu
+   des 60 px de la maquette), « Garde le doigt 3 secondes » dessous. **Plus de 117 sur
+   l'accueil** (décision utilisateur du 25/11/2026) : il reste sur l'écran du SOS en cours,
+   l'alerte envoyée et les écrans d'attente ou d'erreur.
 2. **SOS — maintien** — fond rouge, « Continue d'appuyer… », anneau de progression et
    décompte, trois traits d'étape, « Lâche pour arrêter » ; vibration à chaque seconde,
    rien n'est envoyé tant que le cercle n'est pas plein.

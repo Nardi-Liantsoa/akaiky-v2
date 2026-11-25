@@ -188,7 +188,11 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
 - **Plages « école » (NAR-148, 18/11/2026)** : calculées sur le téléphone, hors ligne, dans le
   fuseau de la famille (`families.timezone`, Madagascar par défaut, pas encore modifiable par
   l'API) ; pendant une plage, l'écran ne montre que les contacts liés à un `owner`/`manager`,
-  le SOS (qui n'appelle alors que ces parents, sinon les secours) et les secours.
+  le SOS (qui n'appelle alors que ces parents, sinon les secours) ; les secours depuis l'écran du SOS.
+- **Accueil enfant allégé (NAR-237, 25/11/2026)** : maquette `docs/maquettes/2026-11-enfant/`. **Plus de bouton
+  « Secours · 117 » sur l'accueil** (décision utilisateur) : le numéro d'urgence reste appelable depuis l'écran du SOS
+  en cours (« Appeler les secours », après l'appui de 3 s, qui prévient aussi les parents), l'alerte envoyée et les
+  écrans d'attente ou d'erreur (verrouillés compris). Code parent : cadenas en haut à droite, en-tête collant.
 - **Appels pendant une plage (NAR-176, 19/11/2026)** : le natif (`SchoolSchedule.kt`, même règle
   que `src/lib/schedule.ts`, cas partagés `tests/fixtures/schedule-cases.json`) ne laisse sonner
   et n'appelle que les parents, écran éteint compris ; un contact non parent refusé est noté
