@@ -56,7 +56,6 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
         <BackLink :to="{ name: 'reglages' }" :label="t.parent.settings.back" :aria-label="t.parent.settings.backLabel" />
         <span v-if="showsCard && children.items.length > 1" class="head-switch"><ChildSwitcher /></span>
       </div>
-      <p v-if="current" class="over">{{ t.contacts.phoneOf(current.firstName) }}</p>
       <div v-if="!section" class="head">
         <h1>{{ heading }}</h1>
         <span v-if="showsCard && children.items.length > 1" class="head-switch"><ChildSwitcher /></span>
@@ -73,7 +72,6 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
       <div v-else-if="current" class="body">
         <div v-if="desktop" class="master"><SettingsView :child="current" /></div>
         <div class="detail">
-          <p v-if="desktop" class="over">{{ t.contacts.phoneOf(current.firstName) }}</p>
           <RouterView v-if="!desktop || route.name !== 'reglages'" :child="current" v-bind="section ? { level: desktop ? 2 : 1 } : {}" />
         </div>
       </div>
@@ -89,7 +87,8 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  /* Un vrai écart entre le sélecteur d'enfant et les cartes (NAR-232). */
+  margin-bottom: var(--space-5);
 }
 .head h1 {
   margin: 0;
@@ -101,7 +100,7 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
   margin-bottom: 0;
 }
 .back-row {
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-5);
 }
 .back-row :deep(.back) {
   margin: 0;
@@ -116,18 +115,7 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
   position: sticky;
   top: var(--space-5);
 }
-.desktop .detail .over {
-  margin: 0 0 var(--space-2);
-}
-.over {
-  margin: var(--space-2) 0 0;
-  color: var(--text-soft);
-  font-weight: 700;
-}
-.back + .over {
-  margin: 0 0 var(--space-3);
-}
-h1 {
+.back + h1 {
   margin: 0 0 var(--space-4);
 }
 </style>

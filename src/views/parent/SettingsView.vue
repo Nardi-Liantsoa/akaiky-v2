@@ -56,12 +56,13 @@ function retryAll() {
     :text="t.parent.settings.summaryError(failed.map((r) => r.title).join(', '))" @retry="retryAll"
   />
   <nav :aria-label="t.parent.settings.sectionsLabel">
-    <ul class="rows card" :aria-busy="busy">
+    <ul class="rows" :aria-busy="busy">
       <li v-for="r in rows" :key="r.key">
         <RouterLink class="row" :to="{ name: r.route }">
           <span class="icon" aria-hidden="true"><AppIcon :name="r.icon" /></span>
           <span class="text">
             <span class="title">{{ r.title }}</span>
+            <span class="desc">{{ t.parent.settings.descriptions[r.key] }}</span>
             <span v-if="r.line.status === 'ready'" class="summary" :class="{ warn: r.line.warn }">{{ r.line.text }}</span>
             <span v-else-if="r.line.status === 'error'" class="summary warn">{{ t.parent.settings.unavailable }}</span>
             <span v-else class="summary pending">{{ t.status.loading }}</span>
@@ -74,30 +75,37 @@ function retryAll() {
 </template>
 
 <style scoped>
+/* Liste des sections (maquette 05, NAR-232) : une carte par section, séparées par un espace
+ * (demande utilisateur) ; pastille d'icône en carré arrondi ; section ouverte sur fond
+ * --accent-soft avec sa pastille blanche. */
 .rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   margin: 0;
-  padding: var(--space-1) var(--space-4);
+  padding: 0;
   list-style: none;
-}
-.rows li + li {
-  border-top: 1px solid var(--border);
 }
 .row {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: 56px;
-  padding: var(--space-2) 0;
+  min-height: 60px;
+  /* 6 px : les six cartes tiennent sans défiler à 360 × 640 (NAR-185). */
+  padding: 6px var(--space-4);
+  border-radius: var(--radius);
+  background: var(--surface);
   color: var(--text);
   text-decoration: none;
 }
 /* Section ouverte (maître/détail sur ordinateur, NAR-223) : surlignée ; aria-current la
  * nomme pour un lecteur d'écran (posé par RouterLink). */
 .row[aria-current='page'] {
-  margin: 0 calc(-1 * var(--space-2));
-  padding-inline: var(--space-2);
-  border-radius: var(--radius-sm);
   background: var(--accent-soft);
+}
+.row[aria-current='page'] .icon {
+  background: var(--surface);
+  color: var(--accent-deep);
 }
 .row:focus-visible {
   outline: var(--focus-ring);
@@ -108,9 +116,9 @@ function retryAll() {
   display: grid;
   flex: none;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-pill);
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   background: var(--surface-muted);
   color: var(--ink);
 }
@@ -122,6 +130,14 @@ function retryAll() {
 }
 .title {
   font-weight: 800;
+  line-height: 1.3;
+}
+/* Ce que règle la section (NAR-232), puis son état. Texte court ; jamais coupé (passe à la
+ * ligne si la police est agrandie). */
+.desc {
+  color: var(--text-soft);
+  font-size: var(--fs-small);
+  line-height: 1.3;
 }
 /* Une ligne : un résumé long (noms d'applications) s'arrête sur « … ». */
 .summary {

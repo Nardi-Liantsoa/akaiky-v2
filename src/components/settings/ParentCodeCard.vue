@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../ui/AppIcon.vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ApiError } from '../../api/http'
 import { remoteUnlock, setParentCode, type Child } from '../../api/children'
@@ -120,7 +121,7 @@ async function unlockNow() {
     <p v-if="saved" class="saved" role="status">{{ t.parentCode.saved }}</p>
     <template v-if="canManage()">
       <AppButton v-if="!editing" variant="ghost" @click="open">
-        {{ child.parentCodeSetAt ? t.parentCode.change : t.parentCode.set }}
+        <AppIcon name="edit" :size="20" />{{ child.parentCodeSetAt ? t.parentCode.change : t.parentCode.set }}
       </AppButton>
       <form v-else ref="form" novalidate @submit.prevent="save">
         <p v-if="error" class="error" role="alert">{{ error }}</p>
@@ -137,15 +138,15 @@ async function unlockNow() {
           />
         </FormField>
         <div class="actions">
-          <AppButton type="submit" :disabled="busy">{{ t.parentCode.save }}</AppButton>
-          <AppButton variant="ghost" :disabled="busy" @click="close">{{ t.parentCode.cancel }}</AppButton>
+          <AppButton type="submit" :disabled="busy"><AppIcon name="check" :size="20" />{{ t.parentCode.save }}</AppButton>
+          <AppButton variant="ghost" :disabled="busy" @click="close"><AppIcon name="cross" :size="20" />{{ t.parentCode.cancel }}</AppButton>
         </div>
       </form>
     </template>
     <div v-if="child.parentCodeSetAt" class="remote">
       <p v-if="unlockedUntil" class="state" role="status">{{ t.parentCode.unlockedUntil(formatClock(unlockedUntil)) }}</p>
       <p v-if="unlockError" class="error" role="alert">{{ unlockError }}</p>
-      <AppButton v-if="canManage() && !editing" :disabled="unlockBusy" @click="unlockNow">{{ t.parentCode.unlock }}</AppButton>
+      <AppButton v-if="canManage() && !editing" :disabled="unlockBusy" @click="unlockNow"><AppIcon name="unlock" :size="20" />{{ t.parentCode.unlock }}</AppButton>
       <p v-if="canManage() && !editing" class="help unlock-help">{{ t.parentCode.unlockHint }}</p>
     </div>
   </SectionCard>
@@ -182,8 +183,9 @@ async function unlockNow() {
   margin: 0 0 12px;
   font-weight: 700;
 }
+/* Champs du code sur toute la largeur de la carte (demande utilisateur, NAR-232). */
 .code {
-  max-width: 12em;
+  width: 100%;
   letter-spacing: 0.4em;
   font-variant-numeric: tabular-nums;
 }

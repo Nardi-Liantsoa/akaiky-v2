@@ -16,6 +16,7 @@ import { children, loadChildren, selectChild } from '../../store/children'
 import { contacts, loadContacts } from '../../store/contacts'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
+import AppIcon from '../../components/ui/AppIcon.vue'
 import PageHeader from '../../components/ui/PageHeader.vue'
 import ConfirmSheet from '../../components/ui/ConfirmSheet.vue'
 import FormField from '../../components/ui/FormField.vue'
@@ -180,14 +181,14 @@ async function remove() {
         </FormField>
         <ColorPicker v-model="color" name="contact-color" :legend="t.contacts.color" :avatar="name" />
         <div class="actions">
-          <AppButton type="submit" :disabled="busy">{{ t.contacts.save }}</AppButton>
+          <AppButton type="submit" :disabled="busy"><AppIcon name="check" :size="20" />{{ t.contacts.save }}</AppButton>
         </div>
       </form>
       <div v-if="existing" class="danger-zone">
-        <AppButton variant="ghost" :disabled="busy" @click="confirming.ask(existing.id, $event)">{{ t.contacts.remove }}</AppButton>
+        <AppButton variant="ghost" :disabled="busy" @click="confirming.ask(existing.id, $event)"><AppIcon name="trash" :size="20" />{{ t.contacts.remove }}</AppButton>
       </div>
       <ConfirmSheet
-        v-if="existing && confirming.target.value === existing.id" id="contact-remove" :title="t.contacts.removeTitle(existing.name)"
+        v-if="existing && confirming.target.value === existing.id" id="contact-remove" confirm-icon="trash" :title="t.contacts.removeTitle(existing.name)"
         :items="t.contacts.removeItems" :confirm="t.contacts.confirmRemove" :busy="busy" :opener="confirming.opener.value"
         @close="confirming.close()" @confirm="remove"
       />

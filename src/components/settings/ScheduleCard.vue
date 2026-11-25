@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../ui/AppIcon.vue'
 import { summaryChanged } from '../../store/settingsSummary'
 import { computed, ref, watch } from 'vue'
 import { createSchedule, deleteSchedule, getSchedules, updateSchedule, type Schedule, type ScheduleInput } from '../../api/schedules'
@@ -156,8 +157,8 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
             />
             <div class="row-actions">
               <!-- Mêmes boutons que la liste des membres (NAR-207). -->
-              <AppButton variant="ghost" small :disabled="busy" @click="open(s)">{{ t.schedules.edit }}</AppButton>
-              <AppButton variant="ghost" small :disabled="busy" @click="confirming.ask(s, $event)">{{ t.schedules.remove }}</AppButton>
+              <AppButton variant="ghost" small :disabled="busy" @click="open(s)"><AppIcon name="edit" :size="18" />{{ t.schedules.edit }}</AppButton>
+              <AppButton variant="ghost" small :disabled="busy" @click="confirming.ask(s, $event)"><AppIcon name="trash" :size="18" />{{ t.schedules.remove }}</AppButton>
             </div>
           </template>
           <p v-else class="state">{{ s.enabled ? t.schedules.on : t.schedules.off }}</p>
@@ -165,7 +166,7 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
       </ul>
       <StatusBlock v-else-if="status === 'ready'" state="empty" :text="t.schedules.empty" />
       <ConfirmSheet
-        v-if="confirming.target.value" id="schedule-remove" :title="t.schedules.removeTitle(confirming.target.value.label)"
+        v-if="confirming.target.value" id="schedule-remove" confirm-icon="trash" :title="t.schedules.removeTitle(confirming.target.value.label)"
         :items="t.schedules.removeItems" :confirm="t.schedules.confirmRemove" :busy="busy" :opener="confirming.opener.value"
         @close="confirming.close()" @confirm="remove"
       />
@@ -193,11 +194,11 @@ const noParent = computed(() => items.value.some((s) => s.enabled) && contacts.c
         </div>
         <p v-if="crossesMidnight" class="note">{{ t.schedules.overnight }}</p>
         <div class="form-actions">
-          <AppButton type="submit" :disabled="busy">{{ t.schedules.save }}</AppButton>
-          <AppButton variant="ghost" :disabled="busy" @click="close">{{ t.schedules.cancel }}</AppButton>
+          <AppButton type="submit" :disabled="busy"><AppIcon name="check" :size="20" />{{ t.schedules.save }}</AppButton>
+          <AppButton variant="ghost" :disabled="busy" @click="close"><AppIcon name="cross" :size="20" />{{ t.schedules.cancel }}</AppButton>
         </div>
       </form>
-      <AppButton v-else-if="canManage() && status === 'ready'" variant="ghost" @click="open()">+ {{ t.schedules.add }}</AppButton>
+      <AppButton v-else-if="canManage() && status === 'ready'" variant="ghost" class="btn-tinted" @click="open()"><AppIcon name="plus" :size="20" />{{ t.schedules.add }}</AppButton>
     </template>
   </SectionCard>
 </template>

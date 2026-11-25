@@ -92,7 +92,7 @@ test('ouvrir une section, revenir (contrôle de retour, puis retour de l’histo
   // Tiana choisie sur le résumé : ses propres états.
   await page.getByRole('button', { name: /Enfant affiché : Fy/ }).click()
   await page.getByRole('dialog').getByRole('button', { name: /^Tiana/ }).click()
-  await expect(page.getByText('Téléphone de Tiana')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Enfant affiché : Tiana/ })).toBeVisible()
   await expect(row(page, 'Contacts autorisés')).toContainText('1 sur 6')
   await expect(row(page, 'SOS')).toContainText('Sirène activée')
   await expect(row(page, 'Code parent')).toContainText('Pas encore défini')
@@ -106,7 +106,7 @@ test('ouvrir une section, revenir (contrôle de retour, puis retour de l’histo
   await expect(tabs(page).getByRole('link', { name: 'Réglages' })).toHaveAttribute('aria-current', 'page')
   await page.getByRole('link', { name: 'Retour aux réglages' }).click()
   await expect(page).toHaveURL(/\/espace\/reglages$/)
-  await expect(page.getByText('Téléphone de Tiana')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Enfant affiché : Tiana/ })).toBeVisible()
   await expect(row(page, 'SOS')).toContainText('Sirène activée')
   // Le contrôle de retour est un retour dans l'historique (pas de doublon empilé) : la
   // section est devant, et non derrière.
@@ -121,10 +121,10 @@ test('ouvrir une section, revenir (contrôle de retour, puis retour de l’histo
   await expect(page.getByRole('heading', { level: 1, name: 'Plages horaires' })).toBeVisible()
   await page.getByRole('button', { name: /Enfant affiché : Tiana/ }).click()
   await page.getByRole('dialog').getByRole('button', { name: /^Fy/ }).click()
-  await expect(page.getByText('Téléphone de Fy')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Enfant affiché : Fy/ })).toBeVisible()
   await page.goBack()
   await expect(page).toHaveURL(/\/espace\/reglages$/)
-  await expect(page.getByText('Téléphone de Fy')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Enfant affiché : Fy/ })).toBeVisible()
   await expect(row(page, 'Plages horaires')).toContainText('École · Lun–Ven 8:00–16:00')
 })
 

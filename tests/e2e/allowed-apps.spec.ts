@@ -41,7 +41,7 @@ test('le gestionnaire ajoute une application depuis la liste du téléphone puis
   const card = page.locator('#applications')
   await expect(card.getByRole('heading', { name: 'Applications autorisées' })).toBeVisible()
   await expect(card.getByText('Aucune application autorisée pour l’instant.')).toBeVisible()
-  await card.getByRole('button', { name: '+ Ajouter' }).click()
+  await card.getByRole('button', { name: 'Ajouter', exact: true }).click()
   const picker = card.getByRole('group', { name: 'Applications du téléphone' })
   await expect(picker.getByRole('button')).toHaveCount(6) // 5 applications + « Fermer »
   await picker.getByRole('button', { name: 'Appareil photo' }).click()
@@ -58,7 +58,7 @@ test('4 applications au plus : plus de « + Ajouter », message affiché', async
   await openSection(page, 'Applications autorisées')
   const card = page.locator('#applications')
   await expect(card.getByText('4 sur 4')).toBeVisible()
-  await expect(card.getByRole('button', { name: '+ Ajouter' })).toHaveCount(0)
+  await expect(card.getByRole('button', { name: 'Ajouter', exact: true })).toHaveCount(0)
   await expect(card.getByText(/4 applications au plus : retirez-en une/)).toBeVisible()
 })
 
@@ -69,7 +69,7 @@ test('refus du serveur (application protégée) : message traduit, liste inchang
   })
   await openSection(page, 'Applications autorisées')
   const card = page.locator('#applications')
-  await card.getByRole('button', { name: '+ Ajouter' }).click()
+  await card.getByRole('button', { name: 'Ajouter', exact: true }).click()
   await card.getByRole('button', { name: 'Calculatrice' }).click()
   await expect(card.getByRole('alert')).toHaveText('Cette application ne peut pas être autorisée.')
   await expect(card.getByText('Aucune application autorisée pour l’instant.')).toBeVisible()
@@ -80,7 +80,7 @@ test('le téléphone n’a encore rien envoyé : le parent le sait', async ({ pa
   await openSection(page, 'Applications autorisées')
   const card = page.locator('#applications')
   await expect(card.getByText('Le téléphone n’a pas encore envoyé la liste de ses applications.')).toBeVisible()
-  await expect(card.getByRole('button', { name: '+ Ajouter' })).toHaveCount(0)
+  await expect(card.getByRole('button', { name: 'Ajouter', exact: true })).toHaveCount(0)
 })
 
 test('un contact voit les applications autorisées sans pouvoir les changer', async ({ page }) => {
@@ -112,7 +112,7 @@ test('autorisée devenue protégée : « bloquée », refus qui la nomme, puis r
   const card = page.locator('#applications')
   await expect(card.getByText('Lecteur : bloquée')).toBeVisible()
   await expect(card.getByText('✓ Horloge')).toBeVisible()
-  await card.getByRole('button', { name: '+ Ajouter' }).click()
+  await card.getByRole('button', { name: 'Ajouter', exact: true }).click()
   await card.getByRole('button', { name: 'Calculatrice' }).click()
   await expect(card.getByRole('alert')).toHaveText('Lecteur : Cette application ne peut pas être autorisée.')
   await card.getByRole('button', { name: 'Retirer Lecteur' }).click()

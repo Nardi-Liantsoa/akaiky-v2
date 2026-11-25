@@ -37,9 +37,10 @@ test('ajouter un contact puis le faire monter : liste, compteur et ordre', async
   const api = contactsApi([{ id: cid(1), name: 'Maman', phone: '+261341111111', avatarColor: 'orange', memberUserId: null, memberRole: null }])
   const calls = await mockApi(page, { ...common, ...api.handlers })
   await openSection(page, 'Contacts autorisés')
-  await expect(page.getByText('Téléphone de Fy')).toBeVisible()
-  await expect(page.getByText('1 sur 6')).toBeVisible()
-  await page.getByRole('link', { name: '+ Ajouter un contact' }).click()
+  // Maquette 05 (NAR-232) : l'aide nomme l'enfant, le compteur est un badge.
+  await expect(page.getByText('Seuls ces numéros peuvent appeler Fy.', { exact: false })).toBeVisible()
+  await expect(page.locator('.count-badge')).toHaveText('1 sur 6')
+  await page.getByRole('link', { name: 'Ajouter un contact' }).click()
   await page.getByLabel('Nom affiché').fill('Papa')
   await page.getByLabel('Numéro de téléphone').fill('034 12 345 67')
   await page.getByLabel('Membre de la famille').selectOption({ label: 'Alice · Parent principal' })
@@ -49,7 +50,7 @@ test('ajouter un contact puis le faire monter : liste, compteur et ordre', async
   const post = calls.find((r) => r.method() === 'POST')!.postDataJSON()
   expect(post).toEqual({ name: 'Papa', phone: '034 12 345 67', memberUserId: USER.id })
   // Ajout sans membre lié : le champ n'est pas envoyé.
-  await page.getByRole('link', { name: '+ Ajouter un contact' }).click()
+  await page.getByRole('link', { name: 'Ajouter un contact' }).click()
   await expect(page.getByLabel('Numéro de téléphone')).toHaveAttribute('placeholder', '034 12 345 67')
   await page.getByLabel('Nom affiché').fill('Mamie')
   await page.getByLabel('Numéro de téléphone').fill('033 12 345 67')
@@ -89,7 +90,7 @@ test('six contacts : plus de lien d’ajout ; contact de famille : lecture seule
   await mockApi(page, { ...common, ...contactsApi(six).handlers })
   await openSection(page, 'Contacts autorisés')
   await expect(page.getByText('6 sur 6')).toBeVisible()
-  await expect(page.getByRole('link', { name: '+ Ajouter un contact' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Ajouter un contact' })).toHaveCount(0)
 
   await page.unrouteAll({ behavior: 'ignoreErrors' })
   await mockApi(page, { ...common, 'GET /api/families/me': () => ({ body: { ...FAMILY, role: 'member' } }), ...contactsApi(six.slice(0, 2)).handlers })
@@ -97,7 +98,7 @@ test('six contacts : plus de lien d’ajout ; contact de famille : lecture seule
   await expect(page.getByText('2 sur 6')).toBeVisible()
   await expect(page.getByRole('button', { name: /^Monter / })).toHaveCount(0)
   await expect(page.getByRole('link', { name: /^Modifier / })).toHaveCount(0)
-  await expect(page.getByRole('link', { name: '+ Ajouter un contact' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Ajouter un contact' })).toHaveCount(0)
   await page.goto(`/espace/reglages/enfant/${FY.id}/contact/nouveau`)
   await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
 })
@@ -199,7 +200,7 @@ test('fiche contact : « ‹ Contacts », Enregistrer et le retour de l’histor
   await mockApi(page, { ...common, ...api.handlers })
   await openSection(page, 'Contacts autorisés')
   // « ‹ Contacts » (NAR-207, remplace « Annuler ») : retour à la section, sans nouvelle entrée dans l'historique.
-  await page.getByRole('link', { name: '+ Ajouter un contact' }).click()
+  await page.getByRole('link', { name: 'Ajouter un contact' }).click()
   await page.getByRole('link', { name: 'Retour aux contacts autorisés' }).click()
   await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
   await expect(page.getByRole('heading', { level: 1, name: 'Contacts autorisés' })).toBeVisible()
@@ -209,7 +210,7 @@ test('fiche contact : « ‹ Contacts », Enregistrer et le retour de l’histor
   await page.goBack()
   await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
   // Enregistrer : la section, liste relue ; un retour de plus mène au résumé.
-  await page.getByRole('link', { name: '+ Ajouter un contact' }).click()
+  await page.getByRole('link', { name: 'Ajouter un contact' }).click()
   await page.getByLabel('Nom affiché').fill('Papa')
   await page.getByLabel('Numéro de téléphone').fill('034 12 345 67')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
