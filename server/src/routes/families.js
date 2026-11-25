@@ -218,11 +218,15 @@ export default async function familiesRoutes(app) {
       throw e
     }
     // 3. Courriel, hors transaction (aucune connexion ni verrou tenu pendant le SMTP).
+    //    Langue du compte de l'invité s'il en a un, sinon celle de l'invitant (NAR-211). Le
+    //    courriel part dans les deux cas : rien n'est révélé à l'invitant. Lue avant l'envoi ;
+    //    si la lecture échoue, langue de l'invitant : seul un échec du SMTP abandonne l'invitation.
+    let guestLang
     try {
-      // Langue du compte de l'invité s'il en a un, sinon celle de l'invitant (NAR-211). Le
-      // courriel part dans les deux cas : rien n'est révélé à l'invitant.
-      const { rows: [guest] } = await db.query('SELECT lang FROM users WHERE email = $1', [invitee])
-      await mailer.send({ to: invitee, ...emails(guest?.lang ?? user.lang).invitation(inviteLink(token)) })
+      guestLang = (await db.query('SELECT lang FROM users WHERE email = $1', [invitee])).rows[0]?.lang
+    } catch (e) { req.log.error({ err: e }, 'Langue de l’invité illisible : langue de l’invitant') }
+    try {
+      await mailer.send({ to: invitee, ...emails(guestLang ?? user.lang).invitation(inviteLink(token)) })
     } catch (e) {
       req.log.error({ err: e }, 'Envoi d’une invitation impossible')
       await abandon()

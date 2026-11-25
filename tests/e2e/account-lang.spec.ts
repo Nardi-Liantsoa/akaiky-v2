@@ -46,3 +46,32 @@ test('changements rapides : envoyés un par un, le dernier choix gagne', async (
   await select.selectOption('en')
   await expect.poll(() => langPuts(calls).at(-1)).toEqual({ lang: 'en' })
 })
+
+test('appareil partagé : la langue reprise d’un compte n’est pas gardée comme un choix', async ({ page }) => {
+  let user = { ...USER, lang: 'en' }
+  const calls = await mockApi(page, { ...base, 'GET /api/auth/me': () => ({ body: { user } }) })
+  await page.goto('/espace/famille')
+  await expect(page.getByRole('heading', { name: 'Family', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => localStorage.getItem('akaiky-v2.lang'))).toBeNull()
+  // Un autre compte, en malgache, sur le même appareil : il reprend le sien, rien n'est envoyé.
+  user = { ...USER, id: '6f1c2b1e-0000-4000-8000-000000000009', lang: 'mg' }
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Fianakaviana', exact: true })).toBeVisible()
+  expect(langPuts(calls)).toEqual([])
+})
+
+test('envoi refusé (429) : retenté plus tard', async ({ page }) => {
+  await page.clock.install()
+  let refuse = true
+  const calls = await mockApi(page, {
+    ...base,
+    'GET /api/auth/me': () => ({ body: { user: USER } }),
+    'PUT /api/auth/me/lang': (req: { postDataJSON(): { lang: string } }) => refuse ? { status: 429, body: { error: '…' } } : { body: { lang: req.postDataJSON().lang } }
+  })
+  await page.goto('/espace/compte/securite')
+  await page.getByRole('combobox').selectOption('en')
+  await expect.poll(() => langPuts(calls).length).toBe(1)
+  refuse = false
+  await page.clock.runFor(31_000)
+  await expect.poll(() => langPuts(calls)).toEqual([{ lang: 'en' }, { lang: 'en' }])
+})

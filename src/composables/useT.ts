@@ -25,12 +25,22 @@ export const locale = ref<Locale>(initial())
 
 export const localeChosen = (): boolean => chosen
 
+// Langue reprise d'un compte (NAR-211) : affichée, mais ni gardée ni comptée comme un
+// choix, pour qu'un autre compte connecté ensuite sur cet appareil reprenne la sienne.
+let adopting = false
+export function adoptLocale(l: Locale): void {
+  adopting = true
+  try { locale.value = l } finally { adopting = false }
+}
+
 watch(locale, (l) => { document.documentElement.lang = l }, { immediate: true })
-// Tout changement après le démarrage est un choix : il est gardé.
+// Tout autre changement après le démarrage est un choix : il est gardé. Synchrone, pour
+// voir le drapeau d'adoptLocale.
 watch(locale, (l) => {
+  if (adopting) return
   chosen = true
   try { localStorage.setItem(KEY, l) } catch { /* sans conséquence */ }
-})
+}, { flush: 'sync' })
 
 export const LOCALE_LIST = LOCALES
 

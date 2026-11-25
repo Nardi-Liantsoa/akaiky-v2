@@ -29,6 +29,7 @@ export default async function authRoutes(app) {
   const emailBudget = () => consumeQuota(db, 'auth-emails', config.quotas.authEmailsPerHour)
   const perIp = createLimiter({ max: config.limits.perIp, windowMs: 15 * 60 * 1000 })
   const perEmail = createLimiter({ max: config.limits.perEmail, windowMs: 60 * 60 * 1000 })
+  const perAccountLang = createLimiter({ max: 60, windowMs: 60 * 60 * 1000 })
   const limit = (req, key) => {
     if (!perIp(`${req.routeOptions.url}|${rateLimitKey(req.ip)}`)) throw new HttpError(429, 'Trop de tentatives. Réessayez dans quelques minutes.')
     if (key && !perEmail(`${req.routeOptions.url}|${key}`)) throw new HttpError(429, 'Trop de demandes pour cette adresse. Réessayez plus tard.')
@@ -134,7 +135,9 @@ export default async function authRoutes(app) {
   // aucune écriture.
   app.put('/me/lang', async (req) => {
     const user = app.requireUser(req)
-    limit(req, user.id)
+    // Écriture peu coûteuse et idempotente, envoyée à chaque changement de langue : un
+    // compteur à part, plus large que celui des connexions (pas de partage par IP).
+    if (!perAccountLang(user.id)) throw new HttpError(429, 'Trop de changements de langue. Réessayez plus tard.')
     const b = body(req, ['lang'])
     if (!LANGS.includes(b.lang)) throw new HttpError(400, 'Langue inconnue.')
     await db.query('UPDATE users SET lang = $2 WHERE id = $1 AND lang <> $2', [user.id, b.lang])
@@ -219,8 +222,10 @@ export default async function authRoutes(app) {
       await mailer.send({ to: e, ...emails(lang).confirm(link(`confirm=${token}`)) })
       await audit(db, req, 'register', row.id)
     } else {
-      // Le titulaire reçoit l'avis dans SA langue, pas dans celle du demandeur.
-      await mailer.send({ to: e, ...emails(row.existing_lang).alreadyRegistered(link(''), link('forgot')) })
+      // Le titulaire reçoit l'avis dans SA langue, pas dans celle du demandeur. Deux
+      // inscriptions simultanées : la ligne de l'autre n'est pas dans l'instantané, relue.
+      const holderLang = row.existing_lang ?? (await db.query('SELECT lang FROM users WHERE email = $1', [e])).rows[0]?.lang
+      await mailer.send({ to: e, ...emails(holderLang).alreadyRegistered(link(''), link('forgot')) })
     }
     return reply.code(202).send({ confirmationRequired: true, message: 'Vérifiez votre boîte mail pour activer votre compte.' })
   })

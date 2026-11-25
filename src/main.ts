@@ -24,8 +24,8 @@ if (Capacitor.isNativePlatform()) {
   StatusBar.setStyle({ style: Style.Light }).catch(() => {})
 }
 
-// Langue des courriels du compte (NAR-211).
-syncAccountLang()
+// Langue des courriels du compte (NAR-211), app parent seulement.
+void appKind().then((kind) => { if (kind === 'parent') syncAccountLang() }).catch(() => {})
 
 createApp(App).use(router).mount('#app')
 
