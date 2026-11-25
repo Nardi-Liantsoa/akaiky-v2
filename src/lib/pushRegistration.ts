@@ -15,12 +15,13 @@ export const RETRY_MS = 30_000
 
 // Firebase absent de la coque (pas de google-services.json / GoogleService-Info.plist) :
 // iOS rejette en UNAVAILABLE, Android avec « Default FirebaseApp is not initialized ».
+// Coque sans le greffon (bundle OTA sur une coque antérieure) : UNIMPLEMENTED.
 // Seul cas définitif ; toute autre erreur est passagère.
 // Envoi refusé : retenté seulement si c'est passager (réseau, 429, 5xx) ; un autre refus
 // (400 jeton ou langue, 401 session perdue) ne se règle pas en réessayant.
 export function notConfigured(e: unknown): boolean {
   const err = e as { code?: unknown, message?: unknown } | null
-  return err?.code === 'UNAVAILABLE' || /not (been )?configured|not initialized/i.test(String(err?.message ?? ''))
+  return err?.code === 'UNAVAILABLE' || err?.code === 'UNIMPLEMENTED' || /not (been )?configured|not initialized|not implemented/i.test(String(err?.message ?? ''))
 }
 
 export function retryable(e: unknown): boolean {
@@ -92,10 +93,13 @@ export function createPushRegistration({ messaging, send, platform, lang, needsP
     state,
     // Session ouverte ou app reprise : jeton envoyé si la permission est déjà accordée
     // (ou inutile). Rappelée sans risque : rien n'est renvoyé si rien n'a changé.
+    // Rien n'est envoyé (même un jeton rafraîchi par FCM) tant que la permission manque.
     async start(): Promise<PushState> {
-      active = true
+      const gen = generation
       const s = needsPermission ? await state() : 'granted'
-      return s === 'granted' ? register() : s
+      if (s !== 'granted' || gen !== generation) return s
+      active = true
+      return register()
     },
     // Après l'explication, sur un geste de la personne.
     async enable(): Promise<PushState> {

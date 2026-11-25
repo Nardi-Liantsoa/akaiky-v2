@@ -38,6 +38,9 @@ describe('jeton push', () => {
     expect(await reg.start()).toBe('prompt')
     expect(messaging.requestPermissions).not.toHaveBeenCalled()
     expect(messaging.getToken).not.toHaveBeenCalled()
+    // Jeton rafraîchi par FCM sans permission : pas envoyé.
+    await reg.tokenChanged('T0')
+    expect(sent).toEqual([])
     await reg.enable()
     expect(sent).toEqual([{ token: 'T1', platform: 'android', lang: 'fr' }])
   })
@@ -72,6 +75,7 @@ describe('jeton push', () => {
   it('erreur « non configuré » reconnue sur iOS et Android, pas les autres', () => {
     expect(notConfigured({ code: 'UNAVAILABLE', message: 'x' })).toBe(true)
     expect(notConfigured(new Error('Default FirebaseApp is not initialized in this process mg.nosytech.akaiky.'))).toBe(true)
+    expect(notConfigured({ code: 'UNIMPLEMENTED', message: '"FirebaseMessaging" plugin is not implemented on android' })).toBe(true)
     expect(notConfigured(new Error('SERVICE_NOT_AVAILABLE'))).toBe(false)
     expect(notConfigured(null)).toBe(false)
   })

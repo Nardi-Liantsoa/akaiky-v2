@@ -267,7 +267,12 @@ function startPush(): Promise<void> {
       })
     ])
     const handles = results.flatMap((r) => r.status === 'fulfilled' ? [r.value] : [])
-    if (unmounted) { handles.forEach((h) => void h.remove()); return }
+    // Un écouteur manquant : tout est retiré et repris au prochain appairage ou à la reprise.
+    if (unmounted || handles.length < results.length) {
+      handles.forEach((h) => void h.remove())
+      if (!unmounted) pushListening = null
+      return
+    }
     pushListeners = handles
   })()
   return pushListening

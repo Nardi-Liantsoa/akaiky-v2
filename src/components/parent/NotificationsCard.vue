@@ -26,8 +26,10 @@ async function test() {
   message.value = ''
   error.value = ''
   try {
-    await api.post('/push/test', {})
-    message.value = t.value.push.testSent
+    const { queued } = await api.post<{ queued: number }>('/push/test', {})
+    // Aucun jeton de ce téléphone encore connu du serveur (enregistrement en cours ou
+    // retenté) : rien ne partira, on le dit.
+    message.value = queued > 0 ? t.value.push.testSent : t.value.push.testNone
   } catch (e) {
     error.value = e instanceof ApiError && e.status === 429 ? t.value.push.testTooMany : errorText(e, t.value)
   } finally { busy.value = false }
