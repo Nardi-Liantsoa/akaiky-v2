@@ -8,7 +8,9 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.13.0'
-        classpath 'com.google.gms:google-services:4.4.4'
+        // Greffon Google Services (lit google-services.json, NAR-179) ; firebase-messaging reste
+        // à la version du greffon @capacitor-firebase/messaging (pas de BoM Firebase).
+        classpath 'com.google.gms:google-services:4.6.0'
         // Module natif de l'app enfant en Kotlin (CLAUDE.md, « Décisions »).
         classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.0'
 
