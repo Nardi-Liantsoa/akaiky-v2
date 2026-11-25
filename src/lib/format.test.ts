@@ -47,12 +47,13 @@ describe('formatDateTime (back-office)', () => {
 // avatar.ts (découpage en graphèmes et majuscule de l'initiale).
 describe('formatage des dates au même endroit', () => {
   it('aucun Intl ni toLocale* hors de format.ts', () => {
-    const files = import.meta.glob('../**/*.{ts,vue}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+    const files = import.meta.glob('../**/*.{ts,js,vue}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
     // Chemins rendus par Vite : « ./x.ts » pour ce dossier, « ../y/z.ts » ailleurs.
     const allowed = ['./format.ts', './schedule.ts', './avatar.ts']
     const offenders = Object.entries(files)
       .filter(([path]) => !path.endsWith('.test.ts') && !allowed.includes(path) && !path.startsWith('../i18n/'))
-      .filter(([, code]) => /\bIntl\.|\.toLocale(String|DateString|TimeString)\(/.test(code))
+      // Intl sous toute forme (Intl.X, globalThis.Intl, déstructuré) et toLocale*String.
+      .filter(([, code]) => /\bIntl\b|\btoLocale(String|DateString|TimeString)\b/.test(code))
       .map(([path]) => path)
     expect(offenders).toEqual([])
     expect(Object.keys(files).length).toBeGreaterThan(50)

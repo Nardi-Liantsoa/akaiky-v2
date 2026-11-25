@@ -54,9 +54,13 @@ export function formatDateTime(iso: string, locale: Locale): string {
 }
 
 // Jour (AAAA-MM-JJ) à l'heure de Madagascar, pour regrouper par jour (journal, NAR-152) ;
-// formateur créé une fois : coûteux sur les WebView anciennes.
-const DAY = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
-export const dayKey = (date: Date) => DAY.format(date)
+// formateur créé au premier appel puis gardé (coûteux sur les WebView anciennes), jamais au
+// chargement du module : un fuseau refusé ne casse que l'appel, pas l'écran qui importe.
+let day: Intl.DateTimeFormat | null = null
+export function dayKey(date: Date): string {
+  day ??= new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
+  return day.format(date)
+}
 
 // Durée écoulée en clair (« il y a 2 minutes », « 2 minitra lasa izay »), NAR-147.
 // Français et anglais : Intl.RelativeTimeFormat quand la WebView l'a (Chrome 71+) ;

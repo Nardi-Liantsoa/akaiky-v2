@@ -9,8 +9,8 @@ import { MESSAGES } from '../../src/i18n/messages.ts'
 
 const PAGES = [
   ['/espace', (t) => t.parent.home.title],
-  ['/espace/journal', null],
-  ['/espace/reglages', null],
+  ['/espace/journal', (t) => t.parent.log.title],
+  ['/espace/reglages', (t) => t.parent.settings.title],
   ['/espace/famille', (t) => t.parent.family.title],
   ['/espace/compte/securite', (t) => t.parent.account.title]
 ]
@@ -31,7 +31,9 @@ for (const lang of ['mg', 'fr', 'en']) {
       for (const key of ['home', 'log', 'settings', 'family']) {
         await expect(tabs.getByRole('link', { name: t.parent[key].title })).toBeVisible()
       }
-      if (heading) await expect(page.getByRole('heading', { level: 1, name: heading(t), exact: true })).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1, name: heading(t), exact: true })).toBeVisible()
+      // Contenu chargé (listes, cartes) avant de mesurer.
+      await page.waitForLoadState('networkidle')
       // Aucun défilement horizontal : les textes malgaches, plus longs, passent à la ligne.
       const overflow = await page.evaluate(() => document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth)
       expect(overflow, `${path} déborde de ${overflow} px en ${lang}`).toBeLessThanOrEqual(0)
