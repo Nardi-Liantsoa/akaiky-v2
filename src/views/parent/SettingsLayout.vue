@@ -2,6 +2,7 @@
 import { computed, onMounted, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import LoadError from '../../components/family/LoadError.vue'
+import ChildAvatar from '../../components/parent/ChildAvatar.vue'
 import ChildSwitcher from '../../components/parent/ChildSwitcher.vue'
 import BackLink from '../../components/ui/BackLink.vue'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
@@ -47,18 +48,18 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
   <section v-else class="settings" :class="{ desktop }">
     <header v-if="desktop" class="head">
       <h1>{{ t.parent.settings.title }}</h1>
-      <span v-if="showsCard && children.items.length > 1" class="head-switch"><ChildSwitcher /></span>
+      <span v-if="showsCard && current" class="head-switch"><ChildSwitcher v-if="children.items.length > 1" /><span v-else class="only-child"><ChildAvatar :name="current.firstName" :color="current.avatarColor" :size="32" />{{ current.firstName }}</span></span>
     </header>
     <!-- Téléphone : sélecteur d'enfant à droite du titre (ou du retour dans une section), sur la
          même ligne, comme sur ordinateur et dans le journal (NAR-231). -->
     <template v-else>
       <div v-if="section" class="head back-row">
         <BackLink :to="{ name: 'reglages' }" :label="t.parent.settings.back" :aria-label="t.parent.settings.backLabel" />
-        <span v-if="showsCard && children.items.length > 1" class="head-switch"><ChildSwitcher /></span>
+        <span v-if="showsCard && current" class="head-switch"><ChildSwitcher v-if="children.items.length > 1" /><span v-else class="only-child"><ChildAvatar :name="current.firstName" :color="current.avatarColor" :size="32" />{{ current.firstName }}</span></span>
       </div>
       <div v-if="!section" class="head">
         <h1>{{ heading }}</h1>
-        <span v-if="showsCard && children.items.length > 1" class="head-switch"><ChildSwitcher /></span>
+        <span v-if="showsCard && current" class="head-switch"><ChildSwitcher v-if="children.items.length > 1" /><span v-else class="only-child"><ChildAvatar :name="current.firstName" :color="current.avatarColor" :size="32" />{{ current.firstName }}</span></span>
       </div>
       <h1 v-else-if="!showsCard">{{ heading }}</h1>
     </template>
@@ -93,6 +94,13 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
 .head h1 {
   margin: 0;
 }
+/* Un seul enfant : son nom à la place du sélecteur (Réglages dit toujours de qui il s'agit). */
+.only-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+}
 .head-switch {
   margin-left: auto;
 }
@@ -115,7 +123,7 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
   position: sticky;
   top: var(--space-5);
 }
-.back + h1 {
+.back-row + h1 {
   margin: 0 0 var(--space-4);
 }
 </style>

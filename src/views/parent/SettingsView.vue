@@ -3,6 +3,9 @@ import { computed, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { Child } from '../../api/children'
 import AppIcon from '../../components/ui/AppIcon.vue'
+import ChildAvatar from '../../components/parent/ChildAvatar.vue'
+import { phoneStatus } from '../../lib/childStatus'
+import { canManage } from '../../store/family'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
 import { useSettingsSummary } from '../../composables/useSettingsSummary'
 import { locale, useT } from '../../composables/useT'
@@ -56,7 +59,7 @@ function retryAll() {
     :text="t.parent.settings.summaryError(failed.map((r) => r.title).join(', '))" @retry="retryAll"
   />
   <nav :aria-label="t.parent.settings.sectionsLabel">
-    <ul class="rows" :aria-busy="busy">
+    <ul class="rows card" :aria-busy="busy">
       <li v-for="r in rows" :key="r.key">
         <RouterLink class="row" :to="{ name: r.route }">
           <span class="icon" aria-hidden="true"><AppIcon :name="r.icon" /></span>
@@ -72,18 +75,29 @@ function retryAll() {
       </li>
     </ul>
   </nav>
+  <!-- Téléphone de l'enfant (NAR-232) : sous les sections (elles tiennent toujours sans défiler à
+       360 × 640), son état et, pour un gestionnaire, l'accès à sa configuration. -->
+  <section class="phone-card" :aria-label="t.contacts.phoneOf(child.firstName)">
+    <ChildAvatar :name="child.firstName" :color="child.avatarColor" :size="44" />
+    <span class="text">
+      <span class="title">{{ t.contacts.phoneOf(child.firstName) }}</span>
+      <span class="summary">{{ phoneStatus(child.phoneLastSeenAt, t, locale) }}</span>
+    </span>
+    <RouterLink v-if="canManage()" class="btn btn-ghost btn-small phone-link" :to="{ name: 'telephone', params: { id: child.id } }">
+      <AppIcon name="smartphone" :size="18" />{{ t.parent.settings.phoneAction }}
+    </RouterLink>
+  </section>
 </template>
 
 <style scoped>
-/* Liste des sections (maquette 05, NAR-232) : une carte par section, séparées par un espace
- * (demande utilisateur) ; pastille d'icône en carré arrondi ; section ouverte sur fond
- * --accent-soft avec sa pastille blanche. */
+/* Liste des sections (maquette 05, NAR-232) : une seule carte, lignes séparées d'un petit espace,
+ * pastille d'icône en carré arrondi ; section ouverte sur fond --accent-soft, pastille blanche. */
 .rows {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   margin: 0;
-  padding: 0;
+  padding: var(--space-2);
   list-style: none;
 }
 .row {
@@ -91,10 +105,9 @@ function retryAll() {
   align-items: center;
   gap: var(--space-3);
   min-height: 60px;
-  /* 6 px : les six cartes tiennent sans défiler à 360 × 640 (NAR-185). */
-  padding: 6px var(--space-4);
-  border-radius: var(--radius);
-  background: var(--surface);
+  /* 6 px : les six lignes tiennent sans défiler à 360 × 640 (NAR-185). */
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-sm);
   color: var(--text);
   text-decoration: none;
 }
@@ -153,6 +166,26 @@ function retryAll() {
 }
 .summary.pending {
   font-weight: 600;
+}
+.phone-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius);
+}
+.phone-card .text {
+  flex: 1 1 160px;
+}
+.phone-card .summary {
+  white-space: normal;
+}
+/* Bouton sur sa propre ligne, pleine largeur : le texte garde toute la place. */
+.phone-link {
+  flex: 1 0 100%;
 }
 .chevron {
   flex: none;

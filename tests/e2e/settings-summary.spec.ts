@@ -28,7 +28,7 @@ const base = {
 }
 const tabs = (page: import('@playwright/test').Page) => page.getByRole('navigation', { name: 'Navigation principale' })
 
-test('le résumé montre l’état réel de chaque section, et tient sans défiler à 360 px', async ({ page }) => {
+test('le résumé montre l’état réel de chaque section, six lignes visibles sans défiler à 360 px', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 640 })
   await mockApi(page, base)
   await page.goto('/espace/reglages')
@@ -53,7 +53,7 @@ test('le résumé montre l’état réel de chaque section, et tient sans défil
     expect(box.height).toBeGreaterThanOrEqual(48)
     expect(box.bottom).toBeLessThanOrEqual(bar.y)
   }
-  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  // La carte du téléphone (NAR-232) vient sous les six lignes : elle seule peut demander de défiler.
 })
 
 test('résumés en cours de chargement puis en échec : « Chargement… », « Indisponible », un seul « Réessayer »', async ({ page }) => {
@@ -144,4 +144,30 @@ test('page de section sans enfant : un seul h1, au nom de la section', async ({ 
   await expect(page.getByText('Ajoutez d’abord un enfant pour régler son téléphone.')).toBeVisible()
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
   await expect(page.getByRole('heading', { level: 1, name: 'Plages horaires' })).toBeVisible()
+})
+
+// NAR-232 : carte « Téléphone de Fy » sous les sections ; « Gérer le téléphone » pour un gestionnaire seulement.
+test('carte du téléphone sous les sections : état, et accès à la configuration pour un gestionnaire', async ({ page }) => {
+  await mockApi(page, base)
+  await page.goto('/espace/reglages')
+  const card = page.getByRole('region', { name: 'Téléphone de Fy' })
+  await expect(card).toContainText('Aucun téléphone relié')
+  await card.getByRole('link', { name: 'Gérer le téléphone' }).click()
+  await expect(page).toHaveURL(new RegExp(`/espace/enfant/${FY.id}/telephone$`))
+})
+test('carte du téléphone : un contact (member) voit l’état sans le lien', async ({ page }) => {
+  await mockApi(page, { ...base, 'GET /api/families/me': () => ({ body: { ...FAMILY, role: 'member' } }) })
+  await page.goto('/espace/reglages')
+  const card = page.getByRole('region', { name: 'Téléphone de Fy' })
+  await expect(card).toContainText('Aucun téléphone relié')
+  await expect(card.getByRole('link')).toHaveCount(0)
+})
+
+// Revue NAR-232 : un seul enfant, son prénom reste affiché à la place du sélecteur.
+test('un seul enfant : son prénom à la place du sélecteur, sur le résumé et dans une section', async ({ page }) => {
+  await mockApi(page, base)
+  await page.goto('/espace/reglages')
+  await expect(page.locator('.only-child')).toHaveText(/Fy$/)
+  await page.goto('/espace/reglages/sos')
+  await expect(page.locator('.only-child')).toHaveText(/Fy$/)
 })

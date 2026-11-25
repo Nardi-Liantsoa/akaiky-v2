@@ -159,13 +159,15 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   maquette 05 ; menu déroulant gardé à la place de ses onglets avatars, qui ne tiennent pas à
   trois enfants ou plus, décision utilisateur NAR-232). Réglages au
   téléphone : même place, à droite du titre ou du retour « ‹ Réglages » dans une section.
-- **Réglages** (NAR-232, maquette 05) — une carte blanche par section, séparées de 6 px (écart à
-  la maquette, qui les groupe dans une carte : demande utilisateur), 24 px sous le sélecteur
-  d'enfant ; les six tiennent sans défiler à 360 × 640. Pastille d'icône en carré arrondi
+- **Réglages** (NAR-232, maquette 05) — les six sections dans une seule carte, lignes séparées de
+  4 px, 24 px sous le sélecteur d'enfant ; elles tiennent sans défiler à 360 × 640. Pastille
+  d'icône en carré arrondi
   (`--surface-muted`, 12 px), titre, description courte (ce que règle la section, `--text-soft`),
-  état en gras ; section ouverte sur `--accent-soft`, pastille blanche. Aucune mention
-  « Téléphone de Fy » (le sélecteur nomme l'enfant). Contacts : aide « Seuls ces numéros peuvent
-  appeler Fy… », compteur en badge `.count-badge`, ligne rang · avatar (48 px, 40 sous 400 px) ·
+  état en gras ; section ouverte sur `--accent-soft`, pastille blanche. Pas de ligne « Téléphone de
+  Fy » sur les sections : le sélecteur nomme l'enfant (un seul enfant : avatar et prénom à sa
+  place) ; la fiche d'un contact la garde (son en-tête ne dit pas l'enfant). Carte « Téléphone
+  de Fy » en tirets sous les sections : état du téléphone, « Gérer le téléphone » (gestionnaire). Contacts : aide « Seuls ces numéros peuvent
+  appeler Fy… », compteur en badge `.count-badge`, ligne rang · avatar (48 px, 40 sous 560 px) ·
   nom + rôle en badge `--surface-muted` · numéro, flèches d'ordre en chevrons sans cadre ; écran
   large : « Modifier » bordé, téléphone : la ligne ouvre la fiche ; ajout en bouton teinté
   `.btn-tinted` avec « + ». Mêmes règles pour Applications (badge, ajout teinté) et Plages (ajout

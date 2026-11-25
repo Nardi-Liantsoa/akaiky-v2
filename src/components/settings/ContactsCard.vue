@@ -88,6 +88,8 @@ async function move(index: number, delta: number) {
             </span>
             <span :id="`contact-phone-${c.id}`" class="phone" data-selectable>{{ formatPhone(c.phone) }}</span>
           </span>
+          <!-- Téléphone : la ligne s'ouvre ; le chevron le montre (caché sous 400 px, place au numéro). -->
+          <AppIcon v-if="canManage() && !wide" class="go" name="chevron-right" :size="20" />
         </component>
         <span v-if="canManage()" class="actions">
           <!-- Déplacement impossible (premier, dernier) : flèche absente plutôt que grisée (NAR-222) ;
@@ -106,7 +108,7 @@ async function move(index: number, delta: number) {
       </li>
     </ol>
     <StatusBlock v-else state="empty" :text="t.contacts.empty" />
-    <RouterLink v-if="canManage() && shown.length < contacts.max" class="add" :to="{ name: 'contact-nouveau', params: { childId } }">
+    <RouterLink v-if="canManage() && shown.length < contacts.max" class="btn btn-tinted add" :to="{ name: 'contact-nouveau', params: { childId } }">
       <AppIcon name="plus" :size="20" />{{ t.contacts.add }}
     </RouterLink>
   </SectionCard>
@@ -195,10 +197,14 @@ async function move(index: number, delta: number) {
   .actions {
     flex-direction: column;
   }
-  /* Place pour le numéro entier à côté des flèches : écarts resserrés (avatar de 40 px). */
+  /* Place pour le numéro entier à côté des flèches : écarts resserrés (avatar de 40 px), sans
+     chevron (la ligne reste un lien « Modifier Maman »). */
   .list li,
   .contact {
     gap: 8px;
+  }
+  .go {
+    display: none;
   }
 }
 .icon {
@@ -227,6 +233,10 @@ async function move(index: number, delta: number) {
 .edit {
   flex: none;
 }
+.go {
+  flex: none;
+  color: var(--text-soft);
+}
 .icon:focus-visible,
 .contact:focus-visible,
 .add:focus-visible {
@@ -234,16 +244,7 @@ async function move(index: number, delta: number) {
   outline-offset: 2px;
 }
 .add {
-  display: inline-flex;
-  align-items: center;
   gap: 8px;
-  min-height: var(--tap);
   margin-top: var(--space-4);
-  padding: 0 20px;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent-deep);
-  font-weight: 800;
-  text-decoration: none;
 }
 </style>

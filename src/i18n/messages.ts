@@ -606,6 +606,8 @@ const fr = {
       back: 'Réglages',
       backLabel: 'Retour aux réglages',
       sectionsLabel: 'Sections des réglages',
+      // Carte du téléphone sous les sections (NAR-232) : état et accès à la configuration.
+      phoneAction: 'Gérer le téléphone',
       // Ce que règle chaque section, sous son titre (NAR-232).
       descriptions: { contacts: 'Numéros qui peuvent l’appeler', apps: 'Applications sur son téléphone', parentCode: 'Pour sortir du mode verrouillé', schedules: 'Heures d’école, parents seuls', sos: 'Alerte, SMS et appels', templates: 'Textes envoyés en un toucher' },
       unavailable: 'Indisponible',
@@ -1346,6 +1348,7 @@ const mg: Messages = {
       back: 'Fandrindrana',
       backLabel: 'Hiverina amin’ny fandrindrana',
       sectionsLabel: 'Sokajin’ny fandrindrana',
+      phoneAction: 'Hitantana ny finday',
       descriptions: { contacts: 'Laharana afaka miantso azy', apps: 'Fampiharana ao amin’ny findainy', parentCode: 'Hivoahana amin’ny fanidiana', schedules: 'Ora fianarana, ray aman-dreny ihany', sos: 'Fampitandremana, SMS ary antso', templates: 'Hafatra alefa amin’ny tsindry iray' },
       unavailable: 'Tsy azo jerena',
       summaryError: (names: string) => `Tsy azo jerena ny famintinana : ${names}.`,
@@ -2073,6 +2076,7 @@ const en: Messages = {
       back: 'Settings',
       backLabel: 'Back to settings',
       sectionsLabel: 'Settings sections',
+      phoneAction: 'Manage the phone',
       descriptions: { contacts: 'Numbers that can call them', apps: 'Apps on their phone', parentCode: 'To leave locked mode', schedules: 'School hours, parents only', sos: 'Alert, texts and calls', templates: 'Texts sent in one tap' },
       unavailable: 'Unavailable',
       summaryError: (names: string) => `Summary unavailable: ${names}.`,

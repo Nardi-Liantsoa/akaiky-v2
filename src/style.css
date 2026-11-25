@@ -216,12 +216,6 @@ h2 {
   font-weight: 800;
   white-space: nowrap;
 }
-/* Ajout teinté (maquette 05) : « + Ajouter un contact », une plage, une application. */
-.btn-tinted {
-  background: var(--accent-soft);
-  border-color: transparent;
-  color: var(--accent-deep);
-}
 .btn {
   display: inline-flex;
   align-items: center;
@@ -254,6 +248,13 @@ h2 {
   background: transparent;
   border-color: var(--border-strong);
   color: var(--text);
+}
+/* Ajout teinté (maquette 05, NAR-232) : « + Ajouter un contact », une plage. Après les variantes
+ * et en .btn.btn-tinted : l'emporte sur .btn-ghost. */
+.btn.btn-tinted {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent-deep);
 }
 .btn-danger {
   background: var(--danger);
