@@ -141,7 +141,9 @@ const dayLabel = (g: { when: string, date: Date }) =>
       <div v-else class="days" :class="{ refreshing }" :aria-busy="refreshing">
         <section v-for="g in groups" :key="g.key" class="day">
           <h2>{{ dayLabel(g) }}</h2>
-          <ul class="card list">
+          <!-- « Aujourd'hui » défile dans sa carte (demande utilisateur, NAR-231) : la liste du jour
+               ne repousse pas les jours précédents ; zone atteignable au clavier. -->
+          <ul class="card list" :class="{ bounded: g.when === 'today' }" v-bind="g.when === 'today' ? { tabindex: 0, 'aria-label': dayLabel(g) } : {}">
             <LogItem v-for="i in g.items" :key="i.id" :item="i" :child-id="current.id" :can-allow="canManage()" />
           </ul>
         </section>
@@ -183,6 +185,16 @@ h1 {
   list-style: none;
   margin: 0;
   padding: 4px 16px;
+}
+/* Au bout de la liste, le défilement passe à la page (pas de overscroll-behavior: contain) :
+ * le bas de la carte remonte au-dessus de la barre d'onglets, rien ne reste caché dessous. */
+.list.bounded {
+  max-height: min(440px, 50vh);
+  overflow-y: auto;
+}
+.list.bounded:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 .refreshing {
   opacity: 0.45;

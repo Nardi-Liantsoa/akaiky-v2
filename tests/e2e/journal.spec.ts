@@ -92,6 +92,24 @@ test('tuiles : rien de coupé sur un petit écran (320 px)', async ({ page }) =>
   expect(await page.evaluate(() => document.scrollingElement!.scrollWidth <= document.scrollingElement!.clientWidth)).toBe(true)
 })
 
+// NAR-231 : à 360 px (et 320), le numéro d'un appel bloqué tient sur une ligne ; « Autoriser ce numéro »
+// passe dessous, sur toute la largeur.
+for (const width of [360, 320]) {
+  test(`appel bloqué à ${width} px : numéro sur une seule ligne, « Autoriser » dessous`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 })
+    await mockApi(page, journalApi().handlers)
+    await page.goto('/espace/journal')
+    const number = page.locator('.item .number', { hasText: '+261 32 98 765 43' })
+    await expect(number).toBeVisible()
+    const lineHeight = await number.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight))
+    expect((await number.boundingBox())!.height).toBeLessThan(lineHeight * 1.5)
+    await expect(number.locator('..')).toContainText('n’a pas sonné')
+    const allow = await page.getByRole('link', { name: 'Autoriser ce numéro' }).boundingBox()
+    expect(allow!.y).toBeGreaterThan((await number.boundingBox())!.y)
+    expect(allow!.height).toBeGreaterThanOrEqual(48)
+  })
+}
+
 test('contact bloqué pendant une plage « école » (NAR-176) : nommé, sans « Autoriser ce numéro »', async ({ page }) => {
   await page.clock.setFixedTime(NOW)
   const item = { id: '6f1c2b1e-0000-4000-8000-000000000409', kind: 'call_blocked', at: ago(0.1), contactId: '6f1c2b1e-0000-4000-8000-000000000203', name: 'Mamie', phone: '+261321234567', durationS: null }
@@ -124,4 +142,35 @@ test('appel laissé passer par la fenêtre des secours (NAR-196) : marqué, num�
   await expect(page.getByText('laissé passer : appel aux secours dans les 30 min · 1 min 35 s')).toBeVisible()
   await expect(page.getByText('laissé passer : appel aux secours dans les 30 min', { exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Autoriser ce numéro' })).toHaveCount(0)
+})
+
+// NAR-231 : une icône par tuile ; « Aujourd'hui » défile dans sa carte, les jours suivants restent après.
+test('tuiles avec icône ; « Aujourd’hui » défilable sans repousser « Hier »', async ({ page }) => {
+  await page.clock.setFixedTime(NOW)
+  await page.setViewportSize({ width: 360, height: 800 })
+  const many = Array.from({ length: 30 }, (_, n) => ({
+    id: `6f1c2b1e-0000-4000-8000-0000000005${String(n).padStart(2, '0')}`, kind: 'call_in', at: ago(0.01 * (n + 1)), contactId: 'c1', name: 'Maman', phone: '+261341234567', durationS: 60
+  }))
+  const api = journalApi()
+  api.handlers[`GET /api/children/${FY.id}/journal`] = () => ({ body: { items: [...many, ITEMS[2]], next: null, today: { calls: 30, blocked: 0, messages: 0, unlocks: 0 } } })
+  await mockApi(page, api.handlers)
+  await page.goto('/espace/journal')
+  await expect(page.locator('.summary .tile svg')).toHaveCount(4)
+  await expect(page.getByRole('button', { name: /^30 Appels$/ })).toBeVisible()
+  const today = page.getByRole('list', { name: 'Aujourd’hui' })
+  await expect(today).toHaveAttribute('tabindex', '0')
+  const sizes = await today.evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight }))
+  expect(sizes.scroll).toBeGreaterThan(sizes.client)
+  expect(sizes.client).toBeLessThanOrEqual(440)
+  // « Hier » n'est pas borné.
+  await expect(page.locator('.list.bounded')).toHaveCount(1)
+  await expect(page.getByRole('heading', { name: 'Hier' })).toBeVisible()
+  // Liste et page au bout : la dernière ligne du jour reste au-dessus de la barre d'onglets.
+  await today.evaluate((el) => { el.scrollTop = el.scrollHeight })
+  await page.evaluate(() => window.scrollTo(0, document.scrollingElement!.scrollHeight))
+  const last = await today.locator('li').last().boundingBox()
+  const bar = await page.getByRole('navigation').last().boundingBox()
+  expect(last!.y + last!.height).toBeLessThanOrEqual(bar!.y)
+  // Titre des tuiles retiré de l'écran, gardé pour les lecteurs d'écran.
+  await expect(page.getByText('Aujourd’hui en bref')).toHaveClass(/visually-hidden/)
 })

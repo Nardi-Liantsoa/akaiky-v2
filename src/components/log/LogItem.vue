@@ -32,7 +32,8 @@ const view = computed(() => {
     // Contact connu (nom) : bloqué pendant une plage « école » (NAR-176).
     case 'call_blocked': return i.name
       ? { tone: 'blocked', title: log.blockedContact(i.name), detail: `${log.duringSchedule} · ${log.notRung}` }
-      : { tone: 'blocked', title: log.blocked, detail: `${i.phone ? formatPhone(i.phone) : log.hiddenNumber} · ${log.notRung}` }
+      // Numéro à part, jamais coupé (NAR-231) : à 360 px, « n'a pas sonné » passe à la ligne, pas lui.
+      : { tone: 'blocked', title: log.blocked, number: i.phone ? formatPhone(i.phone) : '', detail: i.phone ? log.notRung : `${log.hiddenNumber} · ${log.notRung}` }
     case 'unlock': return { tone: 'unlock', title: i.source === 'remote' ? log.unlockRemote : log.unlockCode, detail: i.durationS ? log.unlockFor(Math.max(1, Math.round(i.durationS / 60))) : '' }
     default: return { tone: 'message', title: quickText(i.slot, t.value.child.quick.texts, i.text), detail: i.readBy.length ? t.value.parent.home.seenBy(i.readBy.map((r) => r.name).join(', ')) : '' }
   }
@@ -52,7 +53,7 @@ const allowPhone = computed(() => (props.canAllow && props.item.kind === 'call_b
     </span>
     <span class="body">
       <span class="title">{{ view.title }}</span>
-      <span v-if="view.detail" class="detail" data-selectable>{{ view.detail }}</span>
+      <span v-if="view.detail" class="detail" data-selectable><span v-if="'number' in view && view.number" class="number">{{ view.number }}</span>{{ view.detail }}</span>
     </span>
     <span class="side">
       <time :datetime="item.at">{{ time }}</time>
@@ -103,6 +104,12 @@ const allowPhone = computed(() => (props.canAllow && props.item.kind === 'call_b
   color: var(--text-soft);
   font-size: 0.92rem;
   font-weight: 600;
+}
+.number {
+  white-space: nowrap;
+}
+.number::after {
+  content: " · ";
 }
 .side {
   display: flex;
