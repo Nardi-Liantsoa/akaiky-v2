@@ -59,7 +59,8 @@ test('ordinateur (1280 px) : barre latérale pleine hauteur (nom de l’app, ong
   await expect(page).toHaveURL(/\/espace\/famille$/)
   await expect(nav(page).getByRole('link', { name: 'Famille', exact: true })).toHaveAttribute('aria-current', 'page')
   // Page longue : la barre latérale reste à pleine hauteur pendant le défilement (bug de l'audit).
-  await page.mouse.wheel(0, 2000)
+  // Défilement par script : mouse.wheel n'existe pas en WebKit mobile (projet iPhone).
+  await page.evaluate(() => window.scrollTo(0, 2000))
   const after = (await nav(page).boundingBox())!
   expect(after.y).toBe(0)
   expect(after.height).toBe(800)
