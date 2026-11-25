@@ -118,7 +118,8 @@ h1 {
 }
 .aside {
   position: sticky;
-  top: var(--space-5);
+  /* Tablette native : sous la barre d'état. */
+  top: calc(var(--space-5) + var(--safe-top));
 }
 .aside > :deep(*) {
   margin-top: 0;
