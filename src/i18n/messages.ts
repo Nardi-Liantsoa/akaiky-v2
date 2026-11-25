@@ -292,6 +292,10 @@ const fr = {
     unknown: 'Inconnu',
     networks: { wifi: 'Wi-Fi', mobile: 'Mobile', none: 'Aucun' },
     sims: { ready: 'Présente', absent: 'Absente', locked: 'Verrouillée', unknown: 'Inconnue' },
+    // Pastille compacte (maquette 01, NAR-227).
+    simChip: { ready: 'SIM OK', absent: 'Sans SIM', locked: 'SIM verrouillée', unknown: 'SIM ?' },
+    // Conseil après « Signalé il y a … » dans le bandeau d'alerte (maquette 01).
+    hints: { battery_low: 'Pensez à lui rappeler de charger.', sim_absent: 'Vérifiez la carte SIM du téléphone.', silent: 'Le téléphone est peut-être éteint ou sans réseau.' },
     noSignal: 'Pas encore de nouvelles du téléphone',
     alerts: {
       // Sans le prénom, déjà en tête de la carte (NAR-192).
@@ -546,7 +550,7 @@ const fr = {
   parent: {
     tabsLabel: 'Navigation principale',
     // backLabel : nom de la flèche de retour (PageHeader) de Modifier et de l'appairage (NAR-195, NAR-222).
-    home: { title: 'Accueil', empty: 'Les enfants de votre famille apparaîtront ici.', seenBy: (names: string) => `Vu par ${names}`, backLabel: 'Retour à l’accueil' },
+    home: { title: 'Accueil', empty: 'Les enfants de votre famille apparaîtront ici.', seenBy: (names: string) => `Vu par ${names}`, backLabel: 'Retour à l’accueil', heading: 'Vos enfants', hello: (name: string) => `Bonjour ${name}` },
     log: {
       title: 'Journal',
       empty: 'Les appels, messages et alertes apparaîtront ici.',
@@ -575,7 +579,11 @@ const fr = {
       more: 'Voir plus',
       loadError: 'Impossible de charger le journal.',
       todayTitle: 'Aujourd’hui',
+      // Carte enfant (maquette 01, NAR-227) et panneau de l'ordinateur (maquette 02).
+      todayLine: (calls: number, blocked: number) => `Aujourd’hui · ${calls} appel${calls > 1 ? 's' : ''}, ${blocked} bloqué${blocked > 1 ? 's' : ''}`,
+      recentTitle: 'Derniers événements',
       allLog: 'Tout le journal',
+      seeAll: 'Voir tout le journal',
       nothingToday: 'Rien aujourd’hui pour l’instant.'
     },
     settings: {
@@ -1024,6 +1032,8 @@ const mg: Messages = {
     unknown: 'Tsy fantatra',
     networks: { wifi: 'Wi-Fi', mobile: 'Finday', none: 'Tsy misy' },
     sims: { ready: 'Misy', absent: 'Tsy misy', locked: 'Mihidy', unknown: 'Tsy fantatra' },
+    simChip: { ready: 'SIM OK', absent: 'Tsy misy SIM', locked: 'SIM mihidy', unknown: 'SIM ?' },
+    hints: { battery_low: 'Ampahatsiahivo azy ny hameno ny bateria.', sim_absent: 'Jereo ny karatra SIM ao amin’ny finday.', silent: 'Mety maty na tsy misy tambajotra ny finday.' },
     noSignal: 'Mbola tsy nisy vaovao avy amin’ny finday',
     alerts: {
       battery_low: 'Efa ho lany ny bateria',
@@ -1269,7 +1279,7 @@ const mg: Messages = {
   },
   parent: {
     tabsLabel: 'Fitetezana lehibe',
-    home: { title: 'Fandraisana', empty: 'Eto no hiseho ireo ankizy ao amin’ny fianakavianao.', seenBy: (names: string) => `Hitan’i ${names}`, backLabel: 'Hiverina amin’ny fandraisana' },
+    home: { title: 'Fandraisana', empty: 'Eto no hiseho ireo ankizy ao amin’ny fianakavianao.', seenBy: (names: string) => `Hitan’i ${names}`, backLabel: 'Hiverina amin’ny fandraisana', heading: 'Ny zanakao', hello: (name: string) => `Manao ahoana ${name}` },
     log: {
       title: 'Tantara',
       empty: 'Eto no hiseho ny antso, ny hafatra ary ny fampitandremana.',
@@ -1297,7 +1307,10 @@ const mg: Messages = {
       more: 'Hijery bebe kokoa',
       loadError: 'Tsy azo nalaina ny tantara.',
       todayTitle: 'Androany',
+      todayLine: (calls: number, blocked: number) => `Androany · antso ${calls}, voasakana ${blocked}`,
+      recentTitle: 'Ireo zava-nitranga farany',
       allLog: 'Ny tantara rehetra',
+      seeAll: 'Hijery ny tantara rehetra',
       nothingToday: 'Mbola tsy misy androany.'
     },
     settings: {
@@ -1736,6 +1749,8 @@ const en: Messages = {
     unknown: 'Unknown',
     networks: { wifi: 'Wi-Fi', mobile: 'Mobile', none: 'None' },
     sims: { ready: 'Inserted', absent: 'Missing', locked: 'Locked', unknown: 'Unknown' },
+    simChip: { ready: 'SIM OK', absent: 'No SIM', locked: 'SIM locked', unknown: 'SIM ?' },
+    hints: { battery_low: 'Remind them to charge it.', sim_absent: 'Check the phone’s SIM card.', silent: 'The phone may be off or out of signal.' },
     noSignal: 'No news from the phone yet',
     alerts: {
       battery_low: 'Low battery',
@@ -1980,7 +1995,7 @@ const en: Messages = {
   },
   parent: {
     tabsLabel: 'Main navigation',
-    home: { title: 'Home', empty: 'Your family’s children will appear here.', seenBy: (names: string) => `Seen by ${names}`, backLabel: 'Back to home' },
+    home: { title: 'Home', empty: 'Your family’s children will appear here.', seenBy: (names: string) => `Seen by ${names}`, backLabel: 'Back to home', heading: 'Your children', hello: (name: string) => `Hello ${name}` },
     log: {
       title: 'Log',
       empty: 'Calls, messages and alerts will appear here.',
@@ -2008,7 +2023,10 @@ const en: Messages = {
       more: 'Show more',
       loadError: 'Could not load the log.',
       todayTitle: 'Today',
+      todayLine: (calls: number, blocked: number) => `Today · ${calls} call${calls === 1 ? '' : 's'}, ${blocked} blocked`,
+      recentTitle: 'Latest events',
       allLog: 'Full log',
+      seeAll: 'See the full log',
       nothingToday: 'Nothing today yet.'
     },
     settings: {

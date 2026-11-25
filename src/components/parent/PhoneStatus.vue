@@ -78,19 +78,27 @@ const stale = computed(() => reloading.value && loadedFor.value !== props.childI
 const ago = (iso: string | null) => relativeTime(iso, t.value, locale.value, now.value)
 const battery = (d: DeviceStatusInfo) => d.batteryPct === null ? t.value.phoneState.unknown : t.value.phoneState.percent(d.batteryPct)
 const network = (d: DeviceStatusInfo) => d.network && d.network !== 'unknown' ? t.value.phoneState.networks[d.network] : t.value.phoneState.unknown
-const sim = (d: DeviceStatusInfo) => t.value.phoneState.sims[d.simState ?? 'unknown']
 const lowBattery = (d: DeviceStatusInfo) => d.batteryPct !== null && d.batteryPct < 15 && !d.charging
+// Titre du bandeau (maquette 01) : « Batterie faible · 12 % » quand le relevé est connu.
+function alertTitle(a: { kind: AlertKind, deviceId: string }) {
+  const title = t.value.phoneState.alerts[a.kind]
+  const pct = a.kind === 'battery_low' ? devices.value.find((d) => d.id === a.deviceId)?.batteryPct : null
+  return pct === null || pct === undefined ? title : `${title} · ${t.value.phoneState.percent(pct)}`
+}
 </script>
 
 <template>
-  <!-- Premier chargement : tuiles vides de même gabarit, cachées aux lecteurs d'écran. -->
-  <div v-if="status === 'loading'" class="phone-state" aria-hidden="true">
-    <dl class="tiles placeholder">
-      <div v-for="i in 3" :key="i" class="tile">
-        <dt>&nbsp;</dt>
-        <dd>&nbsp;</dd>
-      </div>
-    </dl>
+  <!-- Premier chargement : même gabarit que l'état chargé (actions, puis pastilles vides cachées
+       aux lecteurs d'écran) : la carte ne bouge pas quand l'état arrive. -->
+  <div v-if="status === 'loading'" class="phone-state">
+    <slot name="actions" />
+    <div class="device" aria-hidden="true">
+      <dl class="tiles placeholder">
+        <div v-for="i in 3" :key="i" class="tile">
+          <dd>&nbsp;</dd>
+        </div>
+      </dl>
+    </div>
   </div>
   <section
     v-else-if="devices.length || status === 'error'" class="phone-state" :class="{ stale }" :aria-busy="reloading"
@@ -103,8 +111,8 @@ const lowBattery = (d: DeviceStatusInfo) => d.batteryPct !== null && d.batteryPc
         <div v-for="a in alerts.slice(0, 1)" :key="`${a.deviceId}-${a.kind}`" class="banner" :class="BANNER[a.kind].tone" role="alert">
           <AppIcon :name="BANNER[a.kind].icon" :size="22" class="icon" />
           <span class="text">
-            <strong>{{ t.phoneState.alerts[a.kind] }}</strong>
-            <span class="since">{{ t.phoneState.since(ago(a.openedAt)) }}</span>
+            <strong>{{ alertTitle(a) }}</strong>
+            <span class="since">{{ t.phoneState.since(ago(a.openedAt)) }}. {{ t.phoneState.hints[a.kind] }}</span>
           </span>
         </div>
         <button
@@ -121,33 +129,39 @@ const lowBattery = (d: DeviceStatusInfo) => d.batteryPct !== null && d.batteryPc
         <li v-for="a in alerts.slice(1)" :key="`${a.deviceId}-${a.kind}`" class="banner" :class="BANNER[a.kind].tone">
           <AppIcon :name="BANNER[a.kind].icon" :size="22" class="icon" />
           <span class="text">
-            <strong>{{ t.phoneState.alerts[a.kind] }}</strong>
-            <span class="since">{{ t.phoneState.since(ago(a.openedAt)) }}</span>
+            <strong>{{ alertTitle(a) }}</strong>
+            <span class="since">{{ t.phoneState.since(ago(a.openedAt)) }}. {{ t.phoneState.hints[a.kind] }}</span>
           </span>
         </li>
       </ul>
     </div>
+    <!-- Actions de la carte (Appeler, Message ; maquette 01, NAR-227) : sous le bandeau, au-dessus des pastilles. -->
+    <slot name="actions" />
     <div v-for="d in devices" :key="d.id" class="device">
       <p v-if="devices.length > 1 && d.model" class="model">{{ d.model }}</p>
       <template v-if="d.statusAt">
+        <!-- Pastilles compactes (maquette 01, NAR-227) : icône et valeur ; le libellé reste lu (dt).
+             Pastille en défaut : en rouge, comme la maquette ; le bandeau d'alerte au-dessus la nomme en toutes lettres. -->
         <dl class="tiles">
           <div class="tile" :class="{ low: lowBattery(d) }">
-            <dt>{{ t.phoneState.battery }}</dt>
-            <dd><AppIcon v-if="lowBattery(d)" name="warning" :size="16" class="icon" />{{ battery(d) }}<span v-if="d.charging" class="extra"> · {{ t.phoneState.charging }}</span></dd>
+            <dt class="visually-hidden">{{ t.phoneState.battery }}</dt>
+            <dd><AppIcon name="battery" :size="18" class="icon" />{{ battery(d) }}<span v-if="d.charging" class="extra"> · {{ t.phoneState.charging }}</span></dd>
           </div>
           <div class="tile" :class="{ low: d.network === 'none' }">
-            <dt>{{ t.phoneState.network }}</dt>
-            <dd><AppIcon v-if="d.network === 'none'" name="warning" :size="16" class="icon" />{{ network(d) }}</dd>
+            <dt class="visually-hidden">{{ t.phoneState.network }}</dt>
+            <dd><AppIcon name="signal" :size="18" class="icon" />{{ network(d) }}</dd>
           </div>
           <div class="tile" :class="{ low: d.simState === 'absent' }">
-            <dt>{{ t.phoneState.sim }}</dt>
-            <dd><AppIcon v-if="d.simState === 'absent'" name="warning" :size="16" class="icon" />{{ sim(d) }}</dd>
+            <dt class="visually-hidden">{{ t.phoneState.sim }}</dt>
+            <dd><AppIcon name="sim" :size="18" class="icon" />{{ t.phoneState.simChip[d.simState ?? 'unknown'] }}</dd>
           </div>
         </dl>
       </template>
       <p v-else class="seen">{{ t.phoneState.noSignal }}</p>
     </div>
   </section>
+  <!-- Pas encore de relevé : la carte garde ses actions (Appeler, Message). -->
+  <slot v-else name="actions" />
 </template>
 
 <style scoped>
@@ -266,28 +280,31 @@ const lowBattery = (d: DeviceStatusInfo) => d.batteryPct !== null && d.batteryPc
   margin: 0;
 }
 .tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
-  padding: 8px 10px;
+  min-height: 40px;
+  padding: 6px 4px;
   border-radius: var(--radius-sm);
   background: var(--surface-muted);
 }
-.tile dt {
-  color: var(--ink-mute);
-  font-size: 0.8rem;
-  font-weight: 800;
-}
 .tile dd {
-  margin: 2px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
   color: var(--ink);
-  font-weight: 900;
-  overflow-wrap: anywhere;
+  font-size: 0.95rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 .tile.low dd {
   color: var(--sos);
 }
 .tile dd .icon {
+  flex: none;
   margin-right: 4px;
-  vertical-align: -2px;
 }
 .extra {
   font-weight: 700;

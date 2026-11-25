@@ -96,7 +96,7 @@ test('lien d’invitation sans session : jeton retiré de l’adresse, connexion
   await expect(page.getByText('Vous êtes invité à rejoindre « Famille Rabe » comme Contact.')).toBeVisible()
   await page.getByRole('button', { name: 'Rejoindre la famille' }).click()
   await expect(page).toHaveURL(/\/espace$/)
-  await expect(page.getByRole('heading', { name: 'Accueil' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vos enfants' })).toBeVisible()
   const accept = calls.find((r) => r.url().endsWith('/api/invitations/accept'))!
   expect(accept.postDataJSON()).toEqual({ token: TOKEN })
   // Le jeton n'a jamais voyagé dans une URL de requête.

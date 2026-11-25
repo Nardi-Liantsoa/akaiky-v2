@@ -7,15 +7,16 @@ test('parent connecté : quatre onglets, sans rechargement, onglet actif signal�
   await mockApi(page, connected)
   await page.goto('/espace')
   const tabs = page.getByRole('navigation', { name: 'Navigation principale' })
-  await expect(page.getByRole('heading', { name: 'Accueil' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vos enfants' })).toBeVisible()
   await expect(tabs.getByRole('link', { name: 'Accueil' })).toHaveAttribute('aria-current', 'page')
 
   // Un marqueur posé sur window survit seulement si la page n'est pas rechargée.
   await page.evaluate(() => { (window as unknown as { marker: number }).marker = 1 })
-  for (const [name, path] of [['Journal', '/espace/journal'], ['Réglages', '/espace/reglages'], ['Famille', '/espace/famille'], ['Accueil', '/espace']]) {
+  // Titre de page : celui de l'onglet, sauf l'accueil, « Vos enfants » (maquettes 01 et 02, NAR-227).
+  for (const [name, path, heading] of [['Journal', '/espace/journal', 'Journal'], ['Réglages', '/espace/reglages', 'Réglages'], ['Famille', '/espace/famille', 'Famille'], ['Accueil', '/espace', 'Vos enfants']]) {
     await tabs.getByRole('link', { name }).click()
     await expect(page).toHaveURL(new RegExp(`${path}$`))
-    await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible()
     await expect(tabs.getByRole('link', { name })).toHaveAttribute('aria-current', 'page')
     await expect(tabs.locator('[aria-current="page"]')).toHaveCount(1)
   }
@@ -183,7 +184,7 @@ test('parent sans famille : « Mon compte » sur l’écran de création, sans e
 })
 
 // NAR-192 : cibles tactiles de la carte d'un enfant, « ⋯ » en icône nommée.
-test('accueil : « Tout le journal », « ⋯ » et l’en-tête de la carte font au moins 48 px', async ({ page }) => {
+test('accueil : ligne « Aujourd’hui », « ⋯ » et l’en-tête de la carte font au moins 48 px', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 640 })
   const FY = '6f1c2b1e-0000-4000-8000-000000000101'
   await mockApi(page, {
@@ -198,7 +199,7 @@ test('accueil : « Tout le journal », « ⋯ » et l’en-tête de la carte fon
   // Icône du jeu commun, sans texte « ⋯ » ; le nom vient d'aria-label.
   await expect(more.locator('svg')).toHaveCount(1)
   await expect(more).toHaveText('')
-  for (const target of [page.getByRole('link', { name: 'Tout le journal' }), more, page.getByRole('button', { name: /^Fy / })]) {
+  for (const target of [page.getByRole('link', { name: /^Aujourd’hui/ }), more, page.getByRole('button', { name: /^Fy / })]) {
     const box = await target.boundingBox()
     expect(box?.height).toBeGreaterThanOrEqual(48)
     expect(box?.width).toBeGreaterThanOrEqual(48)

@@ -31,27 +31,28 @@ async function expectPill(page: import('@playwright/test').Page, text: string, l
   await expect(pill(page).locator('svg')).toHaveCount(1)
 }
 
-test('tuiles Batterie · Réseau · Carte SIM ; pastille « Tout va bien » et « vu à »', async ({ page }) => {
+test('pastilles batterie · réseau · carte SIM (icône et valeur, libellé lu) ; « Tout va bien » et « vu à »', async ({ page }) => {
   await home(page, () => ({ body: { devices: [device()] } }))
   await page.goto('/espace')
   const state = page.getByRole('region', { name: 'État du téléphone de Fy' })
   await expect(state.getByRole('definition').nth(0)).toHaveText('57 %')
   await expect(state.getByRole('term')).toHaveText(['Batterie', 'Réseau', 'Carte SIM'])
-  await expect(state.getByRole('definition')).toHaveText(['57 %', 'Wi-Fi', 'Présente'])
+  await expect(state.getByRole('definition')).toHaveText(['57 %', 'Wi-Fi', 'SIM OK'])
   await expectPill(page, 'Tout va bien', 'ok')
   const card = page.getByRole('button', { name: /^Fy / })
   await expect(card).toContainText(/Tout va bien\s*vu à \d\d:\d\d$/)
   // Une seule ligne « vu » par carte : plus de « Vu il y a » sous les tuiles.
   await expect(page.getByText(/^Vu /)).toHaveCount(0)
   await expect(page.getByRole('alert')).toHaveCount(0)
-  // Aucune tuile en défaut : aucune icône dans les tuiles.
-  await expect(state.locator('dd svg')).toHaveCount(0)
+  // Maquette 01 (NAR-227) : une icône par pastille ; aucune en défaut.
+  await expect(state.locator('dd svg')).toHaveCount(3)
+  await expect(state.locator('.tile.low')).toHaveCount(0)
 })
 
 // Chaque alerte : bandeau avec icône et texte court sans prénom, pastille du bon niveau,
 // tuile en défaut marquée d'une icône (jamais la couleur seule).
 const CASES = [
-  { kind: 'battery_low', over: { batteryPct: 12 }, banner: 'Batterie faible', mg: 'Efa ho lany ny bateria', pill: 'À vérifier', level: 'warn', tile: 0 },
+  { kind: 'battery_low', over: { batteryPct: 12 }, banner: 'Batterie faible · 12 %', mg: 'Efa ho lany ny bateria · 12 %', pill: 'À vérifier', level: 'warn', tile: 0 },
   { kind: 'sim_absent', over: { simState: 'absent' }, banner: 'Pas de carte SIM', mg: 'Tsy misy karatra SIM', pill: 'À vérifier', level: 'warn', tile: 2 },
   { kind: 'silent', over: { network: 'none', statusAt: minutesAgo(90) }, banner: 'Le téléphone ne répond plus', mg: 'Tsy mamaly intsony ny finday', pill: 'Ne répond plus', level: 'alert', tile: 1 }
 ] as const
@@ -67,8 +68,9 @@ for (const c of CASES) {
     await expect(banner.locator('svg')).toHaveCount(1)
     await expectPill(page, c.pill, c.level)
     const state = page.getByRole('region', { name: 'État du téléphone de Fy' })
-    await expect(state.locator('.tile').nth(c.tile).locator('dd svg')).toHaveCount(1)
-    await expect(state.locator('dd svg')).toHaveCount(1)
+    // Pastille en défaut en rouge (maquette 01) ; le bandeau au-dessus nomme l'alerte en toutes lettres.
+    await expect(state.locator('.tile').nth(c.tile)).toHaveClass(/\blow\b/)
+    await expect(state.locator('.tile.low')).toHaveCount(1)
     await page.evaluate(() => localStorage.setItem('akaiky-v2.lang', 'mg'))
     await page.reload()
     await expect(page.getByRole('alert').locator('strong')).toHaveText(c.mg)
@@ -91,13 +93,13 @@ test('la carte ne bouge pas quand l’état du téléphone arrive', async ({ pag
   await page.goto('/espace')
   const card = page.locator('li.child').first()
   await expect(card.getByRole('heading', { name: /Fy/ })).toBeVisible()
-  // Journal du jour affiché (vide) : seule l'arrivée de l'état peut encore changer la carte.
-  await expect(card.getByText('Rien aujourd’hui pour l’instant.')).toBeVisible()
+  // Ligne « Aujourd'hui » affichée : seule l'arrivée de l'état peut encore changer la carte.
+  await expect(card.getByRole('link', { name: /^Aujourd’hui/ })).toBeVisible()
   await expect(pill(page)).toHaveCount(0)
   const before = (await card.boundingBox())?.height
   release()
   await expectPill(page, 'Tout va bien', 'ok')
-  await expect(page.getByRole('region', { name: 'État du téléphone de Fy' }).getByRole('definition')).toHaveText(['57 %', 'Wi-Fi', 'Présente'])
+  await expect(page.getByRole('region', { name: 'État du téléphone de Fy' }).getByRole('definition')).toHaveText(['57 %', 'Wi-Fi', 'SIM OK'])
   const after = (await card.boundingBox())?.height
   expect(before).toBeGreaterThan(0)
   expect(after).toBe(before)
@@ -128,7 +130,7 @@ test('relecture en échec après « Tout va bien » : la pastille n’affirme pl
   await expect.poll(() => calls.filter((r) => r.url().endsWith('/status')).length).toBeGreaterThan(before)
   await expect(pill(page)).toHaveCount(0)
   // Les derniers relevés restent, la carte ne saute pas.
-  await expect(page.getByRole('region', { name: 'État du téléphone de Fy' }).getByRole('definition')).toHaveText(['57 %', 'Wi-Fi', 'Présente'])
+  await expect(page.getByRole('region', { name: 'État du téléphone de Fy' }).getByRole('definition')).toHaveText(['57 %', 'Wi-Fi', 'SIM OK'])
   down = false
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
   await expectPill(page, 'Tout va bien', 'ok')

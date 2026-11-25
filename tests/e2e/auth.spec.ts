@@ -14,7 +14,7 @@ test('connexion puis espace, avec l’en-tête anti-CSRF', async ({ page }) => {
   await page.fill('#password', 'une phrase de passe longue')
   await page.getByRole('button', { name: 'Se connecter' }).click()
   await expect(page).toHaveURL(/\/espace$/)
-  await expect(page.getByRole('heading', { name: 'Accueil' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vos enfants' })).toBeVisible()
   const login = calls.find((r) => r.url().endsWith('/api/auth/login'))!
   expect(login.headers()['x-app']).toBe('1')
   expect(login.postDataJSON()).toMatchObject({ email: USER.email, rememberDevice: false })
