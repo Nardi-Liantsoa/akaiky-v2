@@ -74,22 +74,23 @@ function closeSheet() {
   <SectionCard :title="t.admin.users">
     <p v-if="loadError" class="error" role="alert">{{ loadError }}</p>
     <p v-if="actionError && !confirming.target.value" class="error" role="alert">{{ actionError }}</p>
-    <div class="admin-scroll">
-      <table class="admin-table">
-        <thead>
-          <tr>
-            <th>{{ t.admin.email }}</th><th>{{ t.admin.created }}</th><th>{{ t.admin.verified }}</th><th>{{ t.admin.mfa }}</th>
-            <th>{{ t.admin.state }}</th><th>{{ t.admin.actions }}</th>
+    <!-- Liste longue : défile dans sa carte (NAR-224), atteignable au clavier. -->
+    <div class="admin-scroll bounded" tabindex="0" role="region" :aria-label="t.admin.users">
+      <table class="admin-table" role="table">
+        <thead role="rowgroup">
+          <tr role="row">
+            <th role="columnheader">{{ t.admin.email }}</th><th role="columnheader">{{ t.admin.created }}</th><th role="columnheader">{{ t.admin.verified }}</th><th role="columnheader">{{ t.admin.mfa }}</th>
+            <th role="columnheader">{{ t.admin.state }}</th><th role="columnheader">{{ t.admin.actions }}</th>
           </tr>
         </thead>
-        <tbody>
-          <tr v-for="u in users" :key="u.id">
-            <td>{{ label(u) }}<span v-if="u.is_admin"> · {{ t.admin.adminBadge }}</span><span v-if="isMe(u)"> ({{ t.admin.you }})</span></td>
-            <td>{{ formatDateTime(u.created_at, locale) }}</td>
-            <td>{{ u.verified ? t.admin.yes : t.admin.no }}</td>
-            <td>{{ u.mfa ? t.admin.yes : t.admin.no }}</td>
-            <td><span class="state" :class="{ 'is-disabled': u.disabled_at }">{{ u.disabled_at ? t.admin.accountStates.disabled : t.admin.accountStates.active }}</span></td>
-            <td>
+        <tbody role="rowgroup">
+          <tr role="row" v-for="u in users" :key="u.id">
+            <td role="cell" class="lead-cell">{{ label(u) }}<span v-if="u.is_admin"> · {{ t.admin.adminBadge }}</span><span v-if="isMe(u)"> ({{ t.admin.you }})</span></td>
+            <td role="cell" :data-label="t.admin.created">{{ formatDateTime(u.created_at, locale) }}</td>
+            <td role="cell" :data-label="t.admin.verified">{{ u.verified ? t.admin.yes : t.admin.no }}</td>
+            <td role="cell" :data-label="t.admin.mfa">{{ u.mfa ? t.admin.yes : t.admin.no }}</td>
+            <td role="cell" :data-label="t.admin.state"><span class="state" :class="{ 'is-disabled': u.disabled_at }">{{ u.disabled_at ? t.admin.accountStates.disabled : t.admin.accountStates.active }}</span></td>
+            <td role="cell" class="actions-cell">
               <!-- Un seul bouton par ligne, dont le libellé change : l'élément reste le même, le focus
                    clavier y reste après l'action (deux boutons en v-if/v-else le renverraient au haut de la page). -->
               <AppButton v-if="u.disabled_at || !isMe(u)" variant="ghost" small :disabled="busy" @click="u.disabled_at ? enable(u, $event) : confirming.ask(u, $event)">

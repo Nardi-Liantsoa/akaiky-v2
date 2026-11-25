@@ -50,6 +50,19 @@ defineExpose({ reload: load })
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
+/* Téléphone (maquette 06, NAR-224) : trois tuiles par ligne ; un mot long (malgache) passe
+ * à la ligne dans sa tuile au lieu de déborder. */
+@media (max-width: 767px) {
+  .tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+}
+dt,
+dd {
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
 dt {
   color: var(--text-soft);
   font-size: 0.85rem;

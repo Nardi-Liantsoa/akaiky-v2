@@ -246,3 +246,61 @@ test('admin : demande refusée (aucun gestionnaire à adresse) : la feuille se f
   await expect(confirmSheet(page)).toBeVisible()
   await expect(confirmSheet(page).getByRole('alert')).toHaveCount(0)
 })
+
+test('admin à 360 px : tuiles et une carte par ligne, aucun défilement horizontal, actions pleine largeur', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 })
+  await mockApi(page, adminApi())
+  await page.goto('/admin')
+  const devices = page.getByRole('region', { name: 'Téléphones' })
+  await expect(devices.getByText('Itel A70')).toBeVisible()
+  // Paires libellé / valeur (maquette 06) : le libellé de colonne est écrit dans la carte.
+  const itel = devices.locator('tr', { hasText: 'Itel A70' })
+  expect(await itel.locator('td[data-label]').first().evaluate((td) => getComputedStyle(td, '::before').content)).not.toBe('none')
+  const revoke = itel.getByRole('button', { name: 'Retirer' })
+  const card = (await itel.boundingBox())!
+  const button = (await revoke.boundingBox())!
+  expect(button.width).toBeGreaterThan(card.width * 0.8)
+  expect(button.height).toBeGreaterThanOrEqual(44)
+  // Trois tuiles de statistiques par ligne.
+  const tiles = page.getByRole('region', { name: 'Statistiques' }).locator('.tiles > div')
+  const tops = await tiles.evaluateAll((els) => els.slice(0, 3).map((e) => Math.round(e.getBoundingClientRect().top)))
+  expect(new Set(tops).size).toBe(1)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
+test('admin en malgache à 320 px : aucun libellé ne déborde de sa tuile ni de la page', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 })
+  await page.addInitScript(() => localStorage.setItem('akaiky-v2.lang', 'mg'))
+  await mockApi(page, adminApi())
+  await page.goto('/admin')
+  const tiles = page.locator('.tiles > div')
+  await expect(tiles.first()).toBeVisible()
+  const overflowing = await tiles.evaluateAll((els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1).length)
+  expect(overflowing).toBe(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
+test('journal d’audit long : il défile dans sa carte, la page ne s’allonge pas', async ({ page }) => {
+  const entries = Array.from({ length: 80 }, (_, i) => ({ at: `2026-01-15T${String(i % 24).padStart(2, '0')}:00:00Z`, action: 'device_revoked', actor: 'admin' }))
+  await mockApi(page, adminApi({ 'GET /api/admin/audit': () => ({ body: entries }) }))
+  await page.goto('/admin')
+  const scroller = page.getByRole('region', { name: 'Journal d’audit' }).locator('.bounded')
+  await expect(scroller.getByRole('row')).toHaveCount(81)
+  const { client, scroll } = await scroller.evaluate((e) => ({ client: e.clientHeight, scroll: e.scrollHeight }))
+  expect(client).toBeLessThanOrEqual(480)
+  expect(scroll).toBeGreaterThan(client)
+  // Atteignable au clavier pour défiler aux flèches.
+  await expect(scroller).toHaveAttribute('tabindex', '0')
+})
+
+test('beaucoup de comptes : la liste défile dans sa carte', async ({ page }) => {
+  const users = Array.from({ length: 60 }, (_, i) => ({ id: `6f1c2b1e-0000-4000-8000-0000000003${String(i).padStart(2, '0')}`, email: `compte${i}@exemple.fr`, created_at: '2026-01-10T10:00:00Z', verified: true, mfa: false, is_admin: false, disabled_at: null }))
+  await mockApi(page, adminApi({ 'GET /api/admin/users': () => ({ body: users }) }))
+  await page.goto('/admin')
+  const scroller = page.getByRole('region', { name: 'Comptes' }).locator('.bounded')
+  await expect(scroller.getByRole('row')).toHaveCount(61)
+  const { client, scroll } = await scroller.evaluate((e) => ({ client: e.clientHeight, scroll: e.scrollHeight }))
+  expect(client).toBeLessThanOrEqual(480)
+  expect(scroll).toBeGreaterThan(client)
+  await expect(scroller).toHaveAttribute('tabindex', '0')
+})

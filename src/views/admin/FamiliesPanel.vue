@@ -28,30 +28,30 @@ defineExpose({ reload: list.reload })
     <StatusBlock v-else-if="!list.items.value.length" state="empty" :text="t.admin.families.empty" />
     <template v-else>
       <div class="admin-scroll">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>{{ t.admin.families.ref }}</th><th>{{ t.admin.families.members }}</th><th>{{ t.admin.families.children }}</th>
-              <th>{{ t.admin.families.devices }}</th><th>{{ t.admin.families.created }}</th><th>{{ t.admin.actions }}</th>
+        <table class="admin-table" role="table">
+          <thead role="rowgroup">
+            <tr role="row">
+              <th role="columnheader">{{ t.admin.families.ref }}</th><th role="columnheader">{{ t.admin.families.members }}</th><th role="columnheader">{{ t.admin.families.children }}</th>
+              <th role="columnheader">{{ t.admin.families.devices }}</th><th role="columnheader">{{ t.admin.families.created }}</th><th role="columnheader">{{ t.admin.actions }}</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody role="rowgroup">
             <template v-for="f in list.items.value" :key="f.id">
-              <tr>
-                <td><code :title="f.id">{{ shortId(f.id) }}</code></td>
-                <td>{{ f.members }}</td>
-                <td>{{ f.children }}</td>
-                <td>{{ f.devices }}</td>
-                <td>{{ formatDateTime(f.createdAt, locale) }}</td>
-                <td>
+              <tr role="row">
+                <td role="cell" class="lead-cell"><code :title="f.id">{{ shortId(f.id) }}</code></td>
+                <td role="cell" :data-label="t.admin.families.members">{{ f.members }}</td>
+                <td role="cell" :data-label="t.admin.families.children">{{ f.children }}</td>
+                <td role="cell" :data-label="t.admin.families.devices">{{ f.devices }}</td>
+                <td role="cell" :data-label="t.admin.families.created">{{ formatDateTime(f.createdAt, locale) }}</td>
+                <td role="cell" class="actions-cell">
                   <AppButton
                     v-if="f.children" variant="ghost" small :aria-expanded="open === f.id" :aria-controls="open === f.id ? `family-kids-${f.id}` : undefined"
                     @click="toggle(f.id)"
                   >{{ open === f.id ? t.admin.kids.hide : t.admin.kids.show }}</AppButton>
                 </td>
               </tr>
-              <tr v-if="open === f.id" :id="`family-kids-${f.id}`">
-                <td colspan="6"><FamilyChildren :family-id="f.id" /></td>
+              <tr role="row" v-if="open === f.id" :id="`family-kids-${f.id}`">
+                <td role="cell" colspan="6" class="nested-cell"><FamilyChildren :family-id="f.id" /></td>
               </tr>
             </template>
           </tbody>

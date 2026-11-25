@@ -53,23 +53,23 @@ function closeSheet() {
     <StatusBlock v-else-if="!list.items.value.length" state="empty" :text="t.admin.devices.empty" />
     <template v-else>
       <div class="admin-scroll">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>{{ t.admin.devices.model }}</th><th>{{ t.admin.devices.versions }}</th><th>{{ t.admin.devices.family }}</th>
-              <th>{{ t.admin.devices.lastSignal }}</th><th>{{ t.admin.devices.lastSeen }}</th><th>{{ t.admin.devices.state }}</th>
-              <th>{{ t.admin.actions }}</th>
+        <table class="admin-table" role="table">
+          <thead role="rowgroup">
+            <tr role="row">
+              <th role="columnheader">{{ t.admin.devices.model }}</th><th role="columnheader">{{ t.admin.devices.versions }}</th><th role="columnheader">{{ t.admin.devices.family }}</th>
+              <th role="columnheader">{{ t.admin.devices.lastSignal }}</th><th role="columnheader">{{ t.admin.devices.lastSeen }}</th><th role="columnheader">{{ t.admin.devices.state }}</th>
+              <th role="columnheader">{{ t.admin.actions }}</th>
             </tr>
           </thead>
-          <tbody>
-            <tr v-for="d in list.items.value" :key="d.id">
-              <td>{{ modelOf(d) }}</td>
-              <td>{{ d.osVersion || '—' }} · {{ d.appVersion || '—' }}</td>
-              <td><code :title="d.familyId">{{ shortId(d.familyId) }}</code></td>
-              <td>{{ when(d.statusAt) }}</td>
-              <td>{{ when(d.lastSeenAt) }}</td>
-              <td><span class="state" :class="`is-${d.state}`">{{ t.admin.devices.states[d.state] }}</span></td>
-              <td>
+          <tbody role="rowgroup">
+            <tr role="row" v-for="d in list.items.value" :key="d.id">
+              <td role="cell" class="lead-cell">{{ modelOf(d) }}</td>
+              <td role="cell" :data-label="t.admin.devices.versions">{{ d.osVersion || '—' }} · {{ d.appVersion || '—' }}</td>
+              <td role="cell" :data-label="t.admin.devices.family"><code :title="d.familyId">{{ shortId(d.familyId) }}</code></td>
+              <td role="cell" :data-label="t.admin.devices.lastSignal">{{ when(d.statusAt) }}</td>
+              <td role="cell" :data-label="t.admin.devices.lastSeen">{{ when(d.lastSeenAt) }}</td>
+              <td role="cell" :data-label="t.admin.devices.state"><span class="state" :class="`is-${d.state}`">{{ t.admin.devices.states[d.state] }}</span></td>
+              <td role="cell" class="actions-cell">
                 <AppButton v-if="d.state !== 'revoked'" variant="ghost" small :disabled="busy" @click="confirming.ask(d, $event)">{{ t.admin.revoke }}</AppButton>
               </td>
             </tr>

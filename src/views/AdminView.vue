@@ -48,14 +48,16 @@ function deviceChanged() {
 
     <SectionCard :title="t.admin.audit">
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <div class="admin-scroll">
-        <table class="admin-table">
-          <thead><tr><th>{{ t.admin.when }}</th><th>{{ t.admin.action }}</th><th>{{ t.admin.actor }}</th></tr></thead>
-          <tbody>
-            <tr v-for="(a, i) in audit" :key="i">
-              <td>{{ formatDateTime(a.at, locale) }}</td>
-              <td>{{ a.action }}</td>
-              <td>{{ a.actor || '—' }}</td>
+      <!-- Journal long (NAR-224) : il défile dans sa carte au lieu d'allonger la page ; zone
+           atteignable au clavier (tabindex) et nommée, pour défiler aux flèches. -->
+      <div class="admin-scroll bounded" tabindex="0" role="region" :aria-label="t.admin.audit">
+        <table class="admin-table" role="table">
+          <thead role="rowgroup"><tr role="row"><th role="columnheader">{{ t.admin.when }}</th><th role="columnheader">{{ t.admin.action }}</th><th role="columnheader">{{ t.admin.actor }}</th></tr></thead>
+          <tbody role="rowgroup">
+            <tr role="row" v-for="(a, i) in audit" :key="i">
+              <td role="cell" :data-label="t.admin.when">{{ formatDateTime(a.at, locale) }}</td>
+              <td role="cell" class="lead-cell">{{ a.action }}</td>
+              <td role="cell" :data-label="t.admin.actor">{{ a.actor || '—' }}</td>
             </tr>
           </tbody>
         </table>
@@ -99,5 +101,103 @@ function deviceChanged() {
 .admin-table th {
   color: var(--text-mute);
   font-weight: 500;
+}
+/* Liste longue (journal d'audit, comptes ; NAR-224) : hauteur bornée, défilement dans la carte,
+ * en-têtes de colonnes gardés en vue ; la zone est atteignable au clavier (tabindex dans le gabarit). */
+.admin-scroll.bounded {
+  max-height: min(480px, 60vh);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.admin-scroll.bounded:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+.admin-scroll.bounded thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
+/* Téléphone et petite tablette (NAR-224, maquette 06) : une carte par ligne au lieu du
+ * tableau. Les rôles ARIA posés sur le tableau (table, row, cell, columnheader) gardent sa
+ * sémantique pour un lecteur d'écran malgré display: block (Safari, VoiceOver).
+ * Le tableau forçait la largeur et faisait dézoomer la page. Première cellule en titre,
+ * autres en paires libellé / valeur (data-label), action en bouton pleine largeur. Même
+ * gabarit que le tableau : aucune donnée de plus ni de moins. */
+@media (max-width: 767px) {
+  .admin-scroll:not(.bounded) {
+    overflow: visible;
+  }
+  .admin-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .admin-table,
+  .admin-table tbody,
+  .admin-table tr,
+  .admin-table td {
+    display: block;
+    width: 100%;
+  }
+  .admin-table tr {
+    margin-bottom: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .admin-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-1) 0;
+    border: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+  .admin-table td:not([data-label])::before {
+    content: none;
+  }
+  .admin-table td[data-label]::before {
+    content: attr(data-label);
+    flex: none;
+    color: var(--text-soft);
+    text-align: left;
+  }
+  .admin-table td.lead-cell {
+    display: block;
+    padding-bottom: var(--space-2);
+    font-size: 1rem;
+    font-weight: 800;
+    text-align: left;
+  }
+  /* Règles séparées : un navigateur sans :has() ne perd que la sienne. */
+  .admin-table td.actions-cell:empty {
+    display: none;
+  }
+  .admin-table td.actions-cell:not(:has(*)) {
+    display: none;
+  }
+  .admin-table td.actions-cell {
+    display: block;
+    padding-top: var(--space-2);
+  }
+  .admin-table td.actions-cell .btn {
+    width: 100%;
+  }
+  /* Enfants d'une famille, dépliés sous sa carte : la liste imbriquée garde son propre gabarit. */
+  .admin-table tr:has(> td.nested-cell) {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .admin-table td.nested-cell {
+    display: block;
+    text-align: left;
+  }
 }
 </style>
