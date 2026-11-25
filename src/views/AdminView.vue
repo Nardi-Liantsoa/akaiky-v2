@@ -50,7 +50,7 @@ function deviceChanged() {
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <!-- Journal long (NAR-224) : il défile dans sa carte au lieu d'allonger la page ; zone
            atteignable au clavier (tabindex) et nommée, pour défiler aux flèches. -->
-      <div class="admin-scroll audit-scroll" tabindex="0" role="region" :aria-label="t.admin.audit">
+      <div class="admin-scroll bounded" tabindex="0" role="region" :aria-label="t.admin.audit">
         <table class="admin-table" role="table">
           <thead role="rowgroup"><tr role="row"><th role="columnheader">{{ t.admin.when }}</th><th role="columnheader">{{ t.admin.action }}</th><th role="columnheader">{{ t.admin.actor }}</th></tr></thead>
           <tbody role="rowgroup">
@@ -78,21 +78,6 @@ function deviceChanged() {
 .admin > .help {
   margin: 0;
 }
-/* Journal d'audit : hauteur bornée, défilement dans la carte, en-têtes de colonnes gardés en vue. */
-.audit-scroll {
-  max-height: min(480px, 60vh);
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-.audit-scroll:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-offset);
-}
-.audit-scroll :deep(thead th) {
-  position: sticky;
-  top: 0;
-  background: var(--surface);
-}
 </style>
 
 <style>
@@ -117,6 +102,22 @@ function deviceChanged() {
   color: var(--text-mute);
   font-weight: 500;
 }
+/* Liste longue (journal d'audit, comptes ; NAR-224) : hauteur bornée, défilement dans la carte,
+ * en-têtes de colonnes gardés en vue ; la zone est atteignable au clavier (tabindex dans le gabarit). */
+.admin-scroll.bounded {
+  max-height: min(480px, 60vh);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.admin-scroll.bounded:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+.admin-scroll.bounded thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+}
 /* Téléphone et petite tablette (NAR-224, maquette 06) : une carte par ligne au lieu du
  * tableau. Les rôles ARIA posés sur le tableau (table, row, cell, columnheader) gardent sa
  * sémantique pour un lecteur d'écran malgré display: block (Safari, VoiceOver).
@@ -124,7 +125,7 @@ function deviceChanged() {
  * autres en paires libellé / valeur (data-label), action en bouton pleine largeur. Même
  * gabarit que le tableau : aucune donnée de plus ni de moins. */
 @media (max-width: 767px) {
-  .admin-scroll {
+  .admin-scroll:not(.bounded) {
     overflow: visible;
   }
   .admin-table thead {

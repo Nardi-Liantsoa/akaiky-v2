@@ -74,7 +74,8 @@ function closeSheet() {
   <SectionCard :title="t.admin.users">
     <p v-if="loadError" class="error" role="alert">{{ loadError }}</p>
     <p v-if="actionError && !confirming.target.value" class="error" role="alert">{{ actionError }}</p>
-    <div class="admin-scroll">
+    <!-- Liste longue : défile dans sa carte (NAR-224), atteignable au clavier. -->
+    <div class="admin-scroll bounded" tabindex="0" role="region" :aria-label="t.admin.users">
       <table class="admin-table" role="table">
         <thead role="rowgroup">
           <tr role="row">
