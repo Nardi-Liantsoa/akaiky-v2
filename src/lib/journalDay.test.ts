@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampDay, dayBounds, dayDate, shiftDay } from './journalDay'
+import { clampDay, dayBounds, dayDate, dayName, shiftDay } from './journalDay'
 import { dayKey } from './format'
 
 describe('jour du journal', () => {
@@ -24,5 +24,13 @@ describe('jour du journal', () => {
   })
   it('la date affichée tombe sur le bon jour à Madagascar', () => {
     expect(dayKey(dayDate('2026-11-25'))).toBe('2026-11-25')
+  })
+  it('nomme le jour : aujourd’hui, hier, sinon la date', () => {
+    const names = { today: 'Aujourd’hui', yesterday: 'Hier' }
+    const long = (d: Date) => dayKey(d)
+    expect(dayName('2026-11-25', '2026-11-25', names, long)).toBe('Aujourd’hui')
+    expect(dayName('2026-11-24', '2026-11-25', names, long)).toBe('Hier')
+    expect(dayName('2026-11-20', '2026-11-25', names, long)).toBe('2026-11-20')
+    expect(dayBounds('2026-11-25')).toEqual({ max: '2026-11-25', min: '2026-08-28' })
   })
 })

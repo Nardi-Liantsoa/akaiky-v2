@@ -148,7 +148,7 @@ test('jour choisi : liste et nombres de ce jour seul, bornes du fuseau, jour inv
   // Sans jour : tous les jours, comme avant.
   assert.ok((await journal(owner, fy.kid.id)).json().items.some((i) => i.id === late.id))
 
-  for (const bad of ['2026-02-30', '2026-1-05', 'hier', '2026-11-25T00:00', '']) {
+  for (const bad of ['2026-02-30', '2026-1-05', 'hier', '2026-11-25T00:00', '', '0000-01-01', '1999-12-31']) {
     const r = await journal(owner, fy.kid.id, `?day=${encodeURIComponent(bad)}`)
     assert.equal(r.statusCode, 400, bad)
     assert.equal(r.json().code, 'invalid_day')

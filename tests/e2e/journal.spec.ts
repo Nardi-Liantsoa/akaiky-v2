@@ -48,7 +48,8 @@ test('journal : groupé par jour, compteur « Bloqués », filtres, « Autoriser
   // Un seul jour (NAR-233) : aujourd'hui à l'ouverture, nommé par le sélecteur et la liste.
   await expect(page.getByRole('button', { name: 'Choisir le jour, Aujourd’hui' })).toBeVisible()
   await expect(page.getByRole('list', { name: 'Aujourd’hui' })).toBeVisible()
-  expect(api.days).toContain('2026-11-18')
+  // Aujourd'hui : décidé par le serveur, aucun jour envoyé (horloge du téléphone jamais crue).
+  expect(api.days.every((d) => d === '')).toBe(true)
   await expect(page.getByText('numéro masqué · n’a pas sonné')).toBeVisible()
   await expect(page.getByText('Appel de Maman')).toBeVisible()
   await expect(page.getByText('2 min 14 s')).toBeVisible()
@@ -207,7 +208,7 @@ test('sélecteur de jour : jour précédent, calendrier, bornes', async ({ page 
   api.handlers[`GET /api/children/${FY.id}/journal`] = (req: { url(): string }) => {
     const day = new URL(req.url()).searchParams.get('day') ?? ''
     days.push(day)
-    const items = [...ITEMS, yesterdayItem].filter((i) => dayOf(i.at) === day)
+    const items = [...ITEMS, yesterdayItem].filter((i) => dayOf(i.at) === (day || '2026-11-18'))
     return { body: { items, next: null, today: { calls: items.filter((i) => i.kind !== 'call_blocked').length, blocked: items.filter((i) => i.kind === 'call_blocked').length, messages: 0, unlocks: 0 } } }
   }
   await mockApi(page, api.handlers)
@@ -232,9 +233,37 @@ test('sélecteur de jour : jour précédent, calendrier, bornes', async ({ page 
   const field = picker.getByLabel('Jour', { exact: true })
   await expect(field).toHaveAttribute('max', '2026-11-18')
   await expect(field).toHaveAttribute('min', '2026-08-21')
+  // Retour à aujourd'hui par › : plus aucun jour envoyé.
+  await next.click()
+  await expect(picker.getByRole('button', { name: 'Choisir le jour, Aujourd’hui' })).toBeVisible()
+  expect(days.at(-1)).toBe('')
+  await prev.click()
+  await expect(picker.getByRole('button', { name: 'Choisir le jour, Hier' })).toBeVisible()
+  // La liste porte le même nom que le sélecteur.
+  await expect(page.getByRole('list', { name: 'Hier' })).toBeVisible()
   await field.fill('2026-11-10')
   await expect(picker.getByRole('button', { name: /^Choisir le jour, / })).not.toHaveAccessibleName(/Hier|Aujourd’hui/)
   await expect(page.getByText('Rien ce jour-là.')).toBeVisible()
   await field.fill('2026-08-21')
   await expect(prev).toBeDisabled()
+})
+
+// Revue NAR-233 : passé minuit, l'écran resté ouvert suit le nouveau jour (› de nouveau grisé).
+test('sélecteur de jour : minuit passé, « Aujourd’hui » suit', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-11-18T20:58:00Z') }) // 23:58 à Antananarivo
+  const api = journalApi()
+  await mockApi(page, api.handlers)
+  await page.goto('/espace/journal')
+  const picker = page.getByRole('group', { name: 'Jour affiché' })
+  await expect(picker.getByRole('button', { name: 'Choisir le jour, Aujourd’hui' })).toBeVisible()
+  const field = picker.getByLabel('Jour', { exact: true })
+  await expect(field).toHaveAttribute('max', '2026-11-18')
+  const before = api.days.length
+  await page.clock.runFor(3 * 60_000)
+  await expect(field).toHaveAttribute('max', '2026-11-19')
+  await expect(picker.getByRole('button', { name: 'Choisir le jour, Aujourd’hui' })).toBeVisible()
+  await expect(picker.getByRole('button', { name: 'Jour suivant' })).toBeDisabled()
+  // Aujourd'hui relu au serveur (toujours sans jour envoyé).
+  await expect.poll(() => api.days.length).toBeGreaterThan(before)
+  expect(api.days.at(-1)).toBe('')
 })

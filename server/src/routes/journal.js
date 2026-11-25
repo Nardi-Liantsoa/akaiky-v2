@@ -21,9 +21,10 @@ const KINDS = {
   unlocks: { events: ['unlock'], messages: false }
 }
 const childNotFound = () => new HttpError(404, 'Enfant introuvable.', 'child_not_found')
-// Jour « AAAA-MM-JJ » qui existe vraiment (pas de 2026-02-30 ramené au 2 mars).
+// Jour « AAAA-MM-JJ » qui existe vraiment (pas de 2026-02-30 ramené au 2 mars), année 2000 à 2999
+// (l'an 0 ferait échouer PostgreSQL : 400, jamais 500).
 export function parseDay(raw) {
-  if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null
+  if (typeof raw !== 'string' || !/^2\d{3}-\d{2}-\d{2}$/.test(raw)) return null
   const d = new Date(`${raw}T00:00:00Z`)
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === raw ? raw : null
 }

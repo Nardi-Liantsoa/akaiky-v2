@@ -2,32 +2,31 @@
 import { computed, ref } from 'vue'
 import { locale, useT } from '../../composables/useT'
 import { formatLongDate } from '../../lib/format'
-import { clampDay, dayBounds, dayDate, shiftDay } from '../../lib/journalDay'
+import { clampDay, dayBounds, dayName, shiftDay } from '../../lib/journalDay'
 import AppIcon from '../ui/AppIcon.vue'
 
 // Sélecteur de jour du journal (NAR-233, design créé d'après le sélecteur d'enfant) :
 // ‹ jour précédent · [calendrier] jour affiché · jour suivant ›. 90 jours au plus, jamais demain.
-// Le bouton du milieu ouvre le calendrier natif du champ date (showPicker), qui reste
-// utilisable au clavier et par les lecteurs d'écran.
-const props = defineProps<{ modelValue: string }>()
+// Le bouton du milieu ouvre le calendrier natif du champ date (showPicker). Sans showPicker
+// (WebView Android < 99), le champ, invisible, couvre le bouton : le toucher l'ouvre.
+// todayKey : aujourd'hui, tenu à jour par l'écran (passage de minuit compris).
+const props = defineProps<{ modelValue: string, todayKey: string }>()
 const emit = defineEmits<{ 'update:modelValue': [string] }>()
 const t = useT()
-const bounds = computed(() => dayBounds())
-const label = computed(() => {
-  const { max } = bounds.value
-  if (props.modelValue === max) return t.value.parent.log.today
-  if (props.modelValue === shiftDay(max, -1)) return t.value.parent.log.yesterday
-  return formatLongDate(dayDate(props.modelValue), locale.value)
-})
+const bounds = computed(() => dayBounds(props.todayKey))
+const label = computed(() => dayName(props.modelValue, props.todayKey, t.value.parent.log, (d) => formatLongDate(d, locale.value)))
+const canShowPicker = typeof HTMLInputElement !== 'undefined' && 'showPicker' in HTMLInputElement.prototype
 const field = ref<HTMLInputElement | null>(null)
 function go(days: number) {
-  const next = clampDay(shiftDay(props.modelValue, days))
+  const next = clampDay(shiftDay(props.modelValue, days), props.todayKey)
   if (next) emit('update:modelValue', next)
 }
 function pick(e: Event) {
-  const raw = e.target instanceof HTMLInputElement ? e.target.value : ''
-  const day = clampDay(raw)
+  if (!(e.target instanceof HTMLInputElement)) return
+  const day = clampDay(e.target.value, props.todayKey)
   if (day) emit('update:modelValue', day)
+  // Champ vidé ou hors bornes : il reprend le jour affiché (Vue ne le réécrit pas, rien n'a changé).
+  else e.target.value = props.modelValue
 }
 function open() {
   const input = field.value
@@ -46,7 +45,7 @@ function open() {
       <span>{{ label }}</span>
     </button>
     <input
-      ref="field" class="native" type="date" :value="modelValue" :min="bounds.min" :max="bounds.max"
+      ref="field" class="native" :class="{ cover: !canShowPicker }" type="date" :value="modelValue" :min="bounds.min" :max="bounds.max"
       :aria-label="t.parent.log.dayPicker.field" tabindex="-1" @change="pick"
     >
     <button type="button" class="step" :aria-label="t.parent.log.dayPicker.next" :disabled="modelValue >= bounds.max" @click="go(1)">
@@ -89,6 +88,15 @@ function open() {
   flex: 1;
   gap: 8px;
   padding: 0 16px;
+}
+/* Sans showPicker : le champ couvre le bouton du milieu (entre les deux flèches). */
+.native.cover {
+  left: calc(var(--tap) + 8px);
+  right: calc(var(--tap) + 8px);
+  top: 0;
+  width: auto;
+  height: 100%;
+  pointer-events: auto;
 }
 /* Champ natif sous le bouton du milieu : porte le calendrier, invisible. */
 .native {
