@@ -9,6 +9,9 @@ import { family } from '../../store/family'
 const route = useRoute()
 const router = useRouter()
 const showTabs = computed(() => family.status === 'ready' || family.status === 'error')
+// Écrans en grille sur ordinateur (accueil, Réglages) : colonne large ; les autres (formulaires,
+// journal, famille) gardent une largeur de lecture de 720 px (NAR-223).
+const wide = computed(() => route.matched.some((r) => r.meta.wide))
 // Famille disparue en cours de route (rechargement → no_family, membre retiré) :
 // retour à l'accueil, qui présente la création, plutôt qu'un écran vide sans onglets.
 watch(() => family.status, (status) => {
@@ -22,7 +25,7 @@ watch(() => auth.user, (user) => {
 </script>
 
 <template>
-  <main class="shell" :class="{ 'with-tabs': showTabs }">
+  <main class="shell" :class="{ 'with-tabs': showTabs, wide }">
     <RouterView />
   </main>
   <!-- Onglets seulement quand la famille est connue (ou injoignable) : jamais pendant
@@ -51,6 +54,11 @@ watch(() => auth.user, (user) => {
     padding-bottom: calc(var(--space-5) + var(--safe-bottom));
     margin-left: calc(var(--rail-width) + var(--safe-left) + max(0px, (100% - var(--rail-width) - var(--safe-left) - 720px) / 2));
     margin-right: auto;
+  }
+  .shell.with-tabs.wide {
+    max-width: var(--wide-width);
+    padding-right: calc(var(--gutter) + var(--safe-right));
+    margin-left: calc(var(--rail-width) + var(--safe-left) + max(0px, (100% - var(--rail-width) - var(--safe-left) - var(--wide-width)) / 2));
   }
 }
 </style>

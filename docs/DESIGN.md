@@ -102,6 +102,17 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   de 3 px au focus, bord `--danger` si `aria-invalid` ; exemple de saisie en italique
   `--text-mute`, jamais confondu avec une valeur. Case de consentement encadrée, texte en
   taille normale, bord `--danger` sur erreur.
+- **Mise en page de l'ordinateur** (NAR-223, maquettes 02 et 05) — ≥ 1024 px (`DESKTOP`,
+  `useMediaQuery`) : barre latérale de `--rail-width` (248 px) pleine hauteur, nom de l'app en
+  tête, onglets en lignes (actif sur `--accent-soft`), compte (nom, famille) en bas vers Mon
+  compte ; seuls les onglets portent `aria-current`. Routes `meta.wide` (accueil, Réglages) :
+  colonne de 1200 px, les autres gardent 720 px. Accueil : cartes à gauche, « Aujourd'hui » de
+  l'enfant choisi à droite (sa carte ne le répète pas). Réglages : maître/détail, liste montée à
+  gauche (rien n'est relu en changeant de section, `aria-current` sur la section ouverte),
+  section à droite en `h2` sous le `h1` « Réglages » ; `/espace/reglages` ouvre la première
+  section par `replace`. Sous 1024 px : rien ne change (une page par section). Tests e2e de
+  parcours à 960 px ; mise en page de l'ordinateur : `desktop-layout.spec.ts`,
+  `wide-navigation.spec.ts`.
 - **`BackLink`** (NAR-195) — lien de retour en tête d'écran (« ‹ Réglages », « ‹ Accueil ») :
   chevron + libellé `--accent`, ≥ `--tap`, vrai lien (`href`) dont le clic passe par `backTo`
   (`src/lib/navigation.ts` : retour de l'historique si l'écran précédent est la cible, sinon

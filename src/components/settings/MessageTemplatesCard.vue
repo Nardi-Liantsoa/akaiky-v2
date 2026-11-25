@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { summaryChanged } from '../../store/settingsSummary'
 import { computed, ref, watch } from 'vue'
 import { getTemplates, putTemplate, type MessageTemplate } from '../../api/messages'
 import { useT } from '../../composables/useT'
@@ -79,6 +80,7 @@ async function save() {
     // Un emplacement à la fois, jusqu'au bout même si l'on change d'enfant : ce qui est
     // enregistré reste acquis si un envoi échoue.
     for (const { slot, text } of todo) await putTemplate(childId, slot, text)
+    summaryChanged()
     // Relu après coup : un chargement lancé pendant l'enregistrement (aller-retour entre
     // enfants) a pu lire l'état d'avant ; celui-ci le remplace.
     if (childId === props.childId) { await load(childId); if (childId === props.childId) done.value = true }

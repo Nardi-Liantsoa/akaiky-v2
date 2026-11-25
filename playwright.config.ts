@@ -15,7 +15,10 @@ export default defineConfig({
     trace: 'retain-on-failure'
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // 960 px : les parcours se vérifient sur la colonne unique (téléphone, tablette) ; la mise
+    // en page de l'ordinateur (≥ 1024 px : barre latérale, maître/détail, NAR-223) a ses propres
+    // tests, qui fixent leur largeur (wide-navigation.spec.ts, desktop-layout.spec.ts).
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 960, height: 800 } } },
     { name: 'webkit', use: { ...devices['iPhone 13'] } }
   ],
   webServer: {

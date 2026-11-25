@@ -13,5 +13,7 @@ declare module 'vue-router' {
     parentShell?: boolean
     // Page d'une section de Réglages (NAR-185).
     settingsSection?: SettingsSection
+    // Colonne large sur ordinateur : grille de l'accueil, maître/détail de Réglages (NAR-223).
+    wide?: boolean
   }
 }
