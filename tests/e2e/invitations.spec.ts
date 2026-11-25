@@ -81,7 +81,7 @@ test('lien d’invitation sans session : jeton retiré de l’adresse, connexion
     'GET /api/auth/me': () => ({ body: { user: signedIn ? USER : null } }),
     'GET /api/auth/mfa/status': () => ({ body: { challenge: null } }),
     'POST /api/auth/login': () => { signedIn = true; return { body: { user: USER } } },
-    'POST /api/invitations/preview': () => ({ body: { forThisAccount: true, familyName: 'Famille Rabe', role: 'member' } }),
+    'POST /api/invitations/preview': () => ({ body: { forThisAccount: true, familyName: 'Famille Rabe', role: 'member', invitedBy: 'Hanta' } }),
     'POST /api/invitations/accept': () => { joined = true; return { body: { familyId: FAMILY.id, role: 'member' } } },
     'GET /api/families/me': () => joined ? { body: { ...FAMILY, role: 'member' } } : { status: 404, body: { error: '', code: 'no_family' } }
   })
@@ -93,7 +93,8 @@ test('lien d’invitation sans session : jeton retiré de l’adresse, connexion
   await page.fill('#password', 'une phrase de passe longue')
   await page.getByRole('button', { name: 'Se connecter' }).click()
   await expect(page).toHaveURL(/\/invitation$/)
-  await expect(page.getByText('Vous êtes invité à rejoindre « Famille Rabe » comme Contact.')).toBeVisible()
+  // Qui invite, dans quelle famille, comme quoi (NAR-230).
+  await expect(page.getByText('Hanta vous invite dans « Famille Rabe » comme Contact.')).toBeVisible()
   await page.getByRole('button', { name: 'Rejoindre la famille' }).click()
   await expect(page).toHaveURL(/\/espace$/)
   await expect(page.getByRole('heading', { name: 'Vos enfants' })).toBeVisible()

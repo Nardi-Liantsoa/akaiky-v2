@@ -35,7 +35,8 @@ test('cycle complet : invitation, courriel, aperçu, acceptation comme contact',
   assert.match(mail.text, /\/invitation#invite=[A-Za-z0-9_-]{43}/)
   assert.doesNotMatch(mail.text, /Andria/, 'aucun texte libre de l’invitant dans le courriel')
   const token = tokenFor(guest.email)
-  assert.deepEqual((await preview(guest, token)).json(), { forThisAccount: true, familyName: 'Famille Andria', role: 'member' })
+  const { rows: [inviter] } = await ctx.db.query('SELECT name FROM users WHERE id = $1', [owner.id])
+  assert.deepEqual((await preview(guest, token)).json(), { forThisAccount: true, familyName: 'Famille Andria', role: 'member', invitedBy: inviter.name })
   const ok = await accept(guest, token)
   assert.equal(ok.statusCode, 200, ok.body)
   assert.equal(ok.json().role, 'member')
@@ -298,4 +299,30 @@ test('invitation annulée pendant l’envoi : l’invitation précédente pour l
   }
   try { assert.equal((await invite(owner, guest.email, 'manager')).statusCode, 201) } finally { ctx.app.mailer.send = send }
   assert.equal((await accept(guest, first)).statusCode, 200)
+})
+
+// NAR-230 : le nom de l'invitant et celui de la famille ne sortent que pour le compte invité et
+// une invitation encore acceptable ; jeton faux, expiré, déjà utilisé ou autre compte : aucun nom.
+test('aperçu : aucun nom pour un jeton faux, expiré, déjà utilisé ou un autre compte', async () => {
+  const owner = await newUser(ctx), guest = await newUser(ctx), other = await newUser(ctx)
+  await family(owner, 'Famille Secrète')
+  const { rows: [inviter] } = await ctx.db.query('SELECT name FROM users WHERE id = $1', [owner.id])
+  await invite(owner, guest.email)
+  const token = tokenFor(guest.email)
+  const leaks = (body) => body.includes('Famille Secrète') || body.includes(inviter.name)
+  const fake = await preview(guest, 'x'.repeat(43))
+  assert.equal(fake.json().code, 'invite_invalid')
+  assert.ok(!leaks(fake.body))
+  const wrong = await preview(other, token)
+  assert.deepEqual(wrong.json(), { forThisAccount: false })
+  await ctx.db.query("UPDATE invitations SET expires_at = now() - interval '1 minute' WHERE email = $1", [guest.email])
+  const expired = await preview(guest, token)
+  assert.equal(expired.json().code, 'invite_invalid')
+  assert.ok(!leaks(expired.body))
+  await ctx.db.query("UPDATE invitations SET expires_at = now() + interval '1 day' WHERE email = $1", [guest.email])
+  assert.equal((await accept(guest, token)).statusCode, 200)
+  const used = await preview(guest, token)
+  assert.equal(used.json().code, 'invite_invalid')
+  assert.ok(!leaks(used.body))
+  assert.equal((await call(ctx.app, 'POST', '/api/invitations/preview', { body: { token } })).statusCode, 401)
 })
