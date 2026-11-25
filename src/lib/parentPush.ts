@@ -1,5 +1,6 @@
 import { ref, watch } from 'vue'
 import { Capacitor } from '@capacitor/core'
+import { App } from '@capacitor/app'
 import type { RouteLocationRaw, Router } from 'vue-router'
 import { api } from '../api/http'
 import { locale } from '../composables/useT'
@@ -13,7 +14,10 @@ import { routeForPush } from './pushRoute'
 // - Jeton envoyé à l'ouverture d'une session si la permission est déjà accordée ; la
 //   permission n'est demandée que par la carte « Notifications » de Mon compte, après son
 //   explication (enablePush), jamais au premier lancement.
-// - Toucher une notification ouvre l'écran prévu (routeForPush, liste fermée).
+// - Toucher une notification ouvre l'écran prévu (routeForPush, liste fermée), une fois la
+//   session restaurée : un toucher qui lance l'app est gardé jusque-là.
+// - À chaque reprise de l'app : permission relue (changée dans les réglages du téléphone)
+//   et jeton renvoyé s'il manque au serveur.
 // - App au premier plan : bannière dans l'app (pushBanner), pas de notification système.
 // - Canal Android « alertes » (celui du serveur, server/src/push.js), importance haute.
 export const pushState = ref<PushState | 'off'>('off')
@@ -41,17 +45,36 @@ export function startParentPush(router: Router): void {
   }
   channel()
   void FirebaseMessaging.addListener('tokenReceived', ({ token }) => { void registration.tokenChanged(token) }).catch(() => {})
+  let pendingTap: RouteLocationRaw | null = null
+  const openPending = () => {
+    if (!pendingTap || !auth.ready || !auth.user) return
+    const to = pendingTap
+    pendingTap = null
+    void router.push(to)
+  }
   void FirebaseMessaging.addListener('notificationActionPerformed', ({ notification }) => {
     pushBanner.value = null
-    if (auth.user) void router.push(routeForPush(notification.data))
+    pendingTap = routeForPush(notification.data)
+    openPending()
   }).catch(() => {})
   void FirebaseMessaging.addListener('notificationReceived', ({ notification }) => {
     if (!auth.user || !notification.title) return
     pushBanner.value = { title: notification.title, body: notification.body ?? '', to: routeForPush(notification.data) }
   }).catch(() => {})
-  watch(() => auth.user?.id, async (id) => {
-    if (!id) { registration.stop(); pushState.value = 'off'; pushBanner.value = null; return }
-    pushState.value = await registration.start()
+  // Résultat d'un start() gardé seulement si la session est toujours la même.
+  const refresh = async () => {
+    const id = auth.user?.id
+    if (!id) return
+    const s = await registration.start()
+    if (auth.user?.id === id) pushState.value = s
+  }
+  watch(() => [auth.ready, auth.user?.id] as const, ([ready, id], old) => {
+    if (!ready) return
+    if (!id) { registration.stop(); pushState.value = 'off'; pushBanner.value = null; pendingTap = null; return }
+    if (old?.[1] && old[1] !== id) registration.stop() // autre compte : jeton renvoyé pour sa session
+    openPending()
+    void refresh()
   }, { immediate: true })
+  void App.addListener('appStateChange', ({ isActive }) => { if (isActive) void refresh() }).catch(() => {})
   watch(locale, () => { channel(); void registration.langChanged() })
 }

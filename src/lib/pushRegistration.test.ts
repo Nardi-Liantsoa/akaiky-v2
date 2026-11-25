@@ -1,17 +1,20 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createPushRegistration } from './pushRegistration'
+import { createPushRegistration, notConfigured, RETRY_MS } from './pushRegistration'
 import { pushType, routeForPush } from './pushRoute'
 
-function setup({ permission = 'granted', token = 'T1', fail = false } = {}) {
+function setup({ permission = 'granted', token = 'T1', tokenError = null as unknown, sendFails = 0 } = {}) {
   const sent: unknown[] = []
   let lang = 'fr'
+  let failures = sendFails
+  let tokenErr = tokenError
   const messaging = {
     checkPermissions: vi.fn(async () => ({ receive: permission as never })),
     requestPermissions: vi.fn(async () => ({ receive: 'granted' as never })),
-    getToken: vi.fn(async () => { if (fail) throw new Error('Firebase non configuré'); return { token } })
+    getToken: vi.fn(async () => { if (tokenErr) { const e = tokenErr; tokenErr = null; throw e } return { token } })
   }
-  const reg = createPushRegistration({ messaging, send: async (r) => { sent.push(r) }, platform: 'android', lang: () => lang })
-  return { reg, sent, messaging, setLang: (l: string) => { lang = l } }
+  const send = async (r: unknown) => { if (failures > 0) { failures--; throw new Error('hors ligne') } sent.push(r) }
+  const reg = createPushRegistration({ messaging, send, platform: 'android', lang: () => lang })
+  return { reg, sent, messaging, setLang: (l: string) => { lang = l }, failTokenOnce: (e: unknown) => { tokenErr = e } }
 }
 
 describe('jeton push', () => {
@@ -39,10 +42,38 @@ describe('jeton push', () => {
     expect(sent).toEqual([{ token: 'T1', platform: 'android', lang: 'fr' }])
   })
 
-  it('Firebase absent de la coque : « indisponible », sans erreur', async () => {
-    const { reg, sent } = setup({ fail: true })
-    expect(await reg.start()).toBe('unavailable')
-    expect(sent).toEqual([])
+  it('Firebase absent de la coque : « indisponible », sans erreur ni nouvel essai', async () => {
+    vi.useFakeTimers()
+    try {
+      const { reg, sent, messaging } = setup({ tokenError: Object.assign(new Error('Firebase is not configured'), { code: 'UNAVAILABLE' }) })
+      expect(await reg.start()).toBe('unavailable')
+      await vi.advanceTimersByTimeAsync(RETRY_MS * 3)
+      expect(messaging.getToken).toHaveBeenCalledTimes(1)
+      expect(sent).toEqual([])
+    } finally { vi.useRealTimers() }
+  })
+
+  it('jeton pas encore prêt ou envoi refusé : retenté toutes les 30 s tant que la session est ouverte', async () => {
+    vi.useFakeTimers()
+    try {
+      const { reg, sent } = setup({ tokenError: new Error('No APNS token specified'), sendFails: 1 })
+      expect(await reg.start()).toBe('granted')
+      expect(sent).toEqual([])
+      await vi.advanceTimersByTimeAsync(RETRY_MS) // jeton obtenu, envoi refusé (hors ligne)
+      expect(sent).toEqual([])
+      await vi.advanceTimersByTimeAsync(RETRY_MS) // envoi réussi
+      expect(sent).toEqual([{ token: 'T1', platform: 'android', lang: 'fr' }])
+      reg.stop()
+      await reg.start()
+      expect(sent).toHaveLength(2) // nouvelle session : renvoyé
+    } finally { vi.useRealTimers() }
+  })
+
+  it('erreur « non configuré » reconnue sur iOS et Android, pas les autres', () => {
+    expect(notConfigured({ code: 'UNAVAILABLE', message: 'x' })).toBe(true)
+    expect(notConfigured(new Error('Default FirebaseApp is not initialized in this process mg.nosytech.akaiky.'))).toBe(true)
+    expect(notConfigured(new Error('SERVICE_NOT_AVAILABLE'))).toBe(false)
+    expect(notConfigured(null)).toBe(false)
   })
 
   it('session fermée : plus rien n’est envoyé', async () => {

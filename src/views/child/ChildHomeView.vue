@@ -95,7 +95,7 @@ onMounted(async () => {
     foreground = isActive
     if (isActive) startClock(); else stopClock()
     if (isActive) { void refreshKiosk().catch(() => {}).then(() => applyRemoteUnlock()); void readScreening(); void readSos() }
-    if (isActive && state.value.kind === 'paired') { resume(); startStatus(); startLocate(); syncJournal(); void backgroundStatus.ensure(); void syncApps(); checkUpdate() } else { pause(); stopStatus(); stopLocate(); clearTimeout(journalRetry) }
+    if (isActive && state.value.kind === 'paired') { resume(); startStatus(); startLocate(); syncJournal(); void backgroundStatus.ensure(); void syncApps(); checkUpdate(); void registerPush(state.value) } else { pause(); stopStatus(); stopLocate(); clearTimeout(journalRetry) }
   })
   // SOS en cours (NAR-151) : état poussé par le service natif quand la WebView est éveillée,
   // relu à chaque reprise (écran rallumé pendant la cascade).
@@ -132,7 +132,8 @@ watch(state, async (s) => {
   // jeton « signal de vie » émis par la session d'appareil (hors ligne : au retour au premier plan).
   void backgroundStatus.ensure()
   // Réveils push (NAR-179) : jeton de ce téléphone pour cette session d'appareil.
-  void startPush().then(() => childPush.start())
+  childPush.stop()
+  void registerPush(s)
   await startDeviceConfig(configSync, s.childId)
   // Nouvel appairage (autre enfant, réappairage) : la position repart de zéro aussi.
   if (!unmounted && state.value === s) startLocate()
@@ -251,19 +252,32 @@ const childPush = createPushRegistration({
   needsPermission: false
 })
 let pushListeners: PluginListenerHandle[] = []
-async function startPush() {
-  if (!Capacitor.isNativePlatform() || pushListeners.length) return
-  const handles = await Promise.all([
-    FirebaseMessaging.addListener('tokenReceived', ({ token }) => { void childPush.tokenChanged(token) }),
-    FirebaseMessaging.addListener('notificationReceived', ({ notification }) => {
-      if (state.value.kind !== 'paired' || !foreground) return
-      const type = pushType(notification.data)
-      if (type === 'locate') readLocate()
-      else if (type === 'config') resume()
-    })
-  ]).catch(() => [] as PluginListenerHandle[])
-  if (unmounted) { handles.forEach((h) => void h.remove()); return }
-  pushListeners = handles
+// Écouteurs posés une seule fois, même si deux « appairé » se suivent de près.
+let pushListening: Promise<void> | null = null
+function startPush(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return Promise.resolve()
+  pushListening ??= (async () => {
+    const results = await Promise.allSettled([
+      FirebaseMessaging.addListener('tokenReceived', ({ token }) => { void childPush.tokenChanged(token) }),
+      FirebaseMessaging.addListener('notificationReceived', ({ notification }) => {
+        if (state.value.kind !== 'paired' || !foreground) return
+        const type = pushType(notification.data)
+        if (type === 'locate') readLocate()
+        else if (type === 'config') resume()
+      })
+    ])
+    const handles = results.flatMap((r) => r.status === 'fulfilled' ? [r.value] : [])
+    if (unmounted) { handles.forEach((h) => void h.remove()); return }
+    pushListeners = handles
+  })()
+  return pushListening
+}
+// Nouvelle session d'appareil (appairage, réappairage) : jeton renvoyé pour elle ; à chaque
+// reprise de l'app, jeton renvoyé s'il manque encore au serveur.
+async function registerPush(s: ChildState) {
+  await startPush()
+  if (unmounted || state.value !== s) return
+  void childPush.start()
 }
 
 function startLocate() {
