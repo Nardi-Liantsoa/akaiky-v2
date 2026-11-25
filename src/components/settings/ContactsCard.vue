@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ApiError } from '../../api/http'
 import { reorderContacts } from '../../api/contacts'
@@ -28,6 +28,7 @@ const shown = computed(() => (fresh.value ? contacts.items : snapshot.value))
 
 // Réorganisation par boutons Monter / Descendre : utilisable au doigt, au clavier
 // et au lecteur d'écran (le glisser-déposer HTML ne fonctionne pas dans les WebView mobiles).
+const list = ref<HTMLOListElement | null>(null)
 async function move(index: number, delta: number) {
   const target = index + delta
   if (busy.value || target < 0 || target >= contacts.items.length) return
@@ -46,6 +47,15 @@ async function move(index: number, delta: number) {
   // Relecture en échec : Réglages l'annonce déjà (bandeau avec « Réessayer »).
   await loadContacts(props.childId, true)
   busy.value = false
+  // La flèche touchée peut disparaître (contact arrivé premier ou dernier, NAR-222) : le focus
+  // suit le contact déplacé, sur sa flèche dans le même sens, sinon sur l'autre.
+  const moved = contacts.items.find((c) => c.id === ids[target])
+  if (moved) {
+    await nextTick()
+    const labels = delta < 0 ? [t.value.contacts.moveUp(moved.name), t.value.contacts.moveDown(moved.name)] : [t.value.contacts.moveDown(moved.name), t.value.contacts.moveUp(moved.name)]
+    const buttons = [...(list.value?.querySelectorAll<HTMLButtonElement>('button.icon') ?? [])]
+    labels.map((l) => buttons.find((b) => b.getAttribute('aria-label') === l)).find(Boolean)?.focus()
+  }
 }
 </script>
 
@@ -55,7 +65,7 @@ async function move(index: number, delta: number) {
       <span class="count">{{ t.contacts.count(shown.length, contacts.max) }}</span>
     </template>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <ol v-if="shown.length" class="list">
+    <ol v-if="shown.length" ref="list" class="list">
       <li v-for="(c, i) in shown" :key="c.id">
         <span class="rank" aria-hidden="true">{{ c.position }}</span>
         <!-- Gestionnaire : la ligne du contact ouvre sa fiche (« Modifier Maman ») ; nom, rôle et

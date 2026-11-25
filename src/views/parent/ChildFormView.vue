@@ -30,8 +30,11 @@ const name = ref('')
 // Numéro de l'enfant (NAR-194), facultatif : vide = aucun numéro (null envoyé).
 const phone = ref('')
 // Ajout : couleur proposée d'office, la moins portée par les enfants de la famille (NAR-222,
-// même règle que le serveur) ; null seulement tant que la liste n'est pas connue.
+// même règle que le serveur) ; null seulement tant que la liste n'est pas connue. Envoyée
+// seulement si la personne en a choisi une autre : sinon le serveur choisit sous son verrou,
+// sur les enfants réels (deux ajouts simultanés ne prennent pas la même).
 const color = ref<AvatarColor | null>(null)
+const suggested = ref<AvatarColor | null>(null)
 const busy = ref(false)
 const error = ref('')
 // Retrait confirmé par la feuille commune (NAR-184) : rien ne part avant « Confirmer ».
@@ -113,6 +116,7 @@ function reset() {
   name.value = ''
   phone.value = ''
   color.value = null
+  suggested.value = null
   confirming.close()
   error.value = ''
   consent.value = false
@@ -121,7 +125,7 @@ function reset() {
 }
 watch(id, reset)
 watch(() => [id.value, children.status, color.value] as const, ([childId, status, c]) => {
-  if (!childId && status === 'ready' && c === null) color.value = leastUsedColor(children.items.map((x) => x.avatarColor))
+  if (!childId && status === 'ready' && c === null) color.value = suggested.value = leastUsedColor(children.items.map((x) => x.avatarColor))
 }, { immediate: true })
 watch(existing, (c) => {
   if (c && c.id !== filledFor) {
@@ -148,7 +152,7 @@ async function save() {
     const phoneChanged = !samePhone(phone.value, existing.value?.phone ?? null)
     const saved = id.value
       ? await updateChild(id.value, { firstName: name.value.trim(), ...(color.value ? { avatarColor: color.value } : {}), ...(phoneChanged ? { phone: phoneNow } : {}) })
-      : await addChild(name.value.trim(), color.value ?? undefined, phoneNow)
+      : await addChild(name.value.trim(), color.value && color.value !== suggested.value ? color.value : undefined, phoneNow)
     upsertChild(saved)
     selectChild(saved.id)
     leaving = true

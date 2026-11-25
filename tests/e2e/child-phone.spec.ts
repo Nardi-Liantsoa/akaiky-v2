@@ -96,7 +96,7 @@ test('ajout d’un enfant avec son numéro : envoyé avec le prénom ; sans num�
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(callLink(page, 'Hery')).toHaveAttribute('href', 'tel:+33612345678')
   const posted = calls.filter((r) => r.method() === 'POST').map((r) => r.postDataJSON())
-  expect(posted).toEqual([{ firstName: 'Hery', avatarColor: 'orange', phone: '+33 6 12 34 56 78', parentalConsent: true }])
+  expect(posted).toEqual([{ firstName: 'Hery', phone: '+33 6 12 34 56 78', parentalConsent: true }])
 })
 
 test('contact (member) : « Appeler » visible avec le numéro, absent sans, et jamais le formulaire', async ({ page }) => {

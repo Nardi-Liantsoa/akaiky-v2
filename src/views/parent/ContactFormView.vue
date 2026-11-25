@@ -31,6 +31,9 @@ const existing = computed(() => (id.value && contacts.childId === childId.value 
 const name = ref('')
 const phone = ref('')
 const color = ref<AvatarColor | null>(null)
+// Couleur proposée à l'ajout (NAR-222) : envoyée seulement si la personne en choisit une autre,
+// sinon le serveur choisit sous son verrou, sur les contacts réels.
+const suggested = ref<AvatarColor | null>(null)
 const memberUserId = ref<string | null>(null)
 const busy = ref(false)
 const error = ref('')
@@ -66,7 +69,7 @@ const prefilled = () => {
   const q = route.query.phone
   return !id.value && isE164(q) ? formatPhone(q) : ''
 }
-watch([childId, id], () => { filledFor = null; name.value = ''; phone.value = prefilled(); color.value = null; memberUserId.value = null; confirming.close(); error.value = ''; nameError.value = ''; phoneError.value = '' }, { immediate: true })
+watch([childId, id], () => { filledFor = null; name.value = ''; phone.value = prefilled(); color.value = null; suggested.value = null; memberUserId.value = null; confirming.close(); error.value = ''; nameError.value = ''; phoneError.value = '' }, { immediate: true })
 watch(existing, (c) => {
   if (c && c.id !== filledFor) {
     filledFor = c.id
@@ -80,7 +83,7 @@ watch(existing, (c) => {
 
 // Ajout : couleur proposée d'office, la moins portée par les contacts de l'enfant (NAR-222).
 watch(() => [id.value, ready.value, color.value] as const, ([contactId, isReady, c]) => {
-  if (!contactId && isReady && c === null) color.value = leastUsedColor(contacts.items.map((x) => x.avatarColor))
+  if (!contactId && isReady && c === null) color.value = suggested.value = leastUsedColor(contacts.items.map((x) => x.avatarColor))
 }, { immediate: true })
 
 // Retour sur la section Contacts de l'enfant de l'adresse, même s'il n'était pas celui
@@ -106,7 +109,7 @@ async function save() {
     ...(changed(nameNow, before?.name) ? { name: nameNow } : {}),
     ...(!before || !samePhone(phoneNow, before.phone) ? { phone: phoneNow } : {}),
     ...(before ? (memberUserId.value !== before.memberUserId ? { memberUserId: memberUserId.value } : {}) : (memberUserId.value !== null ? { memberUserId: memberUserId.value } : {})),
-    ...(color.value && changed(color.value, before?.avatarColor) ? { avatarColor: color.value } : {})
+    ...(color.value && changed(color.value, before?.avatarColor) && (before || color.value !== suggested.value) ? { avatarColor: color.value } : {})
   }
   try {
     if (id.value) { if (Object.keys(input).length) await updateContact(id.value, input) }

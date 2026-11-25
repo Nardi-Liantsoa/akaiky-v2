@@ -16,12 +16,14 @@ const error = ref('')
 const done = ref('')
 const emailError = ref('')
 const form = ref<HTMLFormElement | null>(null)
-watch(email, (v) => { if (emailError.value && v.trim()) emailError.value = '' })
+watch(email, () => { emailError.value = '' })
 
 async function submit() {
   if (busy.value) return
-  if (!email.value.trim()) {
-    emailError.value = t.value.forms.email
+  // Format vérifié ici (novalidate a retiré celui du navigateur) ; le serveur revérifie.
+  const value = email.value.trim()
+  if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    emailError.value = value ? t.value.family.invalidEmail : t.value.forms.email
     await focusFirstInvalid(form.value)
     return
   }

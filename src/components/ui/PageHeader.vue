@@ -30,7 +30,8 @@ const goBack = () => { props.before?.(); return backTo(router, props.back) }
 <style scoped>
 .page-header {
   display: grid;
-  grid-template-columns: var(--tap) minmax(0, 1fr) minmax(var(--tap), auto);
+  /* Colonnes latérales égales : le titre reste centré même avec un sélecteur à droite. */
+  grid-template-columns: minmax(var(--tap), 1fr) minmax(0, auto) minmax(var(--tap), 1fr);
   align-items: center;
   gap: var(--space-2);
   margin: calc(-1 * var(--space-2)) 0 var(--space-5) calc(-1 * var(--space-2));
@@ -54,7 +55,7 @@ const goBack = () => { props.before?.(); return backTo(router, props.back) }
 }
 .title {
   margin: 0;
-  font-size: clamp(1.25rem, 1rem + 1vw, 1.75rem);
+  font-size: var(--fs-page-title);
   text-align: center;
 }
 .aside {

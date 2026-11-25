@@ -4,6 +4,7 @@ import { ApiError } from '../../api/http'
 import { remoteUnlock, setParentCode, type Child } from '../../api/children'
 import { locale, useT } from '../../composables/useT'
 import { errorText } from '../../lib/errors'
+import { focusFirstInvalid } from '../../lib/formErrors'
 import { formatClock, formatDay } from '../../lib/format'
 import { parentCodeProblem } from '../../lib/parentCode'
 import { children, upsertChild } from '../../store/children'
@@ -22,6 +23,12 @@ const confirmation = ref('')
 const busy = ref(false)
 const error = ref('')
 const saved = ref(false)
+// Erreurs sous chaque champ à l'envoi (NAR-222) : code refusé sous le code, différence sous la confirmation.
+const codeError = ref('')
+const confirmError = ref('')
+const form = ref<HTMLFormElement | null>(null)
+watch(code, () => { codeError.value = '' })
+watch(confirmation, () => { confirmError.value = '' })
 
 // Autre enfant choisi : formulaire refermé, rien de saisi ne passe d'un enfant à l'autre.
 watch(() => props.child.id, () => { close(); saved.value = false; busy.value = false; unlockBusy.value = false; unlockError.value = '' })
@@ -36,6 +43,8 @@ function close() {
   code.value = ''
   confirmation.value = ''
   error.value = ''
+  codeError.value = ''
+  confirmError.value = ''
 }
 
 const digitsOnly = (v: string) => v.replace(/[^0-9]/g, '').slice(0, 6)
@@ -48,9 +57,10 @@ function problemText(problem: string | null | undefined): string | null {
 
 async function save() {
   if (busy.value) return
-  const problem = problemText(parentCodeProblem(code.value))
-  if (problem) { error.value = problem; return }
-  if (code.value !== confirmation.value) { error.value = t.value.parentCode.mismatch; return }
+  error.value = ''
+  codeError.value = problemText(parentCodeProblem(code.value)) ?? ''
+  confirmError.value = !codeError.value && code.value !== confirmation.value ? t.value.parentCode.mismatch : ''
+  if (codeError.value || confirmError.value) { await focusFirstInvalid(form.value); return }
   const child = props.child
   busy.value = true
   error.value = ''
@@ -112,15 +122,15 @@ async function unlockNow() {
       <AppButton v-if="!editing" variant="ghost" @click="open">
         {{ child.parentCodeSetAt ? t.parentCode.change : t.parentCode.set }}
       </AppButton>
-      <form v-else novalidate @submit.prevent="save">
+      <form v-else ref="form" novalidate @submit.prevent="save">
         <p v-if="error" class="error" role="alert">{{ error }}</p>
-        <FormField id="parent-code" :label="t.parentCode.code" v-slot="{ control }">
+        <FormField id="parent-code" :label="t.parentCode.code" :error="codeError" v-slot="{ control }">
           <input
             v-bind="control" class="input code" type="password" inputmode="numeric" autocomplete="off"
             :value="code" required @input="code = digitsOnly(($event.target as HTMLInputElement).value); ($event.target as HTMLInputElement).value = code"
           />
         </FormField>
-        <FormField id="parent-code-confirm" :label="t.parentCode.confirm" v-slot="{ control }">
+        <FormField id="parent-code-confirm" :label="t.parentCode.confirm" :error="confirmError" v-slot="{ control }">
           <input
             v-bind="control" class="input code" type="password" inputmode="numeric" autocomplete="off"
             :value="confirmation" required @input="confirmation = digitsOnly(($event.target as HTMLInputElement).value); ($event.target as HTMLInputElement).value = confirmation"

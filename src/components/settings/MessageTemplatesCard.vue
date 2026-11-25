@@ -68,7 +68,7 @@ const form = ref<HTMLFormElement | null>(null)
 watch(changed, () => { nothing.value = false })
 async function save() {
   if (busy.value) return
-  if (invalid.value) { await focusFirstInvalid(form.value); return }
+  if (invalid.value) { done.value = false; nothing.value = false; await focusFirstInvalid(form.value); return }
   if (!changed.value.length) { nothing.value = true; done.value = false; return }
   const childId = props.childId
   const todo = changed.value.map((slot) => ({ slot, text: target(slot) }))
