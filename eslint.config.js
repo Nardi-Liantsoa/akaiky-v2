@@ -10,5 +10,26 @@ export default defineConfig(
   { ignores: ['dist/**', 'server/**', 'android/**', 'ios/**', 'playwright-report/**', 'test-results/**'] },
   tseslint.configs.recommended,
   pluginVue.configs['flat/essential'],
-  { files: ['**/*.vue'], languageOptions: { parserOptions: { parser: tseslint.parser } } }
+  { files: ['**/*.vue'], languageOptions: { parserOptions: { parser: tseslint.parser } } },
+  // Argument ou variable volontairement ignoré : préfixe « _ » (une traduction sans pluriel
+  // garde l'argument de la fonction, NAR-210).
+  { rules: { '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }] } },
+  // Aucun texte d'interface en dur dans un template (NAR-210) : tout passe par useT()
+  // dans les trois langues (texte, aria-label, title, placeholder, alt). Restent permis
+  // la ponctuation, les symboles et les chiffres du pavé, et deux noms invariants :
+  // la marque « Akaiky » et « SOS », compris tel quel en malgache, français et anglais.
+  {
+    files: ['src/**/*.vue'],
+    rules: {
+      'vue/no-bare-strings-in-template': ['error', {
+        allowlist: [
+          '(', ')', ',', '.', '&', '+', '-', '=', '*', '/', '#', '%', '!', '?', ':', ';', '[', ']', '{', '}', '<', '>',
+          '·', '•', '‐', '–', '—', '−', '|', '…', '«', '»', '’',
+          '⌫', '▾', '✓', '✕', '↑', '↓', '×', '‹', '›',
+          '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+          'Akaiky', 'SOS'
+        ]
+      }]
+    }
+  }
 )

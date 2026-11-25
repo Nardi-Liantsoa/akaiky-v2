@@ -84,7 +84,7 @@ function closeSheet() {
         </thead>
         <tbody>
           <tr v-for="u in users" :key="u.id">
-            <td>{{ label(u) }}<span v-if="u.is_admin"> · admin</span><span v-if="isMe(u)"> ({{ t.admin.you }})</span></td>
+            <td>{{ label(u) }}<span v-if="u.is_admin"> · {{ t.admin.adminBadge }}</span><span v-if="isMe(u)"> ({{ t.admin.you }})</span></td>
             <td>{{ formatDateTime(u.created_at, locale) }}</td>
             <td>{{ u.verified ? t.admin.yes : t.admin.no }}</td>
             <td>{{ u.mfa ? t.admin.yes : t.admin.no }}</td>
