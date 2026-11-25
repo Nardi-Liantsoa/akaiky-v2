@@ -23,11 +23,15 @@ export default defineConfig(
     rules: {
       'vue/no-bare-strings-in-template': ['error', {
         // Attributs vérifiés : ceux d'HTML (défaut de la règle) et les props de texte de nos
-        // composants (SectionCard, StatusBlock, BackLink, FormField, ConfirmSheet…). Un texte
+        // composants (SectionCard, StatusBlock, ToggleSwitch, FormField, ConfirmSheet…). Un texte
         // dans une liaison (:title="'…'", {{ '…' }}) échappe à la règle : la revue s'en charge.
         attributes: {
-          '/.+/': ['title', 'aria-label', 'aria-placeholder', 'aria-roledescription', 'aria-valuetext', 'label', 'text', 'help', 'lead', 'legend', 'confirm', 'action', 'placeholder'],
-          img: ['alt']
+          '/.+/': ['title', 'aria-label', 'aria-placeholder', 'aria-roledescription', 'aria-valuetext', 'label', 'help', 'lead', 'legend', 'description', 'error', 'emergency', 'placeholder'],
+          img: ['alt'],
+          // Props dont le nom a un autre sens en HTML (action d'un formulaire…) : sur nos composants seulement.
+          StatusBlock: ['text'],
+          ConfirmSheet: ['confirm'],
+          DeleteConfirm: ['action', 'confirm']
         },
         allowlist: [
           '(', ')', ',', '.', '&', '+', '-', '=', '*', '/', '#', '%', '!', '?', ':', ';', '[', ']', '{', '}', '<', '>',

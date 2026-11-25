@@ -9,10 +9,15 @@ import { MESSAGES } from './messages'
 
 type Shape = string | { fn: number } | Shape[] | { [k: string]: Shape }
 
-// Argument d'essai qui sert de texte, de liste ou de nombre selon la fonction : une liste
-// d'un nom (rendue « Fy », .map et .join permis) qui vaut n dans un calcul. Chaque
-// fonction est rendue avec n = 1 puis 2 : singulier et pluriel ne doivent pas être vides.
-const sample = (n: number) => (): unknown => Object.assign(['Fy'], { valueOf: () => n })
+// Arguments d'essai : chaque argument est essayé comme nombre n et comme liste de n noms
+// (rendue « Fy » ou « Fy,Fy »), avec n = 1 puis 2, pour passer par le singulier et le
+// pluriel (n === 1, names.length > 1). Toute combinaison qui s'exécute doit rendre un
+// texte non vide ; une combinaison qui lève (.map sur un nombre) ne correspond pas au type.
+const candidates = (n: number): unknown[] => [n, Array(n).fill('Fy')]
+function* combos(arity: number, n: number): Generator<unknown[]> {
+  if (arity === 0) { yield []; return }
+  for (const head of candidates(n)) for (const rest of combos(arity - 1, n)) yield [head, ...rest]
+}
 
 function shape(v: unknown, path: string, empties: string[]): Shape {
   if (typeof v === 'string') {
@@ -20,10 +25,16 @@ function shape(v: unknown, path: string, empties: string[]): Shape {
     return 'string'
   }
   if (typeof v === 'function') {
+    let ran = 0
     for (const n of [1, 2]) {
-      const out = String((v as (...a: unknown[]) => unknown)(...Array.from({ length: v.length }, sample(n))))
-      if (!out.trim()) empties.push(`${path}(${n})`)
+      for (const args of combos(v.length, n)) {
+        let out: string
+        try { out = String((v as (...a: unknown[]) => unknown)(...args)) } catch { continue }
+        ran++
+        if (!out.trim()) empties.push(`${path}(${JSON.stringify(args)})`)
+      }
     }
+    if (!ran) throw new Error(`${path} : aucun argument d'essai ne convient`)
     return { fn: v.length }
   }
   if (Array.isArray(v)) return v.map((x, i) => shape(x, `${path}[${i}]`, empties))
@@ -53,6 +64,12 @@ describe('catalogues mg, fr, en', () => {
 
     const phoneState = { ...MESSAGES.mg.phoneState, moreAlerts: () => 'fampitandremana hafa' }
     expect(check({ ...MESSAGES, mg: { ...MESSAGES.mg, phoneState } }).differ).toEqual(['mg'])
+
+    // Singulier vide (n === 1) et pluriel vide (plusieurs noms) : vus tous les deux.
+    const one = { ...MESSAGES.fr.phoneState, moreAlerts: (n: number) => (n === 1 ? '' : 'autres alertes') }
+    expect(check({ ...MESSAGES, fr: { ...MESSAGES.fr, phoneState: one } }).empties).toEqual(['fr.phoneState.moreAlerts([1])'])
+    const many = (names: string[]) => (names.length > 1 ? ' ' : `${names[0]} regarde`)
+    expect(check({ fr: { w: many } }).empties).toEqual(['fr.w([["Fy","Fy"]])'])
 
     const children = { ...MESSAGES.en.children, colors: { ...MESSAGES.en.children.colors, blue: ' ' } }
     expect(check({ ...MESSAGES, en: { ...MESSAGES.en, children } }).empties).toEqual(['en.children.colors.blue'])
