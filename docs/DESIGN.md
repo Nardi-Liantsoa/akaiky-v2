@@ -150,7 +150,9 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   44 px identique à celle des lignes (appels `--tint-sky`, bloqués rouge, messages `--tint-mint`,
   sorties du verrou `--tint-butter`), nombre puis libellé ; nombre de bloqués en rouge dès 1 ;
   tuile active : bord `--accent`, fond `--accent-soft`, coche dans la pastille `--accent`. « Aujourd'hui » défile dans sa
-  carte (440 px ou la moitié de l'écran au plus ; au bout, le défilement passe à la page) ; numéro d'un appel bloqué jamais coupé (heure en haut à droite de la ligne).
+  carte (440 px ou la moitié de l'écran au plus ; au bout, le défilement passe à la page) ;
+  sous les tuiles, tant qu'aucun filtre n'est choisi, « Touchez une case pour filtrer le journal. »
+  (icône réglages, --text-soft, NAR-235) ; numéro d'un appel bloqué jamais coupé (heure en haut à droite de la ligne).
   Sélecteur de jour (NAR-233) sous le titre : ‹ · [calendrier] jour affiché · ›, pastilles de 48 px
   bordées comme le sélecteur d'enfant ; « Aujourd'hui », « Hier », sinon la date en toutes lettres ;
   le bouton du milieu ouvre le calendrier natif ; 90 jours au plus, jamais demain (› grisé). Une

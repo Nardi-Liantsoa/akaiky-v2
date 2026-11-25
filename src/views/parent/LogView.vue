@@ -14,6 +14,7 @@ import { dayName } from '../../lib/journalDay'
 import { children, loadChildren, selectedChild } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
+import AppIcon from '../../components/ui/AppIcon.vue'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
 
 // Journal de l'enfant (NAR-152, maquette écran 9) : appels, appels bloqués, déverrouillages
@@ -156,6 +157,8 @@ const listLabel = computed(() => dayName(shownDay.value, todayKey.value, t.value
            le bouton est à côté, pas dedans. -->
       <div class="active-filter">
         <p role="status" class="filter-status">{{ filter !== 'all' ? t.parent.log.activeFilter(t.parent.log.summary[filter]) : '' }}</p>
+        <!-- Sans filtre : comment en choisir un (NAR-235) ; hors de la zone annoncée, lu une fois. -->
+        <p v-if="filter === 'all'" class="filter-hint"><AppIcon name="sliders" :size="16" />{{ t.parent.log.filterHint }}</p>
         <AppButton v-if="filter !== 'all'" variant="link" @click="filter = 'all'">{{ t.parent.log.showAll }}</AppButton>
       </div>
     </template>
@@ -192,6 +195,15 @@ h1 {
 }
 .head-switch :deep(.switch) {
   margin-bottom: 0;
+}
+.filter-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--text-soft);
+  font-size: var(--fs-small);
+  font-weight: 600;
 }
 .active-filter {
   display: flex;
