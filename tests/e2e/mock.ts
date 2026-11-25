@@ -1,6 +1,6 @@
 import type { Page, Request } from '@playwright/test'
 
-export const USER = { id: '6f1c2b1e-0000-4000-8000-000000000001', email: 'alice@exemple.fr', name: 'Alice', is_admin: false }
+export const USER = { id: '6f1c2b1e-0000-4000-8000-000000000001', email: 'alice@exemple.fr', name: 'Alice', is_admin: false, lang: 'fr' }
 export const FAMILY = { id: '6f1c2b1e-0000-4000-8000-0000000000f1', name: 'Famille Rabe', role: 'owner', members: [{ userId: USER.id, name: USER.name, role: 'owner', isMe: true }] }
 
 type Reply = { status?: number, body?: unknown } | undefined

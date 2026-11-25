@@ -72,7 +72,7 @@ export async function nativeRoutes(app, { limit, checkCredentials }) {
         WHERE s.kind = 'bearer' AND s.refresh_expires_at > now()
           AND (s.refresh_hash = $1 OR (s.previous_refresh_hash = $1 AND s.rotated_at > now() - make_interval(days => $7)))
           AND u.id = s.user_id AND ${SESSION_RULE}
-        RETURNING u.id, u.email, u.phone, u.name, u.is_admin`,
+        RETURNING u.id, u.email, u.phone, u.name, u.is_admin, u.lang`,
       [hash, access.hash, refresh.hash, config.native.accessMinutes, config.native.refreshDays, ABSOLUTE_DAYS, PREVIOUS_DAYS])
     if (rows[0]) return { user: me(rows[0]), ...tokens(access.token, refresh.token) }
     // Jeton écarté par une réutilisation de son prédécesseur : deux détenteurs

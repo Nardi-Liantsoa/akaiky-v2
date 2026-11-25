@@ -57,8 +57,9 @@ export function setUser(user: User | null) {
 }
 
 // consent : case « majeur·e, autorité parentale » cochée (NAR-178).
-export async function register(name: string, email: string, password: string): Promise<void> {
-  await api.post('/auth/register', { name, email, password, consent: true })
+// lang : langue de l'écran, gardée par le compte pour ses courriels (NAR-211).
+export async function register(name: string, email: string, password: string, lang: string): Promise<void> {
+  await api.post('/auth/register', { name, email, password, consent: true, lang })
 }
 
 // Inscription par numéro (NAR-136) : 202 identique que le numéro soit neuf ou pris ; un
@@ -74,3 +75,4 @@ export async function logout(): Promise<void> {
 // Le rôle est attribué côté serveur ; ici il ne sert qu'à afficher le lien
 // d'administration. Chaque route admin est vérifiée par l'API.
 export const isAdmin = () => !!auth.user?.is_admin
+

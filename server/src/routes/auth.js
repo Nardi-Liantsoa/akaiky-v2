@@ -1,7 +1,7 @@
 import { createMfa } from '../mfa.js'
 import { recognizedDevice, rememberDevice } from '../devices.js'
 import { readAuthCookie, authCookie } from '../auth-cookies.js'
-import { HttpError, audit, me, emailAddress, text, body } from '../lib.js'
+import { HttpError, audit, me, emailAddress, text, body, langOf, LANGS } from '../lib.js'
 import { hashPassword, verifyPassword, burnPasswordTime, newToken, tokenHash, passwordProblem, createLimiter, rateLimitKey } from '../security.js'
 import { authEmails } from '../mailer.js'
 import { consumeQuota, createAuthQueue } from '../quotas.js'
@@ -29,6 +29,7 @@ export default async function authRoutes(app) {
   const emailBudget = () => consumeQuota(db, 'auth-emails', config.quotas.authEmailsPerHour)
   const perIp = createLimiter({ max: config.limits.perIp, windowMs: 15 * 60 * 1000 })
   const perEmail = createLimiter({ max: config.limits.perEmail, windowMs: 60 * 60 * 1000 })
+  const perAccountLang = createLimiter({ max: 60, windowMs: 60 * 60 * 1000 })
   const limit = (req, key) => {
     if (!perIp(`${req.routeOptions.url}|${rateLimitKey(req.ip)}`)) throw new HttpError(429, 'Trop de tentatives. Réessayez dans quelques minutes.')
     if (key && !perEmail(`${req.routeOptions.url}|${key}`)) throw new HttpError(429, 'Trop de demandes pour cette adresse. Réessayez plus tard.')
@@ -93,7 +94,7 @@ export default async function authRoutes(app) {
     const byPhone = column === 'phone'
     if (typeof b.password !== 'string' || b.password.length > 200) throw new HttpError(400, 'Mot de passe requis.')
     return guardLogin(e, async (conn, guard) => {
-      const u = (await conn.query(`SELECT id, email, phone, name, is_admin, password_hash, email_verified_at, phone_verified_at, disabled_at
+      const u = (await conn.query(`SELECT id, email, phone, name, is_admin, lang, password_hash, email_verified_at, phone_verified_at, disabled_at
         FROM users WHERE ${column}=$1`, [e])).rows[0]
       // Email inconnu : on vérifie quand même un hachage, pour que la durée ne trahisse rien.
       const valid = u ? await verifyPassword(b.password, u.password_hash) : (await burnPasswordTime(b.password), false)
@@ -128,6 +129,20 @@ export default async function authRoutes(app) {
   }
 
   app.get('/me', PUBLIC, async (req) => ({ user: req.user ? me(req.user) : null }))
+
+  // Langue du compte (NAR-211) : posée par l'app quand elle change de langue, pour les
+  // courriels. Le compte de la session seulement ; aucun autre champ (400). Même langue :
+  // aucune écriture.
+  app.put('/me/lang', async (req) => {
+    const user = app.requireUser(req)
+    // Écriture peu coûteuse et idempotente, envoyée à chaque changement de langue : un
+    // compteur à part, plus large que celui des connexions (pas de partage par IP).
+    if (!perAccountLang(user.id)) throw new HttpError(429, 'Trop de changements de langue. Réessayez plus tard.')
+    const b = body(req, ['lang'])
+    if (!LANGS.includes(b.lang)) throw new HttpError(400, 'Langue inconnue.')
+    await db.query('UPDATE users SET lang = $2 WHERE id = $1 AND lang <> $2', [user.id, b.lang])
+    return { lang: b.lang }
+  })
 
   // Suppression de son propre compte, mot de passe redemandé. Un parent principal doit
   // d'abord céder ce rôle ou supprimer la famille : une famille ne reste jamais sans owner ;
@@ -192,15 +207,25 @@ export default async function authRoutes(app) {
     await emailBudget()
     // Le hachage est calculé dans les deux cas (adresse neuve ou déjà prise).
     const hash = await hashPassword(b.password)
-    const { rows } = await db.query(
-      `INSERT INTO users(email, name, password_hash, consent_at) VALUES ($1, $2, $3, now())
-       ON CONFLICT (email) DO NOTHING RETURNING id`, [e, name, hash])
-    if (rows[0]) {
-      const token = await issueToken(rows[0].id, 'confirm', 24)
-      await mailer.send({ to: e, ...emails.confirm(link(`confirm=${token}`)) })
-      await audit(db, req, 'register', rows[0].id)
+    // Langue de l'écran (NAR-211), gardée par le compte pour ses courriels.
+    const lang = langOf(b.lang)
+    // Une seule requête dans les deux cas (pas d'aller-retour de plus pour une adresse
+    // prise) : l'identifiant créé, ou la langue du compte existant (lue avant l'insertion).
+    const { rows: [row] } = await db.query(
+      `WITH ins AS (
+         INSERT INTO users(email, name, password_hash, consent_at, lang) VALUES ($1, $2, $3, now(), $4)
+         ON CONFLICT (email) DO NOTHING RETURNING id
+       )
+       SELECT (SELECT id FROM ins) AS id, (SELECT lang FROM users WHERE email = $1) AS existing_lang`, [e, name, hash, lang])
+    if (row.id) {
+      const token = await issueToken(row.id, 'confirm', 24)
+      await mailer.send({ to: e, ...emails(lang).confirm(link(`confirm=${token}`)) })
+      await audit(db, req, 'register', row.id)
     } else {
-      await mailer.send({ to: e, ...emails.alreadyRegistered(link(''), link('forgot')) })
+      // Le titulaire reçoit l'avis dans SA langue, pas dans celle du demandeur. Deux
+      // inscriptions simultanées : la ligne de l'autre n'est pas dans l'instantané, relue.
+      const holderLang = row.existing_lang ?? (await db.query('SELECT lang FROM users WHERE email = $1', [e])).rows[0]?.lang
+      await mailer.send({ to: e, ...emails(holderLang).alreadyRegistered(link(''), link('forgot')) })
     }
     return reply.code(202).send({ confirmationRequired: true, message: 'Vérifiez votre boîte mail pour activer votre compte.' })
   })
@@ -221,10 +246,10 @@ export default async function authRoutes(app) {
     limit(req, e)
     await emailBudget()
     queue.enqueue(async () => {
-      const u = (await db.query('SELECT id FROM users WHERE email = $1 AND email_verified_at IS NULL', [e])).rows[0]
+      const u = (await db.query('SELECT id, lang FROM users WHERE email = $1 AND email_verified_at IS NULL', [e])).rows[0]
       if (u) {
         const token = await issueToken(u.id, 'confirm', 24)
-        await mailer.send({ to: e, ...emails.confirm(link(`confirm=${token}`)) })
+        await mailer.send({ to: e, ...emails(u.lang).confirm(link(`confirm=${token}`)) })
       }
     })
     // Délai fixe : la latence SMTP ne trahit pas l'existence du compte.
@@ -256,10 +281,10 @@ export default async function authRoutes(app) {
     limit(req, e)
     await emailBudget()
     queue.enqueue(async () => {
-      const u = (await db.query('SELECT id FROM users WHERE email = $1', [e])).rows[0]
+      const u = (await db.query('SELECT id, lang FROM users WHERE email = $1', [e])).rows[0]
       if (u) {
         const token = await issueToken(u.id, 'reset', 1)
-        await mailer.send({ to: e, ...emails.reset(link(`reset=${token}`)) })
+        await mailer.send({ to: e, ...emails(u.lang).reset(link(`reset=${token}`)) })
         await audit(db, req, 'reset_requested', u.id)
       }
     })
@@ -289,7 +314,7 @@ export default async function authRoutes(app) {
       const userId = await consumeToken(b.token, 'reset', conn)
       if (!owner || owner.id !== userId) throw new HttpError(400, 'Lien invalide.')
       changed = (await conn.query(`UPDATE users SET password_hash=$2, failed_logins=0, locked_until=NULL,
-        email_verified_at=COALESCE(email_verified_at, now()) WHERE id=$1 RETURNING email`, [userId, hash])).rows[0]
+        email_verified_at=COALESCE(email_verified_at, now()) WHERE id=$1 RETURNING email, lang`, [userId, hash])).rows[0]
       await conn.query('DELETE FROM sessions WHERE user_id=$1', [userId])
       await conn.query('DELETE FROM trusted_devices WHERE user_id=$1', [userId])
       await conn.query('DELETE FROM mfa_challenges WHERE user_id=$1', [userId])
@@ -297,7 +322,7 @@ export default async function authRoutes(app) {
       await audit(conn, req, 'password_reset', userId)
       await conn.query('COMMIT')
     } catch (error) { await conn.query('ROLLBACK'); throw error } finally { conn.release() }
-    await mailer.send({ to: changed.email, ...emails.passwordChanged() })
+    await mailer.send({ to: changed.email, ...emails(changed.lang).passwordChanged() })
     authCookie(reply, config, 'session', '', 0)
     return { message: 'Mot de passe modifié. Connectez-vous avec le nouveau mot de passe.' }
   })

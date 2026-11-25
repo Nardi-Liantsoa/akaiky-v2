@@ -5,6 +5,7 @@ import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { App as NativeApp } from '@capacitor/app'
 import { appKind } from './lib/appKind'
 import { startOtaRuntime } from './lib/otaRuntime'
+import { syncAccountLang } from './lib/accountLang'
 import { closeTopSheet } from './composables/useSheetStack'
 import App from './App.vue'
 import { router } from './router'
@@ -22,6 +23,9 @@ if (Capacitor.isNativePlatform()) {
   // sombre dans la barre d'état, même quand le système est en thème sombre.
   StatusBar.setStyle({ style: Style.Light }).catch(() => {})
 }
+
+// Langue des courriels du compte (NAR-211), app parent seulement.
+void appKind().then((kind) => { if (kind === 'parent') syncAccountLang() }).catch(() => {})
 
 createApp(App).use(router).mount('#app')
 
