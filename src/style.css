@@ -82,6 +82,8 @@
   /* Élément posé au-dessus de l'écran (bannière de notification, NAR-179). */
   --shadow-float: 0 6px 24px rgb(0 0 0 / 18%);
   --radius-pill: 999px;
+  /* Cadre d'un téléphone dessiné (aperçu de la page d'accueil publique, NAR-225). */
+  --radius-device: 40px;
   --tap: 48px; /* zone tactile minimale, app parent */
   --tap-child: 64px; /* zone tactile minimale, app enfant (CdC §7.3) */
   /* Anneau de focus clavier, commun à tous les boutons et liens. */

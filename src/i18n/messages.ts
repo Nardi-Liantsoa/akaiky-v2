@@ -8,11 +8,21 @@
 const fr = {
   lang: { label: 'Langue', mg: 'Malagasy', fr: 'Français', en: 'English' },
   nav: { home: 'Accueil', security: 'Sécurité', admin: 'Administration', login: 'Connexion', logout: 'Déconnexion' },
+  // Accueil public (NAR-225, maquettes 03 et 04) : accroche, trois atouts, aperçu du téléphone.
   home: {
-    title: 'Bienvenue',
-    lead: 'Akaiky relie les parents à leurs enfants : un téléphone simple pour l’enfant, une application pour appeler, recevoir les alertes et tout régler.',
-    start: 'Créer un compte',
-    open: 'Ouvrir mon espace'
+    badge: 'Pensé pour les 6–12 ans',
+    title: 'Votre enfant joint toujours ses parents. Et rien d’autre.',
+    lead: 'Un téléphone simple pour l’enfant, une application pour appeler, recevoir les alertes et tout régler.',
+    start: 'Créer un compte gratuit',
+    login: 'J’ai déjà un compte',
+    open: 'Ouvrir mon espace',
+    featuresLabel: 'Ce que fait Akaiky',
+    features: [
+      { title: 'Appels faciles', text: 'Les parents et proches autorisés, en un geste, depuis un écran sans distraction.' },
+      { title: 'SOS immédiat', text: 'Un appui long prévient ses parents par SMS et les appelle, avec sirène si besoin.' },
+      { title: 'Apps grand public bloquées', text: 'Réseaux sociaux, navigateur et jeux restent hors de portée.' }
+    ],
+    phone: { label: 'Aperçu de l’écran du téléphone de l’enfant', mom: 'Maman', dad: 'Papa', grandma: 'Mamie', locked: 'Autres apps verrouillées' }
   },
   errors: {
     network: 'Connexion au serveur impossible. Vérifiez votre réseau et réessayez.',
@@ -737,10 +747,19 @@ const mg: Messages = {
   lang: { label: 'Fiteny', mg: 'Malagasy', fr: 'Français', en: 'English' },
   nav: { home: 'Fandraisana', security: 'Fiarovana', admin: 'Fitantanana', login: 'Hiditra', logout: 'Hivoaka' },
   home: {
-    title: 'Tongasoa',
-    lead: 'Mampifandray ny ray aman-dreny sy ny zanany i Akaiky: finday tsotra ho an’ny zaza, rindranasa hiantsoana, handraisana fampitandremana ary handrindrana ny zava-drehetra.',
-    start: 'Hamorona kaonty',
-    open: 'Hanokatra ny habakako'
+    badge: 'Natao ho an’ny ankizy 6–12 taona',
+    title: 'Afaka miantso ny ray aman-dreniny foana ny zanakao. Ary izay ihany.',
+    lead: 'Finday tsotra ho an’ny zaza, rindranasa hiantsoana, handraisana fampitandremana ary handrindrana ny zava-drehetra.',
+    start: 'Hamorona kaonty maimaim-poana',
+    login: 'Efa manana kaonty aho',
+    open: 'Hanokatra ny habakako',
+    featuresLabel: 'Izay ataon’i Akaiky',
+    features: [
+      { title: 'Antso mora', text: 'Ny ray aman-dreny sy ny havana nahazo alalana, amin’ny fikitiana iray, amin’ny efijery tsy misy manelingelina.' },
+      { title: 'SOS avy hatrany', text: 'Tsindrina lava iray dia ampandrenesina amin’ny SMS sy antsoina ny ray aman-dreniny, miaraka amin’ny sirena raha ilaina.' },
+      { title: 'Voasakana ny rindranasa ho an’ny besinimaro', text: 'Tsy tratrany ny tambajotra sosialy, ny mpitety tranonkala ary ny lalao.' }
+    ],
+    phone: { label: 'Topy maso ny efijerin’ny findain’ny zaza', mom: 'Neny', dad: 'Dada', grandma: 'Bebe', locked: 'Voahidy ny rindranasa hafa' }
   },
   errors: {
     network: 'Tsy afaka mifandray amin’ny mpizara. Hamarino ny tambajotra ary andramo indray.',
@@ -1437,10 +1456,19 @@ const en: Messages = {
   lang: { label: 'Language', mg: 'Malagasy', fr: 'Français', en: 'English' },
   nav: { home: 'Home', security: 'Security', admin: 'Administration', login: 'Sign in', logout: 'Sign out' },
   home: {
-    title: 'Welcome',
-    lead: 'Akaiky connects parents with their children: a simple phone for the child, and an app to call, receive alerts and manage everything.',
-    start: 'Create an account',
-    open: 'Open my space'
+    badge: 'Made for ages 6–12',
+    title: 'Your child can always reach their parents. And nothing else.',
+    lead: 'A simple phone for the child, an app to call, receive alerts and set everything up.',
+    start: 'Create a free account',
+    login: 'I already have an account',
+    open: 'Open my space',
+    featuresLabel: 'What Akaiky does',
+    features: [
+      { title: 'Easy calls', text: 'Parents and approved relatives, in one tap, from a distraction-free screen.' },
+      { title: 'Instant SOS', text: 'A long press texts and calls their parents, with a siren if needed.' },
+      { title: 'Mainstream apps blocked', text: 'Social networks, the browser and games stay out of reach.' }
+    ],
+    phone: { label: 'Preview of the child’s phone screen', mom: 'Mum', dad: 'Dad', grandma: 'Grandma', locked: 'Other apps locked' }
   },
   errors: {
     network: 'Cannot reach the server. Check your network and try again.',
