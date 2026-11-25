@@ -209,7 +209,7 @@ watch(childId, () => {
         </li>
       </ul>
       <ConfirmSheet
-        v-if="confirming.target.value" id="device-revoke" :title="t.pairing.revokeTitle(confirming.target.value.model || t.pairing.unknownModel)"
+        v-if="confirming.target.value" id="device-revoke" confirm-icon="trash" :title="t.pairing.revokeTitle(confirming.target.value.model || t.pairing.unknownModel)"
         :items="t.pairing.revokeItems" :confirm="t.pairing.confirmRevoke" :busy="busy" :opener="confirming.opener.value"
         @close="confirming.close()" @confirm="revoke"
       />
