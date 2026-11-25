@@ -16,9 +16,16 @@ export const RETRY_MS = 30_000
 // Firebase absent de la coque (pas de google-services.json / GoogleService-Info.plist) :
 // iOS rejette en UNAVAILABLE, Android avec « Default FirebaseApp is not initialized ».
 // Seul cas définitif ; toute autre erreur est passagère.
+// Envoi refusé : retenté seulement si c'est passager (réseau, 429, 5xx) ; un autre refus
+// (400 jeton ou langue, 401 session perdue) ne se règle pas en réessayant.
 export function notConfigured(e: unknown): boolean {
   const err = e as { code?: unknown, message?: unknown } | null
   return err?.code === 'UNAVAILABLE' || /not (been )?configured|not initialized/i.test(String(err?.message ?? ''))
+}
+
+export function retryable(e: unknown): boolean {
+  const status = (e as { status?: unknown } | null)?.status
+  return typeof status !== 'number' || status === 0 || status === 429 || status >= 500
 }
 
 export function createPushRegistration({ messaging, send, platform, lang, needsPermission = true }: {
@@ -35,6 +42,8 @@ export function createPushRegistration({ messaging, send, platform, lang, needsP
   let active = false
   let retry: ReturnType<typeof setTimeout> | null = null
   let chain: Promise<void> = Promise.resolve()
+  // Session : stop() change de génération ; un envoi commencé avant n'écrit plus rien.
+  let generation = 0
 
   function later() {
     if (!active || retry) return
@@ -49,10 +58,16 @@ export function createPushRegistration({ messaging, send, platform, lang, needsP
   function flush(): Promise<void> {
     chain = chain.then(async () => {
       if (!active || !token) return
+      const gen = generation
       const r: Registration = { token, platform, lang: lang() }
       const key = `${r.token}|${r.lang}`
       if (key === sent) return
-      try { await send(r); sent = key } catch { later() }
+      try {
+        await send(r)
+        if (gen === generation) sent = key
+      } catch (e) {
+        if (gen === generation && retryable(e)) later()
+      }
     })
     return chain
   }
@@ -95,6 +110,7 @@ export function createPushRegistration({ messaging, send, platform, lang, needsP
     // Session fermée (ou nouvelle session d'appareil) : le serveur efface les jetons de
     // l'ancienne session ; tout est oublié, le prochain start() renvoie le jeton.
     stop() {
+      generation++
       active = false
       token = null
       sent = ''

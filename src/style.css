@@ -76,6 +76,8 @@
 
   --radius: 24px;
   --radius-sm: 14px;
+  /* Élément posé au-dessus de l'écran (bannière de notification, NAR-179). */
+  --shadow-float: 0 6px 24px rgb(0 0 0 / 18%);
   --radius-pill: 999px;
   --tap: 48px; /* zone tactile minimale, app parent */
   --tap-child: 64px; /* zone tactile minimale, app enfant (CdC §7.3) */

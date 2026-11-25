@@ -11,10 +11,15 @@ import AppIcon from '../ui/AppIcon.vue'
 const t = useT()
 const router = useRouter()
 let timer: ReturnType<typeof setTimeout> | undefined
+// Bannière reçue hors de l'espace parent (accueil public, back-office) : jamais montrée en
+// retard, elle n'est plus d'actualité après ses 8 s.
 watch(pushBanner, (b) => {
   clearTimeout(timer)
-  if (b) timer = setTimeout(() => { pushBanner.value = null }, 8000)
-})
+  if (!b) return
+  const left = b.at + 8000 - Date.now()
+  if (left <= 0) pushBanner.value = null
+  else timer = setTimeout(() => { pushBanner.value = null }, left)
+}, { immediate: true })
 onBeforeUnmount(() => clearTimeout(timer))
 
 function open() {
@@ -41,7 +46,7 @@ function open() {
 <style scoped>
 .push-banner {
   position: fixed;
-  z-index: 50;
+  z-index: 50; /* comme les autres couches flottantes (UnlockPanel, QuickMessagesPanel) */
   top: calc(var(--safe-top) + var(--space-2));
   left: calc(var(--safe-left) + var(--space-3));
   right: calc(var(--safe-right) + var(--space-3));
@@ -52,7 +57,7 @@ function open() {
   gap: var(--space-1);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: 0 6px 24px rgb(0 0 0 / 18%);
+  box-shadow: var(--shadow-float);
 }
 .open {
   flex: 1 1 0;

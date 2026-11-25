@@ -6,7 +6,7 @@ import { locale, useT } from '../../composables/useT'
 import { appKind } from '../../lib/appKind'
 import { startChild, type ChildState } from '../../lib/childStartup'
 import { appInventory, callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore, remoteUnlockSeen, messageOutbox, heartbeat } from '../../lib/deviceSessionInstance'
-import { deviceConfig, pause, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
+import { deviceConfig, pause, refreshNow, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
 import { emergencyNumber } from '../../lib/emergency'
 import { sosPlan } from '../../lib/sos'
 import { buildSosPlan, confirmNativeSos } from '../../lib/sosCascade'
@@ -263,7 +263,7 @@ function startPush(): Promise<void> {
         if (state.value.kind !== 'paired' || !foreground) return
         const type = pushType(notification.data)
         if (type === 'locate') readLocate()
-        else if (type === 'config') resume()
+        else if (type === 'config') void refreshNow()
       })
     ])
     const handles = results.flatMap((r) => r.status === 'fulfilled' ? [r.value] : [])

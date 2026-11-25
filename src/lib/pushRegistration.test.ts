@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createPushRegistration, notConfigured, RETRY_MS } from './pushRegistration'
+import { createPushRegistration, notConfigured, retryable, RETRY_MS } from './pushRegistration'
 import { pushType, routeForPush } from './pushRoute'
 
 function setup({ permission = 'granted', token = 'T1', tokenError = null as unknown, sendFails = 0 } = {}) {
@@ -94,5 +94,37 @@ describe('écran ouvert au toucher', () => {
     }
     expect(pushType({ type: 'locate', id: 'c1' })).toBe('locate')
     expect(pushType({ id: 1 })).toBeNull()
+  })
+})
+
+describe('jeton push : sessions qui se suivent', () => {
+  it('un envoi en cours pendant la fermeture ne bloque pas l’envoi pour la session suivante', async () => {
+    const sent: string[] = []
+    let release: () => void = () => {}
+    let first = true
+    const messaging = { checkPermissions: async () => ({ receive: 'granted' as never }), requestPermissions: async () => ({ receive: 'granted' as never }), getToken: async () => ({ token: 'T1' }) }
+    const send = (r: { token: string }) => {
+      if (first) { first = false; return new Promise<void>((res) => { release = () => { sent.push(`lent:${r.token}`); res() } }) }
+      sent.push(r.token)
+      return Promise.resolve()
+    }
+    const reg = createPushRegistration({ messaging, send, platform: 'android', lang: () => 'fr' })
+    const pending = reg.start()
+    await new Promise((r) => setTimeout(r, 0))
+    reg.stop() // déconnexion pendant l'envoi
+    const next = reg.start() // nouvelle session
+    release()
+    await pending
+    await next
+    expect(sent).toEqual(['lent:T1', 'T1'])
+  })
+
+  it('refus définitif (400, 401) : pas de nouvel essai ; réseau, 429, 5xx : nouvel essai', () => {
+    expect(retryable({ status: 400 })).toBe(false)
+    expect(retryable({ status: 401 })).toBe(false)
+    expect(retryable({ status: 0 })).toBe(true)
+    expect(retryable({ status: 429 })).toBe(true)
+    expect(retryable({ status: 503 })).toBe(true)
+    expect(retryable(new TypeError('Failed to fetch'))).toBe(true)
   })
 })

@@ -21,7 +21,7 @@ import { routeForPush } from './pushRoute'
 // - App au premier plan : bannière dans l'app (pushBanner), pas de notification système.
 // - Canal Android « alertes » (celui du serveur, server/src/push.js), importance haute.
 export const pushState = ref<PushState | 'off'>('off')
-export const pushBanner = ref<{ title: string, body: string, to: RouteLocationRaw } | null>(null)
+export const pushBanner = ref<{ title: string, body: string, to: RouteLocationRaw, at: number } | null>(null)
 
 const registration = createPushRegistration({
   messaging: FirebaseMessaging,
@@ -59,7 +59,7 @@ export function startParentPush(router: Router): void {
   }).catch(() => {})
   void FirebaseMessaging.addListener('notificationReceived', ({ notification }) => {
     if (!auth.user || !notification.title) return
-    pushBanner.value = { title: notification.title, body: notification.body ?? '', to: routeForPush(notification.data) }
+    pushBanner.value = { title: notification.title, body: notification.body ?? '', to: routeForPush(notification.data), at: Date.now() }
   }).catch(() => {})
   // Résultat d'un start() gardé seulement si la session est toujours la même.
   const refresh = async () => {
