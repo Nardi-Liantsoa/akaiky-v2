@@ -154,7 +154,8 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   sous les tuiles, un bandeau d'information toujours visible (fond neutre `--surface-muted`, jamais la teinte d'une
   tuile ; icône « i ») :
   « Touchez une case pour filtrer le journal. », puis, filtre choisi, « Touchez à nouveau la case
-  pour tout afficher. » (NAR-235) ; numéro d'un appel bloqué jamais coupé (heure en haut à droite de la ligne).
+  pour tout afficher. » (NAR-235) ; pas de ligne « Filtre : … · Tout afficher » (lue par les
+  lecteurs d'écran seulement, NAR-243) ; numéro d'un appel bloqué jamais coupé (heure en haut à droite de la ligne).
   Sélecteur de jour (NAR-233) sous le titre : ‹ · [calendrier] jour affiché · ›, pastilles de 48 px
   bordées comme le sélecteur d'enfant ; « Aujourd'hui », « Hier », sinon la date en toutes lettres ;
   le bouton du milieu ouvre le calendrier natif ; 90 jours au plus, jamais demain (› grisé). Une

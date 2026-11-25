@@ -66,7 +66,9 @@ test('journal : groupé par jour, compteur « Bloqués », filtres, « Autoriser
   expect(api.queries).toContain('blocked')
   // Nombres gardés après le filtre (pas redemandés), filtre actif annoncé.
   await expect(blockedTile).toHaveText(/^2/)
-  await expect(page.getByRole('status').filter({ hasText: 'Filtre : Bloqués' })).toBeVisible()
+  // Annoncé aux lecteurs d'écran seulement (NAR-243) : ni « Filtre : » ni « Tout afficher » à l'écran.
+  await expect(page.getByRole('status').filter({ hasText: 'Filtre : Bloqués' })).toHaveClass(/visually-hidden/)
+  await expect(page.getByRole('button', { name: 'Tout afficher' })).toHaveCount(0)
   await blockedTile.click()
   await expect(blockedTile).toHaveAttribute('aria-pressed', 'false')
   await expect(page.getByText('Appel de Maman')).toBeVisible()
