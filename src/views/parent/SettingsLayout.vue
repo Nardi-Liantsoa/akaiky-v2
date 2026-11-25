@@ -121,7 +121,8 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
 }
 .master {
   position: sticky;
-  top: var(--space-5);
+  /* Tablette native : sous la barre d'état. */
+  top: calc(var(--space-5) + var(--safe-top));
 }
 .back-row + h1 {
   margin: 0 0 var(--space-4);

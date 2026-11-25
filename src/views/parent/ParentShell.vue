@@ -38,8 +38,9 @@ watch(() => auth.user, (user) => {
 
 <style scoped>
 .shell {
-  /* Zones sûres en natif comme sur le web (viewport-fit=cover) : --safe-* vaut 0 sans encoche. */
-  padding: var(--space-5) calc(var(--gutter) + var(--safe-right)) calc(var(--tab-height) + var(--safe-bottom) + var(--space-5))
+  /* Zones sûres en natif comme sur le web (viewport-fit=cover) : --safe-* vaut 0 sans encoche.
+     Haut : la barre d'état recouvre la WebView (main.ts) ; sans --safe-top, le titre la touche. */
+  padding: calc(var(--space-5) + var(--safe-top)) calc(var(--gutter) + var(--safe-right)) calc(var(--tab-height) + var(--safe-bottom) + var(--space-5))
     calc(var(--gutter) + var(--safe-left));
   max-width: 720px;
   margin: 0 auto;
@@ -49,7 +50,6 @@ watch(() => auth.user, (user) => {
 @media (min-width: 1024px) {
   .shell.with-tabs {
     /* Zone sûre de gauche déjà sous le rail : comptée une fois, dans la marge. */
-    padding-top: calc(var(--space-5) + var(--safe-top));
     padding-left: var(--gutter);
     padding-bottom: calc(var(--space-5) + var(--safe-bottom));
     margin-left: calc(var(--rail-width) + var(--safe-left) + max(0px, (100% - var(--rail-width) - var(--safe-left) - 720px) / 2));
