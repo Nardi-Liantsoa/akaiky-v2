@@ -212,7 +212,8 @@ const fr = {
       'Sur l’écran de bienvenue, touchez 6 fois le même endroit de l’écran.',
       'Scannez ce QR code, puis connectez le Wi-Fi.'
     ],
-    step: (n: number, total: number) => `Étape ${n} sur ${total}`,
+    // Lu avant le texte de l'étape (pastille numérotée, NAR-229) : la ponctuation suit la langue.
+    step: (n: number, total: number) => `Étape ${n} sur ${total} : `,
     show: 'Afficher le QR code',
     renew: 'Nouveau QR code',
     validity: 'Valable 15 minutes · usage unique',
@@ -964,7 +965,7 @@ const mg: Messages = {
       'Eo amin’ny efijery fandraisana, kitiho in-6 eo amin’ny toerana iray ihany.',
       'Scanneo ity QR code ity, dia ampifandraiso amin’ny Wi-Fi.'
     ],
-    step: (n: number, total: number) => `Dingana ${n} amin’ny ${total}`,
+    step: (n: number, total: number) => `Dingana ${n} amin’ny ${total}: `,
     show: 'Asehoy ny QR code',
     renew: 'QR code vaovao',
     validity: 'Manan-kery 15 minitra · indray mandeha ihany',
@@ -1685,7 +1686,7 @@ const en: Messages = {
       'On the welcome screen, tap the same spot 6 times.',
       'Scan this QR code, then connect to Wi-Fi.'
     ],
-    step: (n: number, total: number) => `Step ${n} of ${total}`,
+    step: (n: number, total: number) => `Step ${n} of ${total}: `,
     show: 'Show the QR code',
     renew: 'New QR code',
     validity: 'Valid for 15 minutes · single use',

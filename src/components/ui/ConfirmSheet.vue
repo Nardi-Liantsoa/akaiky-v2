@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
+import type { IconName } from './icons'
 import { nextTick, onMounted, ref, watch } from 'vue'
 import PasswordInput from '../PasswordInput.vue'
 import ChildSheet from '../parent/ChildSheet.vue'
@@ -21,7 +23,10 @@ const props = withDefaults(defineProps<{
   requirePassword?: boolean
   opener?: HTMLElement | null
   id?: string
-}>(), { items: () => [], lead: '', busy: false, error: '', requirePassword: false, opener: null, id: 'confirm-sheet' })
+  // Icône du bouton de confirmation (NAR-229, « Retirer ce téléphone ») ; avec elle, « Annuler »
+  // prend aussi la sienne. Sans elle, la feuille garde ses boutons texte.
+  confirmIcon?: IconName
+}>(), { items: () => [], lead: '', busy: false, error: '', requirePassword: false, opener: null, id: 'confirm-sheet', confirmIcon: undefined })
 const emit = defineEmits<{ confirm: [password: string], close: [] }>()
 const t = useT()
 const password = ref('')
@@ -62,9 +67,9 @@ watch(() => props.busy, (now, before) => {
     <template #actions>
       <div class="actions">
         <AppButton variant="danger" type="submit" :form="`${id}-form`" block :disabled="busy || (requirePassword && !password)">
-          {{ busy ? t.confirmSheet.busy : confirm }}
+          <AppIcon v-if="confirmIcon && !busy" :name="confirmIcon" :size="20" />{{ busy ? t.confirmSheet.busy : confirm }}
         </AppButton>
-        <AppButton variant="ghost" block :disabled="busy" @click="close">{{ t.confirmSheet.cancel }}</AppButton>
+        <AppButton variant="ghost" block :disabled="busy" @click="close"><AppIcon v-if="confirmIcon" name="cross" :size="20" />{{ t.confirmSheet.cancel }}</AppButton>
       </div>
     </template>
   </ChildSheet>

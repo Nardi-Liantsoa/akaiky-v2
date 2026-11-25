@@ -89,3 +89,44 @@ test('un contact (member) est renvoyé à l’accueil', async ({ page }) => {
   await page.goto(`/espace/enfant/${FY.id}/telephone`)
   await expect(page).toHaveURL(/\/espace$/)
 })
+
+// NAR-229 : étapes en pastilles numérotées avec icône, QR sans clic sur ordinateur.
+const pairingApi = (onPairing: () => void = () => {}) => ({
+  ...me,
+  'GET /api/families/me': () => ({ body: FAMILY }),
+  'GET /api/children': () => ({ body: [FY] }),
+  [`GET /api/children/${FY.id}/devices`]: () => ({ body: [] }),
+  [`POST /api/children/${FY.id}/pairing`]: () => { onPairing(); return { status: 201, body: { expiresAt: new Date(Date.now() + 15 * 60000).toISOString(), provisioning } } }
+})
+
+test('360 px : trois étapes numérotées avec icône, lisibles sans défilement horizontal ; QR au toucher', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 })
+  let created = 0
+  await mockApi(page, pairingApi(() => { created++ }))
+  await page.goto(`/espace/enfant/${FY.id}/telephone`)
+  const steps = page.locator('.steps li')
+  await expect(steps).toHaveCount(3)
+  await expect(steps.locator('.num')).toHaveText(['1', '2', '3'])
+  await expect(steps.locator('.step-icon svg')).toHaveCount(3)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  // Téléphone : rien n'est créé sans geste.
+  expect(created).toBe(0)
+  await page.getByRole('button', { name: 'Afficher le QR code' }).click()
+  await expect(page.getByRole('img', { name: /QR/ })).toBeVisible()
+})
+
+test('ordinateur : le QR s’affiche à droite des étapes, au clic (un nouveau jeton annulerait un QR déjà affiché ailleurs)', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  let created = 0
+  await mockApi(page, pairingApi(() => { created++ }))
+  await page.goto(`/espace/enfant/${FY.id}/telephone`)
+  await expect(page.locator('.steps li')).toHaveCount(3)
+  expect(created).toBe(0)
+  await page.getByRole('button', { name: 'Afficher le QR code' }).click()
+  const qr = page.getByRole('img', { name: /QR/ })
+  await expect(qr).toBeVisible()
+  const steps = (await page.locator('.steps').boundingBox())!
+  const code = (await qr.boundingBox())!
+  expect(code.x).toBeGreaterThan(steps.x + steps.width)
+  expect(created).toBe(1)
+})
