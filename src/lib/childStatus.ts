@@ -1,7 +1,6 @@
 import type { AlertKind } from '../api/devices'
 import type { Messages, Locale } from '../i18n/messages'
-import { formatClock, formatDay } from './format'
-import { dayKey } from './groupByDay'
+import { dayKey, formatClock, formatDay } from './format'
 
 // Ligne d'état de la carte d'un enfant sur l'accueil parent (NAR-192) : une pastille à
 // quatre niveaux (couleur, icône et texte), puis l'heure du dernier passage du téléphone.

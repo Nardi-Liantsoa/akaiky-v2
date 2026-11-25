@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatClock, formatDateTime, formatDay, formatLongDate } from './format'
+import { dayKey, formatClock, formatDateTime, formatDay, formatLongDate } from './format'
 
 describe('formatDay', () => {
   it('jour et mois à l’heure de Madagascar, dans les trois langues', () => {
@@ -33,11 +33,38 @@ describe('formatDateTime (back-office)', () => {
   it('date et heure de Madagascar, dans les trois langues', () => {
     // 22:30 UTC le 31 décembre 2025 = 1er janvier 2026 01:30 à Antananarivo.
     const iso = '2025-12-31T22:30:00Z'
-    expect(formatDateTime(iso, 'mg')).toBe('01/01/2026 01:30')
+    expect(formatDateTime(iso, 'mg')).toBe('1 Janoary 2026, 01:30')
     expect(formatDateTime(iso, 'fr')).toMatch(/^1 janv\. 2026.* 01:30$/)
     expect(formatDateTime(iso, 'en')).toMatch(/^1 Jan 2026.* 01:30$/)
   })
   it('date illisible : chaîne vide', () => {
     expect(formatDateTime('nope', 'en')).toBe('')
+  })
+})
+
+// NAR-212 : toute date affichée passe par ce module. Deux exceptions, qui ne formatent rien :
+// schedule.ts (calcul du jour et de l'heure dans un fuseau, règle partagée avec le natif) et
+// avatar.ts (découpage en graphèmes et majuscule de l'initiale).
+describe('formatage des dates au même endroit', () => {
+  it('aucun Intl ni toLocale* hors de format.ts', () => {
+    const files = import.meta.glob('../**/*.{ts,js,vue}', { query: '?raw', import: 'default', eager: true }) as Record<string, string>
+    // Chemins rendus par Vite : « ./x.ts » pour ce dossier, « ../y/z.ts » ailleurs.
+    const allowed = ['./format.ts', './schedule.ts', './avatar.ts']
+    const offenders = Object.entries(files)
+      .filter(([path]) => !path.endsWith('.test.ts') && !allowed.includes(path) && !path.startsWith('../i18n/'))
+      // Usages réels, commentaires retirés : Intl.X, Intl[…], globalThis.Intl, « = Intl »
+      // (déstructuré) et toLocale*String.
+      .filter(([, code]) => /\bIntl\s*[.[]|=\s*Intl\b|\btoLocale(String|DateString|TimeString)\b/
+        .test(code.replace(/\/\*[\s\S]*?\*\/|(^|[^:])\/\/.*$/gm, '$1')))
+      .map(([path]) => path)
+    expect(offenders).toEqual([])
+    expect(Object.keys(files).length).toBeGreaterThan(50)
+  })
+})
+
+describe('dayKey', () => {
+  it('jour à l’heure de Madagascar (UTC+3)', () => {
+    expect(dayKey(new Date('2026-11-24T20:59:00Z'))).toBe('2026-11-24')
+    expect(dayKey(new Date('2026-11-24T21:00:00Z'))).toBe('2026-11-25')
   })
 })

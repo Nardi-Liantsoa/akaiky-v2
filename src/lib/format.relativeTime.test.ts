@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MESSAGES } from '../i18n/messages'
-import { relativeTime } from './relativeTime'
+import { relativeTime } from './format'
 
 const now = new Date('2026-11-19T12:00:00Z')
 const ago = (minutes: number) => new Date(now.getTime() - minutes * 60_000).toISOString()

@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { getChildStatus, type AlertKind, type DeviceStatusInfo } from '../../api/devices'
 import { locale, useT } from '../../composables/useT'
-import { relativeTime } from '../../lib/relativeTime'
+import { relativeTime } from '../../lib/format'
 import AppIcon from '../ui/AppIcon.vue'
 import type { IconName } from '../ui/icons'
 

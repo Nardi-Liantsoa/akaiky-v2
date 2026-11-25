@@ -41,10 +41,12 @@ export const api = (page, method, path, data) => page.request.fetch(`/api${path}
 
 // Compte confirmé et connecté dans le contexte de la page, par l'API : le
 // parcours d'inscription lui-même est testé par son critère.
-export async function newClient(page, { name = 'Client Recette' } = {}) {
+// lang : langue du compte (NAR-211). Français par défaut, comme le navigateur de la recette :
+// sans langue choisie sur l'appareil, l'app prend celle du compte.
+export async function newClient(page, { name = 'Client Recette', lang = 'fr' } = {}) {
   const email = uniqueEmail()
-  expect((await api(page, 'POST', '/auth/register', { name, email, password: PASSWORD, consent: true })).status()).toBeLessThan(300)
-  const token = /#confirm=([A-Za-z0-9_-]+)/.exec((await mailFor(email, /Confirmez/)).text)[1]
+  expect((await api(page, 'POST', '/auth/register', { name, email, password: PASSWORD, consent: true, lang })).status()).toBeLessThan(300)
+  const token = /#confirm=([A-Za-z0-9_-]+)/.exec((await mailFor(email, /^(Confirmez|Hamarino|Confirm your)/)).text)[1]
   expect((await api(page, 'POST', '/auth/confirm', { token })).ok()).toBe(true)
   expect((await api(page, 'POST', '/auth/login', { email, password: PASSWORD })).ok()).toBe(true)
   return { email, name }

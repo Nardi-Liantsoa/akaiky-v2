@@ -7,6 +7,7 @@ import { isAdmin, logout } from '../store/auth'
 import { notice } from '../store/notice'
 import { useT, locale } from '../composables/useT'
 import { errorText } from '../lib/errors'
+import { formatDateTime } from '../lib/format'
 import { family, loadFamily } from '../store/family'
 import AccountSection from '../components/parent/AccountSection.vue'
 import AppButton from '../components/ui/AppButton.vue'
@@ -24,7 +25,8 @@ const codes = ref<string[]>([])
 const busy = ref(false)
 const error = ref('')
 
-const date = (d?: string) => d ? new Date(d).toLocaleString(locale.value === 'mg' ? 'fr' : locale.value) : ''
+// Même format que le reste de l'app, mois malgaches compris (NAR-212).
+const date = (d?: string) => d ? formatDateTime(d, locale.value) : ''
 
 async function run(task: () => Promise<void>) {
   if (busy.value) return

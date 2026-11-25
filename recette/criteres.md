@@ -43,7 +43,7 @@ leur moyen de preuve est à fixer avec le ticket qui les construit.
 - [C19] (prévu) Un parent ne voit jamais les données d'une autre famille. (CdC C17)
 - [C20] Les positions de plus de 30 jours sont supprimées. (CdC C18)
 - [C21] La suppression du compte efface les données de la famille. (CdC C19)
-- [C22] (prévu) L'application est disponible en malgache, en français et en anglais. (CdC C20)
+- [C22] L'application est disponible en malgache, en français et en anglais. (CdC C20)
 
 ## Qualité, sur toutes les pages
 
