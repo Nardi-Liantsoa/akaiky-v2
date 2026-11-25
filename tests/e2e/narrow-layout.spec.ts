@@ -76,9 +76,10 @@ test('ligne de contact : la fiche s’ouvre par la ligne, Monter et Descendre re
   await page.goto('/espace/reglages/contacts')
   const item = page.getByRole('listitem').filter({ hasText: 'Dadabe Rakotomalala' })
   const open = item.getByRole('link', { name: 'Modifier Dadabe Rakotomalala' })
+  // Dernier de la liste : seule « Monter » (la flèche impossible est masquée, NAR-222).
   const up = item.getByRole('button', { name: /^Monter/ })
   const row = (await item.boundingBox())!
-  for (const target of [open, up, item.getByRole('button', { name: /^Descendre/ })]) {
+  for (const target of [open, ...(await item.getByRole('button', { name: /^(Monter|Descendre)/ }).all())]) {
     const b = (await target.boundingBox())!
     expect(Math.min(b.width, b.height)).toBeGreaterThanOrEqual(48)
     // Dans la hauteur de la ligne du contact, pas sur une ligne à part sous lui.

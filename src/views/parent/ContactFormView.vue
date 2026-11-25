@@ -7,15 +7,16 @@ import LoadError from '../../components/family/LoadError.vue'
 import ColorPicker from '../../components/parent/ColorPicker.vue'
 import { useConfirm } from '../../composables/useConfirm'
 import { useT } from '../../composables/useT'
-import type { AvatarColor } from '../../lib/avatar'
+import { leastUsedColor, type AvatarColor } from '../../lib/avatar'
 import { contactErrorText } from '../../lib/contactErrors'
+import { focusFirstInvalid, length } from '../../lib/formErrors'
 import { backTo } from '../../lib/navigation'
 import { formatPhone, isE164, samePhone } from '../../lib/phone'
 import { children, loadChildren, selectChild } from '../../store/children'
 import { contacts, loadContacts } from '../../store/contacts'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
-import BackLink from '../../components/ui/BackLink.vue'
+import PageHeader from '../../components/ui/PageHeader.vue'
 import ConfirmSheet from '../../components/ui/ConfirmSheet.vue'
 import FormField from '../../components/ui/FormField.vue'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
@@ -30,6 +31,9 @@ const existing = computed(() => (id.value && contacts.childId === childId.value 
 const name = ref('')
 const phone = ref('')
 const color = ref<AvatarColor | null>(null)
+// Couleur proposée à l'ajout (NAR-222) : envoyée seulement si la personne en choisit une autre,
+// sinon le serveur choisit sous son verrou, sur les contacts réels.
+const suggested = ref<AvatarColor | null>(null)
 const memberUserId = ref<string | null>(null)
 const busy = ref(false)
 const error = ref('')
@@ -38,7 +42,14 @@ const confirming = useConfirm<string>()
 
 const allowed = computed(() => family.status === 'ready' && canManage())
 const ready = computed(() => children.status === 'ready' && contacts.status === 'ready' && contacts.childId === childId.value)
-const valid = computed(() => { const n = [...name.value.trim()].length; return n >= 1 && n <= 40 && phone.value.trim().length >= 6 })
+const nameValid = computed(() => { const n = length(name.value); return n >= 1 && n <= 40 })
+const phoneValid = computed(() => phone.value.trim().length >= 6)
+// Erreurs des champs, montrées à l'envoi (NAR-222) ; chacune s'efface dès que son champ redevient valable.
+const nameError = ref('')
+const phoneError = ref('')
+const form = ref<HTMLFormElement | null>(null)
+watch(name, () => { if (nameError.value && nameValid.value) nameError.value = '' })
+watch(phone, () => { if (phoneError.value && phoneValid.value) phoneError.value = '' })
 
 onMounted(() => { void loadFamily() })
 // Rejoué aussi quand l'adresse change d'enfant (même composant réutilisé).
@@ -58,7 +69,7 @@ const prefilled = () => {
   const q = route.query.phone
   return !id.value && isE164(q) ? formatPhone(q) : ''
 }
-watch([childId, id], () => { filledFor = null; name.value = ''; phone.value = prefilled(); color.value = null; memberUserId.value = null; confirming.close(); error.value = '' }, { immediate: true })
+watch([childId, id], () => { filledFor = null; name.value = ''; phone.value = prefilled(); color.value = null; suggested.value = null; memberUserId.value = null; confirming.close(); error.value = ''; nameError.value = ''; phoneError.value = '' }, { immediate: true })
 watch(existing, (c) => {
   if (c && c.id !== filledFor) {
     filledFor = c.id
@@ -70,13 +81,21 @@ watch(existing, (c) => {
   }
 }, { immediate: true })
 
+// Ajout : couleur proposée d'office, la moins portée par les contacts de l'enfant (NAR-222).
+watch(() => [id.value, ready.value, color.value] as const, ([contactId, isReady, c]) => {
+  if (!contactId && isReady && c === null) color.value = suggested.value = leastUsedColor(contacts.items.map((x) => x.avatarColor))
+}, { immediate: true })
+
 // Retour sur la section Contacts de l'enfant de l'adresse, même s'il n'était pas celui
 // affiché (NAR-185) : retour dans l'historique si l'on en vient, sinon elle remplace la fiche.
 const pickChild = () => selectChild(childId.value)
 const back = () => { pickChild(); return backTo(router, { name: 'reglages-contacts' }) }
 
 async function save() {
-  if (busy.value || !valid.value) return
+  if (busy.value) return
+  nameError.value = nameValid.value ? '' : length(name.value) ? t.value.forms.tooLong(40) : t.value.forms.contactName
+  phoneError.value = phoneValid.value ? '' : phone.value.trim() ? t.value.contacts.invalidPhone : t.value.forms.phone
+  if (nameError.value || phoneError.value) { await focusFirstInvalid(form.value); return }
   busy.value = true
   error.value = ''
   // Membre lié envoyé seulement s'il a changé : un lien devenu caduc (membre parti)
@@ -90,7 +109,7 @@ async function save() {
     ...(changed(nameNow, before?.name) ? { name: nameNow } : {}),
     ...(!before || !samePhone(phoneNow, before.phone) ? { phone: phoneNow } : {}),
     ...(before ? (memberUserId.value !== before.memberUserId ? { memberUserId: memberUserId.value } : {}) : (memberUserId.value !== null ? { memberUserId: memberUserId.value } : {})),
-    ...(color.value && changed(color.value, before?.avatarColor) ? { avatarColor: color.value } : {})
+    ...(color.value && changed(color.value, before?.avatarColor) && (before || color.value !== suggested.value) ? { avatarColor: color.value } : {})
   }
   try {
     if (id.value) { if (Object.keys(input).length) await updateContact(id.value, input) }
@@ -129,9 +148,11 @@ async function remove() {
 
 <template>
   <section>
-    <BackLink :to="{ name: 'reglages-contacts' }" :label="t.contacts.back" :aria-label="t.contacts.backLabel" :before="pickChild" />
+    <PageHeader
+      :back="{ name: 'reglages-contacts' }" :back-label="t.contacts.backLabel" :before="pickChild"
+      :title="!id ? t.contacts.addTitle : existing ? t.contacts.editTitle(existing.name) : t.contacts.title"
+    />
     <p v-if="child" class="over">{{ t.contacts.phoneOf(child.firstName) }}</p>
-    <h1>{{ !id ? t.contacts.addTitle : existing ? t.contacts.editTitle(existing.name) : t.contacts.title }}</h1>
     <LoadError v-if="family.status === 'error'" />
     <p v-else-if="allowed && childGone" class="error" role="alert">{{ t.children.notFound }}</p>
     <StatusBlock
@@ -143,12 +164,12 @@ async function remove() {
     <p v-else-if="!child" class="error" role="alert">{{ t.children.notFound }}</p>
     <p v-else-if="id && !existing" class="error" role="alert">{{ t.contacts.notFound }}</p>
     <template v-else>
-      <form class="card" @submit.prevent="save">
+      <form ref="form" class="card" novalidate @submit.prevent="save">
         <p v-if="error" class="error" role="alert">{{ error }}</p>
-        <FormField id="contact-name" :label="t.contacts.name" v-slot="{ control }">
+        <FormField id="contact-name" :label="t.contacts.name" :error="nameError" v-slot="{ control }">
           <input v-bind="control" v-model="name" class="input" autocomplete="off" required :placeholder="t.contacts.namePlaceholder" data-selectable />
         </FormField>
-        <FormField id="contact-phone" :label="t.contacts.phone" v-slot="{ control }">
+        <FormField id="contact-phone" :label="t.contacts.phone" :error="phoneError" v-slot="{ control }">
           <input v-bind="control" v-model="phone" class="input" type="tel" inputmode="tel" autocomplete="off" required :placeholder="t.contacts.phonePlaceholder[contacts.country]" data-selectable />
         </FormField>
         <FormField id="contact-member" :label="t.contacts.member" v-slot="{ control }">
@@ -159,7 +180,7 @@ async function remove() {
         </FormField>
         <ColorPicker v-model="color" name="contact-color" :legend="t.contacts.color" :avatar="name" />
         <div class="actions">
-          <AppButton type="submit" :disabled="busy || !valid">{{ t.contacts.save }}</AppButton>
+          <AppButton type="submit" :disabled="busy">{{ t.contacts.save }}</AppButton>
         </div>
       </form>
       <div v-if="existing" class="danger-zone">
@@ -176,13 +197,11 @@ async function remove() {
 
 <style scoped>
 .over {
-  /* Sous « ‹ Contacts », comme sous « ‹ Réglages » dans les sections de Réglages. */
-  margin: 0 0 var(--space-3);
+  /* Sous l'en-tête de page : à quel enfant appartient ce contact. */
+  margin: calc(-1 * var(--space-3)) 0 var(--space-4);
+  text-align: center;
   color: var(--text-soft);
   font-weight: 700;
-}
-h1 {
-  margin: 0 0 20px;
 }
 .actions {
   display: flex;

@@ -63,8 +63,11 @@ test('ajouter un contact puis le faire monter : liste, compteur et ordre', async
   await page.getByRole('button', { name: 'Monter Papa' }).click()
   await expect(page.getByRole('listitem').first()).toContainText('Papa')
   expect(api.items().map((c) => c.name)).toEqual(['Papa', 'Maman', 'Mamie'])
-  // Premier de la liste : ne peut plus monter.
-  await expect(page.getByRole('button', { name: 'Monter Papa' })).toBeDisabled()
+  // Premier de la liste : ne peut plus monter, la flèche disparaît (NAR-222), le dernier ne descend pas.
+  await expect(page.getByRole('button', { name: 'Monter Papa' })).toHaveCount(0)
+  // Le focus suit Papa sur la flèche qui lui reste (clavier, lecteur d'écran).
+  await expect(page.getByRole('button', { name: 'Descendre Papa' })).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Descendre Mamie' })).toHaveCount(0)
 })
 
 test('numéro refusé par le serveur : message traduit, rien n’est ajouté', async ({ page }) => {

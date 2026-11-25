@@ -8,14 +8,15 @@ import ColorPicker from '../../components/parent/ColorPicker.vue'
 import ConsentCheckbox from '../../components/account/ConsentCheckbox.vue'
 import { useConfirm } from '../../composables/useConfirm'
 import { useT } from '../../composables/useT'
-import type { AvatarColor } from '../../lib/avatar'
+import { leastUsedColor, type AvatarColor } from '../../lib/avatar'
 import { errorText } from '../../lib/errors'
+import { focusFirstInvalid, length } from '../../lib/formErrors'
 import { formatPhone, samePhone } from '../../lib/phone'
 import { children, dropChild, loadChildren, selectChild, upsertChild } from '../../store/children'
 import { contacts } from '../../store/contacts'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
-import BackLink from '../../components/ui/BackLink.vue'
+import PageHeader from '../../components/ui/PageHeader.vue'
 import ConfirmSheet from '../../components/ui/ConfirmSheet.vue'
 import FormField from '../../components/ui/FormField.vue'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
@@ -28,8 +29,12 @@ const existing = computed(() => (id.value ? children.items.find((c) => c.id === 
 const name = ref('')
 // Numéro de l'enfant (NAR-194), facultatif : vide = aucun numéro (null envoyé).
 const phone = ref('')
-// null : aucune couleur choisie à l'ajout, le serveur applique sa rotation.
+// Ajout : couleur proposée d'office, la moins portée par les enfants de la famille (NAR-222,
+// même règle que le serveur) ; null seulement tant que la liste n'est pas connue. Envoyée
+// seulement si la personne en a choisi une autre : sinon le serveur choisit sous son verrou,
+// sur les enfants réels (deux ajouts simultanés ne prennent pas la même).
 const color = ref<AvatarColor | null>(null)
+const suggested = ref<AvatarColor | null>(null)
 const busy = ref(false)
 const error = ref('')
 // Retrait confirmé par la feuille commune (NAR-184) : rien ne part avant « Confirmer ».
@@ -37,6 +42,10 @@ const confirming = useConfirm<string>()
 // Ajout seulement (NAR-178) : autorité parentale et journalisation acceptées.
 const consent = ref(false)
 const consentError = ref('')
+// Erreur du prénom, montrée à l'envoi (NAR-222) ; effacée dès que la saisie redevient valable.
+const nameError = ref('')
+const form = ref<HTMLFormElement | null>(null)
+watch(name, () => { if (nameError.value && valid.value) nameError.value = '' })
 
 const valid = computed(() => { const n = [...name.value.trim()].length; return n >= 1 && n <= 40 })
 // Formulaire montré seulement à un gestionnaire, une fois la famille connue.
@@ -107,12 +116,17 @@ function reset() {
   name.value = ''
   phone.value = ''
   color.value = null
+  suggested.value = null
   confirming.close()
   error.value = ''
   consent.value = false
   consentError.value = ''
+  nameError.value = ''
 }
 watch(id, reset)
+watch(() => [id.value, children.status, color.value] as const, ([childId, status, c]) => {
+  if (!childId && status === 'ready' && c === null) color.value = suggested.value = leastUsedColor(children.items.map((x) => x.avatarColor))
+}, { immediate: true })
 watch(existing, (c) => {
   if (c && c.id !== filledFor) {
     filledFor = c.id
@@ -125,9 +139,10 @@ watch(existing, (c) => {
 }, { immediate: true })
 
 async function save() {
-  if (busy.value || !valid.value) return
-  consentError.value = ''
-  if (!id.value && !consent.value) { consentError.value = t.value.consent.required; return }
+  if (busy.value) return
+  nameError.value = valid.value ? '' : length(name.value) ? t.value.forms.tooLong(40) : t.value.forms.firstName
+  consentError.value = !id.value && !consent.value ? t.value.consent.required : ''
+  if (nameError.value || consentError.value) { await focusFirstInvalid(form.value); return }
   busy.value = true
   error.value = ''
   try {
@@ -137,7 +152,7 @@ async function save() {
     const phoneChanged = !samePhone(phone.value, existing.value?.phone ?? null)
     const saved = id.value
       ? await updateChild(id.value, { firstName: name.value.trim(), ...(color.value ? { avatarColor: color.value } : {}), ...(phoneChanged ? { phone: phoneNow } : {}) })
-      : await addChild(name.value.trim(), color.value ?? undefined, phoneNow)
+      : await addChild(name.value.trim(), color.value && color.value !== suggested.value ? color.value : undefined, phoneNow)
     upsertChild(saved)
     selectChild(saved.id)
     leaving = true
@@ -173,16 +188,15 @@ async function remove() {
 
 <template>
   <section>
-    <BackLink :to="{ name: 'espace' }" :label="t.parent.home.back" :aria-label="t.parent.home.backLabel" />
-    <h1>{{ !id ? t.children.addTitle : existing ? t.children.editTitle(existing.firstName) : t.children.edit }}</h1>
+    <PageHeader :back="{ name: 'espace' }" :back-label="t.parent.home.backLabel" :title="!id ? t.children.addTitle : existing ? t.children.editTitle(existing.firstName) : t.children.edit" />
     <LoadError v-if="family.status === 'error'" />
     <StatusBlock v-else-if="allowed && id && children.status === 'error'" state="error" :text="t.children.loadError" @retry="loadChildren(true)" />
     <!-- Un seul bloc pour la famille puis la liste des enfants : annoncé une fois. -->
     <StatusBlock v-else-if="!allowed || (id && children.status !== 'ready')" state="loading" fill />
     <p v-else-if="id && !existing" class="error" role="alert">{{ t.children.notFound }}</p>
-    <form v-else class="card" @submit.prevent="save">
+    <form v-else ref="form" class="card" novalidate @submit.prevent="save">
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <FormField id="child-name" :label="t.children.firstName" v-slot="{ control }">
+      <FormField id="child-name" :label="t.children.firstName" :error="nameError" v-slot="{ control }">
         <input v-bind="control" v-model="name" class="input" autocomplete="off" required data-selectable />
       </FormField>
       <!-- Même saisie que le numéro d'un contact ; formulaire réservé aux gestionnaires (allowed). -->
@@ -192,7 +206,7 @@ async function remove() {
       <ColorPicker v-model="color" name="child-color" :legend="t.children.color" :avatar="name" />
       <ConsentCheckbox v-if="!id" id="child-consent" v-model="consent" :label="t.consent.child" v-model:error="consentError" />
       <div class="actions">
-        <AppButton type="submit" :disabled="busy || !valid">{{ t.children.save }}</AppButton>
+        <AppButton type="submit" :disabled="busy">{{ t.children.save }}</AppButton>
       </div>
     </form>
 
@@ -213,9 +227,6 @@ async function remove() {
 </template>
 
 <style scoped>
-h1 {
-  margin: 8px 0 20px;
-}
 .actions {
   display: flex;
   flex-wrap: wrap;

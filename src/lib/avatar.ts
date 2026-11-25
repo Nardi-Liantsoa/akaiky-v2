@@ -37,3 +37,10 @@ export function initial(name: string): string {
     : [...text][0]
   return first.toLocaleUpperCase()
 }
+
+// Couleur proposée d'office à l'ajout (NAR-222) : la moins portée parmi `used`, ordre de
+// AVATAR_COLORS à égalité ; même règle que le serveur (server/src/routes/children.js).
+export function leastUsedColor(used: readonly (string | null | undefined)[]): AvatarColor {
+  const count = (c: AvatarColor) => used.filter((u) => u === c).length
+  return AVATAR_COLORS.reduce((best, c) => (count(c) < count(best) ? c : best))
+}

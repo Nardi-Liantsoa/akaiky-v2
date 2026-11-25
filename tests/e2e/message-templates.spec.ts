@@ -34,7 +34,11 @@ test('le gestionnaire modifie un texte, puis le remet par défaut ; seul ce qui 
   await openSection(page, 'Messages rapides')
   await expect(page.getByRole('heading', { name: 'Messages rapides' })).toBeVisible()
   const save = page.getByRole('button', { name: 'Enregistrer les messages' })
-  await expect(save).toBeDisabled()
+  // Bouton jamais grisé (NAR-222) : sans changement, il le dit et n'envoie rien.
+  await expect(save).toBeEnabled()
+  await save.click()
+  await expect(page.getByRole('status').filter({ hasText: 'Aucune modification à enregistrer.' })).toBeVisible()
+  expect(api.puts).toEqual([])
   await expect(page.getByLabel('Message 3')).toHaveValue('Bus en retard')
   // Gestionnaire : le champ seul, pas le texte en lecture seule en plus.
   await expect(page.locator('#template-3')).toHaveCount(1)
@@ -54,10 +58,13 @@ test('le gestionnaire modifie un texte, puis le remet par défaut ; seul ce qui 
   // Plus de 40 caractères (comptés comme le serveur) : signalé, enregistrement bloqué.
   await page.getByLabel('Message 1').fill('x'.repeat(41))
   await expect(page.getByText('Entre 1 et 40 caractères.')).toBeVisible()
-  await expect(save).toBeDisabled()
+  // Envoyé quand même : rien ne part, le focus va au champ fautif.
+  const before = api.puts.length
+  await save.click()
+  await expect(page.getByLabel('Message 1')).toBeFocused()
+  expect(api.puts.length).toBe(before)
   await page.getByLabel('Message 1').fill('😀'.repeat(40))
   await expect(page.getByText('Entre 1 et 40 caractères.')).toHaveCount(0)
-  await expect(save).toBeEnabled()
 })
 
 test('un contact de famille voit les textes sans pouvoir les modifier', async ({ page }) => {

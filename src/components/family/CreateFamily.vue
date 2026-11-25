@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { createFamily } from '../../api/families'
 import { ApiError } from '../../api/http'
 import { useT } from '../../composables/useT'
-import { familyNameValid } from '../../lib/familyName'
+import { FAMILY_NAME_MAX, familyNameValid } from '../../lib/familyName'
+import { focusFirstInvalid, length } from '../../lib/formErrors'
 import { errorText } from '../../lib/errors'
 import { loadFamily } from '../../store/family'
 import { takeNotice } from '../../store/notice'
@@ -14,11 +15,20 @@ const t = useT()
 const name = ref('')
 const busy = ref(false)
 const error = ref('')
+// Erreur du champ, montrée à l'envoi seulement (NAR-222) ; effacée dès que la saisie redevient valable.
+const nameError = ref('')
+const form = ref<HTMLFormElement | null>(null)
+watch(name, (v) => { if (nameError.value && familyNameValid(v)) nameError.value = '' })
 // Arrivée ici juste après la suppression de la famille : on le confirme.
 const deleted = takeNotice('familyDeleted')
 
 async function submit() {
-  if (busy.value || !familyNameValid(name.value)) return
+  if (busy.value) return
+  if (!familyNameValid(name.value)) {
+    nameError.value = length(name.value) ? t.value.forms.tooLong(FAMILY_NAME_MAX) : t.value.forms.familyName
+    await focusFirstInvalid(form.value)
+    return
+  }
   busy.value = true
   error.value = ''
   try {
@@ -39,12 +49,12 @@ async function submit() {
     <p v-if="deleted" class="notice" role="status">{{ t.deletion.familyDeleted }}</p>
     <h1>{{ t.family.createTitle }}</h1>
     <p class="lead">{{ t.family.createLead }}</p>
-    <form class="card" @submit.prevent="submit">
+    <form ref="form" class="card" novalidate @submit.prevent="submit">
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <FormField id="family-name" :label="t.family.nameLabel" v-slot="{ control }">
+      <FormField id="family-name" :label="t.family.nameLabel" :error="nameError" v-slot="{ control }">
         <input v-bind="control" v-model="name" class="input" required :placeholder="t.family.namePlaceholder" autocomplete="off" data-selectable />
       </FormField>
-      <AppButton block type="submit" :disabled="busy || !familyNameValid(name)">{{ t.family.create }}</AppButton>
+      <AppButton block type="submit" :disabled="busy">{{ t.family.create }}</AppButton>
     </form>
   </section>
 </template>

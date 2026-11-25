@@ -13,7 +13,7 @@ import { formatDay } from '../../lib/format'
 import { children, dropChild, loadChildren } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
-import BackLink from '../../components/ui/BackLink.vue'
+import PageHeader from '../../components/ui/PageHeader.vue'
 import ConfirmSheet from '../../components/ui/ConfirmSheet.vue'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
 
@@ -154,14 +154,12 @@ watch(childId, () => {
 <template>
   <section>
     <!-- Retour en tête (NAR-195) : on arrive ici depuis la carte de l'accueil. -->
-    <BackLink :to="{ name: 'espace' }" :label="t.parent.home.back" :aria-label="t.parent.home.backLabel" />
+    <PageHeader :back="{ name: 'espace' }" :back-label="t.parent.home.backLabel" :title="child && family.status === 'ready' && children.status === 'ready' ? t.pairing.title(child.firstName) : undefined" />
     <LoadError v-if="family.status === 'error'" />
     <StatusBlock v-else-if="children.status === 'error'" state="error" :text="t.children.loadError" @retry="loadChildren(true)" />
     <StatusBlock v-else-if="family.status !== 'ready' || children.status !== 'ready'" state="loading" fill />
     <p v-else-if="!child" class="error" role="alert">{{ t.children.notFound }}</p>
     <template v-else>
-      <h1>{{ t.pairing.title(child.firstName) }}</h1>
-
       <ol class="steps card">
         <li v-for="(s, i) in t.pairing.steps" :key="i">
           <span class="step">{{ t.pairing.step(i + 1, t.pairing.steps.length) }}</span>
@@ -209,9 +207,6 @@ watch(childId, () => {
 </template>
 
 <style scoped>
-h1 {
-  margin: 8px 0 20px;
-}
 h2 {
   font-size: 1.2rem;
   margin: 28px 0 12px;

@@ -23,11 +23,14 @@ test('le gestionnaire définit le code parent : refus immédiats, puis « défin
   await expect(code).toHaveValue('123456')
   await confirm.fill('123456')
   await page.getByRole('button', { name: 'Enregistrer le code' }).click()
-  await expect(page.getByRole('alert')).toHaveText(/trop facile à deviner/)
+  // Erreur sous le champ fautif et focus dessus (NAR-222).
+  await expect(page.locator('#parent-code-error')).toHaveText(/trop facile à deviner/)
+  await expect(code).toBeFocused()
   await code.fill('482915')
   await confirm.fill('482916')
   await page.getByRole('button', { name: 'Enregistrer le code' }).click()
-  await expect(page.getByRole('alert')).toHaveText('Les deux codes ne sont pas identiques.')
+  await expect(page.locator('#parent-code-confirm-error')).toHaveText('Les deux codes ne sont pas identiques.')
+  await expect(confirm).toBeFocused()
   expect(calls.filter((r) => r.method() === 'PUT')).toHaveLength(0)
 
   await confirm.fill('482915')
