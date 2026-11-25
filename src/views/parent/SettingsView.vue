@@ -3,6 +3,9 @@ import { computed, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { Child } from '../../api/children'
 import AppIcon from '../../components/ui/AppIcon.vue'
+import ChildAvatar from '../../components/parent/ChildAvatar.vue'
+import { phoneStatus } from '../../lib/childStatus'
+import { canManage } from '../../store/family'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
 import { useSettingsSummary } from '../../composables/useSettingsSummary'
 import { locale, useT } from '../../composables/useT'
@@ -62,6 +65,7 @@ function retryAll() {
           <span class="icon" aria-hidden="true"><AppIcon :name="r.icon" /></span>
           <span class="text">
             <span class="title">{{ r.title }}</span>
+            <span class="desc">{{ t.parent.settings.descriptions[r.key] }}</span>
             <span v-if="r.line.status === 'ready'" class="summary" :class="{ warn: r.line.warn }">{{ r.line.text }}</span>
             <span v-else-if="r.line.status === 'error'" class="summary warn">{{ t.parent.settings.unavailable }}</span>
             <span v-else class="summary pending">{{ t.status.loading }}</span>
@@ -71,33 +75,50 @@ function retryAll() {
       </li>
     </ul>
   </nav>
+  <!-- Téléphone de l'enfant (NAR-232) : sous les sections (elles tiennent toujours sans défiler à
+       360 × 640), son état et, pour un gestionnaire, l'accès à sa configuration. -->
+  <section class="phone-card" :aria-label="t.contacts.phoneOf(child.firstName)">
+    <ChildAvatar :name="child.firstName" :color="child.avatarColor" :size="44" />
+    <span class="text">
+      <span class="title">{{ t.contacts.phoneOf(child.firstName) }}</span>
+      <span class="summary">{{ phoneStatus(child.phoneLastSeenAt, t, locale) }}</span>
+    </span>
+    <RouterLink v-if="canManage()" class="btn btn-ghost btn-small phone-link" :to="{ name: 'telephone', params: { id: child.id } }">
+      <AppIcon name="smartphone" :size="18" />{{ t.parent.settings.phoneAction }}
+    </RouterLink>
+  </section>
 </template>
 
 <style scoped>
+/* Liste des sections (maquette 05, NAR-232) : une seule carte, lignes séparées d'un petit espace,
+ * pastille d'icône en carré arrondi ; section ouverte sur fond --accent-soft, pastille blanche. */
 .rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin: 0;
-  padding: var(--space-1) var(--space-4);
+  padding: var(--space-2);
   list-style: none;
-}
-.rows li + li {
-  border-top: 1px solid var(--border);
 }
 .row {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: 56px;
-  padding: var(--space-2) 0;
+  min-height: 60px;
+  /* 6 px : les six lignes tiennent sans défiler à 360 × 640 (NAR-185). */
+  padding: 6px var(--space-3);
+  border-radius: var(--radius-sm);
   color: var(--text);
   text-decoration: none;
 }
 /* Section ouverte (maître/détail sur ordinateur, NAR-223) : surlignée ; aria-current la
  * nomme pour un lecteur d'écran (posé par RouterLink). */
 .row[aria-current='page'] {
-  margin: 0 calc(-1 * var(--space-2));
-  padding-inline: var(--space-2);
-  border-radius: var(--radius-sm);
   background: var(--accent-soft);
+}
+.row[aria-current='page'] .icon {
+  background: var(--surface);
+  color: var(--accent-deep);
 }
 .row:focus-visible {
   outline: var(--focus-ring);
@@ -108,9 +129,9 @@ function retryAll() {
   display: grid;
   flex: none;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-pill);
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   background: var(--surface-muted);
   color: var(--ink);
 }
@@ -122,6 +143,14 @@ function retryAll() {
 }
 .title {
   font-weight: 800;
+  line-height: 1.3;
+}
+/* Ce que règle la section (NAR-232), puis son état. Texte court ; jamais coupé (passe à la
+ * ligne si la police est agrandie). */
+.desc {
+  color: var(--text-soft);
+  font-size: var(--fs-small);
+  line-height: 1.3;
 }
 /* Une ligne : un résumé long (noms d'applications) s'arrête sur « … ». */
 .summary {
@@ -137,6 +166,26 @@ function retryAll() {
 }
 .summary.pending {
   font-weight: 600;
+}
+.phone-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius);
+}
+.phone-card .text {
+  flex: 1 1 160px;
+}
+.phone-card .summary {
+  white-space: normal;
+}
+/* Bouton sur sa propre ligne, pleine largeur : le texte garde toute la place. */
+.phone-link {
+  flex: 1 0 100%;
 }
 .chevron {
   flex: none;

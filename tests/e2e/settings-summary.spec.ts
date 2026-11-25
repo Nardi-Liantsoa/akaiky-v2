@@ -28,7 +28,7 @@ const base = {
 }
 const tabs = (page: import('@playwright/test').Page) => page.getByRole('navigation', { name: 'Navigation principale' })
 
-test('le résumé montre l’état réel de chaque section, et tient sans défiler à 360 px', async ({ page }) => {
+test('le résumé montre l’état réel de chaque section, six lignes visibles sans défiler à 360 px', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 640 })
   await mockApi(page, base)
   await page.goto('/espace/reglages')
@@ -53,7 +53,7 @@ test('le résumé montre l’état réel de chaque section, et tient sans défil
     expect(box.height).toBeGreaterThanOrEqual(48)
     expect(box.bottom).toBeLessThanOrEqual(bar.y)
   }
-  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  // La carte du téléphone (NAR-232) vient sous les six lignes : elle seule peut demander de défiler.
 })
 
 test('résumés en cours de chargement puis en échec : « Chargement… », « Indisponible », un seul « Réessayer »', async ({ page }) => {
@@ -92,7 +92,7 @@ test('ouvrir une section, revenir (contrôle de retour, puis retour de l’histo
   // Tiana choisie sur le résumé : ses propres états.
   await page.getByRole('button', { name: /Enfant affiché : Fy/ }).click()
   await page.getByRole('dialog').getByRole('button', { name: /^Tiana/ }).click()
-  await expect(page.getByText('Téléphone de Tiana')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Enfant affiché : Tiana/ })).toBeVisible()
   await expect(row(page, 'Contacts autorisés')).toContainText('1 sur 6')
   await expect(row(page, 'SOS')).toContainText('Sirène activée')
   await expect(row(page, 'Code parent')).toContainText('Pas encore défini')
@@ -106,7 +106,7 @@ test('ouvrir une section, revenir (contrôle de retour, puis retour de l’histo
   await expect(tabs(page).getByRole('link', { name: 'Réglages' })).toHaveAttribute('aria-current', 'page')
   await page.getByRole('link', { name: 'Retour aux réglages' }).click()
   await expect(page).toHaveURL(/\/espace\/reglages$/)
-  await expect(page.getByText('Téléphone de Tiana')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Enfant affiché : Tiana/ })).toBeVisible()
   await expect(row(page, 'SOS')).toContainText('Sirène activée')
   // Le contrôle de retour est un retour dans l'historique (pas de doublon empilé) : la
   // section est devant, et non derrière.
@@ -121,10 +121,10 @@ test('ouvrir une section, revenir (contrôle de retour, puis retour de l’histo
   await expect(page.getByRole('heading', { level: 1, name: 'Plages horaires' })).toBeVisible()
   await page.getByRole('button', { name: /Enfant affiché : Tiana/ }).click()
   await page.getByRole('dialog').getByRole('button', { name: /^Fy/ }).click()
-  await expect(page.getByText('Téléphone de Fy')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Enfant affiché : Fy/ })).toBeVisible()
   await page.goBack()
   await expect(page).toHaveURL(/\/espace\/reglages$/)
-  await expect(page.getByText('Téléphone de Fy')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Enfant affiché : Fy/ })).toBeVisible()
   await expect(row(page, 'Plages horaires')).toContainText('École · Lun–Ven 8:00–16:00')
 })
 
@@ -144,4 +144,30 @@ test('page de section sans enfant : un seul h1, au nom de la section', async ({ 
   await expect(page.getByText('Ajoutez d’abord un enfant pour régler son téléphone.')).toBeVisible()
   await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
   await expect(page.getByRole('heading', { level: 1, name: 'Plages horaires' })).toBeVisible()
+})
+
+// NAR-232 : carte « Téléphone de Fy » sous les sections ; « Gérer le téléphone » pour un gestionnaire seulement.
+test('carte du téléphone sous les sections : état, et accès à la configuration pour un gestionnaire', async ({ page }) => {
+  await mockApi(page, base)
+  await page.goto('/espace/reglages')
+  const card = page.getByRole('region', { name: 'Téléphone de Fy' })
+  await expect(card).toContainText('Aucun téléphone relié')
+  await card.getByRole('link', { name: 'Gérer le téléphone' }).click()
+  await expect(page).toHaveURL(new RegExp(`/espace/enfant/${FY.id}/telephone$`))
+})
+test('carte du téléphone : un contact (member) voit l’état sans le lien', async ({ page }) => {
+  await mockApi(page, { ...base, 'GET /api/families/me': () => ({ body: { ...FAMILY, role: 'member' } }) })
+  await page.goto('/espace/reglages')
+  const card = page.getByRole('region', { name: 'Téléphone de Fy' })
+  await expect(card).toContainText('Aucun téléphone relié')
+  await expect(card.getByRole('link')).toHaveCount(0)
+})
+
+// Revue NAR-232 : un seul enfant, son prénom reste affiché à la place du sélecteur.
+test('un seul enfant : son prénom à la place du sélecteur, sur le résumé et dans une section', async ({ page }) => {
+  await mockApi(page, base)
+  await page.goto('/espace/reglages')
+  await expect(page.locator('.only-child')).toHaveText(/Fy$/)
+  await page.goto('/espace/reglages/sos')
+  await expect(page.locator('.only-child')).toHaveText(/Fy$/)
 })

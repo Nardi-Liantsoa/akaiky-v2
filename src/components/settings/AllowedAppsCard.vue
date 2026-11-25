@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../ui/AppIcon.vue'
 import { summaryChanged } from '../../store/settingsSummary'
 import { computed, ref, watch } from 'vue'
 import { getApps, setAllowedApps, type ChildApps } from '../../api/apps'
@@ -87,7 +88,7 @@ const remove = (pkg: string) => save(allowed.value.map((a) => a.package).filter(
 <template>
   <SectionCard id="applications" class="apps" tabindex="-1" :title="t.allowedApps.title" :help="t.allowedApps.hint(max)">
     <template v-if="data" #aside>
-      <span class="count">{{ t.allowedApps.count(allowed.length, max) }}</span>
+      <span class="count-badge">{{ t.allowedApps.count(allowed.length, max) }}</span>
     </template>
     <StatusBlock v-if="status === 'error'" state="error" :text="`${t.allowedApps.loadError} ${loadError}`" @retry="load(childId)" />
     <p v-else-if="error" class="error" role="alert">{{ error }}</p>
@@ -97,22 +98,22 @@ const remove = (pkg: string) => save(allowed.value.map((a) => a.package).filter(
           <img v-if="icons.get(a.package)" :src="`data:image/png;base64,${icons.get(a.package)}`" alt="" width="20" height="20">
           <span v-if="a.blocked">{{ t.allowedApps.blocked(a.label) }}</span>
           <span v-else>✓ {{ a.label }}</span>
-          <button v-if="canManage()" class="remove" type="button" :aria-label="t.allowedApps.remove(a.label)" :disabled="busy" @click="remove(a.package)">✕</button>
+          <button v-if="canManage()" class="remove" type="button" :aria-label="t.allowedApps.remove(a.label)" :disabled="busy" @click="remove(a.package)"><AppIcon name="cross" :size="18" /></button>
         </li>
         <li v-if="canManage() && data.inventory.length && !full" class="chip-add">
-          <button class="chip add" type="button" :aria-expanded="picking" aria-controls="apps-picker" :disabled="busy" @click="picking = !picking">{{ t.allowedApps.add }}</button>
+          <button class="chip add" type="button" :aria-expanded="picking" aria-controls="apps-picker" :disabled="busy" @click="picking = !picking"><AppIcon name="plus" :size="20" />{{ t.allowedApps.add }}</button>
         </li>
       </ul>
       <StatusBlock v-else state="empty" :text="data.inventory.length ? t.allowedApps.none : t.allowedApps.noInventory">
         <template v-if="canManage() && data.inventory.length" #action>
-          <button class="chip add" type="button" :aria-expanded="picking" aria-controls="apps-picker" :disabled="busy" @click="picking = !picking">{{ t.allowedApps.add }}</button>
+          <button class="chip add" type="button" :aria-expanded="picking" aria-controls="apps-picker" :disabled="busy" @click="picking = !picking"><AppIcon name="plus" :size="20" />{{ t.allowedApps.add }}</button>
         </template>
       </StatusBlock>
       <p v-if="canManage() && full" class="state">{{ t.allowedApps.full(max) }}</p>
       <div v-if="picking && canManage() && !full" id="apps-picker" class="picker" role="group" :aria-label="t.allowedApps.pickerTitle">
         <div class="picker-head">
           <h3>{{ t.allowedApps.pickerTitle }}</h3>
-          <AppButton variant="ghost" @click="picking = false">{{ t.allowedApps.close }}</AppButton>
+          <AppButton variant="ghost" @click="picking = false"><AppIcon name="cross" :size="20" />{{ t.allowedApps.close }}</AppButton>
         </div>
         <StatusBlock v-if="!addable.length" state="empty" :text="t.allowedApps.nothingToAdd" />
         <ul v-else class="choices">
@@ -139,7 +140,6 @@ h3 {
   font-size: 1rem;
   font-weight: 800;
 }
-.count,
 .state {
   color: var(--text-soft);
 }
@@ -172,7 +172,8 @@ h3 {
   background: var(--surface-muted);
 }
 .chip.add {
-  background: var(--surface-muted);
+  background: var(--accent-soft);
+  color: var(--accent-deep);
   cursor: pointer;
 }
 .remove {

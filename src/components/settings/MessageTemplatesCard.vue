@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../ui/AppIcon.vue'
 import { summaryChanged } from '../../store/settingsSummary'
 import { computed, ref, watch } from 'vue'
 import { getTemplates, putTemplate, type MessageTemplate } from '../../api/messages'
@@ -117,12 +118,12 @@ function reset(slot: QuickSlot) {
           <AppButton
             v-if="canManage() && clean(draft[slot])" variant="link" class="reset" :disabled="busy"
             @click="reset(slot)"
-          >{{ t.templates.reset }}</AppButton>
+          ><AppIcon name="refresh" :size="18" />{{ t.templates.reset }}</AppButton>
         </li>
       </ul>
       <p v-if="done" class="saved" role="status">{{ t.templates.saved }}</p>
       <p v-else-if="nothing" class="help" role="status">{{ t.forms.nothingToSave }}</p>
-      <AppButton v-if="canManage()" type="submit" :disabled="busy">{{ t.templates.save }}</AppButton>
+      <AppButton v-if="canManage()" type="submit" :disabled="busy"><AppIcon name="check" :size="20" />{{ t.templates.save }}</AppButton>
     </form>
   </SectionCard>
 </template>

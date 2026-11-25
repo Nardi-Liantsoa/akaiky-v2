@@ -8,13 +8,19 @@ import AppIcon from '../ui/AppIcon.vue'
 import SectionCard from '../ui/SectionCard.vue'
 import StatusBlock from '../ui/StatusBlock.vue'
 import { useT } from '../../composables/useT'
+import { useMediaQuery } from '../../composables/useMediaQuery'
 import { contactErrorText } from '../../lib/contactErrors'
 import { formatPhone } from '../../lib/phone'
+import { children } from '../../store/children'
 import { contacts, loadContacts } from '../../store/contacts'
 import { canManage } from '../../store/family'
 
 const props = defineProps<{ childId: string }>()
 const t = useT()
+// Écran large (maquette 05, NAR-232) : bouton « Modifier » par ligne. Téléphone : la ligne entière
+// ouvre la fiche (NAR-207), la place va au nom et au numéro.
+const wide = useMediaQuery('(min-width: 560px)')
+const childName = computed(() => children.items.find((c) => c.id === props.childId)?.firstName ?? '')
 const busy = ref(false)
 const error = ref('')
 
@@ -60,54 +66,61 @@ async function move(index: number, delta: number) {
 </script>
 
 <template>
-  <SectionCard class="contacts" :class="{ stale: !fresh }" :aria-busy="!fresh" :title="t.contacts.title" :help="t.contacts.orderHint">
+  <SectionCard class="contacts" :class="{ stale: !fresh }" :aria-busy="!fresh" :title="t.contacts.title" :help="childName ? t.contacts.intro(childName) : t.contacts.orderHint">
     <template #aside>
-      <span class="count">{{ t.contacts.count(shown.length, contacts.max) }}</span>
+      <span class="count-badge">{{ t.contacts.count(shown.length, contacts.max) }}</span>
     </template>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     <ol v-if="shown.length" ref="list" class="list">
       <li v-for="(c, i) in shown" :key="c.id">
         <span class="rank" aria-hidden="true">{{ c.position }}</span>
-        <!-- Gestionnaire : la ligne du contact ouvre sa fiche (« Modifier Maman ») ; nom, rôle et
-             numéro restent lus, en description. Plus de bouton ✎ : la ligne tient à 360 px (NAR-207). -->
+        <!-- Téléphone, gestionnaire : la ligne du contact ouvre sa fiche (« Modifier Maman ») ; nom,
+             rôle et numéro restent lus, en description (NAR-207). Écran large : bouton « Modifier ». -->
         <component
-          :is="canManage() ? RouterLink : 'span'" class="contact"
-          v-bind="canManage() ? { to: { name: 'contact', params: { childId, id: c.id } }, 'aria-label': t.contacts.edit(c.name), 'aria-describedby': `${c.memberRole ? `contact-role-${c.id} ` : ''}contact-phone-${c.id}` } : {}"
+          :is="canManage() && !wide ? RouterLink : 'span'" class="contact"
+          v-bind="canManage() && !wide ? { to: { name: 'contact', params: { childId, id: c.id } }, 'aria-label': t.contacts.edit(c.name), 'aria-describedby': `${c.memberRole ? `contact-role-${c.id} ` : ''}contact-phone-${c.id}` } : {}"
         >
-          <ChildAvatar :name="c.name" :color="c.avatarColor" :size="36" />
+          <ChildAvatar :name="c.name" :color="c.avatarColor" :size="wide ? 48 : 40" />
           <span class="who">
-            <span class="name">{{ c.name }}</span>
-            <span v-if="c.memberRole" :id="`contact-role-${c.id}`" class="role">{{ t.family.roles[c.memberRole] }}</span>
+            <span class="name-line">
+              <span class="name">{{ c.name }}</span>
+              <span v-if="c.memberRole" :id="`contact-role-${c.id}`" class="role">{{ t.family.roles[c.memberRole] }}</span>
+            </span>
             <span :id="`contact-phone-${c.id}`" class="phone" data-selectable>{{ formatPhone(c.phone) }}</span>
           </span>
-          <AppIcon v-if="canManage()" class="go" name="chevron-right" :size="20" />
+          <!-- Téléphone : la ligne s'ouvre ; le chevron le montre (caché sous 400 px, place au numéro). -->
+          <AppIcon v-if="canManage() && !wide" class="go" name="chevron-right" :size="20" />
         </component>
         <span v-if="canManage()" class="actions">
           <!-- Déplacement impossible (premier, dernier) : flèche absente plutôt que grisée (NAR-222) ;
                une place vide garde les flèches alignées d'une ligne à l'autre. -->
-          <button v-if="i > 0" class="icon" type="button" :disabled="busy" :aria-label="t.contacts.moveUp(c.name)" @click="move(i, -1)">↑</button>
+          <button v-if="i > 0" class="icon" type="button" :disabled="busy" :aria-label="t.contacts.moveUp(c.name)" @click="move(i, -1)"><AppIcon name="chevron-up" :size="22" /></button>
           <span v-else class="icon-gap" aria-hidden="true" />
-          <button v-if="i < shown.length - 1" class="icon" type="button" :disabled="busy" :aria-label="t.contacts.moveDown(c.name)" @click="move(i, 1)">↓</button>
+          <button v-if="i < shown.length - 1" class="icon" type="button" :disabled="busy" :aria-label="t.contacts.moveDown(c.name)" @click="move(i, 1)"><AppIcon name="chevron-down" :size="22" /></button>
           <span v-else class="icon-gap" aria-hidden="true" />
         </span>
+        <RouterLink
+          v-if="canManage() && wide" class="btn btn-ghost edit" :to="{ name: 'contact', params: { childId, id: c.id } }"
+          :aria-label="t.contacts.edit(c.name)"
+        >
+          {{ t.contacts.editShort }}
+        </RouterLink>
       </li>
     </ol>
     <StatusBlock v-else state="empty" :text="t.contacts.empty" />
-    <RouterLink v-if="canManage() && shown.length < contacts.max" class="add" :to="{ name: 'contact-nouveau', params: { childId } }">
-      + {{ t.contacts.add }}
+    <RouterLink v-if="canManage() && shown.length < contacts.max" class="btn btn-tinted add" :to="{ name: 'contact-nouveau', params: { childId } }">
+      <AppIcon name="plus" :size="20" />{{ t.contacts.add }}
     </RouterLink>
   </SectionCard>
 </template>
 
 <style scoped>
+/* Maquette 05 (NAR-232) : compteur en badge teinté ; lignes rang · avatar · nom + rôle en badge ·
+ * numéro ; flèches d'ordre sans cadre ; « Modifier » bordé (écran large) ; ajout en bouton teinté. */
 .stale {
   opacity: 0.45;
   pointer-events: none;
   transition: opacity 0.15s;
-}
-.count {
-  color: var(--text-soft);
-  font-weight: 700;
 }
 .list {
   list-style: none;
@@ -118,8 +131,8 @@ async function move(index: number, delta: number) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  padding: 12px 0;
+  gap: 8px 12px;
+  padding: 14px 0;
   border-bottom: 1px solid var(--border);
 }
 .rank {
@@ -134,33 +147,40 @@ async function move(index: number, delta: number) {
      minimale (numéro entier), pas dès que le nom est long. */
   flex: 1 1 0;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   min-height: var(--tap);
   border-radius: var(--radius-sm);
   color: inherit;
   text-decoration: none;
 }
-.go {
-  flex: none;
-  color: var(--text-soft);
-}
 .who {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
+  gap: 2px;
+}
+.name-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
 }
 .name {
   font-weight: 800;
   overflow-wrap: anywhere;
 }
-.role,
-.phone {
+.role {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--surface-muted);
   color: var(--text-soft);
-  font-weight: 600;
-  font-size: 0.92rem;
+  font-size: var(--fs-small);
+  font-weight: 800;
 }
 /* Un numéro ne se coupe jamais au milieu. */
 .phone {
+  color: var(--text-soft);
+  font-weight: 600;
   white-space: nowrap;
 }
 .actions {
@@ -177,7 +197,12 @@ async function move(index: number, delta: number) {
   .actions {
     flex-direction: column;
   }
-  /* Ses 28 px vont au numéro entier : la ligne reste un lien (« Modifier Maman »). */
+  /* Place pour le numéro entier à côté des flèches : écarts resserrés (avatar de 40 px), sans
+     chevron (la ligne reste un lien « Modifier Maman »). */
+  .list li,
+  .contact {
+    gap: 8px;
+  }
   .go {
     display: none;
   }
@@ -188,14 +213,14 @@ async function move(index: number, delta: number) {
   justify-content: center;
   width: var(--tap);
   height: var(--tap);
-  border: 1px solid var(--border-strong);
+  border: 0;
   border-radius: 50%;
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-weight: 800;
-  text-decoration: none;
+  background: transparent;
+  color: var(--text-soft);
   cursor: pointer;
+}
+.icon:hover:not(:disabled) {
+  background: var(--surface-muted);
 }
 .icon-gap {
   width: var(--tap);
@@ -205,6 +230,13 @@ async function move(index: number, delta: number) {
   opacity: 0.35;
   cursor: default;
 }
+.edit {
+  flex: none;
+}
+.go {
+  flex: none;
+  color: var(--text-soft);
+}
 .icon:focus-visible,
 .contact:focus-visible,
 .add:focus-visible {
@@ -212,10 +244,7 @@ async function move(index: number, delta: number) {
   outline-offset: 2px;
 }
 .add {
-  display: inline-block;
-  margin-top: 12px;
-  color: var(--accent);
-  font-weight: 800;
-  text-decoration: none;
+  gap: 8px;
+  margin-top: var(--space-4);
 }
 </style>

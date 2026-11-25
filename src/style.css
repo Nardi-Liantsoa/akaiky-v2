@@ -206,6 +206,16 @@ h2 {
   border-color: var(--danger);
 }
 
+/* Compteur « 3 sur 6 » en badge teinté (maquette 05, NAR-232) : contacts, applications. */
+.count-badge {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-size: var(--fs-small);
+  font-weight: 800;
+  white-space: nowrap;
+}
 .btn {
   display: inline-flex;
   align-items: center;
@@ -238,6 +248,13 @@ h2 {
   background: transparent;
   border-color: var(--border-strong);
   color: var(--text);
+}
+/* Ajout teinté (maquette 05, NAR-232) : « + Ajouter un contact », une plage. Après les variantes
+ * et en .btn.btn-tinted : l'emporte sur .btn-ghost. */
+.btn.btn-tinted {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent-deep);
 }
 .btn-danger {
   background: var(--danger);
