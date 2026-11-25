@@ -32,8 +32,8 @@ for (const lang of ['mg', 'fr', 'en']) {
         await expect(tabs.getByRole('link', { name: t.parent[key].title })).toBeVisible()
       }
       await expect(page.getByRole('heading', { level: 1, name: heading(t), exact: true })).toBeVisible()
-      // Contenu chargé (listes, cartes) avant de mesurer.
-      await page.waitForLoadState('networkidle')
+      // Contenu chargé (listes, cartes) avant de mesurer : plus aucun bloc « Chargement… ».
+      await expect(page.getByText(t.status.loading)).toHaveCount(0)
       // Aucun défilement horizontal : les textes malgaches, plus longs, passent à la ligne.
       const overflow = await page.evaluate(() => document.scrollingElement.scrollWidth - document.scrollingElement.clientWidth)
       expect(overflow, `${path} déborde de ${overflow} px en ${lang}`).toBeLessThanOrEqual(0)

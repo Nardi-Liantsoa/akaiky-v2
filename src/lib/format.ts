@@ -54,12 +54,14 @@ export function formatDateTime(iso: string, locale: Locale): string {
 }
 
 // Jour (AAAA-MM-JJ) à l'heure de Madagascar, pour regrouper par jour (journal, NAR-152) ;
-// formateur créé au premier appel puis gardé (coûteux sur les WebView anciennes), jamais au
-// chargement du module : un fuseau refusé ne casse que l'appel, pas l'écran qui importe.
-let day: Intl.DateTimeFormat | null = null
+// formateur créé au premier appel puis gardé (coûteux sur les WebView anciennes). Fuseau
+// refusé par la WebView : jour calculé à UTC+3 (Madagascar n'a pas d'heure d'été).
+let day: Intl.DateTimeFormat | null | undefined
 export function dayKey(date: Date): string {
-  day ??= new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' })
-  return day.format(date)
+  if (day === undefined) {
+    try { day = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }) } catch { day = null }
+  }
+  return day ? day.format(date) : new Date(date.getTime() + 3 * 3_600_000).toISOString().slice(0, 10)
 }
 
 // Durée écoulée en clair (« il y a 2 minutes », « 2 minitra lasa izay »), NAR-147.

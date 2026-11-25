@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatClock, formatDateTime, formatDay, formatLongDate } from './format'
+import { dayKey, formatClock, formatDateTime, formatDay, formatLongDate } from './format'
 
 describe('formatDay', () => {
   it('jour et mois à l’heure de Madagascar, dans les trois langues', () => {
@@ -52,10 +52,19 @@ describe('formatage des dates au même endroit', () => {
     const allowed = ['./format.ts', './schedule.ts', './avatar.ts']
     const offenders = Object.entries(files)
       .filter(([path]) => !path.endsWith('.test.ts') && !allowed.includes(path) && !path.startsWith('../i18n/'))
-      // Intl sous toute forme (Intl.X, globalThis.Intl, déstructuré) et toLocale*String.
-      .filter(([, code]) => /\bIntl\b|\btoLocale(String|DateString|TimeString)\b/.test(code))
+      // Usages réels, commentaires retirés : Intl.X, Intl[…], globalThis.Intl, « = Intl »
+      // (déstructuré) et toLocale*String.
+      .filter(([, code]) => /\bIntl\s*[.[]|=\s*Intl\b|\btoLocale(String|DateString|TimeString)\b/
+        .test(code.replace(/\/\*[\s\S]*?\*\/|(^|[^:])\/\/.*$/gm, '$1')))
       .map(([path]) => path)
     expect(offenders).toEqual([])
     expect(Object.keys(files).length).toBeGreaterThan(50)
+  })
+})
+
+describe('dayKey', () => {
+  it('jour à l’heure de Madagascar (UTC+3)', () => {
+    expect(dayKey(new Date('2026-11-24T20:59:00Z'))).toBe('2026-11-24')
+    expect(dayKey(new Date('2026-11-24T21:00:00Z'))).toBe('2026-11-25')
   })
 })
