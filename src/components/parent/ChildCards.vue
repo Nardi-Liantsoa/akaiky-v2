@@ -295,6 +295,10 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
 }
 .select:focus-visible,
 .more:focus-visible,
+.add:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
 .add {
   display: flex;
   align-items: center;

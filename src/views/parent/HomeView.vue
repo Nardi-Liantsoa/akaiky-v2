@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import AppIcon from '../../components/ui/AppIcon.vue'
 import ChildAvatar from '../../components/parent/ChildAvatar.vue'
 import { formatLongDate } from '../../lib/format'
@@ -23,7 +23,11 @@ const desktop = useMediaQuery(DESKTOP)
 const aside = computed(() => (desktop.value ? selectedChild() ?? null : null))
 // Prénom du compte (premier mot du nom) et date du jour, majuscule initiale (maquettes 01 et 02).
 const firstName = computed(() => auth.user?.name.trim().split(/\s+/)[0] ?? '')
-const today = computed(() => { const d = formatLongDate(new Date(), locale.value); return d.charAt(0).toLocaleUpperCase() + d.slice(1) })
+// Date relue chaque minute : elle change à minuit sur une page restée ouverte.
+const now = ref(new Date())
+const clock = setInterval(() => { now.value = new Date() }, 60_000)
+onBeforeUnmount(() => clearInterval(clock))
+const today = computed(() => { const d = formatLongDate(now.value, locale.value); return d.charAt(0).toLocaleUpperCase() + d.slice(1) })
 onMounted(() => { void loadFamily() })
 // Liste relue à chaque arrivée sur l'accueil (un autre parent a pu ajouter ou
 // retirer un enfant) ; la liste connue reste affichée pendant l'appel.

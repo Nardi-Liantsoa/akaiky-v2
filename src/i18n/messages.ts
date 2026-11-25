@@ -293,6 +293,7 @@ const fr = {
     networks: { wifi: 'Wi-Fi', mobile: 'Mobile', none: 'Aucun' },
     sims: { ready: 'Présente', absent: 'Absente', locked: 'Verrouillée', unknown: 'Inconnue' },
     // Pastille compacte (maquette 01, NAR-227).
+    faulty: 'en défaut',
     simChip: { ready: 'SIM OK', absent: 'Sans SIM', locked: 'SIM verrouillée', unknown: 'SIM ?' },
     // Conseil après « Signalé il y a … » dans le bandeau d'alerte (maquette 01).
     hints: { battery_low: 'Pensez à lui rappeler de charger.', sim_absent: 'Vérifiez la carte SIM du téléphone.', silent: 'Le téléphone est peut-être éteint ou sans réseau.' },
@@ -550,7 +551,7 @@ const fr = {
   parent: {
     tabsLabel: 'Navigation principale',
     // backLabel : nom de la flèche de retour (PageHeader) de Modifier et de l'appairage (NAR-195, NAR-222).
-    home: { title: 'Accueil', empty: 'Les enfants de votre famille apparaîtront ici.', seenBy: (names: string) => `Vu par ${names}`, backLabel: 'Retour à l’accueil', heading: 'Vos enfants', hello: (name: string) => `Bonjour ${name}` },
+    home: { title: 'Accueil', empty: 'Les enfants de votre famille apparaîtront ici.', seenBy: (names: string) => `Vu par ${names}`, backLabel: 'Retour à l’accueil', heading: 'Vos enfants', hello: (name: string) => (name ? `Bonjour ${name}` : 'Bonjour') },
     log: {
       title: 'Journal',
       empty: 'Les appels, messages et alertes apparaîtront ici.',
@@ -1032,6 +1033,7 @@ const mg: Messages = {
     unknown: 'Tsy fantatra',
     networks: { wifi: 'Wi-Fi', mobile: 'Finday', none: 'Tsy misy' },
     sims: { ready: 'Misy', absent: 'Tsy misy', locked: 'Mihidy', unknown: 'Tsy fantatra' },
+    faulty: 'misy olana',
     simChip: { ready: 'SIM OK', absent: 'Tsy misy SIM', locked: 'SIM mihidy', unknown: 'SIM ?' },
     hints: { battery_low: 'Ampahatsiahivo azy ny hameno ny bateria.', sim_absent: 'Jereo ny karatra SIM ao amin’ny finday.', silent: 'Mety maty na tsy misy tambajotra ny finday.' },
     noSignal: 'Mbola tsy nisy vaovao avy amin’ny finday',
@@ -1279,7 +1281,7 @@ const mg: Messages = {
   },
   parent: {
     tabsLabel: 'Fitetezana lehibe',
-    home: { title: 'Fandraisana', empty: 'Eto no hiseho ireo ankizy ao amin’ny fianakavianao.', seenBy: (names: string) => `Hitan’i ${names}`, backLabel: 'Hiverina amin’ny fandraisana', heading: 'Ny zanakao', hello: (name: string) => `Manao ahoana ${name}` },
+    home: { title: 'Fandraisana', empty: 'Eto no hiseho ireo ankizy ao amin’ny fianakavianao.', seenBy: (names: string) => `Hitan’i ${names}`, backLabel: 'Hiverina amin’ny fandraisana', heading: 'Ny zanakao', hello: (name: string) => (name ? `Manao ahoana ${name}` : 'Manao ahoana') },
     log: {
       title: 'Tantara',
       empty: 'Eto no hiseho ny antso, ny hafatra ary ny fampitandremana.',
@@ -1749,6 +1751,7 @@ const en: Messages = {
     unknown: 'Unknown',
     networks: { wifi: 'Wi-Fi', mobile: 'Mobile', none: 'None' },
     sims: { ready: 'Inserted', absent: 'Missing', locked: 'Locked', unknown: 'Unknown' },
+    faulty: 'problem',
     simChip: { ready: 'SIM OK', absent: 'No SIM', locked: 'SIM locked', unknown: 'SIM ?' },
     hints: { battery_low: 'Remind them to charge it.', sim_absent: 'Check the phone’s SIM card.', silent: 'The phone may be off or out of signal.' },
     noSignal: 'No news from the phone yet',
@@ -1995,7 +1998,7 @@ const en: Messages = {
   },
   parent: {
     tabsLabel: 'Main navigation',
-    home: { title: 'Home', empty: 'Your family’s children will appear here.', seenBy: (names: string) => `Seen by ${names}`, backLabel: 'Back to home', heading: 'Your children', hello: (name: string) => `Hello ${name}` },
+    home: { title: 'Home', empty: 'Your family’s children will appear here.', seenBy: (names: string) => `Seen by ${names}`, backLabel: 'Back to home', heading: 'Your children', hello: (name: string) => (name ? `Hello ${name}` : 'Hello') },
     log: {
       title: 'Log',
       empty: 'Calls, messages and alerts will appear here.',

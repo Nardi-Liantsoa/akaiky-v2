@@ -11,8 +11,8 @@ import type { IconName } from '../ui/icons'
 // premier plan ; pendant une relecture, le contenu connu reste affiché (estompé seulement
 // s'il appartient à un autre enfant), jamais de clignotement.
 // NAR-193 : un seul bandeau (le plus grave) ; « +N » (bouton à aria-expanded) déplie les autres.
-// NAR-192 : chaque bandeau et chaque tuile en défaut portent une icône (jamais la couleur
-// seule) ; le dernier passage est dans la ligne d'état de la carte, qui reçoit les alertes
+// NAR-192, NAR-227 : chaque bandeau porte une icône ; une pastille en défaut est rouge, encadrée
+// et lue « en défaut » (jamais la couleur seule) ; le dernier passage est dans la ligne d'état de la carte, qui reçoit les alertes
 // lues ici (`alerts`) pour sa pastille, sans second chargement : `null` tant que l'état
 // n'est pas lu, après un échec (jamais un « Tout va bien » périmé) et sans aucun relevé
 // (« Pas encore de nouvelles » ne vaut pas « Tout va bien »). Pendant le premier
@@ -88,23 +88,10 @@ function alertTitle(a: { kind: AlertKind, deviceId: string }) {
 </script>
 
 <template>
-  <!-- Premier chargement : même gabarit que l'état chargé (actions, puis pastilles vides cachées
-       aux lecteurs d'écran) : la carte ne bouge pas quand l'état arrive. -->
-  <div v-if="status === 'loading'" class="phone-state">
-    <slot name="actions" />
-    <div class="device" aria-hidden="true">
-      <dl class="tiles placeholder">
-        <div v-for="i in 3" :key="i" class="tile">
-          <dd>&nbsp;</dd>
-        </div>
-      </dl>
-    </div>
-  </div>
-  <section
-    v-else-if="devices.length || status === 'error'" class="phone-state" :class="{ stale }" :aria-busy="reloading"
-    :aria-label="t.phoneState.label(name)"
-  >
-    <p v-if="status === 'error'" class="unavailable">{{ t.phoneState.loadError }}</p>
+  <!-- Bandeau d'alerte, actions de la carte (slot, hors de la région d'état : Appeler et Message
+       ne sont pas lus comme « état du téléphone »), puis la région des pastilles (maquette 01,
+       NAR-227). Même gabarit pendant le premier chargement : la carte ne bouge pas. -->
+  <div v-if="status === 'loading' || devices.length || status === 'error'" class="phone-state" :class="{ stale }">
     <!-- NAR-193 : un seul bandeau, l'alerte la plus grave ; « +N » déplie les autres. -->
     <div v-if="alerts.length" class="alerts">
       <div class="top">
@@ -135,31 +122,39 @@ function alertTitle(a: { kind: AlertKind, deviceId: string }) {
         </li>
       </ul>
     </div>
-    <!-- Actions de la carte (Appeler, Message ; maquette 01, NAR-227) : sous le bandeau, au-dessus des pastilles. -->
     <slot name="actions" />
-    <div v-for="d in devices" :key="d.id" class="device">
-      <p v-if="devices.length > 1 && d.model" class="model">{{ d.model }}</p>
-      <template v-if="d.statusAt">
-        <!-- Pastilles compactes (maquette 01, NAR-227) : icône et valeur ; le libellé reste lu (dt).
-             Pastille en défaut : en rouge, comme la maquette ; le bandeau d'alerte au-dessus la nomme en toutes lettres. -->
-        <dl class="tiles">
-          <div class="tile" :class="{ low: lowBattery(d) }">
-            <dt class="visually-hidden">{{ t.phoneState.battery }}</dt>
-            <dd><AppIcon name="battery" :size="18" class="icon" />{{ battery(d) }}<span v-if="d.charging" class="extra"> · {{ t.phoneState.charging }}</span></dd>
-          </div>
-          <div class="tile" :class="{ low: d.network === 'none' }">
-            <dt class="visually-hidden">{{ t.phoneState.network }}</dt>
-            <dd><AppIcon name="signal" :size="18" class="icon" />{{ network(d) }}</dd>
-          </div>
-          <div class="tile" :class="{ low: d.simState === 'absent' }">
-            <dt class="visually-hidden">{{ t.phoneState.sim }}</dt>
-            <dd><AppIcon name="sim" :size="18" class="icon" />{{ t.phoneState.simChip[d.simState ?? 'unknown'] }}</dd>
-          </div>
-        </dl>
-      </template>
-      <p v-else class="seen">{{ t.phoneState.noSignal }}</p>
+    <div v-if="status === 'loading'" class="device" aria-hidden="true">
+      <div class="tiles placeholder">
+        <div v-for="i in 3" :key="i" class="tile"><span>&nbsp;</span></div>
+      </div>
     </div>
-  </section>
+    <section v-else class="tiles-region" :aria-busy="reloading" :aria-label="t.phoneState.label(name)">
+      <p v-if="status === 'error'" class="unavailable">{{ t.phoneState.loadError }}</p>
+      <div v-for="d in devices" :key="d.id" class="device">
+        <p v-if="devices.length > 1 && d.model" class="model">{{ d.model }}</p>
+        <template v-if="d.statusAt">
+          <!-- Pastilles compactes (maquette 01, NAR-227) : icône et valeur ; le libellé reste lu (dt).
+               Pastille en défaut : en rouge (maquette) et encadrée, « en défaut » lu ; le bandeau d'alerte
+             au-dessus la nomme en toutes lettres : jamais la couleur seule. -->
+          <dl class="tiles">
+            <div class="tile" :class="{ low: lowBattery(d) }">
+              <dt class="visually-hidden">{{ t.phoneState.battery }}</dt>
+              <dd><AppIcon name="battery" :size="18" class="icon" /><span v-if="lowBattery(d)" class="visually-hidden">{{ t.phoneState.faulty }} </span>{{ battery(d) }}<span v-if="d.charging" class="extra"> · {{ t.phoneState.charging }}</span></dd>
+            </div>
+            <div class="tile" :class="{ low: d.network === 'none' }">
+              <dt class="visually-hidden">{{ t.phoneState.network }}</dt>
+              <dd><AppIcon name="signal" :size="18" class="icon" /><span v-if="d.network === 'none'" class="visually-hidden">{{ t.phoneState.faulty }} </span>{{ network(d) }}</dd>
+            </div>
+            <div class="tile" :class="{ low: d.simState === 'absent' }">
+              <dt class="visually-hidden">{{ t.phoneState.sim }}</dt>
+              <dd><AppIcon name="sim" :size="18" class="icon" /><span v-if="d.simState === 'absent'" class="visually-hidden">{{ t.phoneState.faulty }} </span>{{ t.phoneState.simChip[d.simState ?? 'unknown'] }}</dd>
+            </div>
+          </dl>
+        </template>
+        <p v-else class="seen">{{ t.phoneState.noSignal }}</p>
+      </div>
+    </section>
+  </div>
   <!-- Pas encore de relevé : la carte garde ses actions (Appeler, Message). -->
   <slot v-else name="actions" />
 </template>
@@ -171,6 +166,15 @@ function alertTitle(a: { kind: AlertKind, deviceId: string }) {
   gap: 10px;
   margin: 8px 0 4px;
   transition: opacity 0.15s;
+}
+.tiles-region {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.placeholder .tile span {
+  font-size: 0.95rem;
+  font-weight: 800;
 }
 .stale {
   opacity: 0.45;
@@ -298,6 +302,9 @@ function alertTitle(a: { kind: AlertKind, deviceId: string }) {
   font-size: 0.95rem;
   font-weight: 800;
   white-space: nowrap;
+}
+.tile.low {
+  box-shadow: inset 0 0 0 1.5px var(--sos);
 }
 .tile.low dd {
   color: var(--sos);

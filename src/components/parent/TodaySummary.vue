@@ -7,8 +7,9 @@ import { selectChild } from '../../store/children'
 import AppIcon from '../ui/AppIcon.vue'
 
 // Ligne « Aujourd'hui · 3 appels, 1 bloqué › » de la carte enfant (maquette 01, NAR-227) :
-// nombres du jour lus avec le journal (une lecture, limit 1), relus chaque minute tant que la
-// page est visible ; le lien ouvre le journal de CET enfant. Relecture en échec : la ligne
+// nombres du jour lus avec le journal (une lecture, limit 1), relus au retour au premier plan
+// et toutes les 2 minutes tant que la page est visible (une lecture agrégée par carte : pas
+// plus souvent) ; le lien ouvre le journal de CET enfant. Relecture en échec : la ligne
 // reste, sans nombres (le lien vers le journal marche toujours).
 const props = defineProps<{ childId: string }>()
 const t = useT()
@@ -20,8 +21,10 @@ async function load() {
   if (mine === generation && page?.today) today.value = page.today
 }
 watch(() => props.childId, () => { today.value = null; void load() }, { immediate: true })
-const timer = setInterval(() => { if (document.visibilityState === 'visible') void load() }, 60_000)
-onBeforeUnmount(() => clearInterval(timer))
+const timer = setInterval(() => { if (document.visibilityState === 'visible') void load() }, 120_000)
+const onVisible = () => { if (document.visibilityState === 'visible') void load() }
+document.addEventListener('visibilitychange', onVisible)
+onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible) })
 </script>
 
 <template>
