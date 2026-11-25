@@ -48,7 +48,9 @@ function deviceChanged() {
 
     <SectionCard :title="t.admin.audit">
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <div class="admin-scroll">
+      <!-- Journal long (NAR-224) : il défile dans sa carte au lieu d'allonger la page ; zone
+           atteignable au clavier (tabindex) et nommée, pour défiler aux flèches. -->
+      <div class="admin-scroll audit-scroll" tabindex="0" role="region" :aria-label="t.admin.audit">
         <table class="admin-table" role="table">
           <thead role="rowgroup"><tr role="row"><th role="columnheader">{{ t.admin.when }}</th><th role="columnheader">{{ t.admin.action }}</th><th role="columnheader">{{ t.admin.actor }}</th></tr></thead>
           <tbody role="rowgroup">
@@ -75,6 +77,21 @@ function deviceChanged() {
 .admin h1,
 .admin > .help {
   margin: 0;
+}
+/* Journal d'audit : hauteur bornée, défilement dans la carte, en-têtes de colonnes gardés en vue. */
+.audit-scroll {
+  max-height: min(480px, 60vh);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.audit-scroll:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+.audit-scroll :deep(thead th) {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
 }
 </style>
 

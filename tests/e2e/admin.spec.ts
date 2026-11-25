@@ -279,3 +279,16 @@ test('admin en malgache à 320 px : aucun libellé ne déborde de sa tuile ni de
   expect(overflowing).toBe(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
+
+test('journal d’audit long : il défile dans sa carte, la page ne s’allonge pas', async ({ page }) => {
+  const entries = Array.from({ length: 80 }, (_, i) => ({ at: `2026-01-15T${String(i % 24).padStart(2, '0')}:00:00Z`, action: 'device_revoked', actor: 'admin' }))
+  await mockApi(page, adminApi({ 'GET /api/admin/audit': () => ({ body: entries }) }))
+  await page.goto('/admin')
+  const scroller = page.getByRole('region', { name: 'Journal d’audit' }).locator('.audit-scroll')
+  await expect(scroller.getByRole('row')).toHaveCount(81)
+  const { client, scroll } = await scroller.evaluate((e) => ({ client: e.clientHeight, scroll: e.scrollHeight }))
+  expect(client).toBeLessThanOrEqual(480)
+  expect(scroll).toBeGreaterThan(client)
+  // Atteignable au clavier pour défiler aux flèches.
+  await expect(scroller).toHaveAttribute('tabindex', '0')
+})
