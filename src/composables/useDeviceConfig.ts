@@ -41,6 +41,13 @@ function poll(): Promise<void> {
   return running
 }
 
+// Relevé tout de suite, hors du rythme de 30 s (réveil push `config`, NAR-179) : seulement au
+// premier plan (minuteur posé) ; un relevé déjà en cours est réutilisé.
+export function refreshNow(): Promise<void> {
+  if (!source || deviceConfig.status === 'lost' || !timer) return Promise.resolve()
+  return poll()
+}
+
 // Premier plan : relevé immédiat puis toutes les 30 s (sans effet pendant un chargement).
 export function resume() {
   if (!source || deviceConfig.status === 'lost' || timer) return

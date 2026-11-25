@@ -6,6 +6,7 @@ import { App as NativeApp } from '@capacitor/app'
 import { appKind } from './lib/appKind'
 import { startOtaRuntime } from './lib/otaRuntime'
 import { syncAccountLang } from './lib/accountLang'
+import { startParentPush } from './lib/parentPush'
 import { closeTopSheet } from './composables/useSheetStack'
 import App from './App.vue'
 import { router } from './router'
@@ -25,7 +26,8 @@ if (Capacitor.isNativePlatform()) {
 }
 
 // Langue des courriels du compte (NAR-211), app parent seulement.
-void appKind().then((kind) => { if (kind === 'parent') syncAccountLang() }).catch(() => {})
+// Notifications push de l'app parent (NAR-179) : app native seulement.
+void appKind().then((kind) => { if (kind === 'parent') { syncAccountLang(); startParentPush(router) } }).catch(() => {})
 
 createApp(App).use(router).mount('#app')
 

@@ -10,6 +10,8 @@ import { errorText } from '../lib/errors'
 import { formatDateTime } from '../lib/format'
 import { family, loadFamily } from '../store/family'
 import AccountSection from '../components/parent/AccountSection.vue'
+import NotificationsCard from '../components/parent/NotificationsCard.vue'
+import { pushState } from '../lib/parentPush'
 import AppButton from '../components/ui/AppButton.vue'
 import BackLink from '../components/ui/BackLink.vue'
 import SectionCard from '../components/ui/SectionCard.vue'
@@ -90,6 +92,8 @@ onMounted(() => { load(); void loadFamily() })
     <BackLink v-else :to="{ name: 'espace' }" :label="t.parent.home.back" :aria-label="t.parent.home.backLabel" />
     <h1>{{ t.parent.account.title }}</h1>
     <AccountSection on-account-page />
+    <!-- App native seulement (NAR-179) : le web n'a pas de notifications. -->
+    <NotificationsCard v-if="pushState !== 'off'" />
     <p v-if="error" class="error" role="alert">{{ error }}</p>
 
     <SectionCard v-if="state" :title="t.mfa.title">

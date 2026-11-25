@@ -2,11 +2,11 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Capacitor, type PluginListenerHandle } from '@capacitor/core'
 import { App } from '@capacitor/app'
-import { useT } from '../../composables/useT'
+import { locale, useT } from '../../composables/useT'
 import { appKind } from '../../lib/appKind'
 import { startChild, type ChildState } from '../../lib/childStartup'
 import { appInventory, callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore, remoteUnlockSeen, messageOutbox, heartbeat } from '../../lib/deviceSessionInstance'
-import { deviceConfig, pause, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
+import { deviceConfig, pause, refreshNow, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
 import { emergencyNumber } from '../../lib/emergency'
 import { sosPlan } from '../../lib/sos'
 import { buildSosPlan, confirmNativeSos } from '../../lib/sosCascade'
@@ -36,6 +36,9 @@ import { activeWindow, safeTimeZone, visibleContacts } from '../../lib/schedule'
 import AppButton from '../../components/ui/AppButton.vue'
 import WatchingBadge from '../../components/child/WatchingBadge.vue'
 import { AkaikyLocation } from '../../native/akaikyLocation'
+import { FirebaseMessaging } from '../../native/firebaseMessaging'
+import { createPushRegistration } from '../../lib/pushRegistration'
+import { pushType } from '../../lib/pushRoute'
 import { LOCATE_POLL_MS, createLocateWatch } from '../../lib/locateWatch'
 
 // Écran de l'app enfant : échange du jeton reçu au provisionnement (NAR-164), puis
@@ -92,7 +95,7 @@ onMounted(async () => {
     foreground = isActive
     if (isActive) startClock(); else stopClock()
     if (isActive) { void refreshKiosk().catch(() => {}).then(() => applyRemoteUnlock()); void readScreening(); void readSos() }
-    if (isActive && state.value.kind === 'paired') { resume(); startStatus(); startLocate(); syncJournal(); void backgroundStatus.ensure(); void syncApps(); checkUpdate() } else { pause(); stopStatus(); stopLocate(); clearTimeout(journalRetry) }
+    if (isActive && state.value.kind === 'paired') { resume(); startStatus(); startLocate(); syncJournal(); void backgroundStatus.ensure(); void syncApps(); checkUpdate(); void registerPush(state.value) } else { pause(); stopStatus(); stopLocate(); clearTimeout(journalRetry) }
   })
   // SOS en cours (NAR-151) : état poussé par le service natif quand la WebView est éveillée,
   // relu à chaque reprise (écran rallumé pendant la cascade).
@@ -117,6 +120,8 @@ watch(state, async (s) => {
     // le téléphone à l'enfant) : un téléphone retiré se libère avec le code parent.
     // Plus d'enfant appairé ici : aucune liste de contacts gardée sur le téléphone.
     if (s.kind === 'waiting' || s.kind === 'expired' || s.kind === 'revoked') {
+      // Session perdue : le serveur a effacé le jeton push du téléphone, plus rien à envoyer.
+      childPush.stop()
       void configSync.clear()
       // Plus de session : le signal natif en arrière-plan (NAR-180) s'arrête aussi.
       void backgroundStatus.stop()
@@ -126,6 +131,9 @@ watch(state, async (s) => {
   // Appairé : signal de vie natif en arrière-plan, écran éteint compris (NAR-180), avec un
   // jeton « signal de vie » émis par la session d'appareil (hors ligne : au retour au premier plan).
   void backgroundStatus.ensure()
+  // Réveils push (NAR-179) : jeton de ce téléphone pour cette session d'appareil.
+  childPush.stop()
+  void registerPush(s)
   await startDeviceConfig(configSync, s.childId)
   // Nouvel appairage (autre enfant, réappairage) : la position repart de zéro aussi.
   if (!unmounted && state.value === s) startLocate()
@@ -230,6 +238,53 @@ function stopLocate() {
   clearInterval(locateTimer); locateTimer = undefined
   locateWatch.stop()
 }
+// Réveils silencieux (NAR-179) : `locate` (un parent demande la position, NAR-203) et
+// `config` (contacts, plages… changés). Jeton envoyé par la session d'appareil
+// (PUT /api/device/push/token), sans permission à demander : rien n'est affiché à l'enfant.
+// Reçus quand l'app est ouverte ; app fermée ou écran éteint, ils n'atteignent pas l'écran
+// (greffon : un message « data » seul ne réveille pas le JavaScript) : le relevé régulier
+// de 15 s au premier plan reste la règle.
+const childPush = createPushRegistration({
+  messaging: FirebaseMessaging,
+  send: (r) => session.put('/device/push/token', { ...r, platform: 'android' }),
+  platform: 'android',
+  lang: () => locale.value,
+  needsPermission: false
+})
+let pushListeners: PluginListenerHandle[] = []
+// Écouteurs posés une seule fois, même si deux « appairé » se suivent de près.
+let pushListening: Promise<void> | null = null
+function startPush(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return Promise.resolve()
+  pushListening ??= (async () => {
+    const results = await Promise.allSettled([
+      FirebaseMessaging.addListener('tokenReceived', ({ token }) => { void childPush.tokenChanged(token) }),
+      FirebaseMessaging.addListener('notificationReceived', ({ notification }) => {
+        if (state.value.kind !== 'paired' || !foreground) return
+        const type = pushType(notification.data)
+        if (type === 'locate') readLocate()
+        else if (type === 'config') void refreshNow()
+      })
+    ])
+    const handles = results.flatMap((r) => r.status === 'fulfilled' ? [r.value] : [])
+    // Un écouteur manquant : tout est retiré et repris au prochain appairage ou à la reprise.
+    if (unmounted || handles.length < results.length) {
+      handles.forEach((h) => void h.remove())
+      if (!unmounted) pushListening = null
+      return
+    }
+    pushListeners = handles
+  })()
+  return pushListening
+}
+// Nouvelle session d'appareil (appairage, réappairage) : jeton renvoyé pour elle ; à chaque
+// reprise de l'app, jeton renvoyé s'il manque encore au serveur.
+async function registerPush(s: ChildState) {
+  await startPush()
+  if (unmounted || state.value !== s) return
+  void childPush.start()
+}
+
 function startLocate() {
   stopLocate()
   if (unmounted || state.value.kind !== 'paired' || !foreground || !Capacitor.isNativePlatform()) { showWatching(null); return }
@@ -577,7 +632,7 @@ function checkUpdate() {
 watch(() => deviceConfig.config?.apk, checkUpdate)
 // Téléphone retiré pendant l'usage : l'écran le dit.
 watch(() => deviceConfig.status, (s) => { if (s === 'lost') state.value = { kind: 'revoked' } })
-onBeforeUnmount(() => { setOtaScreenBusy(() => true); unmounted = true; clearInterval(sosWatch); clearInterval(schoolWatch); stopClock(); pause(); stopStatus(); stopLocate(); clearTimeout(journalRetry); void lifecycle?.remove(); void sosListener?.remove() })
+onBeforeUnmount(() => { setOtaScreenBusy(() => true); unmounted = true; pushListeners.forEach((h) => void h.remove()); childPush.stop(); clearInterval(sosWatch); clearInterval(schoolWatch); stopClock(); pause(); stopStatus(); stopLocate(); clearTimeout(journalRetry); void lifecycle?.remove(); void sosListener?.remove() })
 
 const text = computed(() => {
   const c = t.value.child

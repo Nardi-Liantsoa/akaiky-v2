@@ -597,6 +597,22 @@ const fr = {
     child: 'Je suis titulaire de l’autorité parentale sur cet enfant et j’accepte que ses appels et messages soient journalisés (90 jours).',
     required: 'Cochez cette case pour continuer.'
   },
+  // Notifications push de l'app parent (NAR-179) : carte de Mon compte, bannière au premier
+  // plan, nom du canal Android.
+  push: {
+    title: 'Notifications',
+    lead: 'Soyez prévenu sur ce téléphone quand votre enfant envoie un message ou quand son téléphone a un souci (batterie faible, carte SIM, silence).',
+    enable: 'Activer les notifications',
+    on: 'Notifications activées sur ce téléphone.',
+    test: 'Envoyer une notification de test',
+    testSent: 'Notification de test envoyée : elle arrive dans quelques secondes.',
+    testNone: 'Ce téléphone n’est pas encore enregistré pour les notifications : réessayez dans une minute.',
+    testTooMany: 'Trop de notifications de test : réessayez dans une heure.',
+    denied: 'Notifications refusées. Pour les activer, ouvrez les réglages du téléphone, puis Akaiky, puis Notifications.',
+    unavailable: 'Notifications indisponibles sur cette version de l’app.',
+    close: 'Fermer la notification',
+    channel: 'Alertes'
+  },
   dataExport: {
     title: 'Données de la famille',
     lead: 'Membres, enfants, contacts, téléphones, positions, plages, messages et journal, dans un fichier.',
@@ -1279,6 +1295,20 @@ const mg: Messages = {
     child: 'Manana ny fahefana ray aman-dreny amin’ity ankizy ity aho ary manaiky fa voasoratra ny antso sy hafatra ataony (90 andro).',
     required: 'Asio marika ity efajoro ity raha hanohy.'
   },
+  push: {
+    title: 'Fampandrenesana',
+    lead: 'Ampandrenesina eto amin’ity finday ity ianao rehefa mandefa hafatra ny zanakao na rehefa misy olana ny findainy (bateria lany, karatra SIM, tsy misy vaovao).',
+    enable: 'Alefaso ny fampandrenesana',
+    on: 'Mandeha ny fampandrenesana amin’ity finday ity.',
+    test: 'Andramo ny fampandrenesana',
+    testSent: 'Lasa ny fampandrenesana andrana : tonga afaka segondra vitsy izy.',
+    testNone: 'Mbola tsy voasoratra ho an’ny fampandrenesana ity finday ity : andramo indray afaka iray minitra.',
+    testTooMany: 'Be loatra ny andrana : andramo indray afaka adiny iray.',
+    denied: 'Nolavina ny fampandrenesana. Raha hampandeha azy, sokafy ny fandrindrana ny finday, avy eo Akaiky, avy eo Fampandrenesana.',
+    unavailable: 'Tsy misy fampandrenesana amin’ity dikan’ny fampiharana ity.',
+    close: 'Hidio ny fampandrenesana',
+    channel: 'Fampitandremana'
+  },
   dataExport: {
     title: 'Ny angon’ny fianakaviana',
     lead: 'Mpikambana, ankizy, mpifandray, finday, toerana, fotoana, hafatra ary tantara, ao anaty rakitra iray.',
@@ -1955,6 +1985,20 @@ const en: Messages = {
     signup: 'I am an adult and hold parental authority over the children I will add.',
     child: 'I hold parental authority over this child and agree that their calls and messages are logged (90 days).',
     required: 'Tick this box to continue.'
+  },
+  push: {
+    title: 'Notifications',
+    lead: 'Get notified on this phone when your child sends a message or when their phone has a problem (low battery, SIM card, no signal).',
+    enable: 'Turn on notifications',
+    on: 'Notifications are on for this phone.',
+    test: 'Send a test notification',
+    testSent: 'Test notification sent: it will arrive in a few seconds.',
+    testNone: 'This phone is not registered for notifications yet: try again in a minute.',
+    testTooMany: 'Too many test notifications: try again in an hour.',
+    denied: 'Notifications are turned off. To turn them on, open the phone settings, then Akaiky, then Notifications.',
+    unavailable: 'Notifications are not available in this version of the app.',
+    close: 'Close the notification',
+    channel: 'Alerts'
   },
   dataExport: {
     title: 'Family data',

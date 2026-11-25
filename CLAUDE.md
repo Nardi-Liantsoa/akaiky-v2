@@ -325,7 +325,25 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   et par téléphone d'enfant (et 30 de plus pour ses réveils `locate`, NAR-203). Jeton supprimé seulement sur `UNREGISTERED` ou `INVALID_ARGUMENT` qui nomme
   le jeton ; `SENDER_ID_MISMATCH`, 404 sans `UNREGISTERED`, 401/403 = configuration (nouvelle tentative,
   alarme dans les journaux). `last_seen_at` du jeton rafraîchi par l'activité de sa session (au plus une
-  fois par heure). Côté app (plugin, permission, toucher) : NAR-179, nouvelle coque.
+  fois par heure).
+- **Notifications push, apps (NAR-179, 25/11/2026)** : greffon natif `@capacitor-firebase/messaging` 8.6.0 (jeton FCM
+  sur Android et iOS), appelé par son nom (`src/native/firebaseMessaging.ts`, `registerPlugin`) : ni son JavaScript ni le
+  SDK web Firebase n'entrent dans le bundle. Sans `google-services.json` / `GoogleService-Info.plist`, les coques démarrent
+  et la carte « Notifications » dit « indisponibles » (vérifié sur émulateur Android 16). Jeton envoyé par
+  `src/lib/pushRegistration.ts` à la route de la session (parent `PUT /api/push/token`, enfant `PUT /api/device/push/token`),
+  renvoyé au rafraîchissement FCM et au changement de langue ; jamais de permission demandée au lancement : carte
+  « Notifications » de Mon compte (`NotificationsCard.vue`), explication puis geste, refus = l'app marche sans, texte pour
+  réactiver dans les réglages du téléphone, notification de test. Toucher : `src/lib/pushRoute.ts`, liste fermée (`message` →
+  journal, état du téléphone et `test` → accueil, tout le reste → accueil, jamais une URL). Premier plan : bannière de
+  l'app (`PushBanner.vue`), `presentationOptions: []`. Canal Android `alertes` (importance haute) créé par l'app parent,
+  canal par défaut dans le manifeste. iOS : `App.entitlements` (`aps-environment`), jeton APNs transmis par l'AppDelegate.
+  App enfant : réveils `locate` et `config` reçus **au premier plan seulement** (un message « data » seul ne réveille pas
+  le JavaScript d'une app fermée ; réveil natif écran éteint : ticket à part). Un seul `google-services.json` pour les deux
+  variantes (`mg.nosytech.akaiky` et `mg.nosytech.akaiky.enfant` déclarées dans le même projet Firebase). **Comptes
+  Firebase et Apple au nom du client** ; leur création attend l'ordre de l'utilisateur ; la clé API des fichiers de
+  configuration est à restreindre dans la console Google Cloud (Android : empreinte SHA du keystore et nom de paquet ;
+  iOS : identifiant de bundle). Poids : APK de debug parent +1,9 Mo, enfant +2,3 Mo. iOS : Firebase iOS SDK 12 exige
+  Xcode 16.3 ou plus (Swift tools 6.1). Nouvelle coque parent et enfant.
 - **État du téléphone (NAR-147, 19/11/2026)** : seuils batterie 15 % (ouverture, hors charge) et 20 %
   (fermeture ; la charge seule ne ferme pas), pas de nouvelle alerte batterie moins de 60 min après la
   fermeture de la précédente sur le même téléphone ; silence après 60 min sans signal (veille toutes les

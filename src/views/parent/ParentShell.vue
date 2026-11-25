@@ -2,6 +2,7 @@
 import { computed, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import TabBar from '../../components/parent/TabBar.vue'
+import PushBanner from '../../components/parent/PushBanner.vue'
 import { auth } from '../../store/auth'
 import { family } from '../../store/family'
 
@@ -28,6 +29,8 @@ watch(() => auth.user, (user) => {
        la création ni pendant le premier chargement. Après le contenu, comme la barre du
        bas qui les montre en dernier sur téléphone. -->
   <TabBar v-if="showTabs" />
+  <!-- Notification reçue au premier plan (NAR-179). -->
+  <PushBanner />
 </template>
 
 <style scoped>
