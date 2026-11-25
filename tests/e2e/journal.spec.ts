@@ -103,7 +103,13 @@ for (const width of [360, 320]) {
     await expect(number).toBeVisible()
     const lineHeight = await number.evaluate((el) => parseFloat(getComputedStyle(el).lineHeight))
     expect((await number.boundingBox())!.height).toBeLessThan(lineHeight * 1.5)
-    await expect(number.locator('..')).toContainText('n’a pas sonné')
+    // Séparateur dans le texte (copier-coller), numéro jamais sur l'heure.
+    await expect(number.locator('..')).toHaveText('+261 32 98 765 43 · n’a pas sonné')
+    const nb = (await number.boundingBox())!
+    const time = (await number.locator('xpath=ancestor::li[1]').locator('time').boundingBox())!
+    // Le numéro ne passe jamais sous l'heure (qui est au-dessus, à hauteur du titre) ni hors de la carte.
+    expect(nb.y >= time.y + time.height || nb.x + nb.width <= time.x).toBe(true)
+    expect(nb.x + nb.width).toBeLessThanOrEqual(width - 16)
     const allow = await page.getByRole('link', { name: 'Autoriser ce numéro' }).boundingBox()
     expect(allow!.y).toBeGreaterThan((await number.boundingBox())!.y)
     expect(allow!.height).toBeGreaterThanOrEqual(48)
@@ -171,6 +177,13 @@ test('tuiles avec icône ; « Aujourd’hui » défilable sans repousser « Hier
   const last = await today.locator('li').last().boundingBox()
   const bar = await page.getByRole('navigation').last().boundingBox()
   expect(last!.y + last!.height).toBeLessThanOrEqual(bar!.y)
+  // Un autre filtre : la liste du jour repart en haut.
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await today.evaluate((el) => { el.scrollTop = 300 })
+  await page.getByRole('button', { name: /Appels$/ }).click()
+  await expect.poll(() => page.getByRole('list', { name: 'Aujourd’hui' }).evaluate((el) => el.scrollTop)).toBe(0)
+  // Tuile active : coche dans la pastille.
+  await expect(page.getByRole('button', { name: /Appels$/ })).toHaveAttribute('aria-pressed', 'true')
   // Titre des tuiles retiré de l'écran, gardé pour les lecteurs d'écran.
   await expect(page.getByText('Aujourd’hui en bref')).toHaveClass(/visually-hidden/)
 })

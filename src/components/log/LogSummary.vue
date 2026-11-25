@@ -26,26 +26,18 @@ const toggle = (key: JournalFilter) => emit('update:modelValue', props.modelValu
         v-for="key in TILES" :key="key" type="button" class="tile" :class="key"
         :aria-pressed="modelValue === key" @click="toggle(key)"
       >
-        <span class="tile-icon" aria-hidden="true"><AppIcon :name="ICONS[key]" :size="22" /></span>
+        <!-- Tuile active : la pastille montre une coche (jamais la couleur seule), dans le flux. -->
+        <span class="tile-icon" aria-hidden="true"><AppIcon :name="modelValue === key ? 'check' : ICONS[key]" :size="22" /></span>
         <span class="text">
           <span class="count" :class="{ alert: key === 'blocked' && today && today.blocked > 0 }">{{ today ? today[key] : '–' }}</span>
           <span class="label">{{ t.parent.log.summary[key] }}</span>
         </span>
-        <AppIcon v-if="modelValue === key" class="on" name="check" :size="18" />
       </button>
     </div>
   </section>
 </template>
 
 <style scoped>
-.caption {
-  margin: 0 0 6px;
-  color: var(--text-soft);
-  font-size: 0.9rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
 .summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -58,7 +50,6 @@ const toggle = (key: JournalFilter) => emit('update:modelValue', props.modelValu
   }
 }
 .tile {
-  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -90,16 +81,14 @@ const toggle = (key: JournalFilter) => emit('update:modelValue', props.modelValu
   min-width: 0;
   flex-direction: column;
 }
-/* Tuile active : bord d'accent et coche (jamais la couleur seule). */
+/* Tuile active : bord d'accent et coche dans la pastille (jamais la couleur seule). */
 .tile[aria-pressed='true'] {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
-.on {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  color: var(--accent-deep);
+.tile[aria-pressed='true'] .tile-icon {
+  background: var(--accent);
+  color: var(--accent-ink, #fff);
 }
 .tile:focus-visible {
   outline: 3px solid var(--accent);

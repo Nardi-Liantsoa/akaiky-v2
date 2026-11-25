@@ -53,7 +53,7 @@ const allowPhone = computed(() => (props.canAllow && props.item.kind === 'call_b
     </span>
     <span class="body">
       <span class="title">{{ view.title }}</span>
-      <span v-if="view.detail" class="detail" data-selectable><span v-if="'number' in view && view.number" class="number">{{ view.number }}</span>{{ view.detail }}</span>
+      <span v-if="view.detail" class="detail" data-selectable><template v-if="'number' in view && view.number"><span class="number">{{ view.number }}</span>{{ ` · ${view.detail}` }}</template><template v-else>{{ view.detail }}</template></span>
     </span>
     <span class="side">
       <time :datetime="item.at">{{ time }}</time>
@@ -108,9 +108,6 @@ const allowPhone = computed(() => (props.canAllow && props.item.kind === 'call_b
 .number {
   white-space: nowrap;
 }
-.number::after {
-  content: " · ";
-}
 .side {
   display: flex;
   flex: none;
@@ -120,11 +117,22 @@ const allowPhone = computed(() => (props.canAllow && props.item.kind === 'call_b
   color: var(--text-soft);
   font-weight: 700;
 }
+/* Appel bloqué (NAR-231) : l'heure en haut à droite, à hauteur du titre ; la ligne du numéro
+   prend toute la largeur et ne se coupe jamais, même à 320 px. */
 .blocked {
+  position: relative;
   padding-left: 10px;
   padding-right: 10px;
   border-left: 4px solid var(--danger);
   background: color-mix(in srgb, var(--danger) 6%, transparent);
+}
+.blocked .side {
+  position: absolute;
+  top: 12px;
+  right: 10px;
+}
+.blocked .title {
+  padding-right: 56px;
 }
 .allow {
   flex: 1 0 100%;
