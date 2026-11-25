@@ -50,7 +50,6 @@ watch(() => auth.user, (user) => {
 @media (min-width: 1024px) {
   .shell.with-tabs {
     /* Zone sûre de gauche déjà sous le rail : comptée une fois, dans la marge. */
-    padding-top: calc(var(--space-5) + var(--safe-top));
     padding-left: var(--gutter);
     padding-bottom: calc(var(--space-5) + var(--safe-bottom));
     margin-left: calc(var(--rail-width) + var(--safe-left) + max(0px, (100% - var(--rail-width) - var(--safe-left) - 720px) / 2));
