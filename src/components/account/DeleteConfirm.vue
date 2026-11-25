@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../ui/AppIcon.vue'
 import { useConfirm } from '../../composables/useConfirm'
 import AppButton from '../ui/AppButton.vue'
 import ConfirmSheet from '../ui/ConfirmSheet.vue'
@@ -20,7 +21,7 @@ function cancel() {
 
 <template>
   <SectionCard class="danger-zone" :title="title" :help="lead">
-    <AppButton variant="danger" @click="ask(true, $event)">{{ action }}</AppButton>
+    <AppButton variant="danger" @click="ask(true, $event)"><AppIcon name="trash" :size="20" />{{ action }}</AppButton>
     <ConfirmSheet
       v-if="target" :id="id" :title="title" :items="items" :confirm="confirm" :busy="busy" :error="error"
       :opener="opener" require-password @close="cancel" @confirm="emit('confirm', $event)"

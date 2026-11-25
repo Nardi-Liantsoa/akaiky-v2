@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from './AppIcon.vue'
+import type { IconName } from './icons'
 import { useId, useSlots } from 'vue'
 
 // Carte de section commune (NAR-186) : titre h2 qui nomme la section, texte d'aide
@@ -6,7 +8,7 @@ import { useId, useSlots } from 'vue'
 // se place à droite du titre (compteur « 4 sur 6 »…). Attributs (id, tabindex, classe)
 // posés sur la <section>. level 1 : titre de la page (carte seule sur sa page, sections
 // de Réglages, NAR-185), même apparence qu'un h2.
-withDefaults(defineProps<{ title: string, help?: string, level?: 1 | 2 }>(), { help: undefined, level: 2 })
+withDefaults(defineProps<{ title: string, help?: string, level?: 1 | 2, icon?: IconName }>(), { help: undefined, level: 2 })
 const slots = useSlots()
 const titleId = useId()
 </script>
@@ -14,10 +16,10 @@ const titleId = useId()
 <template>
   <section class="card section-card" :aria-labelledby="titleId">
     <div v-if="slots.aside" class="section-head">
-      <component :is="`h${level}`" :id="titleId" class="section-title">{{ title }}</component>
+      <component :is="`h${level}`" :id="titleId" class="section-title"><span v-if="icon" class="title-icon" aria-hidden="true"><AppIcon :name="icon" :size="20" /></span>{{ title }}</component>
       <slot name="aside" />
     </div>
-    <component :is="`h${level}`" v-else :id="titleId" class="section-title">{{ title }}</component>
+    <component :is="`h${level}`" v-else :id="titleId" class="section-title"><span v-if="icon" class="title-icon" aria-hidden="true"><AppIcon :name="icon" :size="20" /></span>{{ title }}</component>
     <p v-if="help" class="help section-help">{{ help }}</p>
     <slot />
   </section>
@@ -48,5 +50,16 @@ h1.section-title {
 .section-title + .section-help,
 .section-head + .section-help {
   margin-top: calc(-1 * var(--space-2));
+}
+.title-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-right: var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  color: var(--ink);
+  vertical-align: middle;
 }
 </style>

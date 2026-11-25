@@ -36,10 +36,11 @@ watch(() => family.status, (s) => { if (s === 'ready') void loadChildren(true) }
 
 <template>
   <!-- Sans famille, l'accueil est l'étape de création (NAR-133). -->
-  <!-- Seul écran parent sans onglets : « Mon compte » y reste atteignable (NAR-156). -->
+  <!-- Seul écran parent sans onglets : « Mon compte » y reste atteignable (NAR-156), en lien discret à
+       côté de la langue et de « Déconnexion » (NAR-228). -->
   <template v-if="family.status === 'none'">
     <CreateFamily />
-    <AccountSection class="account" />
+    <AccountSection class="account" onboarding />
   </template>
   <LoadError v-else-if="family.status === 'error'" />
   <!-- Un seul bloc de chargement pour la famille puis les enfants : annoncé une fois. -->

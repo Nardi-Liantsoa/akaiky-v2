@@ -133,6 +133,10 @@ const fr = {
     save: 'Enregistrer',
     cancel: 'Annuler',
     members: 'Membres',
+    // Page Famille découpée (NAR-228).
+    membersSection: 'Membres et invitations',
+    membersSummary: (n: number) => `${n} membre${n > 1 ? 's' : ''}`,
+    dataSummary: 'Exporter toutes les données dans un fichier',
     you: 'vous',
     roles: { owner: 'Parent principal', manager: 'Gestionnaire', member: 'Contact' },
     loadError: 'Impossible de charger votre famille.',
@@ -650,7 +654,8 @@ const fr = {
   dataExport: {
     title: 'Données de la famille',
     lead: 'Membres, enfants, contacts, téléphones, positions, plages, messages et journal, dans un fichier.',
-    action: 'Exporter les données de la famille',
+    // Bouton court (consigne utilisateur, NAR-228) : la section s'appelle déjà « Données de la famille ».
+    action: 'Exporter',
     busy: 'Préparation du fichier…',
     tooMany: 'Trop d’exports : réessayez dans une heure.',
     nativeHint: 'L’export se fait depuis la version web d’Akaiky (navigateur).'
@@ -882,6 +887,9 @@ const mg: Messages = {
     save: 'Tehirizo',
     cancel: 'Hanafoana',
     members: 'Mpikambana',
+    membersSection: 'Mpikambana sy fanasana',
+    membersSummary: (n: number) => `Mpikambana ${n}`,
+    dataSummary: 'Haondrana ao anaty rakitra iray ny angona rehetra',
     you: 'ianao',
     roles: { owner: 'Ray aman-dreny lehibe', manager: 'Mpitantana', member: 'Mpifandray' },
     loadError: 'Tsy azo nalaina ny mombamomba ny fianakavianao.',
@@ -1372,7 +1380,7 @@ const mg: Messages = {
   dataExport: {
     title: 'Ny angon’ny fianakaviana',
     lead: 'Mpikambana, ankizy, mpifandray, finday, toerana, fotoana, hafatra ary tantara, ao anaty rakitra iray.',
-    action: 'Haondrana ny angon’ny fianakaviana',
+    action: 'Haondrana',
     busy: 'Manomana ny rakitra…',
     tooMany: 'Be loatra ny fanondranana: andramo indray afaka iray ora.',
     nativeHint: 'Ny dikan’i Akaiky amin’ny tranonkala (navigateur) no anaovana ny fanondranana.'
@@ -1600,6 +1608,9 @@ const en: Messages = {
     save: 'Save',
     cancel: 'Cancel',
     members: 'Members',
+    membersSection: 'Members and invitations',
+    membersSummary: (n: number) => `${n} member${n === 1 ? '' : 's'}`,
+    dataSummary: 'Export all the data to a file',
     you: 'you',
     roles: { owner: 'Main parent', manager: 'Manager', member: 'Contact' },
     loadError: 'Could not load your family.',
@@ -2089,7 +2100,7 @@ const en: Messages = {
   dataExport: {
     title: 'Family data',
     lead: 'Members, children, contacts, phones, locations, schedules, messages and log, in one file.',
-    action: 'Export family data',
+    action: 'Export',
     busy: 'Preparing the file…',
     tooMany: 'Too many exports: try again in an hour.',
     nativeHint: 'Export is done from the web version of Akaiky (browser).'

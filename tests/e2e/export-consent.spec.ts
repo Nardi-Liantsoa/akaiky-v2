@@ -37,8 +37,10 @@ test('famille : le parent principal télécharge le fichier JSON de la famille',
   const data = { exportedAt: '2026-11-19T10:00:00.000Z', family: { name: 'Famille Rabe' }, members: [], invitations: [], children: [] }
   await mockApi(page, { ...signedIn, 'GET /api/families/me': () => ({ body: FAMILY }), 'GET /api/families/me/invitations': () => ({ body: [] }), 'GET /api/families/me/export': () => ({ body: data }) })
   await page.goto('/espace/famille')
+  // Section repliable (NAR-228) : ouverte d'un geste, puis l'export.
+  await page.getByRole('heading', { name: 'Données de la famille' }).click()
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Exporter les données de la famille' }).click()
+  await page.getByRole('button', { name: 'Exporter', exact: true }).click()
   const file = await download
   expect(file.suggestedFilename()).toMatch(/^akaiky-famille-\d{4}-\d{2}-\d{2}\.json$/)
   const path = await file.path()
@@ -49,16 +51,17 @@ test('famille : le parent principal télécharge le fichier JSON de la famille',
 test('famille : trop d’exports, message traduit', async ({ page }) => {
   await mockApi(page, { ...signedIn, 'GET /api/families/me': () => ({ body: FAMILY }), 'GET /api/families/me/invitations': () => ({ body: [] }), 'GET /api/families/me/export': () => ({ status: 429, body: { error: '…' } }) })
   await page.goto('/espace/famille')
-  await page.getByRole('button', { name: 'Exporter les données de la famille' }).click()
-  await expect(page.getByRole('region', { name: 'Données de la famille' }).getByRole('alert')).toHaveText('Trop d’exports : réessayez dans une heure.')
+  await page.getByRole('heading', { name: 'Données de la famille' }).click()
+  await page.getByRole('button', { name: 'Exporter', exact: true }).click()
+  await expect(page.locator('details', { hasText: 'Données de la famille' }).getByRole('alert')).toHaveText('Trop d’exports : réessayez dans une heure.')
 })
 
 test('export rangé dans Famille (NAR-209) : un contact ne le voit pas, la page du compte non plus', async ({ page }) => {
   const calls = await mockApi(page, { ...signedIn, 'GET /api/families/me': () => ({ body: { ...FAMILY, role: 'member' } }) })
   await page.goto('/espace/famille')
   await expect(page.getByRole('heading', { name: 'Membres' })).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Données de la famille' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Exporter les données de la famille' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Données de la famille' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Exporter', exact: true })).toHaveCount(0)
   await page.goto('/espace/compte/securite')
   await expect(page.getByRole('heading', { name: 'Mon compte', level: 1 })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Données de la famille' })).toHaveCount(0)
@@ -68,8 +71,9 @@ test('export rangé dans Famille (NAR-209) : un contact ne le voit pas, la page 
 test('gestionnaire : l’export est proposé dans Famille, absent de la page du compte', async ({ page }) => {
   await mockApi(page, { ...signedIn, 'GET /api/families/me': () => ({ body: { ...FAMILY, role: 'manager' } }), 'GET /api/families/me/invitations': () => ({ body: [] }) })
   await page.goto('/espace/famille')
-  await expect(page.getByRole('region', { name: 'Données de la famille' }).getByRole('button', { name: 'Exporter les données de la famille' })).toBeVisible()
+  await page.getByRole('heading', { name: 'Données de la famille' }).click()
+  await expect(page.locator('details', { hasText: 'Données de la famille' }).getByRole('button', { name: 'Exporter', exact: true })).toBeVisible()
   await page.goto('/espace/compte/securite')
   await expect(page.getByRole('heading', { name: 'Mon compte', level: 1 })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Exporter les données de la famille' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Exporter', exact: true })).toHaveCount(0)
 })

@@ -13,7 +13,10 @@ import SectionCard from '../ui/SectionCard.vue'
 // n'a plus qu'un lien vers cette page.
 // onAccountPage : rendu dans la page du compte (NAR-209), sans le lien vers elle-même,
 // sous le titre « Langue et session » (la page s'appelle déjà « Mon compte »).
-defineProps<{ onAccountPage?: boolean }>()
+// onboarding : écran de création de la famille (NAR-228) : la langue, puis deux liens discrets,
+// « Mon compte » (sans famille ni onglets, c'est le seul accès à la sécurité, à la suppression du
+// compte et, pour l'équipe, à l'administration) et « Déconnexion ».
+defineProps<{ onAccountPage?: boolean, onboarding?: boolean }>()
 const t = useT()
 const router = useRouter()
 
@@ -24,7 +27,18 @@ async function onLogout() {
 </script>
 
 <template>
-  <SectionCard :title="onAccountPage ? t.parent.account.session : t.parent.account.title" class="account">
+  <div v-if="onboarding" class="onboarding">
+    <FormField v-slot="{ control }" :label="t.parent.account.language">
+      <select v-bind="control" v-model="locale" class="input">
+        <option v-for="l in LOCALE_LIST" :key="l" :value="l">{{ t.lang[l] }}</option>
+      </select>
+    </FormField>
+    <div class="onboarding-links">
+      <RouterLink class="btn btn-link" :to="{ name: 'securite' }"><AppIcon name="user" :size="18" />{{ t.parent.account.title }}</RouterLink>
+      <AppButton variant="link" @click="onLogout"><AppIcon name="logout" :size="18" />{{ t.parent.account.logout }}</AppButton>
+    </div>
+  </div>
+  <SectionCard v-else :title="onAccountPage ? t.parent.account.session : t.parent.account.title" icon="globe" class="account">
     <div v-if="!onAccountPage || isAdmin()" class="links">
       <RouterLink v-if="!onAccountPage" class="link" :to="{ name: 'securite' }">
         <span>{{ t.parent.account.security }}</span>
@@ -40,11 +54,27 @@ async function onLogout() {
         <option v-for="l in LOCALE_LIST" :key="l" :value="l">{{ t.lang[l] }}</option>
       </select>
     </FormField>
-    <AppButton variant="ghost" block @click="onLogout">{{ t.parent.account.logout }}</AppButton>
+    <AppButton variant="ghost" block @click="onLogout"><AppIcon name="logout" :size="20" />{{ t.parent.account.logout }}</AppButton>
   </SectionCard>
 </template>
 
 <style scoped>
+.onboarding {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.onboarding-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.onboarding .field {
+  flex: 1 1 200px;
+  margin-bottom: 0;
+}
 .links {
   margin: 0 0 var(--space-3);
 }

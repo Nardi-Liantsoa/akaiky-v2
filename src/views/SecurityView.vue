@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../components/ui/AppIcon.vue'
 import { onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { api, ApiError } from '../api/http'
@@ -97,7 +98,7 @@ onMounted(() => { load(); void loadFamily() })
     <NotificationsCard v-if="pushState !== 'off'" />
     <p v-if="error" class="error" role="alert">{{ error }}</p>
 
-    <SectionCard v-if="state" :title="t.mfa.title">
+    <SectionCard v-if="state" :title="t.mfa.title" icon="shield">
       <p>{{ state.mfaEnabled ? t.security.mfaOn : t.security.mfaOff }}</p>
       <template v-if="state.mfaEnabled && isAdmin()">
         <p>{{ t.security.remaining(state.recoveryCodesRemaining) }}</p>
@@ -105,7 +106,7 @@ onMounted(() => { load(); void loadFamily() })
           <p class="help">{{ t.security.regenerateLead }}</p>
           <div class="row">
             <input v-model="code" class="input" autocomplete="one-time-code" :aria-label="t.mfa.codeLabel" required />
-            <AppButton type="submit" :disabled="busy">{{ t.security.regenerate }}</AppButton>
+            <AppButton type="submit" :disabled="busy"><AppIcon name="refresh" :size="20" />{{ t.security.regenerate }}</AppButton>
           </div>
         </form>
         <template v-if="codes.length">
@@ -115,23 +116,23 @@ onMounted(() => { load(); void loadFamily() })
       </template>
     </SectionCard>
 
-    <SectionCard v-if="state" :title="t.security.devices">
+    <SectionCard v-if="state" :title="t.security.devices" icon="monitor">
       <p v-if="!state.devices.length" class="help">{{ t.security.none }}</p>
       <ul class="devices">
         <li v-for="d in state.devices" :key="d.id">
           <span>{{ d.label }}<em v-if="d.current"> · {{ t.security.current }}</em><br /><small>{{ t.security.lastUsed(date(d.last_used_at)) }}</small></span>
-          <AppButton variant="ghost" :disabled="busy" @click="revokeDevice(d.id)">{{ t.security.revoke }}</AppButton>
+          <AppButton variant="ghost" :disabled="busy" @click="revokeDevice(d.id)"><AppIcon name="cross" :size="18" />{{ t.security.revoke }}</AppButton>
         </li>
       </ul>
-      <AppButton v-if="state.devices.length > 1" variant="ghost" :disabled="busy" @click="revokeDevice('all')">{{ t.security.revokeAll }}</AppButton>
+      <AppButton v-if="state.devices.length > 1" variant="ghost" :disabled="busy" @click="revokeDevice('all')"><AppIcon name="cross" :size="18" />{{ t.security.revokeAll }}</AppButton>
     </SectionCard>
 
-    <SectionCard v-if="state" :title="t.security.apps">
+    <SectionCard v-if="state" :title="t.security.apps" icon="smartphone">
       <p v-if="!apps.length" class="help">{{ t.security.none }}</p>
       <ul class="devices">
         <li v-for="d in apps" :key="d.id">
           <span>{{ d.label || '—' }}<em v-if="d.current"> · {{ t.security.current }}</em><br /><small>{{ t.security.lastUsed(date(d.last_seen_at)) }}</small></span>
-          <AppButton variant="ghost" :disabled="busy" @click="revokeApp(d.id)">{{ t.security.revoke }}</AppButton>
+          <AppButton variant="ghost" :disabled="busy" @click="revokeApp(d.id)"><AppIcon name="cross" :size="18" />{{ t.security.revoke }}</AppButton>
         </li>
       </ul>
     </SectionCard>

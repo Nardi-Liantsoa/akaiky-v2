@@ -123,6 +123,22 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   3 étapes, « Relier le téléphone » avec l'icône QR. « ⋯ » sans contour. Ordinateur : panneau
   « Derniers événements » à droite, « Voir tout le journal › » en bas ; actions teintées
   (« Autoriser ce numéro »).
+- **`DisclosureCard`** (NAR-228) — section repliable d'une page longue : `<details>`/`<summary>`
+  natifs (clavier et lecteur d'écran sans code), pastille d'icône ronde (`icon`, comme les lignes
+  de Réglages), titre en `h2`, résumé d'une ligne, chevron qui tourne à l'ouverture ; `open`
+  pour la déplier d'office. Une `.card` rangée dedans perd son cadre (pas de double marge).
+- **Page Famille** (NAR-228, design créé sans maquette d'après Réglages) — carte du nom
+  (« Renommer » avec icône crayon), puis « Membres et invitations » (dépliée d'office,
+  « N membres »), « Données de la famille » (gestionnaires ; texte à gauche, « Exporter » à
+  droite), lien « Mon compte » au même gabarit (icône compte, résumé, chevron) ; zone sensible
+  seule en bas. Boutons de formulaire avec icône : créer (plus), enregistrer (coche), annuler,
+  retirer et quitter (croix), envoyer l'invitation (enveloppe), exporter (téléchargement).
+  Création de la famille : la langue, puis deux liens discrets « Mon compte » (seul accès au
+  compte sans famille) et « Déconnexion ».
+- **Mon compte** (NAR-228) — chaque carte (`SectionCard` `icon`) porte sa pastille : langue et
+  session (globe), notifications (cloche), double authentification (bouclier), navigateurs
+  (écran), application mobile (téléphone) ; boutons avec icône : déconnexion, nouveaux codes,
+  retirer (croix), supprimer (corbeille).
 - **`BackLink`** (NAR-195) — lien de retour en tête d'écran (« ‹ Réglages », « ‹ Accueil ») :
   chevron + libellé `--accent`, ≥ `--tap`, vrai lien (`href`) dont le clic passe par `backTo`
   (`src/lib/navigation.ts` : retour de l'historique si l'écran précédent est la cible, sinon

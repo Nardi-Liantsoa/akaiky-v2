@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../ui/AppIcon.vue'
 import { ref } from 'vue'
 import { api, ApiError } from '../../api/http'
 import { useT } from '../../composables/useT'
@@ -37,15 +38,15 @@ async function test() {
 </script>
 
 <template>
-  <SectionCard :title="t.push.title" :help="t.push.lead">
+  <SectionCard :title="t.push.title" :help="t.push.lead" icon="bell">
     <template v-if="pushState === 'granted'">
       <p>{{ t.push.on }}</p>
       <p v-if="message" class="help" role="status">{{ message }}</p>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <AppButton variant="ghost" :disabled="busy" @click="test">{{ t.push.test }}</AppButton>
+      <AppButton variant="ghost" :disabled="busy" @click="test"><AppIcon name="bell" :size="20" />{{ t.push.test }}</AppButton>
     </template>
     <p v-else-if="pushState === 'denied'" class="help">{{ t.push.denied }}</p>
     <p v-else-if="pushState === 'unavailable'" class="help">{{ t.push.unavailable }}</p>
-    <AppButton v-else :disabled="busy" @click="enable">{{ t.push.enable }}</AppButton>
+    <AppButton v-else :disabled="busy" @click="enable"><AppIcon name="bell" :size="20" />{{ t.push.enable }}</AppButton>
   </SectionCard>
 </template>

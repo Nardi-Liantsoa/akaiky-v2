@@ -48,6 +48,17 @@ export const ICONS = {
   // Lignes du résumé de Réglages (NAR-185) : applications (grille), SOS (sirène).
   grid: { shapes: [rect({ x: 4, y: 4, width: 6, height: 6, rx: 1.5 }), rect({ x: 14, y: 4, width: 6, height: 6, rx: 1.5 }), rect({ x: 4, y: 14, width: 6, height: 6, rx: 1.5 }), rect({ x: 14, y: 14, width: 6, height: 6, rx: 1.5 })] },
   // Page d'accueil publique (NAR-225) : choix de la langue, applications bloquées.
+  // Page Mon compte (NAR-228) : notifications, sortie, nouveaux codes, suppression, appareils.
+  bell: { shapes: [path('M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z'), path('M10 20a2 2 0 0 0 4 0')] },
+  logout: { shapes: [path('M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4'), path('M10 16l-4-4 4-4M6 12h10')] },
+  refresh: { shapes: [path('M20 11a8 8 0 0 0-14.5-4.5L4 8'), path('M4 4v4h4'), path('M4 13a8 8 0 0 0 14.5 4.5L20 16'), path('M20 20v-4h-4')] },
+  trash: { shapes: [path('M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13')] },
+  monitor: { shapes: [rect({ x: 3, y: 4, width: 18, height: 12, rx: 2 }), path('M8 20h8M12 16v4')] },
+  smartphone: { shapes: [rect({ x: 7, y: 2, width: 10, height: 20, rx: 2 }), path('M11 18h2')] },
+  // Page Famille (NAR-228) : renommer, données exportées, compte de la personne.
+  edit: { shapes: [path('M4 20h4L19 9l-4-4L4 16z'), path('M13.5 6.5l4 4')] },
+  download: { shapes: [path('M12 4v11M7 10l5 5 5-5M5 20h14')] },
+  user: { shapes: [circle(12, 8, 4), path('M4 21a8 8 0 0 1 16 0')] },
   plus: { shapes: [path('M12 5v14M5 12h14')] },
   // Réseau (pastille de l'état du téléphone, maquette 01, NAR-227).
   signal: { shapes: [path('M5 19v-2M9 19v-5M13 19v-8M17 19V8M21 19V5')] },
