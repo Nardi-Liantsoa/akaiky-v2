@@ -119,3 +119,41 @@ test('pagination stable : ni doublon ni trou quand des événements arrivent ent
   assert.equal(seen.length, 31)
   assert.equal(new Set(seen.map((i) => i.id)).size, 31)
 })
+
+// NAR-233 : un seul jour (heure de Madagascar), liste et nombres ; jour mal formé refusé.
+test('jour choisi : liste et nombres de ce jour seul, bornes du fuseau, jour invalide, autre famille', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const fy = await pairedChild(owner, 'Fy')
+  const { rows: [{ start, today, yesterday }] } = await ctx.db.query(
+    `SELECT date_trunc('day', now() AT TIME ZONE 'Indian/Antananarivo') AT TIME ZONE 'Indian/Antananarivo' AS start,
+            to_char(now() AT TIME ZONE 'Indian/Antananarivo', 'YYYY-MM-DD') AS today,
+            to_char((now() AT TIME ZONE 'Indian/Antananarivo') - interval '1 day', 'YYYY-MM-DD') AS yesterday`)
+  // Une minute avant minuit à Antananarivo (hier) et une minute après (aujourd'hui, si déjà passé).
+  const late = { id: randomUUID(), kind: 'call_blocked', phone: '+261329876543', startedAt: new Date(start.getTime() - 60_000).toISOString() }
+  const early = { id: randomUUID(), kind: 'call_in', name: 'Maman', phone: '+261341234567', startedAt: new Date(start.getTime() + 60_000).toISOString(), durationS: 5 }
+  const list = [late]
+  if (Date.parse(early.startedAt) < Date.now()) list.push(early)
+  await events(fy.device, list)
+
+  const y = (await journal(owner, fy.kid.id, `?day=${yesterday}&counts=1`)).json()
+  assert.deepEqual(y.items.map((i) => i.id), [late.id])
+  assert.deepEqual(y.today, { calls: 0, blocked: 1, messages: 0, unlocks: 0 })
+  const d = (await journal(owner, fy.kid.id, `?day=${today}&counts=1`)).json()
+  assert.ok(!d.items.some((i) => i.id === late.id), 'hier n’apparaît jamais aujourd’hui')
+  assert.equal(d.today.blocked, 0)
+  assert.equal(d.today.calls, list.length - 1)
+  // Filtre et jour ensemble.
+  assert.deepEqual((await journal(owner, fy.kid.id, `?day=${yesterday}&kind=calls`)).json().items, [])
+  // Sans jour : tous les jours, comme avant.
+  assert.ok((await journal(owner, fy.kid.id)).json().items.some((i) => i.id === late.id))
+
+  for (const bad of ['2026-02-30', '2026-1-05', 'hier', '2026-11-25T00:00', '']) {
+    const r = await journal(owner, fy.kid.id, `?day=${encodeURIComponent(bad)}`)
+    assert.equal(r.statusCode, 400, bad)
+    assert.equal(r.json().code, 'invalid_day')
+  }
+  const other = await newUser(ctx)
+  await family(other)
+  assert.equal((await journal(other, fy.kid.id, `?day=${yesterday}`)).statusCode, 404)
+})

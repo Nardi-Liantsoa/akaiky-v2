@@ -45,6 +45,8 @@ export const ICONS = {
   'chevron-right': { shapes: [path('M9 6l6 6-6 6')] },
   // Retour vers l'écran parent (sections de Réglages, NAR-185).
   'chevron-left': { shapes: [path('M15 6l-6 6 6 6')] },
+  // Sélecteur de jour du journal (NAR-233).
+  calendar: { shapes: [rect({ x: 4, y: 5, width: 16, height: 15, rx: 2 }), path('M4 10h16M8 3v4M16 3v4')] },
   // Lignes du résumé de Réglages (NAR-185) : applications (grille), SOS (sirène).
   grid: { shapes: [rect({ x: 4, y: 4, width: 6, height: 6, rx: 1.5 }), rect({ x: 14, y: 4, width: 6, height: 6, rx: 1.5 }), rect({ x: 4, y: 14, width: 6, height: 6, rx: 1.5 }), rect({ x: 14, y: 14, width: 6, height: 6, rx: 1.5 })] },
   // Page d'accueil publique (NAR-225) : choix de la langue, applications bloquées.

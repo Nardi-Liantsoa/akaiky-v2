@@ -10,13 +10,17 @@ const ago = (h: number) => new Date(now - h * 3_600_000).toISOString()
 const ITEMS = [
   { id: '6f1c2b1e-0000-4000-8000-000000000401', kind: 'call_blocked', at: ago(0.1), contactId: null, name: null, phone: '+261329876543', durationS: null },
   { id: '6f1c2b1e-0000-4000-8000-000000000402', kind: 'call_blocked', at: ago(0.2), contactId: null, name: null, phone: null, durationS: null },
-  { id: '6f1c2b1e-0000-4000-8000-000000000403', kind: 'call_in', at: ago(30), contactId: 'c1', name: 'Maman', phone: '+261341234567', durationS: 134 }
+  { id: '6f1c2b1e-0000-4000-8000-000000000403', kind: 'call_in', at: ago(1), contactId: 'c1', name: 'Maman', phone: '+261341234567', durationS: 134 }
 ]
+// Jour d'un événement à Madagascar (UTC+3), comme le serveur pour ?day= (NAR-233).
+const dayOf = (iso: string) => new Date(Date.parse(iso) + 3 * 3_600_000).toISOString().slice(0, 10)
 
 function journalApi(role = 'owner') {
   const queries: string[] = []
+  const days: string[] = []
   return {
     queries,
+    days,
     handlers: {
       ...me,
       'GET /api/families/me': () => ({ body: { ...FAMILY, role } }),
@@ -24,8 +28,11 @@ function journalApi(role = 'owner') {
       [`GET /api/children/${FY.id}/contacts`]: () => ({ body: { version: 1, max: 6, country: 'MG', contacts: [] } }),
       [`GET /api/children/${FY.id}/journal`]: (req: { url(): string }) => {
         const kind = new URL(req.url()).searchParams.get('kind')
+        const day = new URL(req.url()).searchParams.get('day')
         queries.push(kind ?? '')
-        const items = kind === 'blocked' ? ITEMS.filter((i) => i.kind === 'call_blocked') : kind === 'calls' ? ITEMS.filter((i) => i.kind === 'call_in') : ITEMS
+        days.push(day ?? '')
+        const kept = ITEMS.filter((i) => !day || dayOf(i.at) === day)
+        const items = kind === 'blocked' ? kept.filter((i) => i.kind === 'call_blocked') : kind === 'calls' ? kept.filter((i) => i.kind === 'call_in') : kept
         const counts = new URL(req.url()).searchParams.get('counts') === '1'
         return { body: { items, next: null, ...(counts ? { today: { calls: 0, blocked: 2, messages: 0, unlocks: 0 } } : {}) } }
       }
@@ -38,9 +45,10 @@ test('journal : groupé par jour, compteur « Bloqués », filtres, « Autoriser
   const api = journalApi()
   await mockApi(page, api.handlers)
   await page.goto('/espace/journal')
-  await expect(page.getByRole('heading', { name: 'Aujourd’hui', exact: true })).toBeVisible()
-  // Titre des tuiles, « Aujourd'hui », « Hier » (heure figée).
-  await expect(page.getByRole('heading', { level: 2 })).toHaveText(['Aujourd’hui en bref', 'Aujourd’hui', 'Hier'])
+  // Un seul jour (NAR-233) : aujourd'hui à l'ouverture, nommé par le sélecteur et la liste.
+  await expect(page.getByRole('button', { name: 'Choisir le jour, Aujourd’hui' })).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Aujourd’hui' })).toBeVisible()
+  expect(api.days).toContain('2026-11-18')
   await expect(page.getByText('numéro masqué · n’a pas sonné')).toBeVisible()
   await expect(page.getByText('Appel de Maman')).toBeVisible()
   await expect(page.getByText('2 min 14 s')).toBeVisible()
@@ -69,6 +77,7 @@ test('journal : groupé par jour, compteur « Bloqués », filtres, « Autoriser
 })
 
 test('journal : un contact (member) ne voit pas « Autoriser »', async ({ page }) => {
+  await page.clock.setFixedTime(NOW)
   await mockApi(page, journalApi('member').handlers)
   await page.goto('/espace/journal')
   await expect(page.getByText('numéro masqué · n’a pas sonné')).toBeVisible()
@@ -76,6 +85,7 @@ test('journal : un contact (member) ne voit pas « Autoriser »', async ({ page 
 })
 
 test('tuiles : rien de coupé sur un petit écran (320 px)', async ({ page }) => {
+  await page.clock.setFixedTime(NOW)
   await page.setViewportSize({ width: 320, height: 700 })
   await mockApi(page, journalApi().handlers)
   await page.goto('/espace/journal')
@@ -96,6 +106,7 @@ test('tuiles : rien de coupé sur un petit écran (320 px)', async ({ page }) =>
 // passe dessous, sur toute la largeur.
 for (const width of [360, 320]) {
   test(`appel bloqué à ${width} px : numéro sur une seule ligne, « Autoriser » dessous`, async ({ page }) => {
+    await page.clock.setFixedTime(NOW)
     await page.setViewportSize({ width, height: 800 })
     await mockApi(page, journalApi().handlers)
     await page.goto('/espace/journal')
@@ -151,7 +162,7 @@ test('appel laissé passer par la fenêtre des secours (NAR-196) : marqué, num�
 })
 
 // NAR-231 : une icône par tuile ; « Aujourd'hui » défile dans sa carte, les jours suivants restent après.
-test('tuiles avec icône ; « Aujourd’hui » défilable sans repousser « Hier »', async ({ page }) => {
+test('tuiles avec icône ; liste du jour défilable', async ({ page }) => {
   await page.clock.setFixedTime(NOW)
   await page.setViewportSize({ width: 360, height: 800 })
   const many = Array.from({ length: 30 }, (_, n) => ({
@@ -168,9 +179,6 @@ test('tuiles avec icône ; « Aujourd’hui » défilable sans repousser « Hier
   const sizes = await today.evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight }))
   expect(sizes.scroll).toBeGreaterThan(sizes.client)
   expect(sizes.client).toBeLessThanOrEqual(440)
-  // « Hier » n'est pas borné.
-  await expect(page.locator('.list.bounded')).toHaveCount(1)
-  await expect(page.getByRole('heading', { name: 'Hier' })).toBeVisible()
   // Liste et page au bout : la dernière ligne du jour reste au-dessus de la barre d'onglets.
   await today.evaluate((el) => { el.scrollTop = el.scrollHeight })
   await page.evaluate(() => window.scrollTo(0, document.scrollingElement!.scrollHeight))
@@ -186,4 +194,47 @@ test('tuiles avec icône ; « Aujourd’hui » défilable sans repousser « Hier
   await expect(page.getByRole('button', { name: /Appels$/ })).toHaveAttribute('aria-pressed', 'true')
   // Titre des tuiles retiré de l'écran, gardé pour les lecteurs d'écran.
   await expect(page.getByText('Aujourd’hui en bref')).toHaveClass(/visually-hidden/)
+})
+
+// NAR-233 : sélecteur de jour. ‹ › changent de jour (› désactivé aujourd'hui), le calendrier aussi ;
+// liste et nombres sont ceux du jour choisi ; jamais demain ni au-delà de 90 jours.
+test('sélecteur de jour : jour précédent, calendrier, bornes', async ({ page }) => {
+  await page.clock.setFixedTime(NOW)
+  await page.setViewportSize({ width: 360, height: 800 })
+  const yesterdayItem = { id: '6f1c2b1e-0000-4000-8000-000000000409', kind: 'call_out', at: ago(24), contactId: 'c1', name: 'Papa', phone: '+261331234567', durationS: 30 }
+  const days: string[] = []
+  const api = journalApi()
+  api.handlers[`GET /api/children/${FY.id}/journal`] = (req: { url(): string }) => {
+    const day = new URL(req.url()).searchParams.get('day') ?? ''
+    days.push(day)
+    const items = [...ITEMS, yesterdayItem].filter((i) => dayOf(i.at) === day)
+    return { body: { items, next: null, today: { calls: items.filter((i) => i.kind !== 'call_blocked').length, blocked: items.filter((i) => i.kind === 'call_blocked').length, messages: 0, unlocks: 0 } } }
+  }
+  await mockApi(page, api.handlers)
+  await page.goto('/espace/journal')
+  const picker = page.getByRole('group', { name: 'Jour affiché' })
+  const next = picker.getByRole('button', { name: 'Jour suivant' })
+  const prev = picker.getByRole('button', { name: 'Jour précédent' })
+  await expect(next).toBeDisabled()
+  await expect(page.getByText('Appel à Papa')).toHaveCount(0)
+  for (const b of [prev, next, picker.getByRole('button', { name: /^Choisir le jour/ })]) expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(48)
+
+  await prev.click()
+  await expect(picker.getByRole('button', { name: 'Choisir le jour, Hier' })).toBeVisible()
+  await expect(page.getByText('Appel à Papa')).toBeVisible()
+  await expect(page.getByText('Appel de Maman')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^1 Appels$/ })).toBeVisible()
+  await expect(page.getByText('Ce jour en bref')).toHaveCount(1)
+  expect(days).toContain('2026-11-17')
+  await expect(next).toBeEnabled()
+
+  // Calendrier natif : un jour sans rien, puis les bornes du champ.
+  const field = picker.getByLabel('Jour', { exact: true })
+  await expect(field).toHaveAttribute('max', '2026-11-18')
+  await expect(field).toHaveAttribute('min', '2026-08-21')
+  await field.fill('2026-11-10')
+  await expect(picker.getByRole('button', { name: /^Choisir le jour, / })).not.toHaveAccessibleName(/Hier|Aujourd’hui/)
+  await expect(page.getByText('Rien ce jour-là.')).toBeVisible()
+  await field.fill('2026-08-21')
+  await expect(prev).toBeDisabled()
 })
