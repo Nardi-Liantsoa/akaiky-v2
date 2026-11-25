@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { getJournal, type JournalFilter, type JournalItem, type JournalToday } from '../../api/journal'
 import { markShownAsRead } from '../../api/messages'
 import LoadError from '../../components/family/LoadError.vue'
@@ -18,7 +19,13 @@ import StatusBlock from '../../components/ui/StatusBlock.vue'
 // et messages, groupés par jour, filtrables, par pages. Messages affichés = vus.
 const t = useT()
 const current = computed(selectedChild)
-const filter = ref<JournalFilter>('all')
+// Filtre ouvert depuis l'accueil (« Message » de la carte, NAR-227) : ?kind=messages ; une
+// valeur inconnue est ignorée (entrée non fiable).
+const FILTERS: readonly JournalFilter[] = ['all', 'calls', 'blocked', 'messages', 'unlocks']
+const route = useRoute()
+const fromQuery = (): JournalFilter => (FILTERS as readonly string[]).includes(String(route.query.kind)) ? route.query.kind as JournalFilter : 'all'
+const filter = ref<JournalFilter>(fromQuery())
+watch(() => route.query.kind, () => { filter.value = fromQuery() })
 const items = ref<JournalItem[]>([])
 const next = ref<string | null>(null)
 // Nombres du jour (tuiles) ; null pendant le chargement d'un autre enfant.
