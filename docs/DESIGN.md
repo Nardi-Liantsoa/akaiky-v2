@@ -142,8 +142,8 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
 - **Configurer le téléphone** (NAR-229, design créé sans maquette) — étapes en pastilles
   numérotées (cercle `--accent`), chacune avec son icône dans une tuile `--surface-muted`
   (réinitialiser, toucher l'écran, scanner le QR) ; « Étape n sur 3 » lu seulement. Ordinateur
-  (`meta.wide`) : étapes à gauche, QR à droite, affiché sans clic à l'ouverture (un jeton de
-  15 min par ouverture). Boutons avec icône (QR, nouveau QR, retirer) ; téléphones appairés avec
+  (`meta.wide`) : étapes à gauche, QR à droite, affiché au clic comme sur téléphone (un nouveau
+  jeton annule le QR déjà affiché ailleurs : jamais créé sans geste). Boutons avec icône (QR, nouveau QR, retirer) ; téléphones appairés avec
   la tuile d'icône téléphone.
 - **`BackLink`** (NAR-195) — lien de retour en tête d'écran (« ‹ Réglages », « ‹ Accueil ») :
   chevron + libellé `--accent`, ≥ `--tap`, vrai lien (`href`) dont le clic passe par `backTo`

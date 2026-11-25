@@ -115,11 +115,14 @@ test('360 px : trois étapes numérotées avec icône, lisibles sans défilement
   await expect(page.getByRole('img', { name: /QR/ })).toBeVisible()
 })
 
-test('ordinateur : le QR s’affiche sans clic, à côté des étapes, une seule fois', async ({ page }) => {
+test('ordinateur : le QR s’affiche à droite des étapes, au clic (un nouveau jeton annulerait un QR déjà affiché ailleurs)', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
   let created = 0
   await mockApi(page, pairingApi(() => { created++ }))
   await page.goto(`/espace/enfant/${FY.id}/telephone`)
+  await expect(page.locator('.steps li')).toHaveCount(3)
+  expect(created).toBe(0)
+  await page.getByRole('button', { name: 'Afficher le QR code' }).click()
   const qr = page.getByRole('img', { name: /QR/ })
   await expect(qr).toBeVisible()
   const steps = (await page.locator('.steps').boundingBox())!

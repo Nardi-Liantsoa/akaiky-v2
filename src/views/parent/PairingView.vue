@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '../../components/ui/AppIcon.vue'
 import type { IconName } from '../../components/ui/icons'
-import { DESKTOP, useMediaQuery } from '../../composables/useMediaQuery'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import QRCode from 'qrcode'
@@ -78,16 +77,6 @@ async function refreshDevices(quiet = false) {
 
 // Icônes des trois étapes : réinitialiser, toucher l'écran de bienvenue, scanner le QR.
 const STEP_ICONS: readonly IconName[] = ['refresh', 'smartphone', 'qr']
-// Ordinateur (NAR-229) : le QR s'affiche sans clic, une fois par ouverture de la page (un jeton
-// de 15 min ; à l'échéance, « Nouveau QR code » comme sur téléphone).
-const desktop = useMediaQuery(DESKTOP)
-let autoShown = false
-watch(() => [desktop.value, child.value?.id, family.status, children.status] as const, ([wide, id, fs, cs]) => {
-  if (!wide || !id || fs !== 'ready' || cs !== 'ready' || autoShown || qr.value || expiresAt.value) return
-  autoShown = true
-  void show()
-}, { immediate: true })
-
 async function show() {
   if (busy.value) return
   busy.value = true
@@ -176,14 +165,15 @@ watch(childId, () => {
     <p v-else-if="!child" class="error" role="alert">{{ t.children.notFound }}</p>
     <template v-else>
       <!-- Étapes en pastilles numérotées avec icône, QR à côté sur ordinateur (NAR-229, design
-           créé sans maquette d'après les cartes de l'accueil). -->
+           créé sans maquette d'après les cartes de l'accueil). Le QR s'affiche au clic partout :
+           un nouveau jeton annule celui d'un QR déjà affiché ailleurs (autre onglet, téléphone). -->
       <div class="setup">
       <ol class="steps card">
         <li v-for="(s, i) in t.pairing.steps" :key="i">
           <span class="num" aria-hidden="true">{{ i + 1 }}</span>
           <span class="step-icon" aria-hidden="true"><AppIcon :name="STEP_ICONS[i] ?? 'qr'" :size="22" /></span>
           <span class="step-text">
-            <span class="visually-hidden">{{ t.pairing.step(i + 1, t.pairing.steps.length) }} : </span>{{ s }}
+            <span class="visually-hidden">{{ t.pairing.step(i + 1, t.pairing.steps.length) }}</span>{{ s }}
           </span>
         </li>
       </ol>
@@ -271,7 +261,7 @@ h2 {
 .step-text {
   font-weight: 700;
 }
-/* Ordinateur : étapes à gauche, QR à droite. */
+/* Ordinateur (même seuil que DESKTOP, src/composables/useMediaQuery.ts) : étapes à gauche, QR à droite. */
 @media (min-width: 1024px) {
   .setup {
     display: grid;
