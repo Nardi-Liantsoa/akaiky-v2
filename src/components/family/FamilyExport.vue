@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../ui/AppIcon.vue'
 import { ref } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { exportFamily } from '../../api/families'
@@ -14,6 +15,7 @@ import SectionCard from '../ui/SectionCard.vue'
 // Fichier construit par le serveur, enregistré par un lien de téléchargement temporaire.
 // Pas d'export dans l'app native : la WebView ignore ce téléchargement (Filesystem/Share
 // demanderait une nouvelle coque) ; on renvoie vers la version web.
+defineProps<{ bare?: boolean }>()
 const t = useT()
 const nativeApp = Capacitor.isNativePlatform()
 const exporting = ref(false)
@@ -44,11 +46,41 @@ async function downloadExport() {
 </script>
 
 <template>
-  <SectionCard :title="t.dataExport.title" :help="t.dataExport.lead">
+  <!-- bare : sans carte ni titre, dans une section repliable de la page Famille (NAR-228). -->
+  <div v-if="bare" class="export-bare">
+    <p class="help">{{ t.dataExport.lead }}</p>
     <p v-if="nativeApp" class="help">{{ t.dataExport.nativeHint }}</p>
     <template v-else>
       <p v-if="exportError" class="error" role="alert">{{ exportError }}</p>
-      <AppButton variant="ghost" small :disabled="exporting" @click="downloadExport">{{ exporting ? t.dataExport.busy : t.dataExport.action }}</AppButton>
+      <AppButton variant="ghost" small :disabled="exporting" @click="downloadExport"><AppIcon name="download" :size="18" />{{ exporting ? t.dataExport.busy : t.dataExport.action }}</AppButton>
+    </template>
+  </div>
+  <SectionCard v-else :title="t.dataExport.title" :help="t.dataExport.lead">
+    <p v-if="nativeApp" class="help">{{ t.dataExport.nativeHint }}</p>
+    <template v-else>
+      <p v-if="exportError" class="error" role="alert">{{ exportError }}</p>
+      <AppButton variant="ghost" small :disabled="exporting" @click="downloadExport"><AppIcon name="download" :size="18" />{{ exporting ? t.dataExport.busy : t.dataExport.action }}</AppButton>
     </template>
   </SectionCard>
 </template>
+
+<style scoped>
+/* Dans la page Famille (NAR-228) : texte à gauche, « Exporter » à droite ; l'un sous l'autre
+ * si la place manque. */
+.export-bare {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.export-bare .help {
+  flex: 1 1 220px;
+  margin: 0;
+}
+.export-bare .error {
+  flex: 1 0 100%;
+  order: 3;
+  margin: 0;
+}
+</style>

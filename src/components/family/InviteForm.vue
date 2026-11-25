@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../ui/AppIcon.vue'
 import { ref, watch } from 'vue'
 import { inviteMember, type InviteRole } from '../../api/families'
 import { useT } from '../../composables/useT'
@@ -58,7 +59,7 @@ async function submit() {
         <option value="manager">{{ t.family.roles.manager }}</option>
       </select>
     </FormField>
-    <AppButton type="submit" :disabled="busy">{{ t.family.invite }}</AppButton>
+    <AppButton type="submit" :disabled="busy"><AppIcon name="mail" :size="20" />{{ t.family.invite }}</AppButton>
   </form>
 </template>
 

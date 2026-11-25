@@ -170,7 +170,7 @@ test('administrateur parent : Administration dans « Mon compte », en-tête sur
   await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toHaveCount(0)
 })
 
-test('parent sans famille : « Mon compte » sur l’écran de création, sans en-tête', async ({ page }) => {
+test('parent sans famille : la langue et « Déconnexion » seulement sur l’écran de création (NAR-228), sans en-tête', async ({ page }) => {
   await mockApi(page, {
     'GET /api/auth/me': () => ({ body: { user: USER } }),
     'GET /api/families/me': () => ({ status: 404, body: { error: 'Famille introuvable.', code: 'no_family' } })
@@ -178,9 +178,9 @@ test('parent sans famille : « Mon compte » sur l’écran de création, sans e
   await page.goto('/espace')
   await expect(page.getByRole('heading', { name: 'Bienvenue sur Akaiky' })).toBeVisible()
   await expect(page.getByRole('banner')).toHaveCount(0)
-  const account = page.getByRole('region', { name: 'Mon compte' })
-  await expect(account.getByRole('link', { name: 'Sécurité' })).toBeVisible()
-  await expect(account.getByRole('button', { name: 'Déconnexion' })).toBeVisible()
+  await expect(page.getByLabel('Langue')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Sécurité' })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Mon compte' })).toHaveCount(0)
 })
 
 // NAR-192 : cibles tactiles de la carte d'un enfant, « ⋯ » en icône nommée.

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../ui/AppIcon.vue'
 import { ref, watch } from 'vue'
 import { createFamily } from '../../api/families'
 import { ApiError } from '../../api/http'
@@ -54,7 +55,7 @@ async function submit() {
       <FormField id="family-name" :label="t.family.nameLabel" :error="nameError" v-slot="{ control }">
         <input v-bind="control" v-model="name" class="input" required :placeholder="t.family.namePlaceholder" autocomplete="off" data-selectable />
       </FormField>
-      <AppButton block type="submit" :disabled="busy">{{ t.family.create }}</AppButton>
+      <AppButton block type="submit" :disabled="busy"><AppIcon name="plus" :size="20" />{{ t.family.create }}</AppButton>
     </form>
   </section>
 </template>

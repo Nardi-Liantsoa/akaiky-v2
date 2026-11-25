@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../ui/AppIcon.vue'
 import { computed, ref } from 'vue'
 import { removeMember, setMemberRole, type FamilyMember, type FamilyRole } from '../../api/families'
 import { useConfirm } from '../../composables/useConfirm'
@@ -71,7 +72,7 @@ function remove() {
           <span v-else class="role">{{ t.family.roles[m.role] }}</span>
           <template v-if="canEdit(m) || canLeave(m)">
             <AppButton variant="ghost" small :disabled="busy" @click="confirming.ask(m, $event)">
-              {{ m.isMe ? t.family.leave : t.family.remove }}
+              <AppIcon name="cross" :size="18" />{{ m.isMe ? t.family.leave : t.family.remove }}
             </AppButton>
           </template>
         </span>

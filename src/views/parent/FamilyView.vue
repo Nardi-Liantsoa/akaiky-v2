@@ -9,13 +9,16 @@ import LoadError from '../../components/family/LoadError.vue'
 import MembersList from '../../components/family/MembersList.vue'
 import PendingInvitations from '../../components/family/PendingInvitations.vue'
 import { useT } from '../../composables/useT'
-import { familyNameValid } from '../../lib/familyName'
+import { FAMILY_NAME_MAX, familyNameValid } from '../../lib/familyName'
+import { focusFirstInvalid, length } from '../../lib/formErrors'
 import { errorText } from '../../lib/errors'
 import { canManage, family, loadFamily, setFamilyName, setNoFamily } from '../../store/family'
 import { notice } from '../../store/notice'
 import AppButton from '../../components/ui/AppButton.vue'
 import AppIcon from '../../components/ui/AppIcon.vue'
+import FormField from '../../components/ui/FormField.vue'
 import FamilyExport from '../../components/family/FamilyExport.vue'
+import DisclosureCard from '../../components/ui/DisclosureCard.vue'
 
 const t = useT()
 const router = useRouter()
@@ -24,12 +27,16 @@ const name = ref('')
 const busy = ref(false)
 const error = ref('')
 const sent = ref(0)
+// Nom refusé à l'envoi : erreur sous le champ, focus dessus (NAR-222) ; le bouton n'est jamais grisé.
+const nameError = ref('')
+const renameForm = ref<HTMLFormElement | null>(null)
 
 onMounted(() => { void loadFamily() })
 
 function edit() {
   name.value = family.data?.name ?? ''
   error.value = ''
+  nameError.value = ''
   editing.value = true
 }
 
@@ -58,7 +65,13 @@ async function removeFamily(password: string) {
 }
 
 async function save() {
-  if (busy.value || !familyNameValid(name.value)) return
+  if (busy.value) return
+  if (!familyNameValid(name.value)) {
+    nameError.value = length(name.value) ? t.value.forms.tooLong(FAMILY_NAME_MAX) : t.value.forms.familyName
+    await focusFirstInvalid(renameForm.value)
+    return
+  }
+  nameError.value = ''
   busy.value = true
   error.value = ''
   try {
@@ -83,39 +96,43 @@ async function save() {
     <LoadError v-if="family.status === 'error'" />
     <template v-else-if="family.data">
       <div class="card head">
-        <form v-if="editing" class="rename" @submit.prevent="save">
+        <form v-if="editing" ref="renameForm" class="rename" novalidate @submit.prevent="save">
           <p v-if="error" class="error" role="alert">{{ error }}</p>
-          <div class="field">
-            <label for="family-rename">{{ t.family.nameLabel }}</label>
-            <input id="family-rename" v-model="name" class="input" required autocomplete="off" data-selectable />
-          </div>
+          <FormField id="family-rename" :label="t.family.nameLabel" :error="nameError" v-slot="{ control }">
+            <input v-bind="control" v-model="name" class="input" autocomplete="off" data-selectable />
+          </FormField>
           <div class="actions">
-            <AppButton type="submit" :disabled="busy || !familyNameValid(name)">{{ t.family.save }}</AppButton>
-            <AppButton variant="ghost" @click="editing = false">{{ t.family.cancel }}</AppButton>
+            <AppButton type="submit" :disabled="busy"><AppIcon name="check" :size="20" />{{ t.family.save }}</AppButton>
+            <AppButton variant="ghost" @click="editing = false"><AppIcon name="cross" :size="20" />{{ t.family.cancel }}</AppButton>
           </div>
         </form>
         <template v-else>
           <h2>{{ family.data.name }}</h2>
-          <AppButton v-if="canManage()" variant="ghost" @click="edit">{{ t.family.rename }}</AppButton>
+          <AppButton v-if="canManage()" variant="ghost" @click="edit"><AppIcon name="edit" :size="20" />{{ t.family.rename }}</AppButton>
         </template>
       </div>
 
       <p v-if="error && !editing" class="error" role="alert">{{ error }}</p>
-      <h2 class="section">{{ t.family.members }}</h2>
-      <MembersList @changed="sent++" />
-
-      <template v-if="canManage()">
-        <PendingInvitations :refresh="sent" />
-        <div class="invite">
-          <InviteForm @sent="sent++" />
-        </div>
-        <!-- Export de la famille (NAR-178), rangé ici depuis la sécurité du compte (NAR-209). -->
-        <FamilyExport class="export" />
-      </template>
+      <!-- Page découpée (NAR-228, design créé d'après Réglages) : chaque partie dans une carte
+           repliable, ouverte en un geste ; les membres dépliés d'office. -->
+      <DisclosureCard class="part" :title="t.family.membersSection" icon="users" :summary="t.family.membersSummary(family.data.members.length)" open>
+        <MembersList @changed="sent++" />
+        <template v-if="canManage()">
+          <PendingInvitations :refresh="sent" />
+          <div class="invite">
+            <InviteForm @sent="sent++" />
+          </div>
+        </template>
+      </DisclosureCard>
+      <!-- Export de la famille (NAR-178), rangé ici depuis la sécurité du compte (NAR-209). -->
+      <DisclosureCard v-if="canManage()" class="part" :title="t.dataExport.title" icon="download" :summary="t.family.dataSummary">
+        <FamilyExport bare />
+      </DisclosureCard>
     </template>
     <!-- Le compte de la session a sa page (NAR-209) : un seul lien ici, famille lisible ou non ;
          la zone sensible reste la dernière. -->
     <RouterLink class="card account-link" :to="{ name: 'securite' }">
+      <span class="account-icon" aria-hidden="true"><AppIcon name="user" /></span>
       <span class="account-text">
         <span class="account-title">{{ t.parent.account.title }}</span>
         <span class="account-summary">{{ t.parent.account.summary }}</span>
@@ -155,7 +172,10 @@ h1 {
   gap: 8px;
 }
 .section {
-  margin: var(--space-5) 0 var(--space-3);
+  margin: var(--space-6) 0 var(--space-3);
+}
+.part {
+  margin-top: var(--space-3);
 }
 .invite {
   margin-top: 28px;
@@ -169,7 +189,7 @@ h1 {
   justify-content: space-between;
   gap: var(--space-3);
   min-height: var(--tap);
-  margin-top: var(--space-5);
+  margin-top: var(--space-3);
   padding-block: var(--space-4);
   color: var(--text);
   text-decoration: none;
@@ -178,7 +198,18 @@ h1 {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);
 }
+.account-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  color: var(--ink);
+}
 .account-text {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);

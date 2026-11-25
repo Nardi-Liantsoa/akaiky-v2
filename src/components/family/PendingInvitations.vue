@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../ui/AppIcon.vue'
 import { onMounted, ref, watch } from 'vue'
 import { cancelInvitation, listInvitations, type Invitation } from '../../api/families'
 import { locale, useT } from '../../composables/useT'
@@ -49,7 +50,7 @@ watch(() => props.refresh, load)
           <span class="email" data-selectable>{{ i.email }}</span>
           <span class="meta">{{ t.family.roles[i.role] }} · {{ t.family.expires(formatDay(i.expiresAt, locale)) }}</span>
         </span>
-        <AppButton variant="ghost" small :disabled="busy" @click="cancel(i.id)">{{ t.family.cancelInvite }}</AppButton>
+        <AppButton variant="ghost" small :disabled="busy" @click="cancel(i.id)"><AppIcon name="cross" :size="18" />{{ t.family.cancelInvite }}</AppButton>
       </li>
     </ul>
   </section>
