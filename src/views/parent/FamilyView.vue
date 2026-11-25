@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { deleteFamily, renameFamily } from '../../api/families'
 import DeleteConfirm from '../../components/account/DeleteConfirm.vue'
@@ -30,6 +30,7 @@ const sent = ref(0)
 // Nom refusé à l'envoi : erreur sous le champ, focus dessus (NAR-222) ; le bouton n'est jamais grisé.
 const nameError = ref('')
 const renameForm = ref<HTMLFormElement | null>(null)
+watch(name, (v) => { if (nameError.value && familyNameValid(v)) nameError.value = '' })
 
 onMounted(() => { void loadFamily() })
 
@@ -126,7 +127,7 @@ async function save() {
       </DisclosureCard>
       <!-- Export de la famille (NAR-178), rangé ici depuis la sécurité du compte (NAR-209). -->
       <DisclosureCard v-if="canManage()" class="part" :title="t.dataExport.title" icon="download" :summary="t.family.dataSummary">
-        <FamilyExport bare />
+        <FamilyExport />
       </DisclosureCard>
     </template>
     <!-- Le compte de la session a sa page (NAR-209) : un seul lien ici, famille lisible ou non ;
@@ -179,9 +180,6 @@ h1 {
 }
 .invite {
   margin-top: 28px;
-}
-.export {
-  margin-top: var(--space-5);
 }
 .account-link {
   display: flex;

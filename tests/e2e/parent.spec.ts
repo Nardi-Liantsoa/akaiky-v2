@@ -170,7 +170,7 @@ test('administrateur parent : Administration dans « Mon compte », en-tête sur
   await expect(page.getByRole('navigation', { name: 'Navigation principale' })).toHaveCount(0)
 })
 
-test('parent sans famille : la langue et « Déconnexion » seulement sur l’écran de création (NAR-228), sans en-tête', async ({ page }) => {
+test('parent sans famille : la langue, « Mon compte » et « Déconnexion » en liens discrets sur l’écran de création (NAR-228), sans en-tête', async ({ page }) => {
   await mockApi(page, {
     'GET /api/auth/me': () => ({ body: { user: USER } }),
     'GET /api/families/me': () => ({ status: 404, body: { error: 'Famille introuvable.', code: 'no_family' } })
@@ -179,6 +179,9 @@ test('parent sans famille : la langue et « Déconnexion » seulement sur l’é
   await expect(page.getByRole('heading', { name: 'Bienvenue sur Akaiky' })).toBeVisible()
   await expect(page.getByRole('banner')).toHaveCount(0)
   await expect(page.getByLabel('Langue')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Déconnexion' })).toBeVisible()
+  // Seul accès au compte sans famille (sécurité, suppression du compte, administration).
+  await expect(page.getByRole('link', { name: 'Mon compte' })).toHaveAttribute('href', '/espace/compte/securite')
   await expect(page.getByRole('link', { name: 'Sécurité' })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Mon compte' })).toHaveCount(0)
 })
