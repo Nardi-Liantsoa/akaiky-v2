@@ -132,3 +132,20 @@ describe('jeton push : sessions qui se suivent', () => {
     expect(retryable(new TypeError('Failed to fetch'))).toBe(true)
   })
 })
+
+describe('jeton push : permission retirée', () => {
+  it('permission retirée dans les réglages : jeton retiré du serveur, plus rien n’est envoyé', async () => {
+    let permission = 'granted'
+    const sent: string[] = []
+    const removed: string[] = []
+    const messaging = { checkPermissions: async () => ({ receive: permission as never }), requestPermissions: async () => ({ receive: 'granted' as never }), getToken: async () => ({ token: 'T1' }) }
+    const reg = createPushRegistration({ messaging, send: async (r) => { sent.push(r.token) }, remove: async (t) => { removed.push(t) }, platform: 'android', lang: () => 'fr' })
+    await reg.start()
+    await new Promise((r) => setTimeout(r, 0))
+    permission = 'denied'
+    expect(await reg.start()).toBe('denied')
+    await reg.tokenChanged('T2')
+    expect(sent).toEqual(['T1'])
+    expect(removed).toEqual(['T1'])
+  })
+})

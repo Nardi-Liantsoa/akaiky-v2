@@ -13,7 +13,8 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <!-- Notifications push (NAR-179) : canal du serveur (server/src/push.js), créé par l'app
-             parent au démarrage ; aussi celui des notifications reçues avant ce démarrage. -->
+             parent à son démarrage. Une notification reçue avant le tout premier démarrage tombe
+             dans le canal par défaut de Firebase. L'app enfant n'affiche aucune notification. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="alertes" />

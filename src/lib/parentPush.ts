@@ -26,6 +26,7 @@ export const pushBanner = ref<{ title: string, body: string, to: RouteLocationRa
 const registration = createPushRegistration({
   messaging: FirebaseMessaging,
   send: (r) => api.put('/push/token', r),
+  remove: (token) => api.del('/push/token', { token }),
   platform: Capacitor.getPlatform() === 'ios' ? 'ios' : 'android',
   lang: () => locale.value
 })
@@ -54,7 +55,8 @@ export function startParentPush(router: Router): void {
   }
   void FirebaseMessaging.addListener('notificationActionPerformed', ({ notification }) => {
     pushBanner.value = null
-    pendingTap = routeForPush(notification.data)
+    // Aucune session (expirée) : le toucher n'est pas gardé pour le compte qui se connectera.
+    pendingTap = auth.ready && !auth.user ? null : routeForPush(notification.data)
     openPending()
   }).catch(() => {})
   void FirebaseMessaging.addListener('notificationReceived', ({ notification }) => {

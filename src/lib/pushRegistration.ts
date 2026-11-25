@@ -29,9 +29,11 @@ export function retryable(e: unknown): boolean {
   return typeof status !== 'number' || status === 0 || status === 429 || status >= 500
 }
 
-export function createPushRegistration({ messaging, send, platform, lang, needsPermission = true }: {
+export function createPushRegistration({ messaging, send, remove, platform, lang, needsPermission = true }: {
   messaging: Pick<FirebaseMessagingPlugin, 'checkPermissions' | 'requestPermissions' | 'getToken'>
   send(r: Registration): Promise<unknown>
+  // Permission retirée dans les réglages du téléphone : jeton de cette session retiré du serveur.
+  remove?(token: string): Promise<unknown>
   platform: 'android' | 'ios'
   lang(): string
   // App enfant : réveils silencieux seulement (data), aucune notification affichée : pas
@@ -81,8 +83,18 @@ export function createPushRegistration({ messaging, send, platform, lang, needsP
       later()
       return 'granted'
     }
-    await flush()
+    // Envoi en arrière-plan : l'état (carte « Notifications ») n'attend pas le réseau.
+    void flush()
     return 'granted'
+  }
+
+  // Permission absente ou retirée : plus rien n'est envoyé, nouvel essai annulé, et le jeton
+  // déjà envoyé pour cette session est retiré du serveur (il ne recevrait plus rien).
+  function deactivate() {
+    active = false
+    if (retry) { clearTimeout(retry); retry = null }
+    if (sent && token && remove) void remove(token).catch(() => {})
+    sent = ''
   }
 
   async function state(): Promise<PushState> {
@@ -97,15 +109,18 @@ export function createPushRegistration({ messaging, send, platform, lang, needsP
     async start(): Promise<PushState> {
       const gen = generation
       const s = needsPermission ? await state() : 'granted'
-      if (s !== 'granted' || gen !== generation) return s
+      if (gen !== generation) return s
+      if (s !== 'granted') { deactivate(); return s }
       active = true
       return register()
     },
     // Après l'explication, sur un geste de la personne.
     async enable(): Promise<PushState> {
+      const gen = generation
       let s: PushState
       try { s = (await messaging.requestPermissions()).receive } catch (e) { return notConfigured(e) ? 'unavailable' : 'prompt' }
-      if (s !== 'granted') return s
+      // Session fermée pendant la question du système : rien n'est enregistré.
+      if (s !== 'granted' || gen !== generation) return s
       active = true
       return register()
     },
