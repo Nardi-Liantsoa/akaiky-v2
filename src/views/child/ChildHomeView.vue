@@ -652,7 +652,8 @@ const text = computed(() => {
 
 <template>
   <main v-if="state.kind === 'paired'" class="home" :class="{ school }">
-    <!-- Contenu défilant au-dessus du pied fixe : SOS et secours toujours visibles (NAR-187). -->
+    <!-- Contenu défilant au-dessus du pied fixe : SOS toujours visible (NAR-187) ; secours depuis
+         l'écran du SOS (NAR-237). -->
     <div class="content">
       <!-- Heure à gauche, cadenas du code parent à droite (maquette allégée, NAR-237) : discret,
            réservé aux parents, jamais pris pour une action de l'enfant. -->
@@ -846,15 +847,12 @@ h1 {
 }
 /* Écran couché ou très court : pied sur une ligne, pour laisser au contenu la hauteur
  * d'une vignette entière (sinon le pied en colonne en prend les trois quarts). */
+/* Écran couché ou très court : pied compact resserré (le paysage aura sa mise en page, NAR-242). */
 @media (max-height: 480px) {
   .actions {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  .actions .sos {
-    flex: 1 1 200px;
-    width: auto;
+    gap: var(--space-1);
+    padding-top: var(--space-2);
+    padding-bottom: calc(var(--safe-bottom) + var(--space-2));
   }
 }
 /* Zones tactiles de l'app enfant : ≥ --tap-child (64 px, CdC §7.3), boutons communs compris. */
@@ -899,6 +897,18 @@ h1 {
   font: inherit;
   font-weight: 700;
   text-decoration: underline;
+}
+.content > :deep(.status) {
+  /* En-tête collant (NAR-237) : le cadenas du code parent reste à l'écran quand le contenu défile. */
+  position: sticky;
+  top: calc(-1 * (var(--safe-top) + var(--space-3)));
+  z-index: 2;
+  margin: calc(-1 * (var(--safe-top) + var(--space-3))) calc(-1 * (var(--gutter) + var(--safe-right))) 0 calc(-1 * (var(--gutter) + var(--safe-left)));
+  padding: calc(var(--safe-top) + var(--space-3)) calc(var(--gutter) + var(--safe-right)) var(--space-2) calc(var(--gutter) + var(--safe-left));
+  background: var(--bg-child);
+}
+.home.school .content > :deep(.status) {
+  background: var(--bg-child-school);
 }
 .status .parent-code {
   display: grid;

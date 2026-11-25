@@ -556,8 +556,7 @@ const fr = {
       relock: 'Reverrouiller maintenant',
       failed: 'Le téléphone n’a pas pu être déverrouillé.',
       release: 'Libérer ce téléphone (plus de verrou)'
-    },
-    status: { wifi: 'Wi-Fi', cellular: 'Réseau', battery: (n: number) => `${n} %` }
+    }
   },
   parent: {
     tabsLabel: 'Navigation principale',
@@ -1305,8 +1304,7 @@ const mg: Messages = {
       relock: 'Hidio indray izao',
       failed: 'Tsy afaka nosokafana ny finday.',
       release: 'Hanafaka ity finday ity (tsy hidiana intsony)'
-    },
-    status: { wifi: 'Wi-Fi', cellular: 'Tambajotra', battery: (n: number) => `${n} %` }
+    }
   },
   parent: {
     tabsLabel: 'Fitetezana lehibe',
@@ -2035,8 +2033,7 @@ const en: Messages = {
       relock: 'Lock now',
       failed: 'The phone could not be unlocked.',
       release: 'Release this phone (no more lock)'
-    },
-    status: { wifi: 'Wi-Fi', cellular: 'Network', battery: (n: number) => `${n}%` }
+    }
   },
   parent: {
     tabsLabel: 'Main navigation',

@@ -179,6 +179,10 @@ test('plage « école », verrouillé : bandeau, erreur d’appel, 4 parents, SO
   const vh = page.viewportSize()!.height
   const code = (await page.locator('.status .parent-code').boundingBox())!
   expect(code.y + code.height).toBeLessThanOrEqual(vh)
+  // En-tête collant (NAR-237) : contenu défilé jusqu'en bas, le cadenas reste à l'écran.
+  await page.locator('.content').evaluate((e) => { e.scrollTop = e.scrollHeight })
+  await expect(page.locator('.status .parent-code')).toBeInViewport({ ratio: 1 })
+  await page.locator('.content').evaluate((e) => { e.scrollTop = 0 })
   for (const sel of ['.status .parent-code', '.actions .sos']) {
     for (const h of await heights(page, sel)) expect(h, sel).toBeGreaterThanOrEqual(TAP_CHILD)
   }
