@@ -198,7 +198,8 @@ h1 {
 .head-switch :deep(.switch) {
   margin-bottom: 0;
 }
-/* Bandeau d'information : fond teinté, icône « i », texte d'aide (jamais une action). */
+/* Bandeau d'information : fond neutre (jamais la teinte d'une tuile : le bleu est celui des
+ * appels), icône « i », texte d'aide (jamais une action). */
 .filter-hint {
   display: flex;
   align-items: center;
@@ -206,7 +207,7 @@ h1 {
   margin: 0 0 var(--space-4);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
-  background: var(--tint-sky);
+  background: var(--surface-muted);
   color: var(--text);
   font-size: var(--fs-small);
   font-weight: 600;
