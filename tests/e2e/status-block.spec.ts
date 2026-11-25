@@ -46,7 +46,7 @@ test('accueil lent : un seul indicateur, visible et annoncé, gardé de la famil
   familyGate.open()
   // Famille arrivée : la liste des enfants est demandée (et retenue).
   await expect.poll(() => calls.some((r) => r.url().endsWith('/api/children'))).toBe(true)
-  await expect(page.getByRole('heading', { name: 'Accueil', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vos enfants', level: 1 })).toBeVisible()
   await expect(loading(page)).toHaveCount(1)
   await expect(loading(page)).toHaveAttribute('data-repere', '1')
   childrenGate.open()

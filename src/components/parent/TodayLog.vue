@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '../ui/AppIcon.vue'
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { getJournal, type JournalItem } from '../../api/journal'
@@ -15,7 +16,8 @@ import StatusBlock from '../ui/StatusBlock.vue'
 // toutes les 30 s tant que l'accueil est ouvert (le push viendra avec NAR-141).
 // bare : sans cadre de carte (affiché dans la carte dépliée de l'enfant, NAR-174).
 // untitled : sans titre, posé sous le bouton « Aujourd'hui » qui le déplie (NAR-193).
-const props = defineProps<{ childId: string, bare?: boolean, untitled?: boolean }>()
+// title : autre titre (« Derniers événements », panneau de l'ordinateur, maquette 02).
+const props = defineProps<{ childId: string, bare?: boolean, untitled?: boolean, title?: string }>()
 const t = useT()
 const items = ref<JournalItem[]>([])
 const status = ref<'loading' | 'ready' | 'error'>('loading')
@@ -66,15 +68,19 @@ onBeforeUnmount(() => { clearInterval(timer); generation++ })
     :aria-label="untitled ? t.parent.log.todayTitle : undefined"
   >
     <header>
-      <h2 v-if="!untitled">{{ t.parent.log.todayTitle }}</h2>
+      <h2 v-if="!untitled">{{ title ?? t.parent.log.todayTitle }}</h2>
       <!-- Plusieurs « Aujourd'hui » ouverts : le journal ouvert est celui de CET enfant. -->
-      <RouterLink class="all" :to="{ name: 'journal' }" @click="selectChild(childId)">{{ t.parent.log.allLog }}</RouterLink>
+      <RouterLink v-if="!title" class="all" :to="{ name: 'journal' }" @click="selectChild(childId)">{{ t.parent.log.allLog }}</RouterLink>
     </header>
     <StatusBlock v-if="status === 'error'" state="error" :text="t.parent.log.loadError" @retry="load" />
     <ul v-else-if="items.length" class="list">
       <LogItem v-for="i in items" :key="i.id" :item="i" :child-id="childId" :can-allow="canManage()" />
     </ul>
     <StatusBlock v-else-if="status === 'ready'" state="empty" :text="t.parent.log.nothingToday" />
+    <!-- Panneau « Derniers événements » de l'ordinateur (maquette 02) : lien en bas, avec une flèche. -->
+    <RouterLink v-if="title" class="all see-all" :to="{ name: 'journal' }" @click="selectChild(childId)">
+      {{ t.parent.log.seeAll }}<AppIcon name="chevron-right" :size="18" />
+    </RouterLink>
   </section>
 </template>
 
@@ -122,6 +128,10 @@ h2 {
   color: var(--accent);
   font-weight: 800;
   text-decoration: none;
+}
+.see-all {
+  gap: var(--space-1);
+  margin-top: var(--space-2);
 }
 .all:focus-visible {
   outline: 3px solid var(--accent);

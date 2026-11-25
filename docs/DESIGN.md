@@ -113,6 +113,16 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   section par `replace`. Sous 1024 px : rien ne change (une page par section). Tests e2e de
   parcours à 960 px ; mise en page de l'ordinateur : `desktop-layout.spec.ts`,
   `wide-navigation.spec.ts`.
+- **Accueil parent et carte enfant** (NAR-227, maquettes 01 et 02) — en-tête « Bonjour Hanta »
+  + initiale du compte (téléphone), date du jour + « + Ajouter un enfant » (ordinateur), titre
+  « Vos enfants ». Carte : bord jaune (à vérifier) ou rouge (ne répond plus), badge d'état et
+  « vu à », bandeau « Batterie faible · 12 % » + « Signalé il y a … . Pensez à lui rappeler de
+  charger. », puis **Appeler** (plein) et **Message** (teinté `--accent-soft` / `--accent-deep`),
+  puis pastilles compactes icône + valeur (en défaut : rouge), puis la ligne « Aujourd'hui · N
+  appels, N bloqués › » (`TodaySummary`). Sans téléphone : « Téléphone non relié », phrase en
+  3 étapes, « Relier le téléphone » avec l'icône QR. « ⋯ » sans contour. Ordinateur : panneau
+  « Derniers événements » à droite, « Voir tout le journal › » en bas ; actions teintées
+  (« Autoriser ce numéro »).
 - **`BackLink`** (NAR-195) — lien de retour en tête d'écran (« ‹ Réglages », « ‹ Accueil ») :
   chevron + libellé `--accent`, ≥ `--tap`, vrai lien (`href`) dont le clic passe par `backTo`
   (`src/lib/navigation.ts` : retour de l'historique si l'écran précédent est la cible, sinon

@@ -38,35 +38,25 @@ async function home(page: Page, kids: ReturnType<typeof kid>[], status: Record<s
   return mockApi(page, handlers)
 }
 const names = (page: Page) => page.locator('li.child .name')
-const toggles = (page: Page) => page.getByRole('button', { name: 'Aujourd’hui' })
 
-test('3 enfants à 360×640 : le silence en haut, visible sans défiler ; journaux repliés, ouverts à la demande', async ({ page }) => {
+test('3 enfants à 360×640 : le silence en haut, visible sans défiler ; ligne « Aujourd’hui » vers le journal de sa carte', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 640 })
-  const calls = await home(page, MIXED, MIXED_STATUS)
+  await home(page, MIXED, MIXED_STATUS)
   await page.goto('/espace')
   await expect(names(page)).toHaveText(['Fy', 'Tiana', 'Andry'])
   const top = page.locator('li.child').first()
   await expect(top.getByRole('alert')).toContainText('Le téléphone ne répond plus')
   await expect(top).toBeInViewport({ ratio: 1 })
-  // Aucun journal déplié au chargement ; pas de bouton sur la carte sans téléphone.
-  await expect(toggles(page)).toHaveCount(2)
-  for (const b of await toggles(page).all()) await expect(b).toHaveAttribute('aria-expanded', 'false')
-  await expect(page.getByRole('link', { name: 'Tout le journal' })).toHaveCount(0)
-  expect(calls.filter((r) => r.url().includes('/journal')).length).toBe(0)
-  // Ouvert à la demande, sur cette carte seulement ; refermé de même.
-  const toggle = top.getByRole('button', { name: 'Aujourd’hui' })
-  const box = await toggle.boundingBox()
-  expect(box?.height).toBeGreaterThanOrEqual(48)
-  await toggle.click()
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
-  const region = page.locator(`#${await toggle.getAttribute('aria-controls')}`)
-  await expect(region.getByText('Rien aujourd’hui pour l’instant.')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Tout le journal' })).toHaveCount(1)
-  // L'enfant ouvert devient l'enfant affiché (« Tout le journal » mène au sien).
-  await expect(top.getByRole('button', { name: /^Fy / })).toHaveAttribute('aria-current', 'true')
-  await toggle.click()
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
-  await expect(page.getByRole('link', { name: 'Tout le journal' })).toHaveCount(0)
+  // Maquette 01 (NAR-227) : une ligne « Aujourd'hui · N appels, N bloqués › » par carte reliée,
+  // aucune sur la carte sans téléphone ; elle ouvre le journal de CET enfant.
+  const lines = page.getByRole('link', { name: /^Aujourd’hui/ })
+  await expect(lines).toHaveCount(2)
+  const line = top.getByRole('link', { name: /^Aujourd’hui/ })
+  expect((await line.boundingBox())?.height).toBeGreaterThanOrEqual(48)
+  await line.click()
+  await expect(page).toHaveURL(/\/espace\/journal$/)
+  await page.goBack()
+  await expect(page.locator('li.child').first().getByRole('button', { name: /^Fy / })).toHaveAttribute('aria-current', 'true')
 })
 
 test('relecture aux mêmes états, ou en échec : l’ordre ne bouge pas', async ({ page }) => {
@@ -84,12 +74,10 @@ test('relecture aux mêmes états, ou en échec : l’ordre ne bouge pas', async
   }
 })
 
-test('un seul enfant : « Aujourd’hui » déplié comme avant, sans bouton', async ({ page }) => {
+test('un seul enfant : ligne « Aujourd’hui » vers son journal, sans rien à déplier', async ({ page }) => {
   await home(page, [kid(3, 'Fy')], { [id(3)]: () => ({ body: device(3) }) })
   await page.goto('/espace')
-  await expect(page.getByRole('heading', { name: 'Aujourd’hui' })).toBeVisible()
-  await expect(page.getByText('Rien aujourd’hui pour l’instant.')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Tout le journal' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /^Aujourd’hui/ })).toBeVisible()
   await expect(page.locator('[aria-expanded]')).toHaveCount(0)
 })
 
@@ -138,7 +126,7 @@ test('alertes regroupées : un seul bandeau, le plus grave ; « +2 » déplie le
   await more.click()
   await expect(more).toHaveAttribute('aria-expanded', 'true')
   const others = page.locator(`#${await more.getAttribute('aria-controls')}`)
-  await expect(others.locator('strong')).toHaveText(['Pas de carte SIM', 'Batterie faible'])
+  await expect(others.locator('strong')).toHaveText(['Pas de carte SIM', 'Batterie faible · 9 %'])
   await expect(page.locator('.banner:visible')).toHaveCount(3)
   await more.click()
   await expect(page.locator('.banner:visible')).toHaveCount(1)
@@ -151,18 +139,15 @@ test('une seule alerte : pas de « +N »', async ({ page }) => {
   await expect(page.locator('.more-alerts')).toHaveCount(0)
 })
 
-test('deux journaux ouverts : « Tout le journal » mène à celui de sa carte', async ({ page }) => {
+test('ligne « Aujourd’hui » de la deuxième carte : le journal ouvert est celui de cet enfant', async ({ page }) => {
   await home(page, MIXED, MIXED_STATUS)
   await page.goto('/espace')
   await expect(names(page)).toHaveText(['Fy', 'Tiana', 'Andry'])
-  const [fy, tiana] = [page.locator('li.child').nth(0), page.locator('li.child').nth(1)]
-  await fy.getByRole('button', { name: 'Aujourd’hui' }).click()
-  await tiana.getByRole('button', { name: 'Aujourd’hui' }).click()
-  await expect(tiana.getByRole('button', { name: /^Tiana / })).toHaveAttribute('aria-current', 'true')
-  await fy.getByRole('link', { name: 'Tout le journal' }).click()
+  const tiana = page.locator('li.child').nth(1)
+  await tiana.getByRole('link', { name: /^Aujourd’hui/ }).click()
   await expect(page).toHaveURL(/\/espace\/journal$/)
   await page.goBack()
-  await expect(page.locator('li.child').first().getByRole('button', { name: /^Fy / })).toHaveAttribute('aria-current', 'true')
+  await expect(page.locator('li.child', { hasText: 'Tiana' }).getByRole('button', { name: /^Tiana / })).toHaveAttribute('aria-current', 'true')
 })
 
 test('focus clavier dans la liste : l’ordre attend que le focus en sorte', async ({ page }) => {
@@ -171,7 +156,7 @@ test('focus clavier dans la liste : l’ordre attend que le focus en sorte', asy
   const calls = await home(page, MIXED, status)
   await page.goto('/espace')
   await expect(names(page)).toHaveText(['Fy', 'Tiana', 'Andry'])
-  const toggle = page.locator('li.child').nth(1).getByRole('button', { name: 'Aujourd’hui' })
+  const toggle = page.locator('li.child').nth(1).getByRole('link', { name: /^Aujourd’hui/ })
   await toggle.focus()
   calm = true
   const before = calls.filter((r) => r.url().endsWith('/status')).length

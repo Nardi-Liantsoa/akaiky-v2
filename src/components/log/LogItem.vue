@@ -123,6 +123,10 @@ const allowPhone = computed(() => (props.canAllow && props.item.kind === 'call_b
   flex: 1 0 100%;
   margin-top: 4px;
   text-align: center;
+  /* Action teintée (maquette 02, NAR-227) : fond --accent-soft, encre --accent-deep (≥ 4.5:1). */
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  text-decoration: none;
 }
 .allow:focus-visible {
   outline: 3px solid var(--accent);

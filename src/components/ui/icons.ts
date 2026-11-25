@@ -48,6 +48,9 @@ export const ICONS = {
   // Lignes du résumé de Réglages (NAR-185) : applications (grille), SOS (sirène).
   grid: { shapes: [rect({ x: 4, y: 4, width: 6, height: 6, rx: 1.5 }), rect({ x: 14, y: 4, width: 6, height: 6, rx: 1.5 }), rect({ x: 4, y: 14, width: 6, height: 6, rx: 1.5 }), rect({ x: 14, y: 14, width: 6, height: 6, rx: 1.5 })] },
   // Page d'accueil publique (NAR-225) : choix de la langue, applications bloquées.
+  plus: { shapes: [path('M12 5v14M5 12h14')] },
+  // Réseau (pastille de l'état du téléphone, maquette 01, NAR-227).
+  signal: { shapes: [path('M5 19v-2M9 19v-5M13 19v-8M17 19V8M21 19V5')] },
   // Code QR (« Relier le téléphone », maquette 01, NAR-227).
   qr: { shapes: [rect({ x: 4, y: 4, width: 6, height: 6, rx: 1 }), rect({ x: 14, y: 4, width: 6, height: 6, rx: 1 }), rect({ x: 4, y: 14, width: 6, height: 6, rx: 1 }), path('M14 14h2v2h-2zM18 14h2M14 18h2M18 18h2v2h-2z')] },
   globe: { shapes: [circle(12, 12, 9), path('M3 12h18'), path('M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18')] },

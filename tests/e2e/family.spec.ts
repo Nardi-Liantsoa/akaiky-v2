@@ -23,7 +23,7 @@ test('sans famille : création depuis l’accueil, puis onglets et famille affic
 
   await page.getByLabel('Nom de la famille').fill('  Famille Rakoto ')
   await page.getByRole('button', { name: 'Créer ma famille' }).click()
-  await expect(page.getByRole('heading', { name: 'Accueil' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vos enfants' })).toBeVisible()
   const post = calls.find((r) => r.method() === 'POST' && r.url().endsWith('/api/families'))!
   expect(post.postDataJSON()).toEqual({ name: 'Famille Rakoto' })
   expect(post.headers()['x-app']).toBe('1')
@@ -67,7 +67,7 @@ test('serveur injoignable : erreur et « Réessayer », jamais l’écran de cr�
   await expect(page.getByRole('heading', { name: 'Bienvenue sur Akaiky' })).toHaveCount(0)
   down = false
   await page.getByRole('button', { name: 'Réessayer' }).click()
-  await expect(page.getByRole('heading', { name: 'Accueil' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vos enfants' })).toBeVisible()
 })
 
 test('rechargement qui révèle « pas de famille » : retour à la création, jamais un écran vide', async ({ page }) => {

@@ -11,7 +11,7 @@ import { canManage } from '../../store/family'
 import ChildAvatar from './ChildAvatar.vue'
 import ChildMenu from './ChildMenu.vue'
 import PhoneStatus from './PhoneStatus.vue'
-import TodayLog from './TodayLog.vue'
+import TodaySummary from './TodaySummary.vue'
 import AppButton from '../ui/AppButton.vue'
 import AppIcon from '../ui/AppIcon.vue'
 
@@ -21,9 +21,9 @@ import AppIcon from '../ui/AppIcon.vue'
 // NAR-193 : cartes rangées par gravité (`sortBySeverity`) ; à partir de deux enfants,
 // « Aujourd'hui » est replié sur chaque carte et s'ouvre à la demande ; une carte sans
 // téléphone propose de le relier (gestionnaires) et n'a pas de journal.
-// todayAside : enfant dont « Aujourd'hui » est déjà montré à côté des cartes (ordinateur,
-// NAR-223) ; sa carte ne le répète pas.
-const props = defineProps<{ todayAside?: string | null }>()
+// addInHeader : « + Ajouter un enfant » est dans l'en-tête de la page (ordinateur, maquette 02) ;
+// la tuile en pointillés de fin de liste n'est pas répétée.
+defineProps<{ addInHeader?: boolean }>()
 const t = useT()
 const router = useRouter()
 // Alertes ouvertes lues par PhoneStatus, par enfant (NAR-192) : la pastille en dépend, sans
@@ -49,16 +49,6 @@ const cards = computed(() => sortBySeverity(
   children.order
 ))
 watch(() => cards.value.map((c) => c.id).join(','), () => { children.order = cards.value.map((c) => c.id) }, { immediate: true })
-// « Aujourd'hui » replié par défaut dès deux enfants ; un seul enfant : déplié s'il est sélectionné.
-const collapsible = computed(() => children.items.length > 1)
-const openToday = reactive(new Set<string>())
-function toggleToday(c: Child) {
-  if (openToday.has(c.id)) { openToday.delete(c.id); return }
-  openToday.add(c.id)
-  // « Tout le journal » ouvre le journal de l'enfant sélectionné : c'est celui-ci.
-  selectChild(c.id)
-}
-const showToday = (c: Child) => Boolean(c.phoneLastSeenAt) && !props.todayAside && (collapsible.value ? openToday.has(c.id) : c.id === children.selectedId)
 const menuFor = ref<Child | null>(null)
 const menuOpener = ref<HTMLElement | null>(null)
 function openMenu(c: Child, e: MouseEvent) {
@@ -83,13 +73,13 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
 
 <template>
   <ul class="cards" @focusin="onFocusIn" @focusout="onFocusOut">
-    <li v-for="c in cards" :key="c.id" class="card child" :class="{ open: c.id === children.selectedId }">
+    <li v-for="c in cards" :key="c.id" class="card child" :class="[{ open: c.id === children.selectedId }, level(c) && `level-${level(c)}`]">
       <div class="head">
         <!-- Prénom en titre (navigation par titres) ; enfant affiché : aria-current. -->
         <h2 class="title">
           <button
             type="button" class="select" :aria-current="c.id === children.selectedId ? 'true' : undefined"
-            :aria-controls="!collapsible && showToday(c) ? `today-${c.id}` : undefined" @click="selectChild(c.id)"
+            @click="selectChild(c.id)"
           >
             <ChildAvatar :name="c.firstName" :color="c.avatarColor" :size="52" />
             <span class="who">
@@ -110,49 +100,44 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
           <AppIcon name="more" :size="22" />
         </button>
       </div>
-      <!-- Batterie, réseau, carte SIM et alertes du téléphone (NAR-147), sur chaque carte. -->
-      <PhoneStatus v-if="c.phoneLastSeenAt" :child-id="c.id" :name="c.firstName" @alerts="alertsFor[c.id] = $event" />
-      <!-- Aucun téléphone (NAR-193) : texte pour tous, « Relier le téléphone » pour les gestionnaires. -->
-      <div v-else class="no-phone">
+      <!-- Bandeau d'alerte, puis Appeler et Message, puis pastilles du téléphone (maquette 01,
+           NAR-227) ; « Aujourd'hui · N appels, N bloqués › » ouvre le journal de l'enfant. -->
+      <PhoneStatus v-if="c.phoneLastSeenAt" :child-id="c.id" :name="c.firstName" @alerts="alertsFor[c.id] = $event">
+        <template #actions>
+          <!-- Sans numéro, « Appeler » mène à sa saisie (gestionnaires) : jamais un bouton sans effet. -->
+          <div class="actions">
+            <a v-if="c.phone" class="btn call" :href="`tel:${c.phone}`" :aria-label="t.children.callChild(c.firstName)">
+              <AppIcon name="call" :size="20" />{{ t.children.call }}
+            </a>
+            <RouterLink
+              v-else-if="canManage()" class="btn call" :to="{ name: 'enfant', params: { id: c.id }, query: { focus: 'phone' } }"
+              :aria-label="t.children.addPhoneToCall(c.firstName)"
+            >
+              <AppIcon name="call" :size="20" />{{ t.children.call }}
+            </RouterLink>
+            <RouterLink
+              class="btn btn-soft" :to="{ name: 'journal', query: { kind: 'messages' } }"
+              :aria-label="t.children.messageChild(c.firstName)" @click="selectChild(c.id)"
+            >
+              <AppIcon name="mail" :size="20" />{{ t.children.message }}
+            </RouterLink>
+          </div>
+        </template>
+      </PhoneStatus>
+      <TodaySummary v-if="c.phoneLastSeenAt" :child-id="c.id" />
+      <!-- Aucun téléphone (NAR-193, maquette 01) : texte pour tous, « Relier le téléphone » pour les gestionnaires. -->
+      <div v-if="!c.phoneLastSeenAt" class="no-phone">
         <p>{{ t.children.noPhoneYet(c.firstName) }}</p>
         <AppButton v-if="canManage()" block @click="router.push({ name: 'telephone', params: { id: c.id } })">
           <AppIcon name="qr" :size="22" />{{ t.children.pairPhone }}
         </AppButton>
-      </div>
-      <!-- « Antsoy » (NAR-194, maquette écran 6 : sous l'état du téléphone, avant « Aujourd'hui ») :
-           lien tel: au style du bouton principal (--call), pour tous les membres, seulement avec un numéro. -->
-      <!-- Appeler et Message (NAR-227, maquette 01). Sans numéro, « Appeler » mène à sa saisie
-           (gestionnaires, téléphone relié ; sinon « Relier le téléphone » reste la seule action) :
-           jamais un bouton sans effet. « Message » ouvre le journal de l'enfant
-           filtré sur ses messages rapides. -->
-      <div class="actions">
-        <a v-if="c.phone" class="btn call" :href="`tel:${c.phone}`" :aria-label="t.children.callChild(c.firstName)">
+        <!-- Numéro connu sans téléphone relié (cas absent de la maquette) : l'appel reste possible, en secondaire. -->
+        <a v-if="c.phone" class="btn btn-block btn-ghost call" :href="`tel:${c.phone}`" :aria-label="t.children.callChild(c.firstName)">
           <AppIcon name="call" :size="20" />{{ t.children.call }}
         </a>
-        <RouterLink
-          v-else-if="canManage() && c.phoneLastSeenAt" class="btn call" :to="{ name: 'enfant', params: { id: c.id }, query: { focus: 'phone' } }"
-          :aria-label="t.children.addPhoneToCall(c.firstName)"
-        >
-          <AppIcon name="call" :size="20" />{{ t.children.call }}
-        </RouterLink>
-        <RouterLink
-          v-if="c.phoneLastSeenAt" class="btn btn-soft" :to="{ name: 'journal', query: { kind: 'messages' } }"
-          :aria-label="t.children.messageChild(c.firstName)" @click="selectChild(c.id)"
-        >
-          <AppIcon name="mail" :size="20" />{{ t.children.message }}
-        </RouterLink>
       </div>
-      <!-- Deux enfants ou plus : « Aujourd'hui » derrière un bouton à aria-expanded. Sur
-           ordinateur, le journal de l'enfant choisi est à côté des cartes : pas de bouton. -->
-      <h3 v-if="collapsible && c.phoneLastSeenAt && !todayAside" class="today-toggle">
-        <button type="button" :aria-expanded="openToday.has(c.id)" :aria-controls="`today-${c.id}`" @click="toggleToday(c)">
-          <span>{{ t.parent.log.todayTitle }}</span>
-          <AppIcon name="chevron-right" :size="20" class="chevron" />
-        </button>
-      </h3>
-      <TodayLog v-if="showToday(c)" :id="`today-${c.id}`" :child-id="c.id" bare :untitled="collapsible" />
     </li>
-    <li v-if="canManage()">
+    <li v-if="canManage() && !addInHeader">
       <RouterLink class="add" :to="{ name: 'enfant-nouveau' }">+ {{ t.children.add }}</RouterLink>
     </li>
   </ul>
@@ -189,6 +174,16 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
 /* Carte sélectionnée : bord discret (NAR-192) ; elle se distingue aussi par « Aujourd'hui ». */
 .child.open {
   box-shadow: 0 0 0 1px var(--border-strong);
+}
+/* Bord de la couleur de l'alerte (maquette 01, NAR-227) : à vérifier en jaune, ne répond plus en rouge. */
+.child.level-warn {
+  box-shadow: 0 0 0 2px var(--accent-yellow);
+}
+.child.level-alert {
+  box-shadow: 0 0 0 2px var(--sos);
+}
+.more:hover {
+  background: var(--surface-muted);
 }
 .head {
   display: flex;
@@ -272,10 +267,11 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
   flex: none;
   width: var(--tap);
   height: var(--tap);
-  border: 1px solid var(--border-strong);
+  /* « ⋯ » discret (maquette 01) : sans contour, fond au survol seulement. */
+  border: 0;
   border-radius: 50%;
-  background: var(--surface);
-  color: var(--text);
+  background: transparent;
+  color: var(--text-soft);
   font: inherit;
   display: inline-flex;
   align-items: center;
@@ -297,37 +293,8 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
 .btn-soft {
   text-decoration: none;
 }
-.today-toggle {
-  margin: var(--space-2) 0 0;
-  border-top: 1px solid var(--border);
-  font: inherit;
-}
-.today-toggle button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  min-height: var(--tap);
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--text);
-  font: inherit;
-  font-size: var(--fs-h2);
-  font-weight: 900;
-  text-align: left;
-  cursor: pointer;
-}
-.today-toggle .chevron {
-  transform: rotate(90deg);
-  transition: transform 0.15s;
-}
-.today-toggle button[aria-expanded='true'] .chevron {
-  transform: rotate(-90deg);
-}
 .select:focus-visible,
 .more:focus-visible,
-.today-toggle button:focus-visible,
 .add:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
