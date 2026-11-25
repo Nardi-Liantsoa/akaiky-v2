@@ -14,6 +14,7 @@ import { dayName } from '../../lib/journalDay'
 import { children, loadChildren, selectedChild } from '../../store/children'
 import { canManage, family, loadFamily } from '../../store/family'
 import AppButton from '../../components/ui/AppButton.vue'
+import AppIcon from '../../components/ui/AppIcon.vue'
 import StatusBlock from '../../components/ui/StatusBlock.vue'
 
 // Journal de l'enfant (NAR-152, maquette écran 9) : appels, appels bloqués, déverrouillages
@@ -154,8 +155,12 @@ const listLabel = computed(() => dayName(shownDay.value, todayKey.value, t.value
       <LogSummary v-model="filter" :today="today" :title="isToday ? t.parent.log.summaryTitle : t.parent.log.summaryTitleDay" />
       <!-- Zone annoncée toujours présente (une zone insérée déjà remplie n'est pas lue) ;
            le bouton est à côté, pas dedans. -->
+      <!-- Information (NAR-235), toujours là : comment filtrer, puis comment tout réafficher.
+           Hors de la zone annoncée (role=status) : le filtre choisi y est déjà dit. -->
+      <p class="filter-hint"><AppIcon name="info" :size="18" />{{ filter === 'all' ? t.parent.log.filterHint : t.parent.log.filterHintActive }}</p>
       <div class="active-filter">
         <p role="status" class="filter-status">{{ filter !== 'all' ? t.parent.log.activeFilter(t.parent.log.summary[filter]) : '' }}</p>
+
         <AppButton v-if="filter !== 'all'" variant="link" @click="filter = 'all'">{{ t.parent.log.showAll }}</AppButton>
       </div>
     </template>
@@ -192,6 +197,23 @@ h1 {
 }
 .head-switch :deep(.switch) {
   margin-bottom: 0;
+}
+/* Bandeau d'information : fond neutre (jamais la teinte d'une tuile : le bleu est celui des
+ * appels), icône « i », texte d'aide (jamais une action). */
+.filter-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+.filter-hint :deep(svg) {
+  flex: none;
 }
 .active-filter {
   display: flex;
