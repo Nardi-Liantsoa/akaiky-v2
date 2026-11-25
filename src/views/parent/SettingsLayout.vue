@@ -47,12 +47,21 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
   <section v-else class="settings" :class="{ desktop }">
     <header v-if="desktop" class="head">
       <h1>{{ t.parent.settings.title }}</h1>
-      <ChildSwitcher v-if="showsCard && children.items.length > 1" />
+      <span v-if="showsCard && children.items.length > 1" class="head-switch"><ChildSwitcher /></span>
     </header>
+    <!-- Téléphone : sélecteur d'enfant à droite du titre (ou du retour dans une section), sur la
+         même ligne, comme sur ordinateur et dans le journal (NAR-231). -->
     <template v-else>
-      <BackLink v-if="section" :to="{ name: 'reglages' }" :label="t.parent.settings.back" :aria-label="t.parent.settings.backLabel" />
+      <div v-if="section" class="head back-row">
+        <BackLink :to="{ name: 'reglages' }" :label="t.parent.settings.back" :aria-label="t.parent.settings.backLabel" />
+        <span v-if="showsCard && children.items.length > 1" class="head-switch"><ChildSwitcher /></span>
+      </div>
       <p v-if="current" class="over">{{ t.contacts.phoneOf(current.firstName) }}</p>
-      <h1 v-if="!section || !showsCard">{{ heading }}</h1>
+      <div v-if="!section" class="head">
+        <h1>{{ heading }}</h1>
+        <span v-if="showsCard && children.items.length > 1" class="head-switch"><ChildSwitcher /></span>
+      </div>
+      <h1 v-else-if="!showsCard">{{ heading }}</h1>
     </template>
     <StatusBlock v-if="family.status === 'ready' && children.status === 'error'" state="error" :text="t.children.loadError" @retry="loadChildren(true)" />
     <template v-else-if="family.status === 'ready' && children.status === 'ready'">
@@ -65,7 +74,6 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
         <div v-if="desktop" class="master"><SettingsView :child="current" /></div>
         <div class="detail">
           <p v-if="desktop" class="over">{{ t.contacts.phoneOf(current.firstName) }}</p>
-          <ChildSwitcher v-else-if="children.items.length > 1" />
           <RouterView v-if="!desktop || route.name !== 'reglages'" :child="current" v-bind="section ? { level: desktop ? 2 : 1 } : {}" />
         </div>
       </div>
@@ -84,6 +92,18 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
   margin-bottom: var(--space-4);
 }
 .head h1 {
+  margin: 0;
+}
+.head-switch {
+  margin-left: auto;
+}
+.head-switch :deep(.switch) {
+  margin-bottom: 0;
+}
+.back-row {
+  margin-bottom: var(--space-2);
+}
+.back-row :deep(.back) {
   margin: 0;
 }
 .desktop .body {

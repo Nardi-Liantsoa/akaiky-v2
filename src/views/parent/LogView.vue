@@ -122,9 +122,12 @@ const dayLabel = (g: { when: string, date: Date }) =>
   <LoadError v-if="family.status === 'error'" />
   <!-- Un seul bloc de chargement (famille, enfants puis journal) : annoncé une fois. -->
   <section v-else>
-    <h1>{{ t.parent.log.title }}</h1>
+    <!-- Sélecteur d'enfant à droite du titre, sur la même ligne (maquette 05, NAR-231). -->
+    <div class="log-head">
+      <h1>{{ t.parent.log.title }}</h1>
+      <span v-if="listed && current && children.items.length > 1" class="head-switch"><ChildSwitcher /></span>
+    </div>
     <template v-if="listed && current">
-      <ChildSwitcher v-if="children.items.length > 1" />
       <LogSummary v-model="filter" :today="today" />
       <!-- Zone annoncée toujours présente (une zone insérée déjà remplie n'est pas lue) ;
            le bouton est à côté, pas dedans. -->
@@ -141,7 +144,10 @@ const dayLabel = (g: { when: string, date: Date }) =>
       <div v-else class="days" :class="{ refreshing }" :aria-busy="refreshing">
         <section v-for="g in groups" :key="g.key" class="day">
           <h2>{{ dayLabel(g) }}</h2>
-          <ul class="card list">
+          <!-- « Aujourd'hui » défile dans sa carte (demande utilisateur, NAR-231) : la liste du jour
+               ne repousse pas les jours précédents ; zone atteignable au clavier (même courte : un
+               arrêt de plus, assumé). Clé avec filtre et enfant : un autre contenu repart en haut. -->
+          <ul :key="`${g.key}-${filter}-${current.id}`" class="card list" :class="{ bounded: g.when === 'today' }" v-bind="g.when === 'today' ? { tabindex: 0, 'aria-label': dayLabel(g) } : {}">
             <LogItem v-for="i in g.items" :key="i.id" :item="i" :child-id="current.id" :can-allow="canManage()" />
           </ul>
         </section>
@@ -154,8 +160,19 @@ const dayLabel = (g: { when: string, date: Date }) =>
 </template>
 
 <style scoped>
-h1 {
+.log-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
   margin: 8px 0 16px;
+}
+h1 {
+  margin: 0;
+}
+.head-switch :deep(.switch) {
+  margin-bottom: 0;
 }
 .active-filter {
   display: flex;
@@ -183,6 +200,16 @@ h1 {
   list-style: none;
   margin: 0;
   padding: 4px 16px;
+}
+/* Au bout de la liste, le défilement passe à la page (pas de overscroll-behavior: contain) :
+ * le bas de la carte remonte au-dessus de la barre d'onglets, rien ne reste caché dessous. */
+.list.bounded {
+  max-height: min(440px, 50vh);
+  overflow-y: auto;
+}
+.list.bounded:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 .refreshing {
   opacity: 0.45;

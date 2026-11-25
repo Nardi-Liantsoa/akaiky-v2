@@ -145,6 +145,15 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   (`meta.wide`) : étapes à gauche, QR à droite, affiché au clic comme sur téléphone (un nouveau
   jeton annule le QR déjà affiché ailleurs : jamais créé sans geste). Boutons avec icône (QR, nouveau QR, retirer) ; titre « Téléphones
   appairés » avec la pastille téléphone, cartes des téléphones sans icône (demande utilisateur).
+- **Journal** (NAR-231, design créé sans maquette, d'après les cartes et les lignes du journal) —
+  tuiles du jour sans titre visible (« Aujourd'hui en bref » lu par les lecteurs d'écran seulement), blanches (`--surface`, `--radius`), pastille d'icône teintée
+  44 px identique à celle des lignes (appels `--tint-sky`, bloqués rouge, messages `--tint-mint`,
+  sorties du verrou `--tint-butter`), nombre puis libellé ; nombre de bloqués en rouge dès 1 ;
+  tuile active : bord `--accent`, fond `--accent-soft`, coche dans la pastille `--accent`. « Aujourd'hui » défile dans sa
+  carte (440 px ou la moitié de l'écran au plus ; au bout, le défilement passe à la page) ; numéro d'un appel bloqué jamais coupé (heure en haut à droite de la ligne).
+  Sélecteur d'enfant (dès deux enfants) à droite du titre, sur la même ligne (position de la
+  maquette 05 ; les onglets avatars de la maquette viendront avec Réglages, NAR-232). Réglages au
+  téléphone : même place, à droite du titre ou du retour « ‹ Réglages » dans une section.
 - **Invitation** (NAR-230, design créé sans maquette) — carte centrée, pastille enveloppe
   (`--accent-soft` / `--accent-deep`), « Hanta vous invite dans « Famille Rakoto » comme
   Contact. » (sans invitant connu : « Vous êtes invité à rejoindre… »), « Rejoindre la famille »
