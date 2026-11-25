@@ -35,7 +35,7 @@ export interface Invitation {
 }
 
 // invitedBy : nom de la personne qui invite (NAR-230), montré seulement au compte invité.
-export type InvitationPreview = { forThisAccount: false } | { forThisAccount: true, familyName: string, role: InviteRole, invitedBy: string }
+export type InvitationPreview = { forThisAccount: false } | { forThisAccount: true, familyName: string, role: InviteRole, invitedBy?: string }
 
 export const listInvitations = () => api.get<Invitation[]>('/families/me/invitations')
 export const inviteMember = (email: string, role: InviteRole) => api.post<Invitation>('/families/me/invitations', { email, role })

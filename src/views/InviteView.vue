@@ -45,7 +45,8 @@ onMounted(async () => {
     const preview = await previewInvitation(token)
     if (!preview.forThisAccount) { state.value = 'other'; return }
     familyName.value = preview.familyName
-    invitedBy.value = preview.invitedBy
+    // Serveur antérieur à NAR-230 (bundle plus récent) : pas d'invitant, phrase sans lui.
+    invitedBy.value = preview.invitedBy ?? ''
     role.value = preview.role
     state.value = 'ready'
   } catch (e) { fail(e) }
@@ -85,7 +86,7 @@ async function accept() {
       </template>
       <p v-else-if="state === 'other'" class="error" role="alert">{{ t.invite.otherAccount }}</p>
       <template v-else-if="state === 'ready'">
-        <p class="join">{{ t.invite.joinBy(invitedBy, familyName, t.family.roles[role]) }}</p>
+        <p class="join">{{ invitedBy ? t.invite.joinBy(invitedBy, familyName, t.family.roles[role]) : t.invite.join(familyName, t.family.roles[role]) }}</p>
         <AppButton block :disabled="busy" @click="accept"><AppIcon name="check" :size="20" />{{ t.invite.accept }}</AppButton>
       </template>
       <template v-else>
@@ -117,12 +118,11 @@ async function accept() {
   font-weight: 700;
   line-height: 1.45;
 }
-.actions {
-  justify-content: center;
-}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
 }
 </style>

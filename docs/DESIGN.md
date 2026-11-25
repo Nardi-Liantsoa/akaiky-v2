@@ -147,7 +147,8 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   appairés » avec la pastille téléphone, cartes des téléphones sans icône (demande utilisateur).
 - **Invitation** (NAR-230, design créé sans maquette) — carte centrée, pastille enveloppe
   (`--accent-soft` / `--accent-deep`), « Hanta vous invite dans « Famille Rakoto » comme
-  Contact. », « Accepter l'invitation » pleine largeur avec coche ; connexion et inscription avec
+  Contact. » (sans invitant connu : « Vous êtes invité à rejoindre… »), « Rejoindre la famille »
+  pleine largeur avec coche ; connexion et inscription avec
   leurs icônes.
 - **`BackLink`** (NAR-195) — lien de retour en tête d'écran (« ‹ Réglages », « ‹ Accueil ») :
   chevron + libellé `--accent`, ≥ `--tap`, vrai lien (`href`) dont le clic passe par `backTo`
