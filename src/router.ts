@@ -19,7 +19,8 @@ const routes: RouteRecordRaw[] = [
     // (pas d'en-tête global, App.vue).
     meta: { requiresAuth: true, parentShell: true },
     children: [
-      { path: '', name: 'espace', component: () => import('./views/parent/HomeView.vue') },
+      // wide : colonne large sur ordinateur (grille de l'accueil, maître/détail de Réglages, NAR-223).
+      { path: '', name: 'espace', component: () => import('./views/parent/HomeView.vue'), meta: { wide: true } },
       // requiresFamily : sans famille, retour à l'accueil, qui présente la création.
       { path: 'journal', name: 'journal', component: () => import('./views/parent/LogView.vue'), meta: { requiresFamily: true } },
       {
@@ -28,7 +29,7 @@ const routes: RouteRecordRaw[] = [
         // requiresFamily vaut pour chaque page.
         path: 'reglages',
         component: () => import('./views/parent/SettingsLayout.vue'),
-        meta: { requiresFamily: true },
+        meta: { requiresFamily: true, wide: true },
         children: [
           { path: '', name: 'reglages', component: () => import('./views/parent/SettingsView.vue'), meta: { requiresFamily: true } },
           ...SETTINGS_SECTIONS.map((s) => ({

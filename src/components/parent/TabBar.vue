@@ -2,10 +2,15 @@
 import { computed } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useT } from '../../composables/useT'
+import { auth } from '../../store/auth'
+import { family } from '../../store/family'
 import AppIcon from '../ui/AppIcon.vue'
 import type { IconName } from '../ui/icons'
+import ChildAvatar from './ChildAvatar.vue'
 
 const t = useT()
+// Nom de l'app, le même dans les trois langues.
+const APP_NAME = 'Akaiky'
 const route = useRoute()
 const router = useRouter()
 
@@ -33,10 +38,27 @@ const active = computed(() =>
 
 <template>
   <nav class="tabbar" :aria-label="t.parent.tabsLabel">
+    <!-- Ordinateur seulement (NAR-223, maquettes 02 et 05) : nom de l'app en tête, compte en bas. -->
+    <!-- Liens sans aria-current : seul l'onglet signale la page ouverte. -->
+    <RouterLink v-slot="{ href, navigate }" :to="{ name: 'espace' }" custom>
+      <a :href="href" class="brand" :aria-label="`${APP_NAME}, ${t.parent.home.title.toLocaleLowerCase()}`" @click="navigate">
+        <span class="logo" aria-hidden="true">{{ APP_NAME[0] }}</span>
+        <span aria-hidden="true">{{ APP_NAME }}</span>
+      </a>
+    </RouterLink>
     <RouterLink v-for="tab in TABS" :key="tab.name" v-slot="{ href, navigate }" :to="{ name: tab.name }" custom>
       <a :href="href" class="tab" :aria-current="active === tab.name ? 'page' : undefined" @click="navigate">
         <AppIcon :name="tab.icon" />
         <span>{{ t.parent[tab.key].title }}</span>
+      </a>
+    </RouterLink>
+    <RouterLink v-if="auth.user" v-slot="{ href, navigate }" :to="{ name: 'securite' }" custom>
+      <a :href="href" class="account" @click="navigate">
+        <ChildAvatar :name="auth.user.name" color="blue" :size="40" />
+        <span class="who">
+          <span class="name">{{ auth.user.name }}</span>
+          <span v-if="family.data" class="family">{{ family.data.name }}</span>
+        </span>
       </a>
     </RouterLink>
   </nav>
@@ -79,9 +101,16 @@ const active = computed(() =>
   color: var(--accent);
   font-weight: 800;
 }
-.tab:focus-visible {
+.tab:focus-visible,
+.brand:focus-visible,
+.account:focus-visible {
   outline: var(--focus-ring);
   outline-offset: -3px;
+}
+/* Nom de l'app et compte : barre latérale de l'ordinateur seulement. */
+.brand,
+.account {
+  display: none;
 }
 /* Grands écrans (NAR-208). Tablette : onglets regroupés au centre, sous la colonne de
    contenu (720 px), au lieu d'être étalés sur toute la largeur. */
@@ -91,22 +120,84 @@ const active = computed(() =>
     justify-content: center;
   }
 }
-/* Ordinateur : rail à gauche, onglets empilés en haut. Mêmes liens, même ordre. */
+/* Ordinateur (NAR-223, maquettes 02 et 05) : barre latérale pleine hauteur, nom de l'app en
+   tête, onglets en lignes (icône puis libellé), compte en bas. Mêmes liens, même ordre. */
 @media (min-width: 1024px) {
   .tabbar {
     inset: 0 auto 0 0;
     width: calc(var(--rail-width) + var(--safe-left));
-    height: auto;
-    grid-template-columns: 1fr;
-    grid-auto-rows: calc(var(--tap) + var(--space-6) - var(--space-1));
-    align-content: start;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
     gap: var(--space-1);
-    padding: calc(var(--space-5) + var(--safe-top)) 0 var(--safe-bottom) var(--safe-left);
+    padding: calc(var(--space-5) + var(--safe-top)) var(--space-3) calc(var(--space-4) + var(--safe-bottom)) calc(var(--space-3) + var(--safe-left));
     border-top: none;
     border-right: 1px solid var(--border);
   }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: var(--tap);
+    margin: 0 0 var(--space-4);
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-size: 1.4rem;
+    font-weight: 900;
+    text-decoration: none;
+  }
+  .logo {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: 1.2rem;
+  }
   .tab {
-    gap: var(--space-1);
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--space-3);
+    min-height: 52px;
+    padding: 0 var(--space-4);
+    border-radius: var(--radius-sm);
+    font-size: 1.05rem;
+    text-align: left;
+  }
+  .tab:hover {
+    background: var(--bg);
+    text-decoration: none;
+  }
+  .tab[aria-current='page'] {
+    background: var(--accent-soft);
+  }
+  .account {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-top: auto;
+    padding: var(--space-4) var(--space-2) 0;
+    border-top: 1px solid var(--border);
+    color: var(--text);
+    text-decoration: none;
+  }
+  .who {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .name {
+    font-weight: 800;
+  }
+  .family {
+    overflow: hidden;
+    color: var(--text-soft);
+    font-size: var(--fs-small);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 </style>

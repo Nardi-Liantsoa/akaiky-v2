@@ -89,6 +89,14 @@ function retryAll() {
   color: var(--text);
   text-decoration: none;
 }
+/* Section ouverte (maître/détail sur ordinateur, NAR-223) : surlignée ; aria-current la
+ * nomme pour un lecteur d'écran (posé par RouterLink). */
+.row[aria-current='page'] {
+  margin: 0 calc(-1 * var(--space-2));
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+}
 .row:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);

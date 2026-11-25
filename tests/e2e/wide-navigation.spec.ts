@@ -10,7 +10,7 @@ const api = {
   'GET /api/children': () => ({ body: [] })
 }
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Navigation principale' })
-const box = async (page: Page, name: string) => (await nav(page).getByRole('link', { name }).boundingBox())!
+const box = async (page: Page, name: string) => (await nav(page).getByRole('link', { name, exact: true }).boundingBox())!
 
 async function open(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height })
@@ -36,12 +36,17 @@ test('tablette (768 px) : barre du bas, onglets regroupés sous la colonne de co
   expect(first.y + first.height).toBeGreaterThan(1024 - 70)
 })
 
-test('ordinateur (1280 px) : rail à gauche, contenu à côté et sans réserve en bas, onglets dans le même ordre', async ({ page }) => {
+test('ordinateur (1280 px) : barre latérale pleine hauteur (nom de l’app, onglets, compte), contenu à côté, onglets dans le même ordre', async ({ page }) => {
   await open(page, 1280, 800)
   const rail = (await nav(page).boundingBox())!
   expect(rail.x).toBe(0)
-  expect(rail.width).toBeLessThanOrEqual(120)
+  // Barre latérale de la maquette 02 (NAR-223) : environ 250 px, nom de l'app en tête, compte en bas.
+  expect(rail.width).toBeGreaterThanOrEqual(200)
+  expect(rail.width).toBeLessThanOrEqual(280)
   expect(rail.height).toBe(800)
+  await expect(nav(page).getByRole('link', { name: 'Akaiky, accueil' })).toBeVisible()
+  const account = (await nav(page).getByRole('link', { name: /Alice/ }).boundingBox())!
+  expect(account.y + account.height).toBeGreaterThan(800 - 100)
   const tops = await Promise.all(['Accueil', 'Journal', 'Réglages', 'Famille'].map(async (n) => (await box(page, n)).y))
   expect(tops).toEqual([...tops].sort((a, b) => a - b))
   for (const n of ['Accueil', 'Famille']) expect((await box(page, n)).height).toBeGreaterThanOrEqual(48)
@@ -50,7 +55,12 @@ test('ordinateur (1280 px) : rail à gauche, contenu à côté et sans réserve 
   // La colonne reste centrée dans la place à droite du rail.
   expect(Math.abs((main.x - (rail.x + rail.width)) - (1280 - (main.x + main.width)))).toBeLessThanOrEqual(1)
   // Clic sur un onglet du rail : même navigation, état actif suivi.
-  await nav(page).getByRole('link', { name: 'Famille' }).click()
+  await nav(page).getByRole('link', { name: 'Famille', exact: true }).click()
   await expect(page).toHaveURL(/\/espace\/famille$/)
-  await expect(nav(page).getByRole('link', { name: 'Famille' })).toHaveAttribute('aria-current', 'page')
+  await expect(nav(page).getByRole('link', { name: 'Famille', exact: true })).toHaveAttribute('aria-current', 'page')
+  // Page longue : la barre latérale reste à pleine hauteur pendant le défilement (bug de l'audit).
+  await page.mouse.wheel(0, 2000)
+  const after = (await nav(page).boundingBox())!
+  expect(after.y).toBe(0)
+  expect(after.height).toBe(800)
 })

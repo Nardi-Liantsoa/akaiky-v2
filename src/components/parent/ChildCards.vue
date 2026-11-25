@@ -21,6 +21,9 @@ import AppIcon from '../ui/AppIcon.vue'
 // NAR-193 : cartes rangées par gravité (`sortBySeverity`) ; à partir de deux enfants,
 // « Aujourd'hui » est replié sur chaque carte et s'ouvre à la demande ; une carte sans
 // téléphone propose de le relier (gestionnaires) et n'a pas de journal.
+// todayAside : enfant dont « Aujourd'hui » est déjà montré à côté des cartes (ordinateur,
+// NAR-223) ; sa carte ne le répète pas.
+const props = defineProps<{ todayAside?: string | null }>()
 const t = useT()
 const router = useRouter()
 // Alertes ouvertes lues par PhoneStatus, par enfant (NAR-192) : la pastille en dépend, sans
@@ -55,7 +58,7 @@ function toggleToday(c: Child) {
   // « Tout le journal » ouvre le journal de l'enfant sélectionné : c'est celui-ci.
   selectChild(c.id)
 }
-const showToday = (c: Child) => Boolean(c.phoneLastSeenAt) && (collapsible.value ? openToday.has(c.id) : c.id === children.selectedId)
+const showToday = (c: Child) => Boolean(c.phoneLastSeenAt) && c.id !== props.todayAside && (collapsible.value ? openToday.has(c.id) : c.id === children.selectedId)
 const menuFor = ref<Child | null>(null)
 const menuOpener = ref<HTMLElement | null>(null)
 function openMenu(c: Child, e: MouseEvent) {

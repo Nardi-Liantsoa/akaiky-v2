@@ -14,8 +14,9 @@ import { contactErrorText } from '../../lib/contactErrors'
 import { contacts, loadContacts } from '../../store/contacts'
 
 // Page d'une section de Réglages (NAR-185) : la carte de la section, inchangée ; son
-// titre devient celui de la page (h1, :level="1" transmis à SectionCard).
-defineProps<{ child: Child }>()
+// titre devient celui de la page (h1, :level="level" transmis à SectionCard).
+// level : 2 sur ordinateur, où la page porte « Réglages » en h1 et la liste à côté (NAR-223).
+withDefaults(defineProps<{ child: Child, level?: 1 | 2 }>(), { level: 1 })
 const t = useT()
 const route = useRoute()
 const section = computed(() => route.meta.settingsSection)
@@ -35,14 +36,14 @@ const section = computed(() => route.meta.settingsSection)
           v-if="contacts.error && contacts.childId === child.id" state="error"
           :text="`${t.contacts.loadError} ${contactErrorText(contacts.error, t)}`" @retry="loadContacts(child.id, true)"
         />
-        <ContactsCard class="page-card" :level="1" :child-id="child.id" />
+        <ContactsCard class="page-card" :level="level" :child-id="child.id" />
       </template>
     </template>
-    <AllowedAppsCard v-else-if="section === 'apps'" class="page-card" :level="1" :child-id="child.id" />
-    <ParentCodeCard v-else-if="section === 'parentCode'" class="page-card" :level="1" :child="child" />
-    <ScheduleCard v-else-if="section === 'schedules'" class="page-card" :level="1" :child-id="child.id" />
-    <SosCard v-else-if="section === 'sos'" class="page-card" :level="1" :child="child" />
-    <MessageTemplatesCard v-else-if="section === 'templates'" class="page-card" :level="1" :child-id="child.id" />
+    <AllowedAppsCard v-else-if="section === 'apps'" class="page-card" :level="level" :child-id="child.id" />
+    <ParentCodeCard v-else-if="section === 'parentCode'" class="page-card" :level="level" :child="child" />
+    <ScheduleCard v-else-if="section === 'schedules'" class="page-card" :level="level" :child-id="child.id" />
+    <SosCard v-else-if="section === 'sos'" class="page-card" :level="level" :child="child" />
+    <MessageTemplatesCard v-else-if="section === 'templates'" class="page-card" :level="level" :child-id="child.id" />
   </div>
 </template>
 
