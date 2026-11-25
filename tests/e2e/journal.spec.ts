@@ -57,11 +57,11 @@ test('journal : groupé par jour, compteur « Bloqués », filtres, « Autoriser
   // Tuiles du jour (NAR-175) : toucher « Bloqués » filtre, le retoucher revient à « Tout ».
   const blockedTile = page.getByRole('button', { name: /^2 Bloqués$/ })
   await expect(blockedTile).toBeVisible()
-  // Indication visible tant qu'aucun filtre n'est choisi (NAR-235).
+  // Information toujours visible (NAR-235) : comment filtrer, puis comment tout réafficher.
   await expect(page.getByText('Touchez une case pour filtrer le journal.')).toBeVisible()
   await blockedTile.click()
   await expect(blockedTile).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.getByText('Touchez une case pour filtrer le journal.')).toHaveCount(0)
+  await expect(page.getByText('Touchez à nouveau la case pour tout afficher.')).toBeVisible()
   await expect(page.getByText('Appel de Maman')).toHaveCount(0)
   expect(api.queries).toContain('blocked')
   // Nombres gardés après le filtre (pas redemandés), filtre actif annoncé.

@@ -576,6 +576,7 @@ const fr = {
       showAll: 'Tout afficher',
       // Indication visible sous les tuiles tant qu’aucun filtre n’est choisi (NAR-235).
       filterHint: 'Touchez une case pour filtrer le journal.',
+      filterHintActive: 'Touchez à nouveau la case pour tout afficher.',
       today: 'Aujourd’hui',
       yesterday: 'Hier',
       callOut: (name: string) => `Appel à ${name}`,
@@ -1321,6 +1322,7 @@ const mg: Messages = {
       activeFilter: (name: string) => `Sivana : ${name}`,
       showAll: 'Haseho daholo',
       filterHint: 'Tsindrio ny iray hanivanana ny tantara.',
+      filterHintActive: 'Tsindrio indray ilay izy haseho daholo.',
       today: 'Androany',
       yesterday: 'Omaly',
       callOut: (name: string) => `Niantso an’i ${name}`,
@@ -2050,6 +2052,7 @@ const en: Messages = {
       activeFilter: (name: string) => `Filter: ${name}`,
       showAll: 'Show all',
       filterHint: 'Tap a tile to filter the log.',
+      filterHintActive: 'Tap the tile again to show everything.',
       today: 'Today',
       yesterday: 'Yesterday',
       callOut: (name: string) => `Call to ${name}`,

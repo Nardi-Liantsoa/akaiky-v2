@@ -155,10 +155,12 @@ const listLabel = computed(() => dayName(shownDay.value, todayKey.value, t.value
       <LogSummary v-model="filter" :today="today" :title="isToday ? t.parent.log.summaryTitle : t.parent.log.summaryTitleDay" />
       <!-- Zone annoncée toujours présente (une zone insérée déjà remplie n'est pas lue) ;
            le bouton est à côté, pas dedans. -->
+      <!-- Information (NAR-235), toujours là : comment filtrer, puis comment tout réafficher.
+           Hors de la zone annoncée (role=status) : le filtre choisi y est déjà dit. -->
+      <p class="filter-hint"><AppIcon name="info" :size="18" />{{ filter === 'all' ? t.parent.log.filterHint : t.parent.log.filterHintActive }}</p>
       <div class="active-filter">
         <p role="status" class="filter-status">{{ filter !== 'all' ? t.parent.log.activeFilter(t.parent.log.summary[filter]) : '' }}</p>
-        <!-- Sans filtre : comment en choisir un (NAR-235) ; hors de la zone annoncée, lu une fois. -->
-        <p v-if="filter === 'all'" class="filter-hint"><AppIcon name="sliders" :size="16" />{{ t.parent.log.filterHint }}</p>
+
         <AppButton v-if="filter !== 'all'" variant="link" @click="filter = 'all'">{{ t.parent.log.showAll }}</AppButton>
       </div>
     </template>
@@ -196,15 +198,21 @@ h1 {
 .head-switch :deep(.switch) {
   margin-bottom: 0;
 }
+/* Bandeau d'information : fond teinté, icône « i », texte d'aide (jamais une action). */
 .filter-hint {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
-  /* Respire entre les tuiles et la liste (demande utilisateur). */
-  margin: var(--space-3) var(--space-1) var(--space-4);
-  color: var(--text-soft);
+  gap: 8px;
+  margin: 0 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--tint-sky);
+  color: var(--text);
   font-size: var(--fs-small);
   font-weight: 600;
+}
+.filter-hint :deep(svg) {
+  flex: none;
 }
 .active-filter {
   display: flex;

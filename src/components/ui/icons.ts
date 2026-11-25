@@ -45,6 +45,8 @@ export const ICONS = {
   'chevron-right': { shapes: [path('M9 6l6 6-6 6')] },
   // Retour vers l'écran parent (sections de Réglages, NAR-185).
   'chevron-left': { shapes: [path('M15 6l-6 6 6 6')] },
+  // Information (indication du journal, NAR-235).
+  info: { shapes: [circle(12, 12, 9), path('M12 11v5M12 8h.01')] },
   // Ordre des contacts (maquette 05, NAR-232).
   'chevron-up': { shapes: [path('M6 15l6-6 6 6')] },
   'chevron-down': { shapes: [path('M6 9l6 6 6-6')] },
