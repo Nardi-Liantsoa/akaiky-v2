@@ -239,9 +239,10 @@ const fr = {
     // Ligne d'état de la carte de l'accueil (NAR-192) : pastille, puis le dernier passage.
     seenAt: (time: string) => `vu à ${time}`,
     seenAtOn: (day: string, time: string) => `vu le ${day} à ${time}`,
-    levels: { ok: 'Tout va bien', warn: 'À vérifier', alert: 'Ne répond plus', none: 'Aucun téléphone' },
+    levels: { ok: 'Tout va bien', warn: 'À vérifier', alert: 'Ne répond plus', none: 'Téléphone non relié' },
     // Carte sans téléphone (NAR-193) : texte pour tous, bouton pour les gestionnaires.
-    noPhoneYet: (name: string) => `Le téléphone de ${name} n’est pas encore relié.`,
+    // Maquette 01 (NAR-227) : la phrase invite à relier le téléphone, le prénom est déjà sur la carte.
+    noPhoneYet: (_name: string) => 'Reliez son téléphone en 3 étapes pour l’appeler et recevoir ses alertes.',
     pairPhone: 'Relier le téléphone',
     // Numéro de l'enfant (NAR-194) : bouton d'appel de la carte, champ facultatif du formulaire.
     call: 'Appeler',
@@ -976,8 +977,8 @@ const mg: Messages = {
     noPhone: 'Tsy misy finday mifandray',
     seenAt: (time: string) => `hita tamin’ny ${time}`,
     seenAtOn: (day: string, time: string) => `hita ny ${day}, ${time}`,
-    levels: { ok: 'Milamina', warn: 'Mila jerena', alert: 'Tsy mamaly', none: 'Tsy misy finday' },
-    noPhoneYet: (name: string) => `Mbola tsy mifandray ny findain’i ${name}.`,
+    levels: { ok: 'Milamina', warn: 'Mila jerena', alert: 'Tsy mamaly', none: 'Tsy mifandray ny finday' },
+    noPhoneYet: (_name: string) => 'Ampifandraiso amin’ny dingana 3 ny findainy mba hiantsoana azy sy handraisana ny fampitandremany.',
     pairPhone: 'Ampifandraiso ny finday',
     call: 'Antsoy',
     callChild: (name: string) => `Antsoy i ${name}`,
@@ -1688,8 +1689,8 @@ const en: Messages = {
     noPhone: 'No phone linked',
     seenAt: (time: string) => `seen at ${time}`,
     seenAtOn: (day: string, time: string) => `seen on ${day} at ${time}`,
-    levels: { ok: 'All good', warn: 'Check phone', alert: 'Not responding', none: 'No phone' },
-    noPhoneYet: (name: string) => `${name}’s phone is not linked yet.`,
+    levels: { ok: 'All good', warn: 'Check phone', alert: 'Not responding', none: 'Phone not linked' },
+    noPhoneYet: (_name: string) => 'Link their phone in 3 steps to call them and get their alerts.',
     pairPhone: 'Link the phone',
     call: 'Call',
     callChild: (name: string) => `Call ${name}`,

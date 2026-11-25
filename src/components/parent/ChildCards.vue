@@ -115,7 +115,9 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
       <!-- Aucun téléphone (NAR-193) : texte pour tous, « Relier le téléphone » pour les gestionnaires. -->
       <div v-else class="no-phone">
         <p>{{ t.children.noPhoneYet(c.firstName) }}</p>
-        <AppButton v-if="canManage()" block @click="router.push({ name: 'telephone', params: { id: c.id } })">{{ t.children.pairPhone }}</AppButton>
+        <AppButton v-if="canManage()" block @click="router.push({ name: 'telephone', params: { id: c.id } })">
+          <AppIcon name="qr" :size="22" />{{ t.children.pairPhone }}
+        </AppButton>
       </div>
       <!-- « Antsoy » (NAR-194, maquette écran 6 : sous l'état du téléphone, avant « Aujourd'hui ») :
            lien tel: au style du bouton principal (--call), pour tous les membres, seulement avec un numéro. -->
@@ -290,7 +292,6 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
 .no-phone p {
   margin: 0;
   color: var(--text-soft);
-  font-weight: 700;
 }
 .call,
 .btn-soft {

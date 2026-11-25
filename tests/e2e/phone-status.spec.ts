@@ -76,10 +76,10 @@ for (const c of CASES) {
   })
 }
 
-test('sans téléphone : pastille grise « Aucun téléphone » avec icône, sans heure ni tuiles', async ({ page }) => {
+test('sans téléphone : pastille grise « Téléphone non relié » avec icône, sans heure ni tuiles', async ({ page }) => {
   await home(page, () => ({ body: { devices: [] } }), { ...kid, phoneLastSeenAt: null })
   await page.goto('/espace')
-  await expectPill(page, 'Aucun téléphone', 'none')
+  await expectPill(page, 'Téléphone non relié', 'none')
   await expect(page.getByRole('button', { name: /^Fy / })).not.toContainText('vu à')
   await expect(page.getByRole('region', { name: 'État du téléphone de Fy' })).toHaveCount(0)
 })
