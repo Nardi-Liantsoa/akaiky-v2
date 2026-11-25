@@ -115,13 +115,33 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
       <!-- Aucun téléphone (NAR-193) : texte pour tous, « Relier le téléphone » pour les gestionnaires. -->
       <div v-else class="no-phone">
         <p>{{ t.children.noPhoneYet(c.firstName) }}</p>
-        <AppButton v-if="canManage()" block @click="router.push({ name: 'telephone', params: { id: c.id } })">{{ t.children.pairPhone }}</AppButton>
+        <AppButton v-if="canManage()" block @click="router.push({ name: 'telephone', params: { id: c.id } })">
+          <AppIcon name="qr" :size="22" />{{ t.children.pairPhone }}
+        </AppButton>
       </div>
       <!-- « Antsoy » (NAR-194, maquette écran 6 : sous l'état du téléphone, avant « Aujourd'hui ») :
            lien tel: au style du bouton principal (--call), pour tous les membres, seulement avec un numéro. -->
-      <a v-if="c.phone" class="btn btn-block call" :href="`tel:${c.phone}`" :aria-label="t.children.callChild(c.firstName)">
-        <AppIcon name="call" :size="20" />{{ t.children.call }}
-      </a>
+      <!-- Appeler et Message (NAR-227, maquette 01). Sans numéro, « Appeler » mène à sa saisie
+           (gestionnaires, téléphone relié ; sinon « Relier le téléphone » reste la seule action) :
+           jamais un bouton sans effet. « Message » ouvre le journal de l'enfant
+           filtré sur ses messages rapides. -->
+      <div class="actions">
+        <a v-if="c.phone" class="btn call" :href="`tel:${c.phone}`" :aria-label="t.children.callChild(c.firstName)">
+          <AppIcon name="call" :size="20" />{{ t.children.call }}
+        </a>
+        <RouterLink
+          v-else-if="canManage() && c.phoneLastSeenAt" class="btn call" :to="{ name: 'enfant', params: { id: c.id }, query: { focus: 'phone' } }"
+          :aria-label="t.children.addPhoneToCall(c.firstName)"
+        >
+          <AppIcon name="call" :size="20" />{{ t.children.call }}
+        </RouterLink>
+        <RouterLink
+          v-if="c.phoneLastSeenAt" class="btn btn-soft" :to="{ name: 'journal', query: { kind: 'messages' } }"
+          :aria-label="t.children.messageChild(c.firstName)" @click="selectChild(c.id)"
+        >
+          <AppIcon name="mail" :size="20" />{{ t.children.message }}
+        </RouterLink>
+      </div>
       <!-- Deux enfants ou plus : « Aujourd'hui » derrière un bouton à aria-expanded. Sur
            ordinateur, le journal de l'enfant choisi est à côté des cartes : pas de bouton. -->
       <h3 v-if="collapsible && c.phoneLastSeenAt && !todayAside" class="today-toggle">
@@ -140,6 +160,20 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
 </template>
 
 <style scoped>
+.actions {
+  margin: var(--space-3) 0 var(--space-1);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-2);
+}
+.actions:empty {
+  display: none;
+}
+/* Action secondaire teintée (maquette 01) : fond --accent-soft, encre --accent-deep (≥ 4.5:1). */
+.btn-soft {
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+}
 .cards {
   display: flex;
   flex-direction: column;
@@ -258,10 +292,9 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
 .no-phone p {
   margin: 0;
   color: var(--text-soft);
-  font-weight: 700;
 }
-.call {
-  margin: var(--space-3) 0 var(--space-1);
+.call,
+.btn-soft {
   text-decoration: none;
 }
 .today-toggle {

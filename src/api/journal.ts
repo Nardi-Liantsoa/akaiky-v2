@@ -2,7 +2,9 @@ import { api } from './http'
 import type { QuickSlot } from '../lib/quickMessages'
 
 // Journal de l'enfant (NAR-152).
-export type JournalFilter = 'all' | 'calls' | 'blocked' | 'messages' | 'unlocks'
+// Liste et type tirés l'un de l'autre : un filtre ajouté ici vaut aussi pour ?kind= (NAR-227).
+export const JOURNAL_FILTERS = ['all', 'calls', 'blocked', 'messages', 'unlocks'] as const
+export type JournalFilter = (typeof JOURNAL_FILTERS)[number]
 export type JournalItem =
   // emergencyWindow (NAR-196) : appel reçu laissé sonner par la fenêtre des secours.
   | { id: string, kind: 'call_out' | 'call_in' | 'call_blocked', at: string, contactId: string | null, name: string | null, phone: string | null, durationS: number | null, emergencyWindow?: boolean }

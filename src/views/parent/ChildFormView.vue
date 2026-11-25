@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, shallowRef, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router'
 import { addChild, removeChild, updateChild } from '../../api/children'
 import { ApiError } from '../../api/http'
@@ -136,6 +136,13 @@ watch(existing, (c) => {
     color.value = c.avatarColor
     initial.value = { name: c.firstName.trim(), phone: c.phone, color: c.avatarColor }
   }
+}, { immediate: true })
+// Venu de « Appeler » sur une carte sans numéro (NAR-227, ?focus=phone) : le champ du numéro
+// reçoit le focus une fois le formulaire affiché.
+watch(() => [existing.value?.id, allowed.value] as const, async ([childId, ok]) => {
+  if (!childId || !ok || route.query.focus !== 'phone') return
+  await nextTick()
+  document.getElementById('child-phone')?.focus()
 }, { immediate: true })
 
 async function save() {
