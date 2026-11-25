@@ -60,6 +60,10 @@ h1 {
   margin: 8px 0 16px;
 }
 /* Ordinateur : deux colonnes, le journal reste à l'écran pendant le défilement des cartes. */
+/* Sans journal à côté (enfant sans téléphone) : cartes à largeur de lecture, pas étirées. */
+.grid:not(.split) {
+  max-width: 720px;
+}
 .grid.split {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 400px);

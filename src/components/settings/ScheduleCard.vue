@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { summaryChanged } from '../../store/settingsSummary'
 import { computed, ref, watch } from 'vue'
 import { createSchedule, deleteSchedule, getSchedules, updateSchedule, type Schedule, type ScheduleInput } from '../../api/schedules'
 import { useConfirm } from '../../composables/useConfirm'
@@ -101,6 +102,7 @@ function save() {
   const id = editing.value
   void run(childId, async () => {
     const saved = id === 'new' ? await createSchedule(childId, data) : await updateSchedule(childId, id!, data)
+    summaryChanged()
     if (childId !== props.childId) return
     items.value = id === 'new' ? [...items.value, saved] : items.value.map((s) => (s.id === saved.id ? saved : s))
     close()
@@ -110,6 +112,7 @@ function toggle(s: Schedule) {
   const childId = props.childId
   void run(childId, async () => {
     const saved = await updateSchedule(childId, s.id, { label: s.label, days: s.days, startMin: s.startMin, endMin: s.endMin, enabled: !s.enabled })
+    summaryChanged()
     if (childId === props.childId) items.value = items.value.map((x) => (x.id === saved.id ? saved : x))
   })
 }
@@ -119,6 +122,7 @@ async function remove() {
   const childId = props.childId
   await run(childId, async () => {
     await deleteSchedule(childId, s.id)
+    summaryChanged()
     if (childId === props.childId) items.value = items.value.filter((x) => x.id !== s.id)
   })
   // Erreur montrée dans la carte, feuille refermée (sauf si une autre a été ouverte

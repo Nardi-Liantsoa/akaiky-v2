@@ -64,3 +64,28 @@ test('sous 1024 px : Réglages reste un résumé, une page par section', async (
   await expect(summary(page)).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Contacts autorisés' })).toHaveCount(0)
 })
+
+test('un enregistrement dans la section met à jour son résumé dans la liste, sans recharger la page', async ({ page }) => {
+  const texts: Record<number, string | null> = { 1: null, 2: null, 3: null, 4: null }
+  await mockApi(page, {
+    ...api,
+    [`GET /api/children/${FY.id}/message-templates`]: () => ({ body: [1, 2, 3, 4].map((slot) => ({ slot, text: texts[slot] })) }),
+    [`PUT /api/children/${FY.id}/message-templates/2`]: (req) => { texts[2] = req.postDataJSON().text; return { body: { slot: 2, text: texts[2] } } }
+  })
+  await page.goto('/espace/reglages/messages')
+  await expect(row(page, 'Messages rapides')).toContainText('Textes par défaut')
+  await page.getByLabel('Message 2').fill('Viens me chercher à l’école')
+  await page.getByRole('button', { name: 'Enregistrer les messages' }).click()
+  await expect(row(page, 'Messages rapides')).toContainText('1 sur 4 personnalisé')
+})
+
+test('passer les 1024 px (tablette tournée) garde la section ouverte et la saisie en cours', async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 1100 })
+  await mockApi(page, api)
+  await page.goto('/espace/reglages/code-parent')
+  await page.getByRole('button', { name: 'Changer le code' }).click()
+  await page.getByLabel('Nouveau code (6 chiffres)').fill('48291')
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await expect(summary(page)).toBeVisible()
+  await expect(page.getByLabel('Nouveau code (6 chiffres)')).toHaveValue('48291')
+})

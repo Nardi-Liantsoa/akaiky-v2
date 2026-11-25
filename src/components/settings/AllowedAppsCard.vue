@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { summaryChanged } from '../../store/settingsSummary'
 import { computed, ref, watch } from 'vue'
 import { getApps, setAllowedApps, type ChildApps } from '../../api/apps'
 import { ApiError } from '../../api/http'
@@ -68,6 +69,7 @@ async function save(packages: string[]) {
   error.value = ''
   try {
     await setAllowedApps(childId, packages)
+    summaryChanged()
     if (childId !== props.childId) return
     picking.value = false
     // Relu : drapeaux « autorisée » de l'inventaire et liste à jour, en une seule source.

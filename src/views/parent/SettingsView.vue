@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { Child } from '../../api/children'
 import AppIcon from '../../components/ui/AppIcon.vue'
@@ -9,6 +9,7 @@ import { locale, useT } from '../../composables/useT'
 import { formatDay } from '../../lib/format'
 import { appsSummary, schedulesSummary, sectionTitle, SETTINGS_SECTIONS, sosSummary, templatesSummary, type SettingsSection } from '../../lib/settingsSections'
 import { contacts, loadContacts } from '../../store/contacts'
+import { summaryVersion } from '../../store/settingsSummary'
 
 // Résumé de Réglages (NAR-185) : une ligne par section (icône, titre, état réel en une
 // ligne), qui ouvre sa page. Lectures : celles des cartes, lancées ensemble ; une lecture
@@ -16,7 +17,8 @@ import { contacts, loadContacts } from '../../store/contacts'
 // avec un seul bandeau « Réessayer » au-dessus des lignes.
 const props = defineProps<{ child: Child }>()
 const t = useT()
-const { state, retry } = useSettingsSummary(() => props.child.id)
+const { state, retry, refresh } = useSettingsSummary(() => props.child.id)
+watch(summaryVersion, refresh)
 
 type Line = { status: 'loading' | 'ready' | 'error', text: string, warn?: boolean }
 const contactsLine = computed<Line>(() => {

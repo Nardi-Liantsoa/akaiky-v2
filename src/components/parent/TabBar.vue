@@ -126,7 +126,10 @@ const active = computed(() =>
   .tabbar {
     inset: 0 auto 0 0;
     width: calc(var(--rail-width) + var(--safe-left));
-    height: 100dvh;
+    /* inset 0 étire déjà la barre ; auto remplace la hauteur de la barre du bas (WebView sans dvh). */
+    height: auto;
+    /* Fenêtre basse ou zoom fort : la barre défile, le compte reste atteignable. */
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
@@ -150,9 +153,9 @@ const active = computed(() =>
   .logo {
     display: grid;
     place-items: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+    width: var(--space-6);
+    height: var(--space-6);
+    border-radius: var(--radius-sm);
     background: var(--accent);
     color: var(--accent-ink);
     font-size: 1.2rem;
@@ -161,7 +164,7 @@ const active = computed(() =>
     flex-direction: row;
     justify-content: flex-start;
     gap: var(--space-3);
-    min-height: 52px;
+    min-height: var(--tap);
     padding: 0 var(--space-4);
     border-radius: var(--radius-sm);
     font-size: 1.05rem;

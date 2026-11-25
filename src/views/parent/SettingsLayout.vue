@@ -42,11 +42,18 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
 
 <template>
   <LoadError v-if="family.status === 'error'" />
-  <section v-else-if="desktop" class="settings desktop">
-    <header class="head">
+  <!-- Un seul arbre pour le téléphone et l'ordinateur (NAR-223) : passer 1024 px (tablette
+       tournée) ne recrée ni la liste ni la section ouverte, la saisie en cours reste. -->
+  <section v-else class="settings" :class="{ desktop }">
+    <header v-if="desktop" class="head">
       <h1>{{ t.parent.settings.title }}</h1>
       <ChildSwitcher v-if="showsCard && children.items.length > 1" />
     </header>
+    <template v-else>
+      <BackLink v-if="section" :to="{ name: 'reglages' }" :label="t.parent.settings.back" :aria-label="t.parent.settings.backLabel" />
+      <p v-if="current" class="over">{{ t.contacts.phoneOf(current.firstName) }}</p>
+      <h1 v-if="!section || !showsCard">{{ heading }}</h1>
+    </template>
     <StatusBlock v-if="family.status === 'ready' && children.status === 'error'" state="error" :text="t.children.loadError" @retry="loadChildren(true)" />
     <template v-else-if="family.status === 'ready' && children.status === 'ready'">
       <StatusBlock v-if="!children.items.length" state="empty" card :text="t.contacts.noChild">
@@ -54,31 +61,14 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
           <RouterLink class="btn" :to="{ name: 'enfant-nouveau' }">{{ t.children.add }}</RouterLink>
         </template>
       </StatusBlock>
-      <div v-else-if="current" class="master-detail">
-        <div class="master"><SettingsView :child="current" /></div>
+      <div v-else-if="current" class="body">
+        <div v-if="desktop" class="master"><SettingsView :child="current" /></div>
         <div class="detail">
-          <p class="over">{{ t.contacts.phoneOf(current.firstName) }}</p>
-          <RouterView v-if="route.name !== 'reglages'" :child="current" :level="2" />
+          <p v-if="desktop" class="over">{{ t.contacts.phoneOf(current.firstName) }}</p>
+          <ChildSwitcher v-else-if="children.items.length > 1" />
+          <RouterView v-if="!desktop || route.name !== 'reglages'" :child="current" v-bind="section ? { level: desktop ? 2 : 1 } : {}" />
         </div>
       </div>
-    </template>
-    <StatusBlock v-else state="loading" fill />
-  </section>
-  <section v-else class="settings">
-    <BackLink v-if="section" :to="{ name: 'reglages' }" :label="t.parent.settings.back" :aria-label="t.parent.settings.backLabel" />
-    <p v-if="current" class="over">{{ t.contacts.phoneOf(current.firstName) }}</p>
-    <h1 v-if="!section || !showsCard">{{ heading }}</h1>
-    <StatusBlock v-if="family.status === 'ready' && children.status === 'error'" state="error" :text="t.children.loadError" @retry="loadChildren(true)" />
-    <template v-else-if="family.status === 'ready' && children.status === 'ready'">
-      <StatusBlock v-if="!children.items.length" state="empty" card :text="t.contacts.noChild">
-        <template v-if="canManage()" #action>
-          <RouterLink class="btn" :to="{ name: 'enfant-nouveau' }">{{ t.children.add }}</RouterLink>
-        </template>
-      </StatusBlock>
-      <template v-else-if="current">
-        <ChildSwitcher v-if="children.items.length > 1" />
-        <RouterView :child="current" />
-      </template>
     </template>
     <StatusBlock v-else state="loading" fill />
   </section>
@@ -96,7 +86,7 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
 .head h1 {
   margin: 0;
 }
-.master-detail {
+.desktop .body {
   display: grid;
   grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
   align-items: start;
@@ -106,7 +96,7 @@ watch(() => current.value?.id, (id) => { if (id) void loadContacts(id, true) }, 
   position: sticky;
   top: var(--space-5);
 }
-.detail .over {
+.desktop .detail .over {
   margin: 0 0 var(--space-2);
 }
 .over {

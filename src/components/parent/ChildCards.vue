@@ -58,7 +58,7 @@ function toggleToday(c: Child) {
   // « Tout le journal » ouvre le journal de l'enfant sélectionné : c'est celui-ci.
   selectChild(c.id)
 }
-const showToday = (c: Child) => Boolean(c.phoneLastSeenAt) && c.id !== props.todayAside && (collapsible.value ? openToday.has(c.id) : c.id === children.selectedId)
+const showToday = (c: Child) => Boolean(c.phoneLastSeenAt) && !props.todayAside && (collapsible.value ? openToday.has(c.id) : c.id === children.selectedId)
 const menuFor = ref<Child | null>(null)
 const menuOpener = ref<HTMLElement | null>(null)
 function openMenu(c: Child, e: MouseEvent) {
@@ -122,8 +122,9 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
       <a v-if="c.phone" class="btn btn-block call" :href="`tel:${c.phone}`" :aria-label="t.children.callChild(c.firstName)">
         <AppIcon name="call" :size="20" />{{ t.children.call }}
       </a>
-      <!-- Deux enfants ou plus : « Aujourd'hui » derrière un bouton à aria-expanded. -->
-      <h3 v-if="collapsible && c.phoneLastSeenAt" class="today-toggle">
+      <!-- Deux enfants ou plus : « Aujourd'hui » derrière un bouton à aria-expanded. Sur
+           ordinateur, le journal de l'enfant choisi est à côté des cartes : pas de bouton. -->
+      <h3 v-if="collapsible && c.phoneLastSeenAt && !todayAside" class="today-toggle">
         <button type="button" :aria-expanded="openToday.has(c.id)" :aria-controls="`today-${c.id}`" @click="toggleToday(c)">
           <span>{{ t.parent.log.todayTitle }}</span>
           <AppIcon name="chevron-right" :size="20" class="chevron" />

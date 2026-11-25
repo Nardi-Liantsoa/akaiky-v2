@@ -56,9 +56,9 @@ watch(() => auth.user, (user) => {
     margin-right: auto;
   }
   .shell.with-tabs.wide {
-    max-width: 1200px;
-    padding-right: var(--gutter);
-    margin-left: calc(var(--rail-width) + var(--safe-left) + max(0px, (100% - var(--rail-width) - var(--safe-left) - 1200px) / 2));
+    max-width: var(--wide-width);
+    padding-right: calc(var(--gutter) + var(--safe-right));
+    margin-left: calc(var(--rail-width) + var(--safe-left) + max(0px, (100% - var(--rail-width) - var(--safe-left) - var(--wide-width)) / 2));
   }
 }
 </style>

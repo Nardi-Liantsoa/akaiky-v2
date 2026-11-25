@@ -1,3 +1,4 @@
+import { DESKTOP } from './composables/useMediaQuery'
 import { createApp } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { StatusBar, Style } from '@capacitor/status-bar'
@@ -44,7 +45,10 @@ if (Capacitor.getPlatform() === 'android') {
     NativeApp.addListener('backButton', ({ canGoBack }) => {
       if (closeTopSheet()) return
       const name = router.currentRoute.value.name
-      if (!canGoBack || ROOT_TABS.has(String(name))) void NativeApp.minimizeApp()
+      // Ordinateur (tablette couchée, NAR-223) : une section de Réglages est la racine de
+      // l'onglet (maître/détail, liste à côté) ; le retour ne remonte pas section par section.
+      const settingsRoot = String(name).startsWith('reglages-') && window.matchMedia(DESKTOP).matches
+      if (!canGoBack || ROOT_TABS.has(String(name)) || settingsRoot) void NativeApp.minimizeApp()
       else window.history.back()
     }).catch(() => {})
   })
