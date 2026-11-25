@@ -39,7 +39,6 @@ function close() {
 }
 
 const digitsOnly = (v: string) => v.replace(/[^0-9]/g, '').slice(0, 6)
-const complete = computed(() => code.value.length === 6 && confirmation.value.length === 6)
 
 function problemText(problem: string | null | undefined): string | null {
   if (problem === 'invalid_parent_code') return t.value.parentCode.invalid
@@ -113,7 +112,7 @@ async function unlockNow() {
       <AppButton v-if="!editing" variant="ghost" @click="open">
         {{ child.parentCodeSetAt ? t.parentCode.change : t.parentCode.set }}
       </AppButton>
-      <form v-else @submit.prevent="save">
+      <form v-else novalidate @submit.prevent="save">
         <p v-if="error" class="error" role="alert">{{ error }}</p>
         <FormField id="parent-code" :label="t.parentCode.code" v-slot="{ control }">
           <input
@@ -128,7 +127,7 @@ async function unlockNow() {
           />
         </FormField>
         <div class="actions">
-          <AppButton type="submit" :disabled="busy || !complete">{{ t.parentCode.save }}</AppButton>
+          <AppButton type="submit" :disabled="busy">{{ t.parentCode.save }}</AppButton>
           <AppButton variant="ghost" :disabled="busy" @click="close">{{ t.parentCode.cancel }}</AppButton>
         </div>
       </form>

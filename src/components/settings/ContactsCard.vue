@@ -73,8 +73,12 @@ async function move(index: number, delta: number) {
           <AppIcon v-if="canManage()" class="go" name="chevron-right" :size="20" />
         </component>
         <span v-if="canManage()" class="actions">
-          <button class="icon" type="button" :disabled="busy || i === 0" :aria-label="t.contacts.moveUp(c.name)" @click="move(i, -1)">↑</button>
-          <button class="icon" type="button" :disabled="busy || i === shown.length - 1" :aria-label="t.contacts.moveDown(c.name)" @click="move(i, 1)">↓</button>
+          <!-- Déplacement impossible (premier, dernier) : flèche absente plutôt que grisée (NAR-222) ;
+               une place vide garde les flèches alignées d'une ligne à l'autre. -->
+          <button v-if="i > 0" class="icon" type="button" :disabled="busy" :aria-label="t.contacts.moveUp(c.name)" @click="move(i, -1)">↑</button>
+          <span v-else class="icon-gap" aria-hidden="true" />
+          <button v-if="i < shown.length - 1" class="icon" type="button" :disabled="busy" :aria-label="t.contacts.moveDown(c.name)" @click="move(i, 1)">↓</button>
+          <span v-else class="icon-gap" aria-hidden="true" />
         </span>
       </li>
     </ol>
@@ -182,6 +186,10 @@ async function move(index: number, delta: number) {
   font-weight: 800;
   text-decoration: none;
   cursor: pointer;
+}
+.icon-gap {
+  width: var(--tap);
+  height: var(--tap);
 }
 .icon:disabled {
   opacity: 0.35;

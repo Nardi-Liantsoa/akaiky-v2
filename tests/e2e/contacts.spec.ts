@@ -47,7 +47,7 @@ test('ajouter un contact puis le faire monter : liste, compteur et ordre', async
   await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
   await expect(page.getByText('2 sur 6')).toBeVisible()
   const post = calls.find((r) => r.method() === 'POST')!.postDataJSON()
-  expect(post).toEqual({ name: 'Papa', phone: '034 12 345 67', memberUserId: USER.id })
+  expect(post).toEqual({ name: 'Papa', phone: '034 12 345 67', memberUserId: USER.id, avatarColor: 'blue' })
   // Ajout sans membre lié : le champ n'est pas envoyé.
   await page.getByRole('link', { name: '+ Ajouter un contact' }).click()
   await expect(page.getByLabel('Numéro de téléphone')).toHaveAttribute('placeholder', '034 12 345 67')
@@ -55,7 +55,7 @@ test('ajouter un contact puis le faire monter : liste, compteur et ordre', async
   await page.getByLabel('Numéro de téléphone').fill('033 12 345 67')
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page.getByText('3 sur 6')).toBeVisible()
-  expect(calls.filter((r) => r.method() === 'POST')[1].postDataJSON()).toEqual({ name: 'Mamie', phone: '033 12 345 67' })
+  expect(calls.filter((r) => r.method() === 'POST')[1].postDataJSON()).toEqual({ name: 'Mamie', phone: '033 12 345 67', avatarColor: 'violet' })
 
   await expect(page.getByText('+261 34 12 345 67').first()).toBeVisible()
   await expect(page.getByRole('listitem').filter({ hasText: 'Papa' })).toContainText('Parent principal')
@@ -63,8 +63,9 @@ test('ajouter un contact puis le faire monter : liste, compteur et ordre', async
   await page.getByRole('button', { name: 'Monter Papa' }).click()
   await expect(page.getByRole('listitem').first()).toContainText('Papa')
   expect(api.items().map((c) => c.name)).toEqual(['Papa', 'Maman', 'Mamie'])
-  // Premier de la liste : ne peut plus monter.
-  await expect(page.getByRole('button', { name: 'Monter Papa' })).toBeDisabled()
+  // Premier de la liste : ne peut plus monter, la flèche disparaît (NAR-222), le dernier ne descend pas.
+  await expect(page.getByRole('button', { name: 'Monter Papa' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Descendre Mamie' })).toHaveCount(0)
 })
 
 test('numéro refusé par le serveur : message traduit, rien n’est ajouté', async ({ page }) => {

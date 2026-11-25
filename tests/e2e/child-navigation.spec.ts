@@ -81,7 +81,8 @@ test('Modifier : « ‹ Accueil » en tête, ni « Annuler » ni « Configurer l
   await expect(page.getByRole('button', { name: 'Enregistrer' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Retirer cet enfant' })).toBeVisible()
   const back = page.getByRole('link', { name: 'Retour à l’accueil' })
-  await expect(back).toHaveText('Accueil')
+  // En-tête de page (NAR-222) : flèche seule, nommée, titre de la page au centre.
+  await expect(back).toHaveText('')
   await expect(back).toHaveAttribute('href', '/espace')
   // Un changement annulé à la main ne compte pas.
   await page.getByLabel('Prénom').fill('Fyfy')

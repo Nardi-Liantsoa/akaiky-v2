@@ -13,7 +13,7 @@ import AccountSection from '../components/parent/AccountSection.vue'
 import NotificationsCard from '../components/parent/NotificationsCard.vue'
 import { pushState } from '../lib/parentPush'
 import AppButton from '../components/ui/AppButton.vue'
-import BackLink from '../components/ui/BackLink.vue'
+import PageHeader from '../components/ui/PageHeader.vue'
 import SectionCard from '../components/ui/SectionCard.vue'
 
 interface Device { id: string, label: string | null, last_used_at?: string, last_seen_at?: string, current: boolean }
@@ -88,9 +88,10 @@ onMounted(() => { load(); void loadFamily() })
        endroit. Dans la coquille parent (onglet Famille) : son <main> l'enveloppe. Retour vers
        Famille, ou vers l'accueil (création de la famille) quand il n'y en a pas. -->
   <section>
-    <BackLink v-if="family.status !== 'none'" :to="{ name: 'famille' }" :label="t.parent.family.back" :aria-label="t.parent.family.backLabel" />
-    <BackLink v-else :to="{ name: 'espace' }" :label="t.parent.home.back" :aria-label="t.parent.home.backLabel" />
-    <h1>{{ t.parent.account.title }}</h1>
+    <PageHeader
+      :back="family.status !== 'none' ? { name: 'famille' } : { name: 'espace' }"
+      :back-label="family.status !== 'none' ? t.parent.family.backLabel : t.parent.home.backLabel" :title="t.parent.account.title"
+    />
     <AccountSection on-account-page />
     <!-- App native seulement (NAR-179) : le web n'a pas de notifications. -->
     <NotificationsCard v-if="pushState !== 'off'" />

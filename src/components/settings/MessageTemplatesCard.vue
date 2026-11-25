@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { getTemplates, putTemplate, type MessageTemplate } from '../../api/messages'
 import { useT } from '../../composables/useT'
 import { errorText } from '../../lib/errors'
+import { focusFirstInvalid } from '../../lib/formErrors'
 import { QUICK_SLOTS, QUICK_TEXT_MAX, QUICK_TINT, textLength, type QuickSlot } from '../../lib/quickMessages'
 import { canManage } from '../../store/family'
 import QuickIcon from '../messages/QuickIcon.vue'
@@ -61,8 +62,14 @@ async function load(childId: string) {
 // Autre enfant : erreur d'enregistrement effacée, textes relus.
 watch(() => props.childId, (id) => { error.value = ''; void load(id) }, { immediate: true })
 
+// Envoi sans changement (NAR-222) : le bouton reste actif et dit qu'il n'y a rien à faire.
+const nothing = ref(false)
+const form = ref<HTMLFormElement | null>(null)
+watch(changed, () => { nothing.value = false })
 async function save() {
-  if (busy.value || !changed.value.length || invalid.value) return
+  if (busy.value) return
+  if (invalid.value) { await focusFirstInvalid(form.value); return }
+  if (!changed.value.length) { nothing.value = true; done.value = false; return }
   const childId = props.childId
   const todo = changed.value.map((slot) => ({ slot, text: target(slot) }))
   savingFor.value = childId
@@ -90,7 +97,7 @@ function reset(slot: QuickSlot) {
 <template>
   <SectionCard id="messages-rapides" class="templates" tabindex="-1" :title="t.templates.title" :help="t.templates.hint">
     <StatusBlock v-if="status === 'error'" state="error" :text="`${t.templates.loadError} ${loadError}`" @retry="load(childId)" />
-    <form v-else :aria-busy="status === 'loading'" :class="{ refreshing: status === 'loading' }" @submit.prevent="save">
+    <form v-else ref="form" novalidate :aria-busy="status === 'loading'" :class="{ refreshing: status === 'loading' }" @submit.prevent="save">
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <ul class="slots">
         <li v-for="slot in QUICK_SLOTS" :key="slot" class="slot">
@@ -112,7 +119,8 @@ function reset(slot: QuickSlot) {
         </li>
       </ul>
       <p v-if="done" class="saved" role="status">{{ t.templates.saved }}</p>
-      <AppButton v-if="canManage()" type="submit" :disabled="busy || !changed.length || invalid">{{ t.templates.save }}</AppButton>
+      <p v-else-if="nothing" class="help" role="status">{{ t.forms.nothingToSave }}</p>
+      <AppButton v-if="canManage()" type="submit" :disabled="busy">{{ t.templates.save }}</AppButton>
     </form>
   </SectionCard>
 </template>

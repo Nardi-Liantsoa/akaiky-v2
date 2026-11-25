@@ -302,7 +302,6 @@ const fr = {
     count: (n: number, max: number) => `${n} sur ${max}`,
     orderHint: 'L’ordre sert aussi pour les appels SOS.',
     // Lien « ‹ » en tête de la fiche contact (NAR-207) : retour à la section Contacts.
-    back: 'Contacts',
     backLabel: 'Retour aux contacts autorisés',
     empty: 'Aucun contact pour l’instant. Seuls les contacts autorisés pourront appeler l’enfant et être appelés.',
     add: 'Ajouter un contact',
@@ -531,8 +530,8 @@ const fr = {
   },
   parent: {
     tabsLabel: 'Navigation principale',
-    // back / backLabel : lien « ‹ Accueil » en tête de Modifier et de l'appairage (NAR-195).
-    home: { title: 'Accueil', empty: 'Les enfants de votre famille apparaîtront ici.', seenBy: (names: string) => `Vu par ${names}`, back: 'Accueil', backLabel: 'Retour à l’accueil' },
+    // backLabel : nom de la flèche de retour (PageHeader) de Modifier et de l'appairage (NAR-195, NAR-222).
+    home: { title: 'Accueil', empty: 'Les enfants de votre famille apparaîtront ici.', seenBy: (names: string) => `Vu par ${names}`, backLabel: 'Retour à l’accueil' },
     log: {
       title: 'Journal',
       empty: 'Les appels, messages et alertes apparaîtront ici.',
@@ -587,8 +586,8 @@ const fr = {
         templatesCustom: (n: number, max: number) => `${n} sur ${max} ${n === 1 ? 'personnalisé' : 'personnalisés'}`
       }
     },
-    // back / backLabel : lien « ‹ Famille » en tête de Mon compte (NAR-209).
-    family: { title: 'Famille', empty: 'Les membres de votre famille apparaîtront ici.', back: 'Famille', backLabel: 'Retour à la famille' },
+    // backLabel : nom de la flèche de retour (PageHeader) de Mon compte (NAR-209, NAR-222).
+    family: { title: 'Famille', empty: 'Les membres de votre famille apparaîtront ici.', backLabel: 'Retour à la famille' },
     // summary : sous le lien « Mon compte » de l'écran Famille ; session : carte langue et déconnexion de la page.
     account: { title: 'Mon compte', security: 'Sécurité', admin: 'Administration', language: 'Langue', logout: 'Déconnexion', summary: 'Sécurité, langue, déconnexion', session: 'Langue et session' }
   },
@@ -596,6 +595,17 @@ const fr = {
     signup: 'Je suis majeur·e et titulaire de l’autorité parentale sur les enfants que j’ajouterai.',
     child: 'Je suis titulaire de l’autorité parentale sur cet enfant et j’accepte que ses appels et messages soient journalisés (90 jours).',
     required: 'Cochez cette case pour continuer.'
+  },
+  // Erreurs de saisie montrées sous le champ à l'envoi (NAR-222) : le bouton d'envoi n'est
+  // plus jamais grisé, il dit ce qui manque.
+  forms: {
+    familyName: 'Saisissez le nom de la famille pour continuer.',
+    firstName: 'Saisissez un prénom pour continuer.',
+    contactName: 'Saisissez un nom pour continuer.',
+    phone: 'Saisissez un numéro de téléphone pour continuer.',
+    email: 'Saisissez une adresse e-mail pour continuer.',
+    tooLong: (n: number) => `Trop long : ${n} caractères au plus.`,
+    nothingToSave: 'Aucune modification à enregistrer.'
   },
   // Notifications push de l'app parent (NAR-179) : carte de Mon compte, bannière au premier
   // plan, nom du canal Android.
@@ -1009,7 +1019,6 @@ const mg: Messages = {
     title: 'Mpifandray nahazo alalana',
     count: (n: number, max: number) => `${n} amin’ny ${max}`,
     orderHint: 'Io filaharana io koa no arahina amin’ny antso SOS.',
-    back: 'Mpifandray',
     backLabel: 'Hiverina amin’ny mpifandray nahazo alalana',
     empty: 'Mbola tsy misy mpifandray. Ny mpifandray nahazo alalana ihany no afaka miantso sy antsoin’ny zaza.',
     add: 'Hanampy mpifandray',
@@ -1233,7 +1242,7 @@ const mg: Messages = {
   },
   parent: {
     tabsLabel: 'Fitetezana lehibe',
-    home: { title: 'Fandraisana', empty: 'Eto no hiseho ireo ankizy ao amin’ny fianakavianao.', seenBy: (names: string) => `Hitan’i ${names}`, back: 'Fandraisana', backLabel: 'Hiverina amin’ny fandraisana' },
+    home: { title: 'Fandraisana', empty: 'Eto no hiseho ireo ankizy ao amin’ny fianakavianao.', seenBy: (names: string) => `Hitan’i ${names}`, backLabel: 'Hiverina amin’ny fandraisana' },
     log: {
       title: 'Tantara',
       empty: 'Eto no hiseho ny antso, ny hafatra ary ny fampitandremana.',
@@ -1287,13 +1296,22 @@ const mg: Messages = {
         templatesCustom: (n: number, max: number) => `${n} amin’ny ${max} novaina`
       }
     },
-    family: { title: 'Fianakaviana', empty: 'Eto no hiseho ireo mpikambana ao amin’ny fianakavianao.', back: 'Fianakaviana', backLabel: 'Hiverina amin’ny fianakaviana' },
+    family: { title: 'Fianakaviana', empty: 'Eto no hiseho ireo mpikambana ao amin’ny fianakavianao.', backLabel: 'Hiverina amin’ny fianakaviana' },
     account: { title: 'Ny kaontiko', security: 'Fiarovana', admin: 'Fitantanana', language: 'Fiteny', logout: 'Hivoaka', summary: 'Fiarovana, fiteny, fivoahana', session: 'Fiteny sy fidirana' }
   },
   consent: {
     signup: 'Efa olon-dehibe aho ary manana ny fahefana ray aman-dreny amin’ireo ankizy hampidiriko.',
     child: 'Manana ny fahefana ray aman-dreny amin’ity ankizy ity aho ary manaiky fa voasoratra ny antso sy hafatra ataony (90 andro).',
     required: 'Asio marika ity efajoro ity raha hanohy.'
+  },
+  forms: {
+    familyName: 'Ampidiro ny anaran’ny fianakaviana raha hanohy.',
+    firstName: 'Ampidiro ny anarana raha hanohy.',
+    contactName: 'Ampidiro ny anarana raha hanohy.',
+    phone: 'Ampidiro ny laharana finday raha hanohy.',
+    email: 'Ampidiro ny adiresy mailaka raha hanohy.',
+    tooLong: (n: number) => `Lava loatra : ${n} litera farafahabetsany.`,
+    nothingToSave: 'Tsy misy fanovana hotehirizina.'
   },
   push: {
     title: 'Fampandrenesana',
@@ -1700,7 +1718,6 @@ const en: Messages = {
     title: 'Allowed contacts',
     count: (n: number, max: number) => `${n} of ${max}`,
     orderHint: 'The order is also used for SOS calls.',
-    back: 'Contacts',
     backLabel: 'Back to allowed contacts',
     empty: 'No contacts yet. Only allowed contacts can call the child and be called.',
     add: 'Add a contact',
@@ -1924,7 +1941,7 @@ const en: Messages = {
   },
   parent: {
     tabsLabel: 'Main navigation',
-    home: { title: 'Home', empty: 'Your family’s children will appear here.', seenBy: (names: string) => `Seen by ${names}`, back: 'Home', backLabel: 'Back to home' },
+    home: { title: 'Home', empty: 'Your family’s children will appear here.', seenBy: (names: string) => `Seen by ${names}`, backLabel: 'Back to home' },
     log: {
       title: 'Log',
       empty: 'Calls, messages and alerts will appear here.',
@@ -1978,13 +1995,22 @@ const en: Messages = {
         templatesCustom: (n: number, max: number) => `${n} of ${max} customised`
       }
     },
-    family: { title: 'Family', empty: 'Your family members will appear here.', back: 'Family', backLabel: 'Back to the family' },
+    family: { title: 'Family', empty: 'Your family members will appear here.', backLabel: 'Back to the family' },
     account: { title: 'My account', security: 'Security', admin: 'Administration', language: 'Language', logout: 'Sign out', summary: 'Security, language, sign out', session: 'Language and session' }
   },
   consent: {
     signup: 'I am an adult and hold parental authority over the children I will add.',
     child: 'I hold parental authority over this child and agree that their calls and messages are logged (90 days).',
     required: 'Tick this box to continue.'
+  },
+  forms: {
+    familyName: 'Enter the family name to continue.',
+    firstName: 'Enter a first name to continue.',
+    contactName: 'Enter a name to continue.',
+    phone: 'Enter a phone number to continue.',
+    email: 'Enter an email address to continue.',
+    tooLong: (n: number) => `Too long: ${n} characters at most.`,
+    nothingToSave: 'No changes to save.'
   },
   push: {
     title: 'Notifications',

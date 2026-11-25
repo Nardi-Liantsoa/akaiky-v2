@@ -12,7 +12,7 @@ watch(checked, (on) => { if (on) error.value = '' })
 </script>
 
 <template>
-  <div class="consent">
+  <div class="consent" :class="{ invalid: !!error }">
     <label :for="id" class="row">
       <input :id="id" v-model="checked" type="checkbox" aria-required="true"
         :aria-invalid="error ? 'true' : undefined" :aria-describedby="error ? `${id}-error` : undefined" />
@@ -23,6 +23,8 @@ watch(checked, (on) => { if (on) error.value = '' })
 </template>
 
 <style scoped>
+/* Encadré (maquette 07, NAR-222) : case de 24 px, texte en taille normale, toute la ligne
+ * cliquable ; bord rouge quand l'envoi a été tenté sans la case. */
 .consent {
   margin-bottom: 16px;
 }
@@ -30,12 +32,18 @@ watch(checked, (on) => { if (on) error.value = '' })
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  min-height: 44px;
-  padding: 10px 0;
-  font-size: 0.9rem;
-  line-height: 1.4;
-  color: var(--text-soft);
+  min-height: var(--tap);
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  font-size: var(--fs-body);
+  line-height: 1.45;
+  color: var(--text);
   cursor: pointer;
+}
+.invalid .row {
+  border-color: var(--danger);
 }
 input {
   flex: none;
@@ -46,6 +54,6 @@ input {
   cursor: pointer;
 }
 .error {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
 }
 </style>

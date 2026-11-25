@@ -7,6 +7,11 @@ non identifiable avec certitude : arrondie et très grasse, proche de **Nunito**
 Nunito variable (Fontsource 5.3.0), sous-ensemble latin `woff2` de 39 Ko servi
 par l'app (`src/assets/fonts/`, haché par Vite ; licence SIL OFL 1.1 dans `public/licenses/`), repli `ui-rounded`.
 
+**Refonte UI/UX (NAR-221, 25/11/2026)** : audit et 7 maquettes de référence dans
+`docs/maquettes/2026-11/` (accueil parent mobile et bureau, accueil public mobile et bureau,
+réglages bureau, administration mobile, ajout d'un enfant). Elles priment sur le PDF du
+17/11/2026 pour les écrans qu'elles montrent ; chantiers NAR-222 à NAR-226.
+
 **Mode sombre** : absent des maquettes, désactivé explicitement (`color-scheme: light`).
 
 ## Jetons (posés dans `src/style.css`, jamais de valeur en dur dans un composant)
@@ -56,6 +61,10 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   `block` (pleine largeur) se combinent avec toute variante. Toujours ≥ `--tap` (48 px) de
   haut, `type="button"` par défaut (`type="submit"` à demander), anneau `--focus-ring` au
   clavier ; désactivé en couleurs pleines (`--text-mute` sur `--surface-muted`), lisible.
+  **Jamais désactivé pour une saisie incomplète** (NAR-222) : seulement pendant un envoi
+  (`busy`). Le formulaire (`novalidate`) vérifie à l'envoi, montre l'erreur sous chaque champ
+  fautif (`FormField` `error`, textes `t.forms.*`) et met le focus sur le premier
+  (`focusFirstInvalid`, `src/lib/formErrors.ts`) ; rien à enregistrer : un message le dit.
   Les classes globales `.btn`, `.btn-ghost`… restent pour un `RouterLink` présenté en bouton.
 - **`AppIcon`** — icône du jeu unique `src/components/ui/icons.ts` (tracés en ligne, sans
   bibliothèque), par `name`. Décorative par défaut (`aria-hidden`) ; avec `label`, image
@@ -81,6 +90,18 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   `aria-describedby`, `aria-invalid` sur erreur. Le champ vient de l'emplacement, qui reçoit
   `control` à poser dessus (`v-bind="control"`) ; id généré si absent. Libellés de champ en
   casse normale, `--fs-small`, `--text-soft` (≥ 7:1).
+- **`PageHeader`** (NAR-222, maquette 07) — en-tête des sous-écrans : flèche de retour seule
+  (vrai lien, ≥ `--tap`, nommée par `backLabel`, clic par `backTo`), `title` en `h1` centré
+  (absent pendant un chargement), emplacement `aside` à droite (sélecteur d'enfant). Ajout et
+  modification d'un enfant ou d'un contact, appairage, Mon compte. Les sections de Réglages
+  gardent `BackLink` jusqu'au maître/détail de NAR-223.
+- **`ColorPicker`** (NAR-207, NAR-222) — couleur d'avatar : vrais boutons radio (flèches du
+  clavier), nom écrit sous chaque pastille, coche sur fond `--ink` sur la couleur choisie ;
+  à l'ajout, la moins portée est choisie d'office (`leastUsedColor`, même règle que le serveur).
+- **Champs** (NAR-222) : `.input` blanc (`--surface`), bord `--border-strong` de 1,5 px, anneau
+  de 3 px au focus, bord `--danger` si `aria-invalid` ; exemple de saisie en italique
+  `--text-mute`, jamais confondu avec une valeur. Case de consentement encadrée, texte en
+  taille normale, bord `--danger` sur erreur.
 - **`BackLink`** (NAR-195) — lien de retour en tête d'écran (« ‹ Réglages », « ‹ Accueil ») :
   chevron + libellé `--accent`, ≥ `--tap`, vrai lien (`href`) dont le clic passe par `backTo`
   (`src/lib/navigation.ts` : retour de l'historique si l'écran précédent est la cible, sinon

@@ -45,6 +45,9 @@
   /* Avertissement (ni erreur ni succès) : fond beurre, encre brune ≥ 7:1. */
   --warning-bg: var(--tint-butter);
   --warning-ink: #5c3d00;
+  /* Succès et alerte (NAR-222) : mêmes encres que l'appel et l'avertissement. */
+  --success: var(--call);
+  --alert: var(--warning-ink);
 
   /* Rôles génériques, adossés aux jetons ci-dessus : les écrans du starter
    * (connexion, sécurité, administration) les utilisent. */
@@ -61,7 +64,8 @@
   --danger: var(--sos);
 
   /* Typographie : tailles de titre et de texte (NAR-182). */
-  --fs-h1: 2rem;
+  /* Titre fluide (audit UI du 25/11/2026, NAR-222) : 28 px sur téléphone, 40 px sur bureau. */
+  --fs-h1: clamp(1.75rem, 1.2rem + 2vw, 2.5rem);
   --fs-h2: 1.15rem;
   --fs-body: 1rem;
   --fs-small: 0.9rem;
@@ -170,16 +174,33 @@ h2 {
 }
 .input {
   width: 100%;
+  min-height: var(--tap);
   padding: 11px 13px;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  background: var(--bg);
+  /* Champ blanc à bord marqué (NAR-222) : --border-strong ≥ 3:1 sur --surface et --bg. */
+  border: 1.5px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--surface);
   color: var(--text);
   font: inherit;
 }
+/* Exemple de saisie : italique, pour ne jamais passer pour une valeur déjà remplie ;
+ * --text-mute ≥ 4.5:1 sur --surface. */
+.input::placeholder {
+  color: var(--text-mute);
+  font-style: italic;
+  opacity: 1;
+}
 .input:focus {
-  outline: 2px solid var(--accent);
+  outline: none;
   border-color: var(--accent);
+}
+/* Anneau de focus de 3 px au clavier comme à la souris pour un champ : on doit voir où l'on tape. */
+.input:focus-visible,
+.input:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.input[aria-invalid='true'] {
+  border-color: var(--danger);
 }
 
 .btn {

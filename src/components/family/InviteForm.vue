@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { inviteMember, type InviteRole } from '../../api/families'
 import { useT } from '../../composables/useT'
 import { familyErrorText } from '../../lib/familyErrors'
+import { focusFirstInvalid } from '../../lib/formErrors'
 import AppButton from '../ui/AppButton.vue'
 import FormField from '../ui/FormField.vue'
 
@@ -13,9 +14,17 @@ const role = ref<InviteRole>('member')
 const busy = ref(false)
 const error = ref('')
 const done = ref('')
+const emailError = ref('')
+const form = ref<HTMLFormElement | null>(null)
+watch(email, (v) => { if (emailError.value && v.trim()) emailError.value = '' })
 
 async function submit() {
-  if (busy.value || !email.value.trim()) return
+  if (busy.value) return
+  if (!email.value.trim()) {
+    emailError.value = t.value.forms.email
+    await focusFirstInvalid(form.value)
+    return
+  }
   busy.value = true
   error.value = ''
   done.value = ''
@@ -33,12 +42,12 @@ async function submit() {
 </script>
 
 <template>
-  <form class="card" @submit.prevent="submit">
+  <form ref="form" class="card" novalidate @submit.prevent="submit">
     <h2>{{ t.family.inviteTitle }}</h2>
     <p class="lead">{{ t.family.inviteLead }}</p>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     <p v-if="done" class="done" role="status">{{ done }}</p>
-    <FormField id="invite-email" :label="t.family.emailLabel" v-slot="{ control }">
+    <FormField id="invite-email" :label="t.family.emailLabel" :error="emailError" v-slot="{ control }">
       <input v-bind="control" v-model="email" class="input" type="email" autocomplete="off" required data-selectable />
     </FormField>
     <FormField id="invite-role" :label="t.family.roleLabel" v-slot="{ control }">
@@ -47,7 +56,7 @@ async function submit() {
         <option value="manager">{{ t.family.roles.manager }}</option>
       </select>
     </FormField>
-    <AppButton type="submit" :disabled="busy || !email.trim()">{{ t.family.invite }}</AppButton>
+    <AppButton type="submit" :disabled="busy">{{ t.family.invite }}</AppButton>
   </form>
 </template>
 
