@@ -172,7 +172,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Configuration Firebase (NAR-179) : copiée dans l'app seulement si elle est là (hors dépôt,\n# docs/MOBILE.md). Absente : build de développement sans notifications ; release : refusé.\nSRC=\"${SRCROOT}/App/GoogleService-Info.plist\"\nDST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\nif [ -f \"$SRC\" ]; then\n  cp \"$SRC\" \"$DST\"\nelif [ \"$CONFIGURATION\" = \"Release\" ]; then\n  echo \"error: ios/App/App/GoogleService-Info.plist manquant : une release iOS exige la configuration Firebase (docs/MOBILE.md).\"\n  exit 1\nelse\n  rm -f \"$DST\"\n  echo \"warning: ios/App/App/GoogleService-Info.plist absent : app construite sans notifications push.\"\nfi\n";
+			shellScript = "# Configuration Firebase (NAR-179) : copiée dans l'app seulement si elle est là (hors dépôt,\n# docs/MOBILE.md). Absente : build Debug sans notifications ; toute autre configuration et toute archive : refusé.\nSRC=\"${SRCROOT}/App/GoogleService-Info.plist\"\nDST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist\"\nif [ -f \"$SRC\" ]; then\n  cp \"$SRC\" \"$DST\"\nelif [ \"$CONFIGURATION\" != \"Debug\" ] || [ \"$ACTION\" = \"install\" ]; then\n  echo \"error: ios/App/App/GoogleService-Info.plist manquant : un build autre que Debug (ou une archive) exige la configuration Firebase (docs/MOBILE.md).\"\n  exit 1\nelse\n  rm -f \"$DST\"\n  echo \"warning: ios/App/App/GoogleService-Info.plist absent : app construite sans notifications push.\"\nfi\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -326,6 +326,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -349,6 +350,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (

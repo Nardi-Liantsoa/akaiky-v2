@@ -338,7 +338,7 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   l'app (`PushBanner.vue`), `presentationOptions: []`. Canal Android `alertes` (importance haute) créé par l'app parent,
   canal par défaut dans le manifeste. iOS : `App.entitlements` (`aps-environment`), jeton APNs transmis par l'AppDelegate ; `GoogleService-Info.plist`
   copié par une étape de build seulement s'il est là (jamais référencé par le projet : un poste sans lui construit
-  quand même), release iOS refusée sans lui.
+  quand même en Debug), tout autre build iOS et toute archive refusés sans lui.
   App enfant : réveils `locate` et `config` reçus **au premier plan seulement** (un message « data » seul ne réveille pas
   le JavaScript d'une app fermée ; réveil natif écran éteint : ticket à part). Un seul `google-services.json` pour les deux
   variantes (`mg.nosytech.akaiky` et `mg.nosytech.akaiky.enfant` déclarées dans le même projet Firebase). **Comptes
