@@ -30,7 +30,7 @@ test('inscription : case de consentement exigée, puis envoyée avec le formulai
   await expect(page.getByRole('checkbox', { name: SIGNUP_CONSENT })).not.toHaveAttribute('aria-invalid')
   await page.getByRole('button', { name: 'Créer le compte' }).click()
   await expect(page.getByRole('heading', { name: 'Confirmer votre adresse' })).toBeVisible()
-  expect(calls.find((r) => r.url().endsWith('/api/auth/register'))!.postDataJSON()).toEqual({ name: 'Camille', email: 'camille@exemple.fr', password: 'une phrase de passe longue', consent: true })
+  expect(calls.find((r) => r.url().endsWith('/api/auth/register'))!.postDataJSON()).toEqual({ name: 'Camille', email: 'camille@exemple.fr', password: 'une phrase de passe longue', consent: true, lang: 'fr' })
 })
 
 test('famille : le parent principal télécharge le fichier JSON de la famille', async ({ page }) => {

@@ -5,14 +5,27 @@ import { authEmails } from '../src/mailer.js'
 // Un lien vers un domaine parqué fait classer les emails en spam : chaque email
 // ne contient que le lien d'action qu'il transmet, et aucun texte libre saisi
 // par le demandeur.
-test('emails : seul le lien d’action, signature sans lien', () => {
+test('emails : seul le lien d’action, signature sans lien, dans les trois langues', () => {
   const link = 'https://app.exemple.fr/connexion#confirm=x'
-  const emails = authEmails('Mon app')
-  for (const m of [emails.confirm(link), emails.reset(link), emails.alreadyRegistered(link, link), emails.passwordChanged()]) {
-    const urls = m.text.match(/https?:\/\/\S+/g) || []
-    assert.ok(urls.every((u) => u === link), `lien inattendu dans « ${m.subject} » : ${urls}`)
-    assert.match(m.text, /— L’équipe Mon app$/)
+  const signs = { fr: /— L’équipe Mon app$/, mg: /— Ny ekipan’i Mon app$/, en: /— The Mon app team$/ }
+  const subjects = new Set()
+  for (const [lang, sign] of Object.entries(signs)) {
+    const emails = authEmails('Mon app')(lang)
+    const all = [emails.confirm(link), emails.reset(link), emails.alreadyRegistered(link, link), emails.passwordChanged(), emails.invitation(link), emails.familyDeleted()]
+    for (const m of all) {
+      const urls = m.text.match(/https?:\/\/\S+/g) || []
+      assert.ok(urls.every((u) => u === link), `lien inattendu dans « ${m.subject} » : ${urls}`)
+      assert.match(m.text, sign)
+      assert.ok(m.subject.trim() && m.text.trim())
+      subjects.add(m.subject)
+    }
+    // Chaque lien d'action est bien dans son courriel.
+    for (const m of [emails.confirm(link), emails.reset(link), emails.invitation(link)]) assert.ok(m.text.includes(link))
   }
+  // 6 courriels × 3 langues, tous différents : aucune langue n'a gardé le texte d'une autre.
+  assert.equal(subjects.size, 18)
+  // Langue inconnue : malgache.
+  assert.equal(authEmails('Mon app')('de').confirm(link).subject, authEmails('Mon app')('mg').confirm(link).subject)
 })
 
 test('boîte d’envoi de recette : emails écrits dans le fichier, refusée en production', async () => {

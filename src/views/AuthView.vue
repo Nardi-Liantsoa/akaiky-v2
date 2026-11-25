@@ -179,7 +179,7 @@ const submitRegister = () => run(async () => {
     return
   }
   const address = email.value.trim()
-  await register(name.value.trim(), address, password.value)
+  await register(name.value.trim(), address, password.value, lang())
   password.value = ''
   rememberPending({ email: address })
   go('sent')

@@ -141,8 +141,8 @@ export async function phoneRoutes(app, { limit, queue }) {
     // Un numéro déjà pris, confirmé ou non, n'est jamais repris ni modifié : sinon un tiers
     // remplacerait le mot de passe d'une inscription en attente que le vrai titulaire confirme.
     const { rows } = await db.query(
-      `INSERT INTO users(phone, name, password_hash, consent_at) VALUES ($1, $2, $3, now())
-       ON CONFLICT (phone) DO NOTHING RETURNING id`, [phone, name, hash])
+      `INSERT INTO users(phone, name, password_hash, consent_at, lang) VALUES ($1, $2, $3, now(), $4)
+       ON CONFLICT (phone) DO NOTHING RETURNING id`, [phone, name, hash, lang])
     const created = rows[0]?.id
     queue.enqueue(async () => {
       if (created) {

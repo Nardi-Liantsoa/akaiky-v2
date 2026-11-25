@@ -311,12 +311,12 @@ export async function buildApp({ config, db, mailer, sms, logger = true, dbReady
              FROM users u
             WHERE s.token_hash = $1 AND s.kind = $4 AND s.expires_at > now() AND u.id = s.user_id
               AND ${SESSION_RULE}
-            RETURNING s.id AS session_id, u.id, u.email, u.phone, u.name, u.is_admin
+            RETURNING s.id AS session_id, u.id, u.email, u.phone, u.name, u.is_admin, u.lang
          ), push_seen AS (
            UPDATE push_tokens t SET last_seen_at = now() FROM sess
             WHERE t.session_id = sess.session_id AND t.last_seen_at < now() - interval '1 hour'
          )
-         SELECT id, email, phone, name, is_admin FROM sess`,
+         SELECT id, email, phone, name, is_admin, lang FROM sess`,
         [hash, config.session.idleDays, config.session.absoluteDays, kind])
       if (rows[0]) { req.user = rows[0]; req.sessionHash = hash }
     }

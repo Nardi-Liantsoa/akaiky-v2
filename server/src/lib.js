@@ -63,7 +63,11 @@ export const SESSION_RULE = `(u.email_verified_at IS NOT NULL OR u.phone_verifie
 
 // Ce que le navigateur reçoit d'un compte : champ par champ, jamais la ligne entière.
 // email ou phone peut être null (compte à numéro ou à adresse, NAR-136).
-export const me = (u) => ({ id: u.id, email: u.email ?? null, phone: u.phone ?? null, name: u.name, is_admin: u.is_admin })
+export const me = (u) => ({ id: u.id, email: u.email ?? null, phone: u.phone ?? null, name: u.name, is_admin: u.is_admin, lang: u.lang })
+
+// Langue d'un compte (NAR-211) : liste fermée, malgache par défaut.
+export const LANGS = ['mg', 'fr', 'en']
+export const langOf = (v) => LANGS.includes(v) ? v : 'mg'
 
 // Journal en ajout seul (le rôle SQL de l'application n'a que INSERT dessus).
 export async function audit(db, req, action, target = null, details = null) {

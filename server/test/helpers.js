@@ -75,10 +75,11 @@ export const cookieOf = (res) => [].concat(res.headers['set-cookie'] || []).map(
 export const tokenIn = (mail, key) => mail.text.match(new RegExp(`#${key}=([A-Za-z0-9_-]+)`))[1]
 
 let n = 0
-export async function newUser(ctx, { admin = false } = {}) {
+// Comptes de test en français par défaut (courriels lus par les tests) ; lang: 'mg' ou 'en' pour NAR-211.
+export async function newUser(ctx, { admin = false, lang = 'fr' } = {}) {
   const email = `user${++n}.${process.pid}@exemple.fr`
   const password = 'cheval batterie agrafe correcte'
-  const r = await call(ctx.app, 'POST', '/api/auth/register', { body: { consent: true, name: `Utilisateur ${n}`, email, password } })
+  const r = await call(ctx.app, 'POST', '/api/auth/register', { body: { consent: true, name: `Utilisateur ${n}`, email, password, lang } })
   if (r.statusCode !== 202) throw new Error(r.body)
   const mail = ctx.sent.findLast((m) => m.to === email)
   await call(ctx.app, 'POST', '/api/auth/confirm', { body: { token: tokenIn(mail, 'confirm') } })

@@ -100,5 +100,7 @@ GRANT UPDATE (disabled_at) ON users TO app_runtime;
 -- purge_expired()) ; demandes posées puis prolongées, jamais déplacées.
 GRANT INSERT ON positions, location_requests TO app_runtime;
 GRANT UPDATE (created_at, watch_until) ON location_requests TO app_runtime;
+-- Langue du compte (031_user_lang.sql) : courriels dans la langue du destinataire.
+GRANT INSERT (lang), UPDATE (lang) ON users TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;

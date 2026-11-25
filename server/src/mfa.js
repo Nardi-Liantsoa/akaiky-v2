@@ -90,7 +90,7 @@ export function createMfa(app, finishLogin) {
  }))
  app.post('/mfa/verify',{config:{public:true}},async(req,reply)=>transaction(req,async(conn,c)=>{
   // Verrou utilisateur : activation, consommation du code et session atomiques.
-  const user=(await conn.query('SELECT id,email,phone,name,is_admin FROM users WHERE id=$1 FOR UPDATE',[c.user_id])).rows[0]
+  const user=(await conn.query('SELECT id,email,phone,name,is_admin,lang FROM users WHERE id=$1 FOR UPDATE',[c.user_id])).rows[0]
   const enrolled=!!(await conn.query('SELECT user_id FROM mfa_factors WHERE user_id=$1',[c.user_id])).rows[0]
   let codes
   if(!enrolled) {

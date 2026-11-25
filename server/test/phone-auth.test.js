@@ -84,7 +84,7 @@ test('parcours : inscription par numéro → code dans la boîte SMS locale → 
 
     const web = await login(app, phone)
     assert.equal(web.statusCode, 200, web.body)
-    assert.deepEqual(web.json().user, { id: web.json().user.id, email: null, phone, name: 'Rasoa', is_admin: false })
+    assert.deepEqual(web.json().user, { id: web.json().user.id, email: null, phone, name: 'Rasoa', is_admin: false, lang: 'fr' })
     const me = await call(app.app, 'GET', '/api/auth/me', { cookie: cookieOf(web) })
     assert.equal(me.json().user.phone, phone)
     const nat = await native(app.app, 'POST', '/api/auth/native/login', { body: { phone, password: PASSWORD } })

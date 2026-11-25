@@ -5,6 +5,8 @@ export interface User {
   phone?: string | null
   name: string
   is_admin: boolean
+  // Langue des courriels du compte (NAR-211), tenue à jour par l'app.
+  lang?: 'mg' | 'fr' | 'en'
 }
 
 // Identifiant de connexion : une adresse OU un numéro (NAR-136), jamais les deux

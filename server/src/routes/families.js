@@ -140,21 +140,22 @@ export default async function familiesRoutes(app) {
       await conn.query('SELECT 1 FROM families WHERE id = $1 FOR UPDATE', [familyId])
       const { rows: recipients } = await conn.query(
         // Membres à numéro sans adresse (NAR-136) : pas d'avis (aucun SMS de notification en v1).
-        'SELECT u.email FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.family_id = $1 AND m.user_id <> $2 AND u.email IS NOT NULL',
+        'SELECT u.email, u.lang FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.family_id = $1 AND m.user_id <> $2 AND u.email IS NOT NULL',
         [familyId, req.user.id])
       const { rows: [{ children }] } = await conn.query('SELECT count(*)::int AS children FROM children WHERE family_id = $1', [familyId])
       // Des comptes seulement : aucune donnée personnelle dans le journal.
       await audit(conn, req, 'family_deleted', familyId, { members: members.length, children })
       await conn.query('DELETE FROM families WHERE id = $1', [familyId])
-      return { emails: recipients.map((r) => r.email) }
+      return { emails: recipients }
     })
     // confirmPassword a rendu sa place dans la garde (et sa connexion) en revenant.
     // Courriels en arrière-plan, après la réponse : la latence SMTP ne la retarde pas ;
     // un échec est journalisé, la suppression est faite.
     const log = req.log
     setImmediate(async () => {
-      for (const to of others) {
-        try { await mailer.send({ to, ...emails.familyDeleted() }) } catch (e) { log.error({ err: e }, 'Avis de suppression de famille non envoyé') }
+      // Chaque membre dans la langue de son compte (NAR-211).
+      for (const { email: to, lang } of others) {
+        try { await mailer.send({ to, ...emails(lang).familyDeleted() }) } catch (e) { log.error({ err: e }, 'Avis de suppression de famille non envoyé') }
       }
     })
     return { ok: true }
@@ -218,7 +219,8 @@ export default async function familiesRoutes(app) {
     }
     // 3. Courriel, hors transaction (aucune connexion ni verrou tenu pendant le SMTP).
     try {
-      await mailer.send({ to: invitee, ...emails.invitation(inviteLink(token)) })
+      // Langue de l'invitant (NAR-211) : l'invité n'a peut-être pas encore de compte.
+      await mailer.send({ to: invitee, ...emails(user.lang).invitation(inviteLink(token)) })
     } catch (e) {
       req.log.error({ err: e }, 'Envoi d’une invitation impossible')
       await abandon()
