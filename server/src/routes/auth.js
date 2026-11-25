@@ -134,6 +134,7 @@ export default async function authRoutes(app) {
   // aucune écriture.
   app.put('/me/lang', async (req) => {
     const user = app.requireUser(req)
+    limit(req, user.id)
     const b = body(req, ['lang'])
     if (!LANGS.includes(b.lang)) throw new HttpError(400, 'Langue inconnue.')
     await db.query('UPDATE users SET lang = $2 WHERE id = $1 AND lang <> $2', [user.id, b.lang])
@@ -205,17 +206,21 @@ export default async function authRoutes(app) {
     const hash = await hashPassword(b.password)
     // Langue de l'écran (NAR-211), gardée par le compte pour ses courriels.
     const lang = langOf(b.lang)
-    const { rows } = await db.query(
-      `INSERT INTO users(email, name, password_hash, consent_at, lang) VALUES ($1, $2, $3, now(), $4)
-       ON CONFLICT (email) DO NOTHING RETURNING id`, [e, name, hash, lang])
-    if (rows[0]) {
-      const token = await issueToken(rows[0].id, 'confirm', 24)
+    // Une seule requête dans les deux cas (pas d'aller-retour de plus pour une adresse
+    // prise) : l'identifiant créé, ou la langue du compte existant (lue avant l'insertion).
+    const { rows: [row] } = await db.query(
+      `WITH ins AS (
+         INSERT INTO users(email, name, password_hash, consent_at, lang) VALUES ($1, $2, $3, now(), $4)
+         ON CONFLICT (email) DO NOTHING RETURNING id
+       )
+       SELECT (SELECT id FROM ins) AS id, (SELECT lang FROM users WHERE email = $1) AS existing_lang`, [e, name, hash, lang])
+    if (row.id) {
+      const token = await issueToken(row.id, 'confirm', 24)
       await mailer.send({ to: e, ...emails(lang).confirm(link(`confirm=${token}`)) })
-      await audit(db, req, 'register', rows[0].id)
+      await audit(db, req, 'register', row.id)
     } else {
       // Le titulaire reçoit l'avis dans SA langue, pas dans celle du demandeur.
-      const owner = (await db.query('SELECT lang FROM users WHERE email = $1', [e])).rows[0]
-      await mailer.send({ to: e, ...emails(owner?.lang).alreadyRegistered(link(''), link('forgot')) })
+      await mailer.send({ to: e, ...emails(row.existing_lang).alreadyRegistered(link(''), link('forgot')) })
     }
     return reply.code(202).send({ confirmationRequired: true, message: 'Vérifiez votre boîte mail pour activer votre compte.' })
   })

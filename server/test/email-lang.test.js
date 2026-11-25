@@ -10,6 +10,15 @@ after(async () => { await ctx.close(); dbh.stop() })
 
 const langOf = async (email) => (await ctx.db.query('SELECT lang FROM users WHERE email = $1', [email])).rows[0].lang
 const lastTo = (email) => ctx.sent.findLast((m) => m.to === email)
+// Courriels partis par la file ou après la réponse : attendus jusqu'à 5 s.
+async function mailMatching(email, re) {
+  for (let i = 0; i < 100; i++) {
+    const m = ctx.sent.findLast((x) => x.to === email && re.test(x.subject))
+    if (m) return m
+    await new Promise((res) => setTimeout(res, 50))
+  }
+  throw new Error(`aucun courriel ${re} pour ${email}`)
+}
 const setLang = (u, body) => call(ctx.app, 'PUT', '/api/auth/me/lang', { cookie: u?.cookie, body })
 let n = 0
 const address = () => `lang${++n}.${process.pid}@exemple.fr`
@@ -40,11 +49,9 @@ test('PUT /me/lang : change la langue du compte de la session, puis mot de passe
   assert.equal((await call(ctx.app, 'GET', '/api/auth/me', { cookie: u.cookie })).json().user.lang, 'mg')
 
   await call(ctx.app, 'POST', '/api/auth/forgot-password', { body: { email: u.email } })
-  await new Promise((res) => setTimeout(res, 200))
-  const reset = lastTo(u.email)
-  assert.match(reset.subject, /^Fanovana ny teny miafinao/)
+  const reset = await mailMatching(u.email, /^Fanovana ny teny miafinao/)
   await call(ctx.app, 'POST', '/api/auth/reset-password', { body: { token: tokenIn(reset, 'reset'), password: 'nouvelle phrase de passe longue' } })
-  assert.match(lastTo(u.email).subject, /^Niova ny teny miafinao/)
+  await mailMatching(u.email, /^Niova ny teny miafinao/)
 })
 
 test('PUT /me/lang : sans session 401, langue inconnue ou champ en plus 400, et jamais le compte d’un autre', async () => {
@@ -60,16 +67,21 @@ test('PUT /me/lang : sans session 401, langue inconnue ou champ en plus 400, et 
   assert.equal(await langOf(b.email), 'fr')
 })
 
-test('invitation dans la langue de l’invitant ; avis de suppression de la famille dans la langue de chaque membre', async () => {
+test('invitation dans la langue du compte de l’invité (sinon de l’invitant) ; avis de suppression de la famille dans la langue de chaque membre', async () => {
   const owner = await newUser(ctx, { lang: 'en' }), member = await newUser(ctx, { lang: 'mg' })
   await call(ctx.app, 'POST', '/api/families', { cookie: owner.cookie, body: { name: 'Famille Rabe' } })
   await call(ctx.app, 'POST', '/api/families/me/invitations', { cookie: owner.cookie, body: { email: member.email, role: 'member' } })
-  const invitation = lastTo(member.email)
-  assert.match(invitation.subject, /^Invitation to join a family/)
+  const invitation = await mailMatching(member.email, /^Fanasana hiditra/)
   assert.equal((await call(ctx.app, 'POST', '/api/invitations/accept', { cookie: member.cookie, body: { token: tokenIn(invitation, 'invite') } })).statusCode, 200)
 
   const del = await call(ctx.app, 'DELETE', '/api/families/me', { cookie: owner.cookie, body: { password: owner.password } })
   assert.equal(del.statusCode, 200)
-  await new Promise((res) => setTimeout(res, 100))
-  assert.match(lastTo(member.email).subject, /^Voafafa ny fianakaviana/)
+  await mailMatching(member.email, /^Voafafa ny fianakaviana/)
+
+  // Adresse sans compte : langue de l'invitant.
+  const other = await newUser(ctx, { lang: 'en' })
+  await call(ctx.app, 'POST', '/api/families', { cookie: other.cookie, body: { name: 'Famille Be' } })
+  const stranger = address()
+  assert.equal((await call(ctx.app, 'POST', '/api/families/me/invitations', { cookie: other.cookie, body: { email: stranger, role: 'member' } })).statusCode, 201)
+  await mailMatching(stranger, /^Invitation to join a family/)
 })

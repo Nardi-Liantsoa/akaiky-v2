@@ -22,9 +22,27 @@ test('même langue que l’app : rien n’est envoyé ; changement de langue : e
   await expect.poll(() => langPuts(calls)).toEqual([{ lang: 'mg' }])
 })
 
-test('compte gardé dans une autre langue : l’app envoie la sienne à l’ouverture', async ({ page }) => {
+test('nouvel appareil (langue seulement devinée) : l’app prend la langue du compte, sans rien envoyer', async ({ page }) => {
+  const calls = await mockApi(page, { ...base, 'GET /api/auth/me': () => ({ body: { user: { ...USER, lang: 'en' } } }) })
+  await page.goto('/espace/famille')
+  await expect(page.getByRole('heading', { name: 'Family', exact: true })).toBeVisible()
+  expect(langPuts(calls)).toEqual([])
+})
+
+test('langue choisie sur cet appareil, autre que celle du compte : envoyée au compte', async ({ page }) => {
+  await page.addInitScript(() => { try { localStorage.setItem('akaiky-v2.lang', 'fr') } catch { /* stockage indisponible */ } })
   const calls = await mockApi(page, { ...base, 'GET /api/auth/me': () => ({ body: { user: { ...USER, lang: 'mg' } } }) })
   await page.goto('/espace/famille')
   await expect(page.getByRole('heading', { name: 'Famille', exact: true })).toBeVisible()
   await expect.poll(() => langPuts(calls)).toEqual([{ lang: 'fr' }])
+})
+
+test('changements rapides : envoyés un par un, le dernier choix gagne', async ({ page }) => {
+  const calls = await mockApi(page, { ...base, 'GET /api/auth/me': () => ({ body: { user: USER } }) })
+  await page.goto('/espace/compte/securite')
+  // Le nom de la carte change avec la langue : le seul menu de la page.
+  const select = page.getByRole('combobox')
+  await select.selectOption('mg')
+  await select.selectOption('en')
+  await expect.poll(() => langPuts(calls).at(-1)).toEqual({ lang: 'en' })
 })
