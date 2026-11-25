@@ -196,7 +196,7 @@ watch(childId, () => {
 
       <p class="warning">{{ t.pairing.warning }}</p>
 
-      <h2>{{ t.pairing.devices }}</h2>
+      <h2 class="devices-title"><span class="title-icon" aria-hidden="true"><AppIcon name="smartphone" :size="20" /></span>{{ t.pairing.devices }}</h2>
       <StatusBlock v-if="devicesStatus === 'error'" state="error" :text="t.pairing.loadError" @retry="refreshDevices()" />
       <p v-else-if="devicesStatus === 'ready' && !devices.length" class="help">{{ t.pairing.none }}</p>
       <ul v-else-if="devicesStatus === 'ready'" class="devices">
@@ -315,6 +315,21 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+.devices-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+/* Même pastille que le titre d'une SectionCard (NAR-228). */
+.title-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+  color: var(--ink);
 }
 .device-text {
   flex: 1;
