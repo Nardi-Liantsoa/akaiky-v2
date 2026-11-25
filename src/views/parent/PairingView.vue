@@ -201,7 +201,6 @@ watch(childId, () => {
       <p v-else-if="devicesStatus === 'ready' && !devices.length" class="help">{{ t.pairing.none }}</p>
       <ul v-else-if="devicesStatus === 'ready'" class="devices">
         <li v-for="d in devices" :key="d.id" class="card device">
-          <span class="step-icon" aria-hidden="true"><AppIcon name="smartphone" :size="22" /></span>
           <div class="device-text">
             <strong>{{ d.model || t.pairing.unknownModel }}</strong>
             <span class="meta">{{ t.pairing.since(formatDay(d.createdAt, locale)) }}</span>

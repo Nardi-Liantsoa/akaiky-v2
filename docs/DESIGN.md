@@ -143,8 +143,8 @@ la marge, ou la taille quand l'écran l'exige (écrans enfant, titres de jour du
   numérotées (cercle `--accent`), chacune avec son icône dans une tuile `--surface-muted`
   (réinitialiser, toucher l'écran, scanner le QR) ; « Étape n sur 3 » lu seulement. Ordinateur
   (`meta.wide`) : étapes à gauche, QR à droite, affiché au clic comme sur téléphone (un nouveau
-  jeton annule le QR déjà affiché ailleurs : jamais créé sans geste). Boutons avec icône (QR, nouveau QR, retirer) ; téléphones appairés avec
-  la tuile d'icône téléphone.
+  jeton annule le QR déjà affiché ailleurs : jamais créé sans geste). Boutons avec icône (QR, nouveau QR, retirer) ; titre « Téléphones
+  appairés » avec la pastille téléphone, cartes des téléphones sans icône (demande utilisateur).
 - **`BackLink`** (NAR-195) — lien de retour en tête d'écran (« ‹ Réglages », « ‹ Accueil ») :
   chevron + libellé `--accent`, ≥ `--tap`, vrai lien (`href`) dont le clic passe par `backTo`
   (`src/lib/navigation.ts` : retour de l'historique si l'écran précédent est la cible, sinon
