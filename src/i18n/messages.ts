@@ -573,7 +573,6 @@ const fr = {
       summary: { label: 'Nombres du jour ; toucher une tuile filtre le journal, la retoucher affiche tout', calls: 'Appels', blocked: 'Bloqués', messages: 'Messages', unlocks: 'Sorties du verrou' },
       allowNumber: 'Autoriser ce numéro',
       activeFilter: (name: string) => `Filtre : ${name}`,
-      showAll: 'Tout afficher',
       // Indication visible sous les tuiles tant qu’aucun filtre n’est choisi (NAR-235).
       filterHint: 'Touchez une case pour filtrer le journal.',
       filterHintActive: 'Touchez à nouveau la case pour tout afficher.',
@@ -1320,7 +1319,6 @@ const mg: Messages = {
       summary: { label: 'Isa androany ; tsindrio ny iray hanivanana, tsindrio indray haseho daholo', calls: 'Antso', blocked: 'Voasakana', messages: 'Hafatra', unlocks: 'Nivoaka tamin’ny hidy' },
       allowNumber: 'Hanome alalana ity laharana ity',
       activeFilter: (name: string) => `Sivana : ${name}`,
-      showAll: 'Haseho daholo',
       filterHint: 'Tsindrio ny iray hanivanana ny tantara.',
       filterHintActive: 'Tsindrio indray ilay izy haseho daholo.',
       today: 'Androany',
@@ -2050,7 +2048,6 @@ const en: Messages = {
       summary: { label: 'Today’s counts; tap a tile to filter the log, tap again to show all', calls: 'Calls', blocked: 'Blocked', messages: 'Messages', unlocks: 'Unlocks' },
       allowNumber: 'Allow this number',
       activeFilter: (name: string) => `Filter: ${name}`,
-      showAll: 'Show all',
       filterHint: 'Tap a tile to filter the log.',
       filterHintActive: 'Tap the tile again to show everything.',
       today: 'Today',

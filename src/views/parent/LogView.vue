@@ -158,11 +158,9 @@ const listLabel = computed(() => dayName(shownDay.value, todayKey.value, t.value
       <!-- Information (NAR-235), toujours là : comment filtrer, puis comment tout réafficher.
            Hors de la zone annoncée (role=status) : le filtre choisi y est déjà dit. -->
       <p class="filter-hint"><AppIcon name="info" :size="18" />{{ filter === 'all' ? t.parent.log.filterHint : t.parent.log.filterHintActive }}</p>
-      <div class="active-filter">
-        <p role="status" class="filter-status">{{ filter !== 'all' ? t.parent.log.activeFilter(t.parent.log.summary[filter]) : '' }}</p>
-
-        <AppButton v-if="filter !== 'all'" variant="link" @click="filter = 'all'">{{ t.parent.log.showAll }}</AppButton>
-      </div>
+      <!-- Filtre choisi : annoncé aux lecteurs d'écran seulement (NAR-243) ; à l'écran, la tuile
+           cochée et le bandeau le disent, la retoucher affiche tout. -->
+      <p role="status" class="visually-hidden">{{ filter !== 'all' ? t.parent.log.activeFilter(t.parent.log.summary[filter]) : '' }}</p>
     </template>
     <StatusBlock v-if="loading" state="loading" fill />
     <template v-else-if="listed && current">
@@ -214,20 +212,6 @@ h1 {
 }
 .filter-hint :deep(svg) {
   flex: none;
-}
-.active-filter {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  margin: -4px 0 12px;
-  font-weight: 700;
-}
-.active-filter:has(.filter-status:empty) {
-  margin: 0;
-}
-.filter-status {
-  margin: 0;
 }
 .list {
   list-style: none;

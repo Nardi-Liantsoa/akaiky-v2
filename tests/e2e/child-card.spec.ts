@@ -32,10 +32,10 @@ test('Appeler : tel: avec un numéro ; sans numéro, la saisie du numéro ; Mess
   await expect(page.getByRole('link', { name: /Noé/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Relier le téléphone' })).toBeVisible()
   await page.getByRole('link', { name: 'Messages de Fy' }).click()
-  // Filtre appliqué et annoncé, puis retiré de l'adresse : « Tout afficher » puis un rechargement ne le remet pas.
-  await expect(page.getByRole('status').filter({ hasText: 'Messages' })).toBeVisible()
+  // Filtre appliqué et annoncé, puis retiré de l'adresse : la tuile retouchée puis un rechargement ne le remettent pas.
+  await expect(page.getByRole('status').filter({ hasText: 'Messages' })).toBeAttached()
   await expect(page).toHaveURL(/\/espace\/journal$/)
-  await page.getByRole('button', { name: 'Tout afficher' }).click()
+  await page.getByRole('button', { name: /Messages$/ }).click()
   await page.reload()
   await expect(page.getByRole('status').filter({ hasText: 'Messages' })).toHaveCount(0)
 })
