@@ -68,19 +68,19 @@ function closeSheet() {
     <StatusBlock v-else-if="!loaded" state="loading" />
     <StatusBlock v-else-if="!items.length" state="empty" :text="t.admin.kids.empty" />
     <table v-else class="admin-table">
-      <thead>
-        <tr>
-          <th>{{ t.admin.kids.ref }}</th><th>{{ t.admin.kids.created }}</th><th>{{ t.admin.kids.code }}</th>
-          <th>{{ t.admin.kids.request }}</th><th>{{ t.admin.actions }}</th>
+      <thead role="rowgroup">
+        <tr role="row">
+          <th role="columnheader">{{ t.admin.kids.ref }}</th><th role="columnheader">{{ t.admin.kids.created }}</th><th role="columnheader">{{ t.admin.kids.code }}</th>
+          <th role="columnheader">{{ t.admin.kids.request }}</th><th role="columnheader">{{ t.admin.actions }}</th>
         </tr>
       </thead>
-      <tbody>
-        <tr v-for="k in items" :key="k.id">
-          <td class="lead-cell"><code :title="k.id">{{ shortId(k.id) }}</code></td>
-          <td :data-label="t.admin.kids.created">{{ formatDateTime(k.createdAt, locale) }}</td>
-          <td :data-label="t.admin.kids.code">{{ k.codeSet ? t.admin.kids.codeSet : t.admin.kids.codeNotSet }}</td>
-          <td :data-label="t.admin.kids.request">{{ k.newCodeRequestedAt ? t.admin.kids.requestedOn(formatDateTime(k.newCodeRequestedAt, locale)) : '—' }}</td>
-          <td class="actions-cell">
+      <tbody role="rowgroup">
+        <tr role="row" v-for="k in items" :key="k.id">
+          <td role="cell" class="lead-cell"><code :title="k.id">{{ shortId(k.id) }}</code></td>
+          <td role="cell" :data-label="t.admin.kids.created">{{ formatDateTime(k.createdAt, locale) }}</td>
+          <td role="cell" :data-label="t.admin.kids.code">{{ k.codeSet ? t.admin.kids.codeSet : t.admin.kids.codeNotSet }}</td>
+          <td role="cell" :data-label="t.admin.kids.request">{{ k.newCodeRequestedAt ? t.admin.kids.requestedOn(formatDateTime(k.newCodeRequestedAt, locale)) : '—' }}</td>
+          <td role="cell" class="actions-cell">
             <AppButton v-if="k.codeSet && !k.newCodeRequestedAt" variant="ghost" small :disabled="busy" @click="ask(k, $event)">
               {{ t.admin.kids.ask }}
             </AppButton>

@@ -267,3 +267,15 @@ test('admin à 360 px : tuiles et une carte par ligne, aucun défilement horizon
   expect(new Set(tops).size).toBe(1)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
+
+test('admin en malgache à 320 px : aucun libellé ne déborde de sa tuile ni de la page', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 })
+  await page.addInitScript(() => localStorage.setItem('akaiky-v2.lang', 'mg'))
+  await mockApi(page, adminApi())
+  await page.goto('/admin')
+  const tiles = page.locator('.tiles > div')
+  await expect(tiles.first()).toBeVisible()
+  const overflowing = await tiles.evaluateAll((els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1).length)
+  expect(overflowing).toBe(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})

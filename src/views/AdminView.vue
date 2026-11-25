@@ -49,13 +49,13 @@ function deviceChanged() {
     <SectionCard :title="t.admin.audit">
       <p v-if="error" class="error" role="alert">{{ error }}</p>
       <div class="admin-scroll">
-        <table class="admin-table">
-          <thead><tr><th>{{ t.admin.when }}</th><th>{{ t.admin.action }}</th><th>{{ t.admin.actor }}</th></tr></thead>
-          <tbody>
-            <tr v-for="(a, i) in audit" :key="i">
-              <td :data-label="t.admin.when">{{ formatDateTime(a.at, locale) }}</td>
-              <td class="lead-cell">{{ a.action }}</td>
-              <td :data-label="t.admin.actor">{{ a.actor || '—' }}</td>
+        <table class="admin-table" role="table">
+          <thead role="rowgroup"><tr role="row"><th role="columnheader">{{ t.admin.when }}</th><th role="columnheader">{{ t.admin.action }}</th><th role="columnheader">{{ t.admin.actor }}</th></tr></thead>
+          <tbody role="rowgroup">
+            <tr role="row" v-for="(a, i) in audit" :key="i">
+              <td role="cell" :data-label="t.admin.when">{{ formatDateTime(a.at, locale) }}</td>
+              <td role="cell" class="lead-cell">{{ a.action }}</td>
+              <td role="cell" :data-label="t.admin.actor">{{ a.actor || '—' }}</td>
             </tr>
           </tbody>
         </table>
@@ -101,7 +101,9 @@ function deviceChanged() {
   font-weight: 500;
 }
 /* Téléphone et petite tablette (NAR-224, maquette 06) : une carte par ligne au lieu du
- * tableau, qui forçait la largeur et faisait dézoomer la page. Première cellule en titre,
+ * tableau. Les rôles ARIA posés sur le tableau (table, row, cell, columnheader) gardent sa
+ * sémantique pour un lecteur d'écran malgré display: block (Safari, VoiceOver).
+ * Le tableau forçait la largeur et faisait dézoomer la page. Première cellule en titre,
  * autres en paires libellé / valeur (data-label), action en bouton pleine largeur. Même
  * gabarit que le tableau : aucune donnée de plus ni de moins. */
 @media (max-width: 767px) {
@@ -139,7 +141,10 @@ function deviceChanged() {
     overflow-wrap: anywhere;
     text-align: right;
   }
-  .admin-table td::before {
+  .admin-table td:not([data-label])::before {
+    content: none;
+  }
+  .admin-table td[data-label]::before {
     content: attr(data-label);
     flex: none;
     color: var(--text-soft);
@@ -152,11 +157,15 @@ function deviceChanged() {
     font-weight: 800;
     text-align: left;
   }
-  .admin-table td.actions-cell:empty,
+  /* Règles séparées : un navigateur sans :has() ne perd que la sienne. */
+  .admin-table td.actions-cell:empty {
+    display: none;
+  }
   .admin-table td.actions-cell:not(:has(*)) {
     display: none;
   }
   .admin-table td.actions-cell {
+    display: block;
     padding-top: var(--space-2);
   }
   .admin-table td.actions-cell .btn {
