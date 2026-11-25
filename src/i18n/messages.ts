@@ -86,6 +86,7 @@ const fr = {
   mfa: {
     title: 'Double authentification',
     codeLabel: 'Code à 6 chiffres ou code de secours',
+    qrAlt: 'QR code à scanner avec l’application d’authentification',
     verify: 'Vérifier',
     cancel: 'Annuler',
     invalid: 'Code invalide ou déjà utilisé.',
@@ -625,6 +626,7 @@ const fr = {
     state: 'État',
     actions: 'Action',
     you: 'vous',
+    adminBadge: 'administrateur',
     accountStates: { active: 'actif', disabled: 'désactivé' },
     disable: 'Désactiver',
     enable: 'Réactiver',
@@ -784,6 +786,7 @@ const mg: Messages = {
   mfa: {
     title: 'Fanamarinana roa sosona',
     codeLabel: 'Kaody isa 6 na kaody famonjena',
+    qrAlt: 'QR code hojerena amin’ny fampiharana fanamarinana',
     verify: 'Hamarino',
     cancel: 'Hanafoana',
     invalid: 'Diso na efa nampiasaina ny kaody.',
@@ -975,7 +978,7 @@ const mg: Messages = {
       silent: 'Tsy mamaly intsony ny finday'
     },
     since: (when: string) => `Voamarika ${when}`,
-    moreAlerts: () => 'fampitandremana hafa',
+    moreAlerts: (_n: number) => 'fampitandremana hafa', // Tsy misy endrika maro amin'ny teny malagasy.
     loadError: 'Tsy azo jerena amin’izao ny toetry ny finday.'
   },
   // Tsy manana fiteny malagasy ny Intl.RelativeTimeFormat : ireto no ampiasaina.
@@ -1304,6 +1307,7 @@ const mg: Messages = {
     state: 'Toetra',
     actions: 'Hetsika',
     you: 'ianao',
+    adminBadge: 'mpitantana',
     accountStates: { active: 'mandeha', disabled: 'najanona' },
     disable: 'Ajanony',
     enable: 'Avereno',
@@ -1460,6 +1464,7 @@ const en: Messages = {
   mfa: {
     title: 'Two-factor authentication',
     codeLabel: '6-digit code or recovery code',
+    qrAlt: 'QR code to scan with the authenticator app',
     verify: 'Verify',
     cancel: 'Cancel',
     invalid: 'Invalid or already used code.',
@@ -1979,6 +1984,7 @@ const en: Messages = {
     state: 'State',
     actions: 'Action',
     you: 'you',
+    adminBadge: 'administrator',
     accountStates: { active: 'active', disabled: 'disabled' },
     disable: 'Disable',
     enable: 'Re-enable',
