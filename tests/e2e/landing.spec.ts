@@ -41,3 +41,9 @@ test('langue : la pastille globe porte le code, le choix au clavier change la pa
   await expect(page.getByRole('link', { name: 'Hamorona kaonty maimaim-poana' })).toBeVisible()
   expect(await page.evaluate(() => localStorage.getItem('akaiky-v2.lang'))).toBe('mg')
 })
+
+test('inscription : le lien « Connexion » reste dans l’en-tête pour revenir à la connexion', async ({ page }) => {
+  await mockApi(page, visitor)
+  await page.goto('/connexion?mode=register')
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Connexion' })).toBeVisible()
+})

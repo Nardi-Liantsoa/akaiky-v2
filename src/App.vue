@@ -39,8 +39,8 @@ async function onLogout() {
         <RouterLink v-if="isAdmin()" :to="{ name: 'admin' }">{{ t.nav.admin }}</RouterLink>
         <AppButton variant="link" class="logout" @click="onLogout">{{ t.nav.logout }}</AppButton>
       </template>
-      <!-- Pas de lien vers la page où l'on est déjà (NAR-225). -->
-      <RouterLink v-else-if="route.name !== 'connexion'" class="btn btn-ghost login" :to="{ name: 'connexion' }">{{ t.nav.login }}</RouterLink>
+      <!-- Pas de lien vers la page où l'on est déjà (NAR-225) ; gardé sur l'inscription, pour revenir à la connexion. -->
+      <RouterLink v-else-if="route.name !== 'connexion' || route.query.mode === 'register'" class="btn btn-ghost login" :to="{ name: 'connexion' }">{{ t.nav.login }}</RouterLink>
       <!-- Langue (NAR-225, maquettes 03 et 04) : pastille globe + code ; le vrai <select>, transparent
            par-dessus, garde le clavier, le lecteur d'écran et le sélecteur natif du téléphone. -->
       <label class="lang">
@@ -103,7 +103,7 @@ nav {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  min-height: 44px;
+  min-height: var(--tap);
   padding: 0 var(--space-3);
   border: 1.5px solid var(--border-strong);
   border-radius: var(--radius-pill);
@@ -114,7 +114,11 @@ nav {
   position: absolute;
   inset: 0;
   width: 100%;
+  height: 100%;
+  appearance: none;
   opacity: 0;
+  /* 16 px : iOS ne zoome pas la page au toucher d'un champ de cette taille. */
+  font-size: 16px;
   cursor: pointer;
 }
 .lang:focus-within {

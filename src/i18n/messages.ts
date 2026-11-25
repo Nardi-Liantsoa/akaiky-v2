@@ -18,8 +18,8 @@ const fr = {
     open: 'Ouvrir mon espace',
     featuresLabel: 'Ce que fait Akaiky',
     features: [
-      { title: 'Appels faciles', text: 'Les parents et proches autorisés, en un geste. Rien d’autre ne sonne.' },
-      { title: 'SOS immédiat', text: 'Un appui long alerte toute la famille, avec sirène si besoin.' },
+      { title: 'Appels faciles', text: 'Les parents et proches autorisés, en un geste, depuis un écran sans distraction.' },
+      { title: 'SOS immédiat', text: 'Un appui long prévient ses parents par SMS et les appelle, avec sirène si besoin.' },
       { title: 'Apps grand public bloquées', text: 'Réseaux sociaux, navigateur et jeux restent hors de portée.' }
     ],
     phone: { label: 'Aperçu de l’écran du téléphone de l’enfant', mom: 'Maman', dad: 'Papa', grandma: 'Mamie', locked: 'Autres apps verrouillées' }
@@ -755,8 +755,8 @@ const mg: Messages = {
     open: 'Hanokatra ny habakako',
     featuresLabel: 'Izay ataon’i Akaiky',
     features: [
-      { title: 'Antso mora', text: 'Ny ray aman-dreny sy ny havana nahazo alalana, amin’ny fikitiana iray. Tsy misy hafa maneno.' },
-      { title: 'SOS avy hatrany', text: 'Tsindrina lava iray dia voampandrenesina ny fianakaviana rehetra, miaraka amin’ny sirena raha ilaina.' },
+      { title: 'Antso mora', text: 'Ny ray aman-dreny sy ny havana nahazo alalana, amin’ny fikitiana iray, amin’ny efijery tsy misy manelingelina.' },
+      { title: 'SOS avy hatrany', text: 'Tsindrina lava iray dia ampandrenesina amin’ny SMS sy antsoina ny ray aman-dreniny, miaraka amin’ny sirena raha ilaina.' },
       { title: 'Voasakana ny rindranasa ho an’ny besinimaro', text: 'Tsy tratrany ny tambajotra sosialy, ny mpitety tranonkala ary ny lalao.' }
     ],
     phone: { label: 'Topy maso ny efijerin’ny findain’ny zaza', mom: 'Neny', dad: 'Dada', grandma: 'Bebe', locked: 'Voahidy ny rindranasa hafa' }
@@ -1464,8 +1464,8 @@ const en: Messages = {
     open: 'Open my space',
     featuresLabel: 'What Akaiky does',
     features: [
-      { title: 'Easy calls', text: 'Parents and approved relatives, in one tap. Nothing else rings.' },
-      { title: 'Instant SOS', text: 'A long press alerts the whole family, with a siren if needed.' },
+      { title: 'Easy calls', text: 'Parents and approved relatives, in one tap, from a distraction-free screen.' },
+      { title: 'Instant SOS', text: 'A long press texts and calls their parents, with a siren if needed.' },
       { title: 'Mainstream apps blocked', text: 'Social networks, the browser and games stay out of reach.' }
     ],
     phone: { label: 'Preview of the child’s phone screen', mom: 'Mum', dad: 'Dad', grandma: 'Grandma', locked: 'Other apps locked' }

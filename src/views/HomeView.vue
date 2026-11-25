@@ -57,7 +57,7 @@ const PREVIEW_TIME = '14:32'
 
 <style scoped>
 .landing {
-  max-width: 1200px;
+  max-width: var(--wide-width);
 }
 .hero {
   display: grid;
@@ -98,8 +98,8 @@ h1 {
 .phone {
   justify-self: center;
   width: min(260px, 72vw);
-  padding: 12px;
-  border-radius: 40px;
+  padding: var(--space-3);
+  border-radius: var(--radius-device);
   background: var(--ink);
   box-shadow: var(--shadow-float);
 }
@@ -107,7 +107,7 @@ h1 {
   display: grid;
   gap: var(--space-4);
   padding: var(--space-5) var(--space-3) var(--space-6);
-  border-radius: 30px;
+  border-radius: calc(var(--radius-device) - var(--space-3));
   background: var(--bg-child);
 }
 .time {
