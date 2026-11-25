@@ -41,8 +41,9 @@ defineExpose({ reload: load })
 <style scoped>
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: var(--space-3);
+  /* Trois tuiles par ligne dès 320 px (maquette 06, NAR-224). */
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: var(--space-2);
   margin: 0;
 }
 .tiles div {

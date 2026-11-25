@@ -246,3 +246,24 @@ test('admin : demande refusée (aucun gestionnaire à adresse) : la feuille se f
   await expect(confirmSheet(page)).toBeVisible()
   await expect(confirmSheet(page).getByRole('alert')).toHaveCount(0)
 })
+
+test('admin à 360 px : tuiles et une carte par ligne, aucun défilement horizontal, actions pleine largeur', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 })
+  await mockApi(page, adminApi())
+  await page.goto('/admin')
+  const devices = page.getByRole('region', { name: 'Téléphones' })
+  await expect(devices.getByText('Itel A70')).toBeVisible()
+  // Paires libellé / valeur (maquette 06) : le libellé de colonne est écrit dans la carte.
+  const itel = devices.locator('tr', { hasText: 'Itel A70' })
+  expect(await itel.locator('td[data-label]').first().evaluate((td) => getComputedStyle(td, '::before').content)).not.toBe('none')
+  const revoke = itel.getByRole('button', { name: 'Retirer' })
+  const card = (await itel.boundingBox())!
+  const button = (await revoke.boundingBox())!
+  expect(button.width).toBeGreaterThan(card.width * 0.8)
+  expect(button.height).toBeGreaterThanOrEqual(44)
+  // Trois tuiles de statistiques par ligne.
+  const tiles = page.getByRole('region', { name: 'Statistiques' }).locator('.tiles > div')
+  const tops = await tiles.evaluateAll((els) => els.slice(0, 3).map((e) => Math.round(e.getBoundingClientRect().top)))
+  expect(new Set(tops).size).toBe(1)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})

@@ -53,9 +53,9 @@ function deviceChanged() {
           <thead><tr><th>{{ t.admin.when }}</th><th>{{ t.admin.action }}</th><th>{{ t.admin.actor }}</th></tr></thead>
           <tbody>
             <tr v-for="(a, i) in audit" :key="i">
-              <td>{{ formatDateTime(a.at, locale) }}</td>
-              <td>{{ a.action }}</td>
-              <td>{{ a.actor || '—' }}</td>
+              <td :data-label="t.admin.when">{{ formatDateTime(a.at, locale) }}</td>
+              <td class="lead-cell">{{ a.action }}</td>
+              <td :data-label="t.admin.actor">{{ a.actor || '—' }}</td>
             </tr>
           </tbody>
         </table>
@@ -99,5 +99,78 @@ function deviceChanged() {
 .admin-table th {
   color: var(--text-mute);
   font-weight: 500;
+}
+/* Téléphone et petite tablette (NAR-224, maquette 06) : une carte par ligne au lieu du
+ * tableau, qui forçait la largeur et faisait dézoomer la page. Première cellule en titre,
+ * autres en paires libellé / valeur (data-label), action en bouton pleine largeur. Même
+ * gabarit que le tableau : aucune donnée de plus ni de moins. */
+@media (max-width: 767px) {
+  .admin-scroll {
+    overflow: visible;
+  }
+  .admin-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .admin-table,
+  .admin-table tbody,
+  .admin-table tr,
+  .admin-table td {
+    display: block;
+    width: 100%;
+  }
+  .admin-table tr {
+    margin-bottom: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .admin-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-1) 0;
+    border: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+  .admin-table td::before {
+    content: attr(data-label);
+    flex: none;
+    color: var(--text-soft);
+    text-align: left;
+  }
+  .admin-table td.lead-cell {
+    display: block;
+    padding-bottom: var(--space-2);
+    font-size: 1rem;
+    font-weight: 800;
+    text-align: left;
+  }
+  .admin-table td.actions-cell:empty,
+  .admin-table td.actions-cell:not(:has(*)) {
+    display: none;
+  }
+  .admin-table td.actions-cell {
+    padding-top: var(--space-2);
+  }
+  .admin-table td.actions-cell .btn {
+    width: 100%;
+  }
+  /* Enfants d'une famille, dépliés sous sa carte : la liste imbriquée garde son propre gabarit. */
+  .admin-table tr:has(> td.nested-cell) {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .admin-table td.nested-cell {
+    display: block;
+    text-align: left;
+  }
 }
 </style>

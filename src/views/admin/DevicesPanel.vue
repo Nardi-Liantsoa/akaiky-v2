@@ -63,13 +63,13 @@ function closeSheet() {
           </thead>
           <tbody>
             <tr v-for="d in list.items.value" :key="d.id">
-              <td>{{ modelOf(d) }}</td>
-              <td>{{ d.osVersion || '—' }} · {{ d.appVersion || '—' }}</td>
-              <td><code :title="d.familyId">{{ shortId(d.familyId) }}</code></td>
-              <td>{{ when(d.statusAt) }}</td>
-              <td>{{ when(d.lastSeenAt) }}</td>
-              <td><span class="state" :class="`is-${d.state}`">{{ t.admin.devices.states[d.state] }}</span></td>
-              <td>
+              <td class="lead-cell">{{ modelOf(d) }}</td>
+              <td :data-label="t.admin.devices.versions">{{ d.osVersion || '—' }} · {{ d.appVersion || '—' }}</td>
+              <td :data-label="t.admin.devices.family"><code :title="d.familyId">{{ shortId(d.familyId) }}</code></td>
+              <td :data-label="t.admin.devices.lastSignal">{{ when(d.statusAt) }}</td>
+              <td :data-label="t.admin.devices.lastSeen">{{ when(d.lastSeenAt) }}</td>
+              <td :data-label="t.admin.devices.state"><span class="state" :class="`is-${d.state}`">{{ t.admin.devices.states[d.state] }}</span></td>
+              <td class="actions-cell">
                 <AppButton v-if="d.state !== 'revoked'" variant="ghost" small :disabled="busy" @click="confirming.ask(d, $event)">{{ t.admin.revoke }}</AppButton>
               </td>
             </tr>

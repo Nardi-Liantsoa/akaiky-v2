@@ -38,12 +38,12 @@ defineExpose({ reload: list.reload })
           <tbody>
             <template v-for="f in list.items.value" :key="f.id">
               <tr>
-                <td><code :title="f.id">{{ shortId(f.id) }}</code></td>
-                <td>{{ f.members }}</td>
-                <td>{{ f.children }}</td>
-                <td>{{ f.devices }}</td>
-                <td>{{ formatDateTime(f.createdAt, locale) }}</td>
-                <td>
+                <td class="lead-cell"><code :title="f.id">{{ shortId(f.id) }}</code></td>
+                <td :data-label="t.admin.families.members">{{ f.members }}</td>
+                <td :data-label="t.admin.families.children">{{ f.children }}</td>
+                <td :data-label="t.admin.families.devices">{{ f.devices }}</td>
+                <td :data-label="t.admin.families.created">{{ formatDateTime(f.createdAt, locale) }}</td>
+                <td class="actions-cell">
                   <AppButton
                     v-if="f.children" variant="ghost" small :aria-expanded="open === f.id" :aria-controls="open === f.id ? `family-kids-${f.id}` : undefined"
                     @click="toggle(f.id)"
@@ -51,7 +51,7 @@ defineExpose({ reload: list.reload })
                 </td>
               </tr>
               <tr v-if="open === f.id" :id="`family-kids-${f.id}`">
-                <td colspan="6"><FamilyChildren :family-id="f.id" /></td>
+                <td colspan="6" class="nested-cell"><FamilyChildren :family-id="f.id" /></td>
               </tr>
             </template>
           </tbody>

@@ -84,12 +84,12 @@ function closeSheet() {
         </thead>
         <tbody>
           <tr v-for="u in users" :key="u.id">
-            <td>{{ label(u) }}<span v-if="u.is_admin"> · {{ t.admin.adminBadge }}</span><span v-if="isMe(u)"> ({{ t.admin.you }})</span></td>
-            <td>{{ formatDateTime(u.created_at, locale) }}</td>
-            <td>{{ u.verified ? t.admin.yes : t.admin.no }}</td>
-            <td>{{ u.mfa ? t.admin.yes : t.admin.no }}</td>
-            <td><span class="state" :class="{ 'is-disabled': u.disabled_at }">{{ u.disabled_at ? t.admin.accountStates.disabled : t.admin.accountStates.active }}</span></td>
-            <td>
+            <td class="lead-cell">{{ label(u) }}<span v-if="u.is_admin"> · {{ t.admin.adminBadge }}</span><span v-if="isMe(u)"> ({{ t.admin.you }})</span></td>
+            <td :data-label="t.admin.created">{{ formatDateTime(u.created_at, locale) }}</td>
+            <td :data-label="t.admin.verified">{{ u.verified ? t.admin.yes : t.admin.no }}</td>
+            <td :data-label="t.admin.mfa">{{ u.mfa ? t.admin.yes : t.admin.no }}</td>
+            <td :data-label="t.admin.state"><span class="state" :class="{ 'is-disabled': u.disabled_at }">{{ u.disabled_at ? t.admin.accountStates.disabled : t.admin.accountStates.active }}</span></td>
+            <td class="actions-cell">
               <!-- Un seul bouton par ligne, dont le libellé change : l'élément reste le même, le focus
                    clavier y reste après l'action (deux boutons en v-if/v-else le renverraient au haut de la page). -->
               <AppButton v-if="u.disabled_at || !isMe(u)" variant="ghost" small :disabled="busy" @click="u.disabled_at ? enable(u, $event) : confirming.ask(u, $event)">

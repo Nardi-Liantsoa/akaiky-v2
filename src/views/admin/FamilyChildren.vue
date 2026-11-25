@@ -76,11 +76,11 @@ function closeSheet() {
       </thead>
       <tbody>
         <tr v-for="k in items" :key="k.id">
-          <td><code :title="k.id">{{ shortId(k.id) }}</code></td>
-          <td>{{ formatDateTime(k.createdAt, locale) }}</td>
-          <td>{{ k.codeSet ? t.admin.kids.codeSet : t.admin.kids.codeNotSet }}</td>
-          <td>{{ k.newCodeRequestedAt ? t.admin.kids.requestedOn(formatDateTime(k.newCodeRequestedAt, locale)) : '—' }}</td>
-          <td>
+          <td class="lead-cell"><code :title="k.id">{{ shortId(k.id) }}</code></td>
+          <td :data-label="t.admin.kids.created">{{ formatDateTime(k.createdAt, locale) }}</td>
+          <td :data-label="t.admin.kids.code">{{ k.codeSet ? t.admin.kids.codeSet : t.admin.kids.codeNotSet }}</td>
+          <td :data-label="t.admin.kids.request">{{ k.newCodeRequestedAt ? t.admin.kids.requestedOn(formatDateTime(k.newCodeRequestedAt, locale)) : '—' }}</td>
+          <td class="actions-cell">
             <AppButton v-if="k.codeSet && !k.newCodeRequestedAt" variant="ghost" small :disabled="busy" @click="ask(k, $event)">
               {{ t.admin.kids.ask }}
             </AppButton>
