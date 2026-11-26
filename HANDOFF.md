@@ -10,7 +10,13 @@
   Contacts autorisés côté parent (NAR-140, migration `006`) ; la synchronisation vers le
   téléphone de l'enfant attend l'appairage (NAR-160, bloqué par NAR-138).
   Appairage côté parent et serveur (NAR-138) : QR de provisionnement Android (jeton 15 min,
-  usage unique), sessions d'appareil séparées, révocation. Côté téléphone : NAR-164 ; APK
+  usage unique), sessions d'appareil séparées, révocation. Côté téléphone : NAR-164.
+  **Deux écrans de l'app enfant (NAR-245)** : renouvellement de la session sous un verrou Web Locks
+  commun aux WebViews, jeton d'accès partagé par le Keystore. Deuxième instance de l'écran non
+  reproduite sur `kiosk34` (Android 14 : Accueil, lanceur, intent HOME et arrêt du processus
+  ramènent tous à la même activité) ; correction défensive. **Limite** : `navigator.locks` n'existe
+  qu'à partir de WebView 69 ; sur WebView 64 à 68, deux écrans simultanés pourraient encore faire
+  fermer la session (renouvellements sérialisés dans un même écran seulement). APK
   signé et servi : NAR-165 — keystore de release hors dépôt (`~/.config/akaiky-v2/`), **à
   sauvegarder dans le gestionnaire de mots de passe** ; procédure dans `NOSYHOST.md` § 6.
   Coques Android (variantes `parent` et `enfant`) et iOS générées (NAR-137). Les deux APK

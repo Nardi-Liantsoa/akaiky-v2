@@ -4,7 +4,12 @@
 //   - jeton de renouvellement dans le Keystore (stockage sécurisé), jamais dans
 //     localStorage ni Preferences ;
 //   - renouvellements sérialisés : le serveur tourne le jeton à chaque usage et
-//     ferme la session si un ancien est présenté deux fois.
+//     ferme la session si un ancien est présenté deux fois. Sérialisés dans l'écran (une
+//     promesse partagée) ET entre écrans (NAR-245) : verrou Web Locks commun à toutes les
+//     WebViews de l'app, le jeton relu dans le Keystore une fois le verrou obtenu. Un écran
+//     qui y trouve un jeton tourné par un autre reprend son résultat (jeton d'accès gardé à
+//     côté dans le Keystore) au lieu de tourner encore : le serveur ne garde qu'un jeton
+//     d'accès par session, deux rotations s'invalideraient l'une l'autre.
 // Une erreur réseau n'est jamais une perte de session : seul un 401 l'est.
 
 export interface SecretStore {
@@ -23,26 +28,47 @@ export class DeviceError extends Error {
 }
 
 export const REFRESH_KEY = 'device-refresh-token'
+export const ACCESS_KEY = 'device-access-token'
+const REFRESH_LOCK = 'akaiky-device-refresh'
+// Un renouvellement bloqué (réseau à moitié ouvert) ne garde jamais le verrou des autres écrans.
+export const REFRESH_TIMEOUT_MS = 20_000
+
+// Verrou entre écrans : navigator.locks (Chrome 69+), sinon aucun (WebView plus ancienne : la
+// sérialisation dans l'écran reste).
+export interface RefreshLocks { request<T>(name: string, callback: () => Promise<T>): Promise<T> }
+function defaultLocks(): RefreshLocks | null {
+  const locks = (globalThis.navigator as { locks?: { request: (name: string, cb: () => Promise<unknown>) => Promise<unknown> } } | undefined)?.locks
+  return locks ? { request: <T>(name: string, cb: () => Promise<T>) => locks.request(name, cb) as Promise<T> } : null
+}
 
 // `onReset` : efface les données liées à la session (configuration de l'enfant) quand
 // elle est perdue ou remplacée par un nouvel appairage : jamais les contacts d'un
 // autre enfant affichés, ni gardés sur un téléphone retiré.
-export function createDeviceSession({ base, store, fetch: doFetch, onReset }: { base: string, store: SecretStore, fetch: typeof fetch, onReset?: () => Promise<void> }) {
+export function createDeviceSession({ base, store, fetch: doFetch, onReset, locks = defaultLocks() }: { base: string, store: SecretStore, fetch: typeof fetch, onReset?: () => Promise<void>, locks?: RefreshLocks | null }) {
   let access: string | null = null
+  // Jeton de renouvellement que cet écran sait courant : un autre dans le Keystore = un autre
+  // écran l'a tourné entre-temps.
+  let known: string | null = null
   let refreshing: Promise<boolean> | null = null
+  const exclusive = <T>(run: () => Promise<T>): Promise<T> => (locks ? locks.request(REFRESH_LOCK, run) : run())
 
   // Un échec d'écriture dans le Keystore après un appairage réussi ne doit pas jeter
   // une session que le serveur vient d'ouvrir (le jeton d'appairage est consommé) :
   // seconde tentative, puis session gardée en mémoire pour ce lancement.
   async function keep(t: { accessToken: string, refreshToken: string }) {
     access = t.accessToken
+    known = t.refreshToken
     await store.set(REFRESH_KEY, t.refreshToken)
       .catch(() => store.set(REFRESH_KEY, t.refreshToken))
       .catch(() => {})
+    // Pour les autres écrans de l'app : ils reprennent ce jeton au lieu de tourner de nouveau.
+    await store.set(ACCESS_KEY, t.accessToken).catch(() => {})
   }
   async function forget() {
     access = null
+    known = null
     await store.remove(REFRESH_KEY).catch(() => {})
+    await store.remove(ACCESS_KEY).catch(() => {})
     await clearData()
   }
   async function clearData() {
@@ -58,16 +84,31 @@ export function createDeviceSession({ base, store, fetch: doFetch, onReset }: { 
 
   // Faux : aucune session, ou le serveur la refuse (401, effacée). Lève une erreur
   // si le réseau ou le serveur est indisponible : la session est alors gardée.
+  async function rotate(): Promise<boolean> {
+    // Relu sous le verrou : un autre écran a pu tourner le jeton pendant l'attente.
+    const saved = await store.get(REFRESH_KEY)
+    if (typeof saved !== 'string' || !saved) return false
+    if (saved !== known) {
+      // Tourné par un autre écran (ou premier passage) : son jeton d'accès est repris. S'il est
+      // déjà périmé, le 401 suivant ramène ici avec known = saved, et la rotation a lieu.
+      const shared = await store.get(ACCESS_KEY).catch(() => null)
+      known = saved
+      if (typeof shared === 'string' && shared && shared !== access) { access = shared; return true }
+    }
+    const res = await Promise.race([
+      post('/device/refresh', { refreshToken: saved }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('refresh_timeout')), REFRESH_TIMEOUT_MS))
+    ])
+    if (res.status === 401) { await forget(); return false }
+    if (!res.ok) throw await failure(res)
+    // Nouveau jeton écrit avant de rendre le verrou : l'écran suivant le lit.
+    await keep(await res.json())
+    return true
+  }
   function refresh(): Promise<boolean> {
     refreshing ??= (async () => {
       try {
-        const saved = await store.get(REFRESH_KEY)
-        if (typeof saved !== 'string' || !saved) return false
-        const res = await post('/device/refresh', { refreshToken: saved })
-        if (res.status === 401) { await forget(); return false }
-        if (!res.ok) throw await failure(res)
-        await keep(await res.json())
-        return true
+        return await exclusive(rotate)
       } finally {
         refreshing = null
       }
@@ -78,11 +119,13 @@ export function createDeviceSession({ base, store, fetch: doFetch, onReset }: { 
   async function authorized(path: string, extra: Record<string, string>, init: RequestInit = {}): Promise<Response> {
     const call = () => doFetch(`${base}${path}`, { ...init, headers: { ...extra, ...(access ? { Authorization: `Bearer ${access}` } : {}) }, credentials: 'omit' })
     let res = access ? await call() : null
-    if (!res || res.status === 401) {
+    // Deux essais : un autre écran a pu tourner (et invalider ce jeton d'accès) juste après
+    // notre renouvellement ; le second reprend son résultat. Toujours refusé : session perdue.
+    for (let attempt = 0; attempt < 2 && (!res || res.status === 401); attempt++) {
       if (!(await refresh())) throw new DeviceError(401, 'device_session_lost')
       res = await call()
     }
-    if (res.status === 401) { await forget(); throw new DeviceError(401, 'device_session_lost') }
+    if (!res || res.status === 401) { await forget(); throw new DeviceError(401, 'device_session_lost') }
     return res
   }
 
@@ -99,8 +142,8 @@ export function createDeviceSession({ base, store, fetch: doFetch, onReset }: { 
       const res = await post('/device/pair', body)
       if (!res.ok) throw await failure(res)
       const json = await res.json()
-      await clearData()
-      await keep(json)
+      // Sous le verrou : un renouvellement d'un autre écran n'écrase jamais la nouvelle session.
+      await exclusive(async () => { await clearData(); await keep(json) })
       return { device: json.device, child: json.child }
     },
 
