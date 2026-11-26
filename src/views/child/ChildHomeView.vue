@@ -1164,4 +1164,124 @@ h1 {
   margin-top: var(--space-4);
   padding: 0 var(--space-6);
 }
+/* Paysage (planche 06, NAR-242) : trois colonnes, sans défiler. À gauche l'heure et les pastilles,
+ * le cadenas épinglé en bas ; au centre les contacts sur une rangée, « Dire à mes parents » et les
+ * applications ; à droite le SOS rond sous le pouce. CSS seul, l'orientation n'est jamais forcée. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .home {
+    position: relative;
+    flex-direction: row;
+  }
+  .content {
+    display: grid;
+    grid-template-columns: 190px minmax(0, 1fr);
+    grid-auto-flow: row dense;
+    align-content: start;
+    gap: 12px 16px;
+    padding: calc(var(--safe-top) + var(--space-4)) 8px var(--space-4) calc(var(--space-5) + var(--safe-left));
+  }
+  .content > * {
+    grid-column: 2;
+  }
+  .content > :deep(.status),
+  .content > .chips {
+    grid-column: 1;
+    align-self: start;
+  }
+  /* Plus d'en-tête collant : la colonne de gauche ne défile pas avec les contacts. */
+  .content > :deep(.status) {
+    position: static;
+    margin: 0;
+    padding: 0;
+    background: none;
+  }
+  .content > :deep(.status .clock) {
+    font-size: 2.5rem;
+  }
+  .chips {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  /* Cadenas en bas de la colonne de gauche, toujours visible. */
+  .status .parent-code {
+    position: absolute;
+    left: calc(var(--space-3) + var(--safe-left));
+    bottom: calc(var(--space-3) + var(--safe-bottom));
+    z-index: 2;
+    margin: 0;
+  }
+  .grid,
+  .grid.compact {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+  /* La rangée de contacts couvre deux lignes : à gauche, l'heure puis les pastilles juste dessous. */
+  .content > .grid {
+    grid-row: span 2;
+  }
+  .grid.single {
+    grid-template-columns: 1fr;
+  }
+  .grid :deep(.tile:not(.wide)) {
+    min-height: 0;
+    padding: 16px 6px 12px;
+  }
+  .grid :deep(.avatar) {
+    width: 58px;
+    height: 58px;
+    font-size: 1.6rem;
+  }
+  .grid :deep(.name) {
+    font-size: 1.05rem;
+  }
+  /* Pied devenu colonne de droite : le SOS rond, centré, séparé d'un filet. */
+  .actions {
+    flex: none;
+    justify-content: center;
+    width: 150px;
+    padding: calc(var(--safe-top) + var(--space-3)) calc(var(--space-3) + var(--safe-right)) calc(var(--safe-bottom) + var(--space-3)) var(--space-3);
+    border-top: 0;
+    border-left: 1px solid var(--border);
+  }
+}
+/* Paysage étroit (moins de 720 px, NAR-242) : colonnes latérales et vignettes resserrées, les 4
+ * contacts restent sur une rangée. */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 719px) {
+  .content {
+    grid-template-columns: 130px minmax(0, 1fr);
+    gap: 10px 10px;
+    padding-left: calc(var(--space-4) + var(--safe-left));
+  }
+  .content > :deep(.status .clock) {
+    font-size: 2rem;
+  }
+  .chips :deep(.watching),
+  .chip {
+    font-size: 0.75rem;
+  }
+  .grid,
+  .grid.compact {
+    gap: 6px;
+  }
+  .grid :deep(.tile:not(.wide)) {
+    padding: 12px 4px 10px;
+  }
+  .grid :deep(.avatar) {
+    width: 44px;
+    height: 44px;
+    font-size: 1.2rem;
+  }
+  .grid :deep(.name) {
+    font-size: 0.9rem;
+  }
+  .grid :deep(.call) {
+    font-size: 0.75rem;
+  }
+  .grid :deep(.call svg) {
+    display: none;
+  }
+  .actions {
+    width: 130px;
+  }
+}
 </style>
