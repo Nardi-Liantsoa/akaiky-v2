@@ -22,6 +22,8 @@ const routes: RouteRecordRaw[] = [
       // wide : colonne large sur ordinateur (grille de l'accueil, maître/détail de Réglages, NAR-223).
       { path: '', name: 'espace', component: () => import('./views/parent/HomeView.vue'), meta: { wide: true } },
       // requiresFamily : sans famille, retour à l'accueil, qui présente la création.
+      // Alerte SOS (NAR-249, maquette 08) : plein écran, sans onglets (alert), relue en direct.
+      { path: 'sos/:id', name: 'sos', component: () => import('./views/parent/SosAlertView.vue'), meta: { requiresFamily: true, alert: true } },
       { path: 'journal', name: 'journal', component: () => import('./views/parent/LogView.vue'), meta: { requiresFamily: true } },
       {
         // Réglages (NAR-185) : un résumé, puis une page par section ; le cadre (enfant

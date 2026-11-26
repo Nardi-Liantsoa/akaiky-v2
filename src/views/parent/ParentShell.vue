@@ -3,6 +3,7 @@ import { computed, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import TabBar from '../../components/parent/TabBar.vue'
 import PushBanner from '../../components/parent/PushBanner.vue'
+import SosBanner from '../../components/parent/SosBanner.vue'
 import { auth } from '../../store/auth'
 import { family } from '../../store/family'
 
@@ -12,6 +13,8 @@ const showTabs = computed(() => family.status === 'ready' || family.status === '
 // Écrans en grille sur ordinateur (accueil, Réglages) : colonne large ; les autres (formulaires,
 // journal, famille) gardent une largeur de lecture de 720 px (NAR-223).
 const wide = computed(() => route.matched.some((r) => r.meta.wide))
+// Alerte SOS (NAR-249) : plein écran, sans onglets ni marges ; le retour se fait par l'écran.
+const alert = computed(() => route.matched.some((r) => r.meta.alert))
 // Famille disparue en cours de route (rechargement → no_family, membre retiré) :
 // retour à l'accueil, qui présente la création, plutôt qu'un écran vide sans onglets.
 watch(() => family.status, (status) => {
@@ -25,18 +28,25 @@ watch(() => auth.user, (user) => {
 </script>
 
 <template>
-  <main class="shell" :class="{ 'with-tabs': showTabs, wide }">
+  <main v-if="alert" class="alert-shell"><RouterView /></main>
+  <main v-else class="shell" :class="{ 'with-tabs': showTabs, wide }">
+    <!-- Alertes SOS en cours de la famille, en tête de chaque onglet (NAR-249). -->
+    <SosBanner v-if="family.status === 'ready'" />
     <RouterView />
   </main>
   <!-- Onglets seulement quand la famille est connue (ou injoignable) : jamais pendant
        la création ni pendant le premier chargement. Après le contenu, comme la barre du
        bas qui les montre en dernier sur téléphone. -->
-  <TabBar v-if="showTabs" />
+  <TabBar v-if="showTabs && !alert" />
   <!-- Notification reçue au premier plan (NAR-179). -->
   <PushBanner />
 </template>
 
 <style scoped>
+.alert-shell {
+  max-width: 720px;
+  margin: 0 auto;
+}
 .shell {
   /* Zones sûres en natif comme sur le web (viewport-fit=cover) : --safe-* vaut 0 sans encoche.
      Haut : la barre d'état recouvre la WebView (main.ts) ; sans --safe-top, le titre la touche. */

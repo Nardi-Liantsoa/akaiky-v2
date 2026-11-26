@@ -15,6 +15,9 @@
 //                               (ni annulée, ni prise en charge, moins de 15 min), sinon 409
 //                               `sos_closed`. Chiffré comme une position à la demande.
 // Membres (session de compte, préfixe /api ; tous les rôles, `member` compris) :
+//   GET  /families/me/sos       alertes en cours de la famille (ni annulées, ni échues ; prises
+//                               en charge comprises) : bandeau de l'accueil (NAR-249), relu
+//                               toutes les 5 s, une requête pour tous les enfants.
 //   GET  /children/:id/sos      dernière alerte de l'enfant (24 h au plus), ou null.
 //   GET  /sos/:id               alerte, dernière position, ce que chaque membre a fait.
 //   POST /sos/:id/seen|coming   noté une fois par membre (heure de la première fois).
@@ -205,6 +208,16 @@ export async function sosRoutes(app) {
         WHERE a.child_id = $1 AND a.family_id = $2 AND a.started_at > now() - make_interval(hours => $3)
         ORDER BY a.started_at DESC, a.id DESC LIMIT 1`, [child.id, own.familyId, RECENT_HOURS])
     return { sos: a ? await details(db, req, a) : null }
+  })
+
+  app.get('/families/me/sos', async (req) => {
+    const own = await requireOwnFamily(db, req, ROLES)
+    const { rows } = await db.query(
+      `SELECT a.*, ${STATUS_SQL} FROM sos_alerts a
+        WHERE a.family_id = $1 AND a.cancelled_at IS NULL AND a.ends_at > now()
+        ORDER BY a.started_at DESC, a.id DESC LIMIT 20`, [own.familyId])
+    // Champ par champ, sans position ni nom : l'écran de l'alerte les relit.
+    return { alerts: rows.map(shape) }
   })
 
   app.get('/sos/:id', async (req) => details(db, req, await alertOf(db, req)))

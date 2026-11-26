@@ -32,10 +32,10 @@ leur moyen de preuve est à fixer avec le ticket qui les construit.
 - [C08] (prévu) Un numéro qui n'est pas dans les contacts autorisés ne fait pas sonner le téléphone de l'enfant, et l'appel apparaît dans le journal du parent. (CdC C06, natif)
 - [C09] (prévu) Le numéro d'urgence du pays est toujours appelable depuis le téléphone de l'enfant. (CdC C07, natif)
   Depuis NAR-237 : par l'écran du SOS (appui de 3 s, puis « Appeler les secours »), plus par un bouton de l'accueil.
-- [C10] (prévu) Un appui de 3 secondes sur SOS déclenche, en moins de 10 secondes, une alerte avec la position sur l'application de chaque parent. (CdC C08)
+- [C10] Un appui de 3 secondes sur SOS déclenche, en moins de 10 secondes, une alerte avec la position sur l'application de chaque parent. (CdC C08)
 - [C11] (prévu) Sans Internet sur le téléphone de l'enfant, un SOS envoie quand même un SMS avec la position à chaque parent. (CdC C09, natif)
 - [C12] (prévu) Pendant un SOS, si le parent 1 ne décroche pas, le téléphone appelle le parent 2. (CdC C10, natif)
-- [C13] (prévu) Un parent qui marque le SOS « pris en charge » est visible comme tel par les autres parents. (CdC C11)
+- [C13] Un parent qui marque le SOS « pris en charge » est visible comme tel par les autres parents. (CdC C11)
 - [C14] Un message rapide envoyé par l'enfant arrive chez les parents. (CdC C12)
 - [C15] Une modification des contacts ou des applications autorisées faite par le parent s'applique sur le téléphone de l'enfant en moins d'une minute, s'il est connecté. (CdC C13)
 - [C16] Pendant une plage horaire « école », seuls les parents et le SOS restent utilisables. (CdC C14)

@@ -14,9 +14,16 @@ const ROUTES: Record<string, RouteLocationRaw> = {
 }
 const HOME: RouteLocationRaw = { name: 'espace' }
 
+// SOS (NAR-249) : écran de l'alerte, identifiant vérifié (uuid) ; sinon l'accueil, qui montre
+// le bandeau des alertes en cours.
+const SOS_TYPES = new Set(['sos', 'sos_cancelled'])
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export function routeForPush(data: unknown): RouteLocationRaw {
   if (!data || typeof data !== 'object') return HOME
   const type = (data as { type?: unknown }).type
+  const id = (data as { id?: unknown }).id
+  if (typeof type === 'string' && SOS_TYPES.has(type)) return typeof id === 'string' && UUID.test(id) ? { name: 'sos', params: { id: id.toLowerCase() } } : HOME
   return typeof type === 'string' && Object.hasOwn(ROUTES, type) ? ROUTES[type] : HOME
 }
 
