@@ -93,6 +93,11 @@ describe('écran ouvert au toucher', () => {
   it('liste fermée ; type inconnu, absent ou URL : accueil', () => {
     expect(routeForPush({ type: 'message', id: 'm1' })).toEqual({ name: 'journal' })
     expect(routeForPush({ type: 'battery_low', id: 'c1' })).toEqual({ name: 'espace' })
+    // SOS (NAR-249) : écran de l'alerte ; identifiant mal formé (ou une URL) : l'accueil.
+    const id = '6f1c2b1e-0000-4000-8000-0000000005a1'
+    expect(routeForPush({ type: 'sos', id })).toEqual({ name: 'sos', params: { id } })
+    expect(routeForPush({ type: 'sos_cancelled', id: id.toUpperCase() })).toEqual({ name: 'sos', params: { id } })
+    for (const bad of ['../journal', 'https://evil.example/', '', undefined]) expect(routeForPush({ type: 'sos', id: bad })).toEqual({ name: 'espace' })
     for (const data of [{ type: 'inconnu' }, { type: 'https://exemple.com/piege' }, { url: 'https://exemple.com' }, null, 'message', { type: '__proto__' }, { type: 'toString' }]) {
       expect(routeForPush(data)).toEqual({ name: 'espace' })
     }

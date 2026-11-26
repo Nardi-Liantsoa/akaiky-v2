@@ -150,6 +150,13 @@ test('prise en charge : la première gagne, un member la prend, les autres la vo
   const c = (await open(fy.device)).json()
   await cancel(fy.device, c.id)
   assert.equal((await act(owner, c.id, 'handle')).json().code, 'sos_cancelled')
+  assert.equal((await act(owner, c.id, 'coming')).json().code, 'sos_closed')
+  // Échue (15 min sans prise en charge) : ni prise en charge ni « j'arrive » après coup ; « vu » reste possible.
+  const e = (await open(fy.device)).json()
+  await ctx.db.query("UPDATE sos_alerts SET started_at = now() - interval '16 minutes', ends_at = now() - interval '1 minute' WHERE id = $1", [e.id])
+  assert.equal((await act(owner, e.id, 'handle')).json().code, 'sos_closed')
+  assert.equal((await act(owner, e.id, 'coming')).json().code, 'sos_closed')
+  assert.equal((await act(owner, e.id, 'seen')).statusCode, 200)
 })
 
 test('isolation : une autre famille ne voit ni ne touche l’alerte (404) ; dernière alerte de l’enfant pour ses membres', async () => {
@@ -219,4 +226,23 @@ test('prise en charge par un membre parti : son nom n’est plus montré', async
   assert.equal(view.status, 'handled')
   assert.equal(view.handledBy.name, null)
   assert.equal(view.events.length, 0)
+})
+
+test('alertes en cours de la famille : ouvertes et prises en charge, jamais annulées ni échues ni d’une autre famille', async () => {
+  const { owner, member, fy } = await famille()
+  const list = async (u) => (await call(ctx.app, 'GET', '/api/families/me/sos', { cookie: u.cookie })).json().alerts
+  assert.deepEqual(await list(member), [])
+  const a = (await open(fy.device)).json()
+  const b = (await open(fy.device)).json()
+  await cancel(fy.device, b.id)
+  const c = (await open(fy.device)).json()
+  await ctx.db.query("UPDATE sos_alerts SET started_at = now() - interval '20 minutes', ends_at = now() - interval '5 minutes' WHERE id = $1", [c.id])
+  const d = (await open(fy.device)).json()
+  assert.equal((await act(owner, d.id, 'handle')).statusCode, 200)
+  const seen = await list(member)
+  assert.deepEqual(seen.map((x) => [x.id, x.status]).sort(), [[a.id, 'active'], [d.id, 'handled']].sort())
+  assert.deepEqual(Object.keys(seen[0]).sort(), ['cancelledAt', 'childId', 'endsAt', 'handledAt', 'id', 'startedAt', 'status'])
+  const other = await newUser(ctx)
+  await family(other)
+  assert.deepEqual(await list(other), [])
 })

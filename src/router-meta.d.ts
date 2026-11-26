@@ -15,5 +15,7 @@ declare module 'vue-router' {
     settingsSection?: SettingsSection
     // Colonne large sur ordinateur : grille de l'accueil, maître/détail de Réglages (NAR-223).
     wide?: boolean
+    // Plein écran sans onglets ni marges (alerte SOS, NAR-249).
+    alert?: boolean
   }
 }

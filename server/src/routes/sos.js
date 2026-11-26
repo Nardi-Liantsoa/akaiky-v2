@@ -15,11 +15,15 @@
 //                               (ni annulée, ni prise en charge, moins de 15 min), sinon 409
 //                               `sos_closed`. Chiffré comme une position à la demande.
 // Membres (session de compte, préfixe /api ; tous les rôles, `member` compris) :
+//   GET  /families/me/sos       alertes en cours de la famille (ni annulées, ni échues ; prises
+//                               en charge comprises) : bandeau de l'accueil (NAR-249), relu
+//                               toutes les 5 s, une requête pour tous les enfants.
 //   GET  /children/:id/sos      dernière alerte de l'enfant (24 h au plus), ou null.
 //   GET  /sos/:id               alerte, dernière position, ce que chaque membre a fait.
-//   POST /sos/:id/seen|coming   noté une fois par membre (heure de la première fois).
+//   POST /sos/:id/seen|coming   noté une fois par membre (heure de la première fois) ; `coming`
+//                               refusé (409 `sos_closed`) sur une alerte annulée ou échue.
 //   POST /sos/:id/handle        prise en charge : la première gagne (409 `sos_already_handled`
-//                               ; l’auteur se lit par GET) ; refusée sur une alerte annulée.
+//                               ; l’auteur se lit par GET) ; refusée sur une alerte annulée ou échue.
 // Alerte d'une autre famille ou inconnue : 404. Aucune route de l'équipe (admin) n'y mène.
 // Ni position ni nom dans un journal, l'audit ou une notification (prénom de l'enfant seul).
 import { HttpError, audit, isUuid } from '../lib.js'
@@ -207,12 +211,24 @@ export async function sosRoutes(app) {
     return { sos: a ? await details(db, req, a) : null }
   })
 
+  app.get('/families/me/sos', async (req) => {
+    const own = await requireOwnFamily(db, req, ROLES)
+    const { rows } = await db.query(
+      `SELECT a.*, ${STATUS_SQL} FROM sos_alerts a
+        WHERE a.family_id = $1 AND a.cancelled_at IS NULL AND a.ends_at > now()
+        ORDER BY a.started_at DESC, a.id DESC LIMIT 20`, [own.familyId])
+    // Champ par champ, sans position ni nom : l'écran de l'alerte les relit.
+    return { alerts: rows.map(shape) }
+  })
+
   app.get('/sos/:id', async (req) => details(db, req, await alertOf(db, req)))
 
   for (const kind of ['seen', 'coming']) {
     app.post(`/sos/:id/${kind}`, async (req) => {
       noBody(req)
       const a = await alertOf(db, req)
+      // « J'arrive » sur une alerte annulée ou échue : refusé (rien n'est plus suivi).
+      if (kind === 'coming' && (a.status === 'cancelled' || a.status === 'ended')) throw new HttpError(409, 'Alerte terminée.', 'sos_closed')
       await db.query(
         'INSERT INTO sos_events(sos_id, user_id, kind) VALUES ($1, $2, $3) ON CONFLICT (sos_id, user_id, kind) DO NOTHING', [a.id, req.user.id, kind])
       return details(db, req, a)
@@ -225,6 +241,8 @@ export async function sosRoutes(app) {
       // Alerte verrouillée : deux prises en charge simultanées, une seule gagne.
       const a = await alertOf(conn, req, { lock: true })
       if (a.status === 'cancelled') throw new HttpError(409, 'Alerte annulée par l’enfant.', 'sos_cancelled')
+      // Échue (15 min sans prise en charge) : plus de prise en charge enregistrée après coup.
+      if (a.status === 'ended') throw new HttpError(409, 'Alerte terminée.', 'sos_closed')
       if (a.handled_at) {
         // Déjà pris par un autre : refus, l'écran relit l'alerte (qui la tient) par GET.
         if (a.handled_by === req.user.id) return details(conn, req, a)

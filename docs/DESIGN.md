@@ -273,6 +273,17 @@ onglets empilés en haut, colonne centrée dans la place restante. Mêmes liens 
 7. **Alerte SOS** — bandeau rouge « Fy a besoin d'aide », heure, batterie ; carte avec
    cercle de précision ; adresse approximative « En direct · mis à jour il y a 8 s ·
    ±15 m » ; qui est appelé / qui a vu ; Appeler · J'arrive · Je prends en charge.
+   Livré par NAR-249 (`SosAlertView.vue`, planche `docs/maquettes/2026-11/08-alerte-sos-parent.png`), plein
+   écran sans onglets : bandeau `--sos` (triangle, « ALERTE SOS », « il y a 12 s », titre, « Déclenché à 17:42 ·
+   batterie 61 % »), zone de carte, carte de position chevauchante (point rouge, « En direct · mis à jour il y a
+   8 s · ±15 m »), carte « qui fait quoi » (une ligne par membre, pastille de couleur), Appeler (`--call`) et
+   J'arrive (`--navy`) côte à côte, « Je prends en charge » (`--ink`) pleine largeur, mention dessous.
+   **Écarts** : pas encore de carte (NAR-205, fond de carte à choisir) : la zone garde l'enfant et son cercle de
+   précision sur `--surface-muted`, avec « Carte bientôt disponible » ; pas d'adresse (aucun géocodage) : les
+   coordonnées à 5 décimales à la place de « [Adresse approximative] » ; pas de ligne « le téléphone de Fy
+   l'appelle… » (état de la cascade non remonté, NAR-181) ; lien « Retour à l'accueil » en bas (sortie de l'écran
+   plein, absente de la planche). Bandeau des alertes en cours en tête de chaque onglet (rouge `--sos`, pris en
+   charge `--sos-deep`, « Voir l'alerte › »), sans maquette, même langage que l'en-tête de l'alerte.
 8. **Réglages** (téléphone de l'enfant) — contacts autorisés ordonnés par glisser
    (« L'ordre sert aussi pour les appels SOS », 4 sur 6, rôle de chacun), applications
    autorisées en puces, plage « École », sirène pendant un SOS, « Déverrouiller 15 min ».

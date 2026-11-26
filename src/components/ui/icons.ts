@@ -80,6 +80,8 @@ export const ICONS = {
   // Code QR (« Relier le téléphone », maquette 01, NAR-227).
   qr: { shapes: [rect({ x: 4, y: 4, width: 6, height: 6, rx: 1 }), rect({ x: 14, y: 4, width: 6, height: 6, rx: 1 }), rect({ x: 4, y: 14, width: 6, height: 6, rx: 1 }), path('M14 14h2v2h-2zM18 14h2M14 18h2M18 18h2v2h-2z')] },
   globe: { shapes: [circle(12, 12, 9), path('M3 12h18'), path('M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18')] },
+  // Flèche de navigation (« J'arrive », alerte SOS, NAR-249).
+  navigate: { shapes: [path('M3 11 22 2l-9 19-2-8-8-2z')] },
   shield: { shapes: [path('M12 3l7 3v5c0 4.5-3 8.5-7 10c-4-1.5-7-5.5-7-10V6z')] },
   siren: { shapes: [path('M7 18v-6a5 5 0 0 1 10 0v6'), path('M5 21h14v-3H5z'), path('M12 2v2M4.2 5.2l1.4 1.4M19.8 5.2l-1.4 1.4')] },
   // État du téléphone sur l'accueil parent (NAR-192) : pastille, bandeaux, tuiles en défaut.

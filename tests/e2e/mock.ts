@@ -27,6 +27,8 @@ export async function mockApi(page: Page, handlers: Record<string, Handler>) {
         : get && /^\/api\/children\/[^/]+\/status$/.test(url.pathname) ? { body: { devices: [] } }
           // Applications autorisées (NAR-143), sur Réglages : inventaire vide par défaut.
           : get && /^\/api\/children\/[^/]+\/apps$/.test(url.pathname) ? { body: { max: 4, inventory: [], allowed: [] } }
+          // Alertes SOS en cours (NAR-249), relues par chaque onglet : aucune par défaut.
+          : get && url.pathname === '/api/families/me/sos' ? { body: { alerts: [] } }
           : { status: 404, body: { error: 'Introuvable.' } }
     const res = (await handlers[key]?.(route.request())) ?? fallback
     return route.fulfill({ status: res.status ?? 200, contentType: 'application/json', body: JSON.stringify(res.body ?? {}) })
