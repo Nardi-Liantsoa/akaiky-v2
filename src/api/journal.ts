@@ -16,6 +16,7 @@ export interface JournalToday { calls: number, blocked: number, messages: number
 export interface JournalPage { items: JournalItem[], next: string | null, today?: JournalToday }
 
 // counts : nombres du jour demandés (écran Journal, au premier chargement d'un enfant).
-// day : un seul jour « AAAA-MM-JJ » (heure de Madagascar, NAR-233) ; les nombres sont alors les siens.
+// day : un seul jour « AAAA-MM-JJ » (heure de Madagascar, NAR-233), ou « today » (le jour du serveur,
+// NAR-244) ; les nombres sont alors les siens. Sans day : tous les jours (accueil).
 export const getJournal = (childId: string, { kind = 'all', before, limit = 30, counts = false, day }: { kind?: JournalFilter, before?: string | null, limit?: number, counts?: boolean, day?: string } = {}) =>
   api.get<JournalPage>(`/children/${encodeURIComponent(childId)}/journal?kind=${kind}&limit=${limit}${counts ? '&counts=1' : ''}${before ? `&before=${encodeURIComponent(before)}` : ''}${day ? `&day=${day}` : ''}`)

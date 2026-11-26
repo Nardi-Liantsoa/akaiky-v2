@@ -157,3 +157,35 @@ test('jour choisi : liste et nombres de ce jour seul, bornes du fuseau, jour inv
   await family(other)
   assert.equal((await journal(other, fy.kid.id, `?day=${yesterday}`)).statusCode, 404)
 })
+
+// NAR-244 : « day=today » = le jour du serveur (Madagascar) ; jamais hier. Sans day : tous les jours.
+test('day=today : seulement aujourd’hui (liste et nombres), sans day : tous les jours', async () => {
+  const owner = await newUser(ctx)
+  await family(owner)
+  const fy = await pairedChild(owner, 'Fy')
+  const { rows: [{ start }] } = await ctx.db.query("SELECT date_trunc('day', now() AT TIME ZONE 'Indian/Antananarivo') AT TIME ZONE 'Indian/Antananarivo' AS start")
+  const yesterday = { id: randomUUID(), kind: 'call_blocked', phone: '+261329876543', startedAt: new Date(start.getTime() - 60_000).toISOString() }
+  const now = { id: randomUUID(), kind: 'call_blocked', phone: '+261329876543', startedAt: secondsAgo(2) }
+  await events(fy.device, [yesterday, now])
+  const today = await journal(owner, fy.kid.id, '?day=today&counts=1')
+  assert.equal(today.statusCode, 200, today.body)
+  const ids = today.json().items.map((i) => i.id)
+  assert.ok(!ids.includes(yesterday.id), 'hier n’apparaît jamais dans « aujourd’hui »')
+  if (Date.parse(now.startedAt) >= start.getTime()) assert.ok(ids.includes(now.id))
+  assert.equal(today.json().today.blocked, ids.length)
+  assert.ok((await journal(owner, fy.kid.id)).json().items.some((i) => i.id === yesterday.id), 'sans day : tous les jours (accueil)')
+  assert.equal((await journal(owner, fy.kid.id, '?day=Today')).statusCode, 400)
+  // « Voir plus » : pages d'une seule ligne, curseur suivi ; jamais d'événement d'hier.
+  const extra = [1, 3, 4].map((n) => ({ id: randomUUID(), kind: 'call_blocked', phone: '+261329876543', startedAt: secondsAgo(n) }))
+  await events(fy.device, extra)
+  const seen = []
+  let before = null
+  for (let i = 0; i < 10; i++) {
+    const page = (await journal(owner, fy.kid.id, `?day=today&limit=1${before ? `&before=${encodeURIComponent(before)}` : ''}`)).json()
+    seen.push(...page.items.map((x) => x.id))
+    if (!page.next) break
+    before = page.next
+  }
+  assert.ok(!seen.includes(yesterday.id), 'la pagination reste dans le jour')
+  assert.equal(new Set(seen).size, seen.length, 'ni doublon')
+})

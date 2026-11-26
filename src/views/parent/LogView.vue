@@ -40,7 +40,7 @@ async function takeQueryFilter() {
 onMounted(takeQueryFilter)
 watch(() => route.query.kind, (k) => { if (k !== undefined) void takeQueryFilter() })
 // Jour affiché (NAR-233). null = aujourd'hui, décidé par le serveur (son horloge, jamais celle du
-// téléphone) : rien n'est envoyé. Un autre jour est envoyé en « AAAA-MM-JJ ». todayKey (horloge
+// téléphone) : « today » est envoyé (NAR-244 ; sans jour, le serveur rend tous les jours). Un autre jour est envoyé en « AAAA-MM-JJ ». todayKey (horloge
 // du téléphone) ne sert qu'aux bornes et aux noms ; relu chaque minute et au retour sur l'écran :
 // passé minuit, « aujourd'hui » suit tout seul.
 const todayKey = ref(dayKey(new Date()))
@@ -88,7 +88,7 @@ async function load() {
   try {
     // Nombres du jour relus à chaque chargement (une seule requête légère) : les tuiles
     // restent d'accord avec la liste, y compris après minuit.
-    const page = await getJournal(childId, { kind: filter.value, counts: true, day: day.value ?? undefined })
+    const page = await getJournal(childId, { kind: filter.value, counts: true, day: day.value ?? 'today' })
     if (mine !== generation) return
     items.value = page.items
     next.value = page.next
@@ -99,7 +99,7 @@ async function load() {
     if (await markShownAsRead(page.items) && mine === generation) {
       // « Vu par » relu : chaque élément déjà affiché est mis à jour par identifiant, la
       // liste et le curseur ne bougent pas (rien de perdu, rien de doublé).
-      const fresh = await getJournal(childId, { kind: filter.value, day: day.value ?? undefined }).catch(() => null)
+      const fresh = await getJournal(childId, { kind: filter.value, day: day.value ?? 'today' }).catch(() => null)
       if (fresh && mine === generation) {
         const byId = new Map(fresh.items.map((i) => [i.id, i]))
         items.value = items.value.map((i) => byId.get(i.id) ?? i)
@@ -125,7 +125,7 @@ async function more() {
   const mine = generation
   loadingMore.value = true
   try {
-    const page = await getJournal(childId, { kind: filter.value, before: next.value, day: day.value ?? undefined })
+    const page = await getJournal(childId, { kind: filter.value, before: next.value, day: day.value ?? 'today' })
     if (mine !== generation) return
     items.value = [...items.value, ...page.items]
     next.value = page.next

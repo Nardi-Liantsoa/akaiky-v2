@@ -1,7 +1,8 @@
 // Journal de l'enfant (NAR-152) : appels sortants, reçus et bloqués, déverrouillages
 // (device_events) et messages rapides (quick_messages), du plus récent au plus ancien.
 //   GET /children/:id/journal?kind=all|calls|blocked|messages|unlocks&before=<curseur>&limit=&counts=1&day=AAAA-MM-JJ
-// day (NAR-233) : un seul jour, à l'heure de Madagascar, comme les nombres du jour ; sans lui,
+// day (NAR-233) : un seul jour, à l'heure de Madagascar, comme les nombres du jour (« today » :
+// celui du serveur, NAR-244) ; sans lui,
 // tous les jours (accueil) et nombres d'aujourd'hui.
 // Tous les membres de la famille ; jamais l'admin de la plateforme (pas membre). Pages
 // par curseur (date, identifiant) : ni doublon ni trou si de nouveaux événements arrivent
@@ -40,8 +41,13 @@ export async function journalRoutes(app) {
 
     const kind = KINDS[typeof req.query.kind === 'string' && KINDS[req.query.kind] ? req.query.kind : 'all']
     // Jour demandé : validé avant toute lecture ; mal formé → 400 (jamais « tous les jours »).
+    // « today » (NAR-244) : le jour courant du serveur à Madagascar, même horloge que les nombres
+    // du jour (jamais celle du téléphone). Sans day : tous les jours (accueil).
     let day = null
-    if (req.query.day !== undefined) {
+    if (req.query.day === 'today') {
+      const { rows: [r] } = await db.query("SELECT to_char(now() AT TIME ZONE 'Indian/Antananarivo', 'YYYY-MM-DD') AS d")
+      day = r.d
+    } else if (req.query.day !== undefined) {
       day = parseDay(req.query.day)
       if (!day) throw new HttpError(400, 'Jour invalide.', 'invalid_day')
     }
