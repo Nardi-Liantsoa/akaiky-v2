@@ -6,7 +6,8 @@ package mg.nosytech.akaiky
  * Listes recopiées de server/src/protected-apps.json (le test vérifie qu'elles sont égales) :
  * - PREFIXES : l'app elle-même (parent et enfant) ;
  * - NEVER_HIDE : jamais cachées ni autorisables (appels, SMS du SOS, interface système, réglages
- *   ouverts pendant une sortie, lanceurs, claviers, installation, services Google, WebView) ;
+ *   ouverts pendant une sortie, lanceurs, claviers, installation, services Google, WebView,
+ *   Bien-être numérique : fournisseur lu par les Réglages, NAR-246) ;
  * - BROWSERS : jamais autorisables (navigateur bloqué en v1), cachées comme toute app non autorisée.
  * Le natif y ajoute à l'exécution (AllowedApps.kt) le composeur et l'app SMS par défaut, les
  * claviers activés, le fournisseur WebView et les lanceurs (jamais cachés), et tout ce qui ouvre
@@ -56,6 +57,10 @@ object AppsPolicy {
         "com.android.vending",
         "com.google.android.gms",
         "com.google.android.gsf",
+        // Bien-être numérique : les Réglages lisent son fournisseur au démarrage ; caché, ils
+        // plantent et l'accueil boucle (NAR-246).
+        "com.google.android.apps.wellbeing",
+        "com.samsung.android.forest",
         "com.android.webview",
         "com.google.android.webview",
         "com.android.providers.telephony",

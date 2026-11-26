@@ -243,7 +243,8 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   plus choisies par un `owner`/`manager` parmi l'inventaire de l'enfant, reçues dans `allowedApps` de `/api/device/config`.
   **Liste protégée unique** `server/src/protected-apps.json` (comparée par `AppsPolicyTest.kt` à `AppsPolicy.kt`) : l'app
   elle-même (`mg.nosytech.akaiky*`), `neverHide` (appels, Telecom, SMS du SOS, contacts, interface système, réglages ouverts
-  pendant une sortie, lanceurs, claviers, installation, services Google, WebView) et `browsers` (**navigateurs bloqués en
+  pendant une sortie, lanceurs, claviers, installation, services Google, WebView, Bien-être numérique : les
+  Réglages lisent son fournisseur au démarrage, caché ils plantent et l'accueil boucle, NAR-246) et `browsers` (**navigateurs bloqués en
   v1**, Google Search compris) ; le natif y ajoute à l'exécution composeur et SMS par défaut, claviers activés, fournisseur
   WebView (Chrome sur Android 8/9 : jamais caché), lanceurs et tout ce qui ouvre un lien http(s), applications cachées ou
   désactivées comprises ; tout navigateur vu un jour est gardé (préférences du verrou) et part marqué `browser: true` dans

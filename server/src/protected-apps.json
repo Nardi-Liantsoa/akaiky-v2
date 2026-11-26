@@ -1,5 +1,5 @@
 {
-  "_comment": "Applications autorisées (NAR-143). Liste unique, lue par le serveur (routes/apps.js) et comparée par le test JVM du natif (AppsPolicyTest.kt) à AppsPolicy.kt. prefixes : l'app elle-même (parent et enfant). neverHide : jamais cachées par le téléphone ni autorisables (appels, SMS du SOS, interface système, réglages ouverts pendant une sortie, lanceurs, claviers, installation, services Google, WebView). browsers : jamais autorisables (navigateur bloqué en v1), cachées comme toute app non autorisée. Le natif y ajoute à l'exécution le composeur et l'app SMS par défaut, les claviers activés, le fournisseur WebView, les lanceurs et tout ce qui ouvre un lien http(s).",
+  "_comment": "Applications autorisées (NAR-143). Liste unique, lue par le serveur (routes/apps.js) et comparée par le test JVM du natif (AppsPolicyTest.kt) à AppsPolicy.kt. prefixes : l'app elle-même (parent et enfant). neverHide : jamais cachées par le téléphone ni autorisables (appels, SMS du SOS, interface système, réglages ouverts pendant une sortie, lanceurs, claviers, installation, services Google, WebView ; Bien-être numérique, dont les Réglages lisent le fournisseur de données au démarrage : caché, ils plantent, NAR-246). browsers : jamais autorisables (navigateur bloqué en v1), cachées comme toute app non autorisée. Le natif y ajoute à l'exécution le composeur et l'app SMS par défaut, les claviers activés, le fournisseur WebView, les lanceurs et tout ce qui ouvre un lien http(s).",
   "prefixes": ["mg.nosytech.akaiky"],
   "neverHide": [
     "android",
@@ -35,6 +35,8 @@
     "com.android.vending",
     "com.google.android.gms",
     "com.google.android.gsf",
+    "com.google.android.apps.wellbeing",
+    "com.samsung.android.forest",
     "com.android.webview",
     "com.google.android.webview",
     "com.android.providers.telephony",
