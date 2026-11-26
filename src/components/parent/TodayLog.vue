@@ -5,7 +5,6 @@ import { RouterLink } from 'vue-router'
 import { getJournal, type JournalItem } from '../../api/journal'
 import { markShownAsRead } from '../../api/messages'
 import { useT } from '../../composables/useT'
-import { groupByDay } from '../../lib/groupByDay'
 import { selectChild } from '../../store/children'
 import { canManage } from '../../store/family'
 import LogItem from '../log/LogItem.vue'
@@ -29,14 +28,14 @@ async function load() {
   const mine = ++generation
   const childId = props.childId
   try {
-    const page = await getJournal(childId, { limit: 3 })
+    // Le jour du serveur (NAR-244), jamais celui de l'horloge du téléphone.
+    const page = await getJournal(childId, { limit: 3, day: 'today' })
     if (mine !== generation) return
-    const today = groupByDay(page.items, (i) => i.at).find((g) => g.when === 'today')
-    items.value = today?.items ?? []
+    items.value = page.items
     status.value = 'ready'
     loadedFor.value = childId
     if (await markShownAsRead(items.value) && mine === generation) {
-      const fresh = await getJournal(childId, { limit: 3 }).catch(() => null)
+      const fresh = await getJournal(childId, { limit: 3, day: page.day ?? 'today' }).catch(() => null)
       if (fresh && mine === generation) {
         const byId = new Map(fresh.items.map((i) => [i.id, i]))
         items.value = items.value.map((i) => byId.get(i.id) ?? i)
