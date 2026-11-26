@@ -527,7 +527,7 @@ const fr = {
       pill: (label: string, time: string | null) => (time ? `${label} jusqu’à ${time}` : label),
       back: (names: string, many: boolean, time: string | null) => time
         ? `${names} ${many ? 'reviennent' : 'revient'} à ${time}`
-        : `${names} ${many ? 'reviendront' : 'reviendra'} après`,
+        : `${names} ${many ? 'reviendront' : 'reviendra'} plus tard`,
       and: 'et',
       noParents: 'Le SOS reste là si tu as besoin d’aide.'
     },
@@ -1283,7 +1283,7 @@ const mg: Messages = {
       pill: (label: string, time: string | null) => (time ? `${label} hatramin’ny ${time}` : label),
       back: (names: string, _many: boolean, time: string | null) => time
         ? `Miverina amin’ny ${time} i ${names}`
-        : `Hiverina aoriana i ${names}`,
+        : `Hiverina any aoriana i ${names}`,
       and: 'sy',
       noParents: 'Eo foana ny SOS raha mila fanampiana ianao.'
     },

@@ -26,7 +26,11 @@ const badge = computed(() => ({ background: accentToken(props.color) }))
 
 <style scoped>
 .text {
-  display: contents;
+  /* Pas de display: contents (Chrome 65) : WebView 64 reste prise en charge (NAR-161). */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 .tile.wide {
   flex-direction: row;
@@ -36,8 +40,6 @@ const badge = computed(() => ({ background: accentToken(props.color) }))
   padding: 18px 20px;
 }
 .wide .text {
-  display: flex;
-  flex-direction: column;
   align-items: flex-start;
   gap: 4px;
 }

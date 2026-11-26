@@ -704,7 +704,7 @@ const text = computed(() => {
         <p class="waiting">{{ t.child.school.noParents }}</p>
       </section>
       <!-- Sans contacts (planche 02) : état vide illustré. -->
-      <section v-else class="empty">
+      <section v-else class="empty no-contacts">
         <span class="empty-art" aria-hidden="true"><AppIcon name="users" :size="44" /></span>
         <p class="empty-title">{{ t.child.noContacts }}</p>
         <p class="empty-hint">{{ t.child.noContactsHint }}</p>
@@ -830,7 +830,7 @@ h1 {
   text-align: center;
 }
 /* Sans contacts (planche 02) : rond pêche, pictogramme famille, titre, phrase pour l'enfant. */
-.empty:has(.empty-art) {
+.empty.no-contacts {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -957,9 +957,9 @@ h1 {
   place-items: center;
   width: 44px;
   height: 44px;
-  border: 1.5px solid rgb(255 255 255 / 0.35);
+  border: 1.5px solid var(--on-color-line);
   border-radius: 50%;
-  background: rgb(255 255 255 / 0.14);
+  background: var(--on-color-fill);
 }
 .relock-pill {
   display: grid;
@@ -1042,12 +1042,6 @@ h1 {
 }
 .unlocked p {
   margin: 0 0 8px;
-}
-.unlocked-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-2);
 }
 /* Discret : réservé aux parents, protégé par le code. Écrans d'attente : lien souligné ;
  * accueil : cadenas rond de 44 px en haut à droite, cible de 64 px (NAR-237). */
