@@ -7,6 +7,8 @@ import { appKind } from '../../lib/appKind'
 import { startChild, type ChildState } from '../../lib/childStartup'
 import { appInventory, callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore, remoteUnlockSeen, messageOutbox, heartbeat, lockReporter } from '../../lib/deviceSessionInstance'
 import { lockBody, matchingWindow, relockDue } from '../../lib/lockReport'
+import { createSosOnline } from '../../lib/sosOnline'
+import { uuidV4 } from '../../lib/uuid'
 import { deviceConfig, pause, pollNow, refreshNow, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
 import { emergencyNumber } from '../../lib/emergency'
 import { sosPlan } from '../../lib/sos'
@@ -117,6 +119,7 @@ onMounted(async () => {
 watch(state, async (s) => {
   if (s.kind !== 'paired') {
     stopLocate()
+    sosOnline.stop()
     showWatching(null)
     stopDeviceConfig()
     clearTimeout(journalRetry)
@@ -452,6 +455,14 @@ async function readSos() {
   const s = await AkaikySos.state().catch(() => null)
   if (s) onSosState(s)
 }
+// SOS en ligne (NAR-248) : alerte et position envoyées aux parents par le serveur, en plus
+// du SOS hors ligne et sans jamais l'attendre.
+const sosOnline = createSosOnline({
+  post: (path, body) => session.post(path, body ?? {}),
+  fix: () => AkaikyLocation.currentPosition(),
+  cancelFix: () => AkaikyLocation.cancel(),
+  uuid: uuidV4
+})
 // Ordre prévu, affiché avant le premier état du natif (même règle que lui).
 const plannedCalls = computed(() => buildSosPlan(contacts.value, emergency.value, !!school.value).calls.map((c) => c.name))
 async function sos() {
@@ -463,6 +474,8 @@ async function runSos() {
   callError.value = false
   sosFailed.value = false
   sosInterrupted.value = false
+  // Lancé d'abord, sans attente : rien ici ne retarde le SOS hors ligne ci-dessous.
+  if (Capacitor.isNativePlatform() && state.value.kind === 'paired') sosOnline.start()
   await pushAllowed()
   if (Capacitor.isNativePlatform() && state.value.kind === 'paired') {
     const s = t.value.child.sos
@@ -510,6 +523,7 @@ async function runSos() {
   callError.value = true
 }
 async function cancelSos() {
+  void sosOnline.cancel()
   await AkaikySos.cancel().catch(() => {})
   void readSos()
 }
@@ -688,7 +702,7 @@ function checkUpdate() {
 watch(() => deviceConfig.config?.apk, checkUpdate)
 // Téléphone retiré pendant l'usage : l'écran le dit.
 watch(() => deviceConfig.status, (s) => { if (s === 'lost') state.value = { kind: 'revoked' } })
-onBeforeUnmount(() => { setOtaScreenBusy(() => true); unmounted = true; pushListeners.forEach((h) => void h.remove()); childPush.stop(); clearInterval(sosWatch); clearInterval(schoolWatch); clearInterval(relockWatch); stopClock(); pause(); stopStatus(); stopLocate(); clearTimeout(journalRetry); void lifecycle?.remove(); void sosListener?.remove() })
+onBeforeUnmount(() => { setOtaScreenBusy(() => true); unmounted = true; pushListeners.forEach((h) => void h.remove()); childPush.stop(); clearInterval(sosWatch); clearInterval(schoolWatch); clearInterval(relockWatch); sosOnline.stop(); stopClock(); pause(); stopStatus(); stopLocate(); clearTimeout(journalRetry); void lifecycle?.remove(); void sosListener?.remove() })
 
 const text = computed(() => {
   const c = t.value.child
