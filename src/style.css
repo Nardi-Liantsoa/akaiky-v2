@@ -33,6 +33,8 @@
   /* Voile de l'appui long sur SOS (planche 10, NAR-239). */
   --sos-veil: rgb(90 16 10 / 0.86);
   --sos-veil-ink: #ffd9d4;
+  /* Contour du bouton des secours sur fond clair (planche 09, NAR-241). */
+  --sos-line: #ecbab4;
   --call: #0b795c;
   --navy: #203f82;
   --on-color: #ffffff;

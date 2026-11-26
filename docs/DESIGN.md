@@ -243,6 +243,13 @@ avant/après et note) : `docs/maquettes/2026-11-enfant/`, appliquée écran par 
    code faux : points rouges et « Code incorrect, réessaie. » juste dessous ; touches pleines
    `--surface-muted` de 78 px, sans contour, effacer en icône. Retour d'Android : ferme le panneau
    du dessus (pile des feuilles), jamais l'app.
+   **Écrans sans famille** (attente, erreur, téléphone retiré ; NAR-241, planche 09) — message
+   pour l'enfant au centre (« Akaiky », titre, phrase, « Réessayer » si utile) ; téléphone ouvert
+   par un parent : une seule carte blanche avec la pastille « Mode parent · jusqu'à … »,
+   « Libérer ce téléphone » (seule action principale) et « Supprime tous les verrous Akaiky. »
+   dessous, « Reverrouiller maintenant » en lien ; « Code parent » en lien si verrouillé ;
+   « Appeler les secours · 117 » en bas, bordé `--sos-line` (sans famille, le SOS ne prévient
+   personne).
 5. **Plage « école »** — depuis NAR-238 (planche 04) : pastille « École jusqu'à 16:00 », seuls
    les parents restent, les autres en fantôme « Papa, Tonton et Mamie reviennent à 16:00 », SOS
    toujours là.

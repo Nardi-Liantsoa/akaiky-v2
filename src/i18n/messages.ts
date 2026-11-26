@@ -490,7 +490,6 @@ const fr = {
     noContactsHint: 'Un parent va ajouter les contacts depuis son application.',
     sosLabel: 'SOS : appuie 3 secondes pour appeler',
     sosHint: 'Garde le doigt 3 secondes',
-    emergency: (n: string) => `Secours · ${n}`,
     callFailed: 'L’appel n’a pas pu partir.',
     // SOS hors ligne (NAR-151). SMS : apostrophe droite et « ~ » (alphabet GSM 7 bits,
     // 160 caractères ; « ’ » ou « ± » feraient passer le SMS à 70 caractères). {lat}, {lon},
@@ -581,7 +580,6 @@ const fr = {
       close: 'Fermer',
       erase: 'Effacer',
       entered: (n: number) => `${n} chiffre${n > 1 ? 's' : ''} sur 6`,
-      unlockedUntil: (time: string) => `Téléphone déverrouillé jusqu’à ${time}`,
       settings: 'Réglages du téléphone',
       relock: 'Reverrouiller maintenant',
       // Barre « Mode parent » (planche 05, NAR-238).
@@ -589,7 +587,9 @@ const fr = {
       modeUntil: (time: string) => `jusqu’à ${time}`,
       relockShort: 'Reverrouiller',
       failed: 'Le téléphone n’a pas pu être déverrouillé.',
-      release: 'Libérer ce téléphone (plus de verrou)'
+      // Planche 09 (NAR-241) : l'action, puis ce qu'elle fait, en dessous.
+      release: 'Libérer ce téléphone',
+      releaseHint: 'Supprime tous les verrous Akaiky.'
     }
   },
   parent: {
@@ -1273,7 +1273,6 @@ const mg: Messages = {
     noContactsHint: 'Ray aman-dreny iray no hanampy ireo olona avy amin’ny rindranasany.',
     sosLabel: 'SOS : tsindrio 3 segondra hiantsoana',
     sosHint: 'Tsindrio ela 3 segondra',
-    emergency: (n: string) => `Vonjy maika · ${n}`,
     callFailed: 'Tsy lasa ny antso.',
     sos: {
       smsWith: (name: string) => `SOS Akaiky: mila vonjy i ${name}. Toerana: geo:{lat},{lon} (~{acc} m, {time})`,
@@ -1356,14 +1355,14 @@ const mg: Messages = {
       close: 'Hidiana',
       erase: 'Hamafa',
       entered: (n: number) => `Isa ${n} amin’ny 6`,
-      unlockedUntil: (time: string) => `Misokatra ny finday hatramin’ny ${time}`,
       settings: 'Fandrindrana ny finday',
       relock: 'Hidio indray izao',
       mode: 'Fomba ray aman-dreny',
       modeUntil: (time: string) => `hatramin’ny ${time}`,
       relockShort: 'Hidio indray',
       failed: 'Tsy afaka nosokafana ny finday.',
-      release: 'Hanafaka ity finday ity (tsy hidiana intsony)'
+      release: 'Hanafaka ity finday ity',
+      releaseHint: 'Esorina daholo ny fanidiana Akaiky.'
     }
   },
   parent: {
@@ -2028,7 +2027,6 @@ const en: Messages = {
     noContactsHint: 'A parent will add the contacts from their app.',
     sosLabel: 'SOS: hold 3 seconds to call',
     sosHint: 'Keep your finger down for 3 seconds',
-    emergency: (n: string) => `Emergency · ${n}`,
     callFailed: 'The call couldn’t go through.',
     sos: {
       smsWith: (name: string) => `SOS Akaiky: ${name} needs help. Location: geo:{lat},{lon} (~{acc} m, {time})`,
@@ -2111,14 +2109,14 @@ const en: Messages = {
       close: 'Close',
       erase: 'Delete',
       entered: (n: number) => `${n} of 6 digits`,
-      unlockedUntil: (time: string) => `Phone unlocked until ${time}`,
       settings: 'Phone settings',
       relock: 'Lock now',
       mode: 'Parent mode',
       modeUntil: (time: string) => `until ${time}`,
       relockShort: 'Lock again',
       failed: 'The phone could not be unlocked.',
-      release: 'Release this phone (no more lock)'
+      release: 'Release this phone',
+      releaseHint: 'Removes every Akaiky lock.'
     }
   },
   parent: {
