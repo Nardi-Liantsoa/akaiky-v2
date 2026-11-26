@@ -150,6 +150,13 @@ test('prise en charge : la première gagne, un member la prend, les autres la vo
   const c = (await open(fy.device)).json()
   await cancel(fy.device, c.id)
   assert.equal((await act(owner, c.id, 'handle')).json().code, 'sos_cancelled')
+  assert.equal((await act(owner, c.id, 'coming')).json().code, 'sos_closed')
+  // Échue (15 min sans prise en charge) : ni prise en charge ni « j'arrive » après coup ; « vu » reste possible.
+  const e = (await open(fy.device)).json()
+  await ctx.db.query("UPDATE sos_alerts SET started_at = now() - interval '16 minutes', ends_at = now() - interval '1 minute' WHERE id = $1", [e.id])
+  assert.equal((await act(owner, e.id, 'handle')).json().code, 'sos_closed')
+  assert.equal((await act(owner, e.id, 'coming')).json().code, 'sos_closed')
+  assert.equal((await act(owner, e.id, 'seen')).statusCode, 200)
 })
 
 test('isolation : une autre famille ne voit ni ne touche l’alerte (404) ; dernière alerte de l’enfant pour ses membres', async () => {

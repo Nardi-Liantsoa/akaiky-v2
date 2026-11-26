@@ -10,18 +10,21 @@ import AppIcon from '../ui/AppIcon.vue'
 
 // Alertes SOS en cours de la famille (NAR-249), en haut de chaque onglet de l'app parent :
 // relues toutes les 5 s (une requête pour tous les enfants), même sans notification (téléphone
-// sans services Google, notifications refusées). Pas sur l'écran de l'alerte lui-même.
+// sans services Google, notifications refusées). Sur l'écran d'une alerte : les autres seulement
+// (un second enfant en SOS ne passe jamais inaperçu).
 const POLL_MS = 5000
+// edge : posé en haut de l'écran plein de l'alerte (sous la barre d'état, avec ses marges).
+defineProps<{ edge?: boolean }>()
 const t = useT()
 const route = useRoute()
 const alerts = ref<SosSummary[]>([])
 const now = ref(Date.now())
-const shown = computed(() => (route.name === 'sos' ? [] : alerts.value))
+const shown = computed(() => (route.name === 'sos' ? alerts.value.filter((a) => a.id !== String(route.params.id)) : alerts.value))
 const nameOf = (childId: string) => children.items.find((c) => c.id === childId)?.firstName ?? '…'
 
 let timer: ReturnType<typeof setInterval> | undefined
 async function read() {
-  if (family.status !== 'ready' || document.visibilityState !== 'visible') return
+  if (!family.data || document.visibilityState !== 'visible') return
   try {
     const { alerts: list } = await activeSos()
     alerts.value = list
@@ -32,13 +35,16 @@ async function read() {
   }
   now.value = Date.now()
 }
-watch(() => family.status, (s) => { if (s === 'ready') void read(); else alerts.value = [] })
-onMounted(() => { void read(); timer = setInterval(() => { void read() }, POLL_MS) })
-onBeforeUnmount(() => clearInterval(timer))
+// Famille rechargée en échec (hors ligne) : les alertes connues restent ; plus de famille : vidées.
+watch(() => family.status, (s) => { if (s === 'ready') void read(); else if (s === 'none') alerts.value = [] })
+// Retour au premier plan : relues tout de suite (cible : moins de 3 s entre les apps).
+const onVisible = () => { if (document.visibilityState === 'visible') void read() }
+onMounted(() => { void read(); timer = setInterval(() => { void read() }, POLL_MS); document.addEventListener('visibilitychange', onVisible) })
+onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible) })
 </script>
 
 <template>
-  <section v-if="shown.length" class="sos-banners" :aria-label="t.sosAlert.bannerLabel">
+  <section v-if="shown.length" class="sos-banners" :class="{ edge }" :aria-label="t.sosAlert.bannerLabel">
     <RouterLink v-for="a in shown" :key="a.id" class="sos-banner" :class="a.status" :to="{ name: 'sos', params: { id: a.id } }" role="alert">
       <AppIcon name="alert-circle" :size="24" />
       <span class="text">
@@ -55,6 +61,11 @@ onBeforeUnmount(() => clearInterval(timer))
   display: grid;
   gap: var(--space-2);
   margin-bottom: var(--space-4);
+}
+.sos-banners.edge {
+  margin: 0;
+  padding: calc(var(--space-2) + var(--safe-top)) calc(var(--gutter) + var(--safe-right)) var(--space-2) calc(var(--gutter) + var(--safe-left));
+  background: var(--bg);
 }
 .sos-banner {
   display: flex;

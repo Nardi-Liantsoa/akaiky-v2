@@ -97,3 +97,25 @@ test('alerte inconnue ou d’une autre famille : introuvable, retour à l’accu
   await page.getByRole('link', { name: 'Retour à l’accueil' }).click()
   await expect(page).toHaveURL(/\/espace$/)
 })
+
+test('une seconde alerte (autre enfant) reste visible en haut de l’écran d’une alerte', async ({ page }) => {
+  const MIA = { ...FY, id: '6f1c2b1e-0000-4000-8000-000000000102', firstName: 'Mia', avatarColor: 'green' }
+  const other = summary({ id: '6f1c2b1e-0000-4000-8000-0000000005a2', childId: MIA.id })
+  await setup(page)
+  await page.route('**/api/children', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([FY, MIA]) }))
+  await page.route('**/api/families/me/sos', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ alerts: [summary(), other] }) }))
+  await page.goto(`/espace/sos/${SOS_ID}`)
+  await expect(page.getByRole('heading', { level: 1, name: 'Fy a besoin d’aide' })).toBeVisible()
+  const banners = page.getByRole('region', { name: 'Alertes SOS en cours' }).getByRole('alert')
+  await expect(banners).toHaveCount(1)
+  await expect(banners).toContainText('Mia a besoin d’aide')
+})
+
+test('alerte échue (15 min) : plus de « J’arrive » ni de prise en charge', async ({ page }) => {
+  await setup(page, { alert: details({ status: 'ended' }) })
+  await page.goto(`/espace/sos/${SOS_ID}`)
+  await expect(page.getByRole('status').filter({ hasText: 'Suivi en direct terminé (15 minutes).' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'J’arrive' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Je prends en charge' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Appeler Fy' })).toBeVisible()
+})

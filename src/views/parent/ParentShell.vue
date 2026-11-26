@@ -28,10 +28,14 @@ watch(() => auth.user, (user) => {
 </script>
 
 <template>
-  <main v-if="alert" class="alert-shell"><RouterView /></main>
+  <main v-if="alert" class="alert-shell">
+    <!-- Une autre alerte en cours (second enfant) reste visible au-dessus de celle-ci. -->
+    <SosBanner edge />
+    <RouterView />
+  </main>
   <main v-else class="shell" :class="{ 'with-tabs': showTabs, wide }">
     <!-- Alertes SOS en cours de la famille, en tête de chaque onglet (NAR-249). -->
-    <SosBanner v-if="family.status === 'ready'" />
+    <SosBanner v-if="family.status === 'ready' || family.status === 'error'" />
     <RouterView />
   </main>
   <!-- Onglets seulement quand la famille est connue (ou injoignable) : jamais pendant
@@ -47,6 +51,7 @@ watch(() => auth.user, (user) => {
   max-width: 720px;
   margin: 0 auto;
 }
+
 .shell {
   /* Zones sûres en natif comme sur le web (viewport-fit=cover) : --safe-* vaut 0 sans encoche.
      Haut : la barre d'état recouvre la WebView (main.ts) ; sans --safe-top, le titre la touche. */

@@ -18,9 +18,11 @@ import { children, loadChildren } from '../../store/children'
 // les 3 s (le téléphone envoie sa position toutes les 30 s). Ouverte au toucher de la
 // notification `sos` ou depuis le bandeau des alertes en cours. Tous les rôles, `member` compris.
 const POLL_MS = 3000
-// Pastilles des membres (maquette 08 : une couleur par personne) ; « Vous » en V.
+// Pastilles des membres (maquette 08 : une couleur par personne).
 const PEOPLE_COLORS = ['blue', 'violet', 'green', 'orange'] as const
-const USER_INITIAL = 'V'
+// Batterie relue chaque minute ; un relevé de plus de 30 min n'est pas montré (il tromperait).
+const BATTERY_MS = 60_000
+const BATTERY_MAX_AGE_MS = 30 * 60_000
 const t = useT()
 const route = useRoute()
 const id = computed(() => String(route.params.id ?? ''))
@@ -36,6 +38,8 @@ const child = computed(() => children.items.find((c) => c.id === alert.value?.ch
 const name = computed(() => child.value?.firstName ?? '…')
 const ago = (iso: string) => shortDuration(now.value - Date.parse(iso), t.value)
 const open = computed(() => alert.value?.status === 'active')
+// Plus rien ne change (annulée, échue, introuvable) : la relecture s'arrête.
+const settled = computed(() => status.value === 'missing' || alert.value?.status === 'cancelled' || alert.value?.status === 'ended')
 const mine = (kind: 'coming' | 'handled') => !!alert.value?.events.some((e) => e.kind === kind && e.isMe)
 // Une ligne par membre : son geste le plus fort (s'en occupe > arrive > a vu).
 const people = computed(() => {
@@ -53,20 +57,32 @@ const personText = (p: { kind: 'seen' | 'coming' | 'handled', name: string, isMe
 
 let timer: ReturnType<typeof setInterval> | undefined
 let clock: ReturnType<typeof setInterval> | undefined
+let batteryTimer: ReturnType<typeof setInterval> | undefined
 let seenSent = ''
+// Réponses appliquées dans l'ordre des requêtes : une relecture partie avant « Je prends en
+// charge » ne remet jamais l'ancien état par-dessus sa réponse.
+let issued = 0
+let applied = 0
+function apply(n: number, a: SosDetails) {
+  if (n < applied || a.id !== id.value) return
+  applied = n
+  alert.value = a
+}
 
 async function load() {
   const current = id.value
+  const n = ++issued
   try {
     const a = await getSos(current)
-    if (current !== id.value) return
-    alert.value = a
+    if (current !== id.value || n < applied) return
+    apply(n, a)
     status.value = 'ready'
     loadError.value = ''
     // Vu une fois par alerte et par écran (le serveur n'en garde qu'un par membre).
     if (seenSent !== a.id && !a.events.some((e) => e.kind === 'seen' && e.isMe)) {
       seenSent = a.id
-      void markSos(a.id, 'seen').then((fresh) => { if (fresh.id === id.value) alert.value = fresh }).catch(() => { seenSent = '' })
+      const m = ++issued
+      void markSos(a.id, 'seen').then((fresh) => apply(m, fresh)).catch(() => { seenSent = '' })
     }
   } catch (e) {
     if (current !== id.value) return
@@ -76,19 +92,27 @@ async function load() {
     loadError.value = errorText(e, t.value)
   }
 }
-async function readBattery(childId: string) {
+async function readBattery() {
+  const childId = alert.value?.childId
+  if (!childId) return
   const s = await getChildStatus(childId).catch(() => null)
-  const pct = s?.devices.map((d) => d.batteryPct).find((p) => typeof p === 'number')
-  battery.value = typeof pct === 'number' ? pct : null
+  const fresh = s?.devices.find((d) => typeof d.batteryPct === 'number' && d.statusAt && Date.now() - Date.parse(d.statusAt) < BATTERY_MAX_AGE_MS)
+  battery.value = fresh?.batteryPct ?? null
 }
-watch(() => alert.value?.childId, (childId) => { if (childId) void readBattery(childId) })
+watch(() => alert.value?.childId, (childId) => {
+  if (!childId) return
+  void readBattery()
+  // Enfant absent de la liste connue (ajouté depuis un autre téléphone) : liste relue.
+  if (!children.items.some((c) => c.id === childId)) void loadChildren(true)
+})
 
 async function act(kind: 'coming' | 'handle') {
   if (!alert.value || busy.value) return
   busy.value = kind
   actionError.value = ''
+  const n = ++issued
   try {
-    alert.value = await markSos(alert.value.id, kind)
+    apply(n, await markSos(alert.value.id, kind))
   } catch (e) {
     actionError.value = e instanceof ApiError && e.code === 'sos_already_handled' ? t.value.sosAlert.alreadyHandled : errorText(e, t.value)
     void load()
@@ -97,16 +121,20 @@ async function act(kind: 'coming' | 'handle') {
   }
 }
 
+const tick = () => { if (document.visibilityState === 'visible' && !settled.value && !busy.value) void load() }
+// Retour au premier plan : relue tout de suite, sans attendre le tour suivant.
+const onVisible = () => { if (document.visibilityState === 'visible') { now.value = Date.now(); tick(); void readBattery() } }
 function start() {
   stop()
   void load()
-  timer = setInterval(() => { if (document.visibilityState === 'visible') void load() }, POLL_MS)
+  timer = setInterval(tick, POLL_MS)
   clock = setInterval(() => { now.value = Date.now() }, 1000)
+  batteryTimer = setInterval(() => { if (!settled.value) void readBattery() }, BATTERY_MS)
 }
-function stop() { clearInterval(timer); clearInterval(clock) }
-watch(id, () => { alert.value = null; status.value = 'loading'; start() })
-onMounted(() => { void loadChildren(); start() })
-onBeforeUnmount(stop)
+function stop() { clearInterval(timer); clearInterval(clock); clearInterval(batteryTimer) }
+watch(id, () => { alert.value = null; status.value = 'loading'; seenSent = ''; start() })
+onMounted(() => { void loadChildren(); start(); document.addEventListener('visibilitychange', onVisible) })
+onBeforeUnmount(() => { stop(); document.removeEventListener('visibilitychange', onVisible) })
 </script>
 
 <template>
@@ -154,7 +182,7 @@ onBeforeUnmount(stop)
 
         <ul v-if="people.length" class="people card">
           <li v-for="(p, i) in people" :key="p.isMe ? 'me' : p.name">
-            <ChildAvatar :name="p.isMe ? USER_INITIAL : p.name || '?'" :color="PEOPLE_COLORS[i % PEOPLE_COLORS.length]" :size="28" />
+            <ChildAvatar :name="p.isMe ? t.sosAlert.meInitial : p.name || '?'" :color="PEOPLE_COLORS[i % PEOPLE_COLORS.length]" :size="28" />
             <span :class="{ strong: p.kind !== 'seen' }">{{ personText(p) }}</span>
           </li>
         </ul>
@@ -162,16 +190,17 @@ onBeforeUnmount(stop)
         <p v-if="actionError" class="error" role="alert">{{ actionError }}</p>
         <p v-if="loadError && status === 'ready'" class="help" role="status">{{ loadError }}</p>
 
+        <!-- Annulée ou échue (15 min) : plus d'action, seulement l'appel (handled : J'arrive grisé). -->
         <div v-if="alert.status !== 'cancelled'" class="actions">
           <a v-if="child?.phone" class="btn call" :href="`tel:${child.phone}`" :aria-label="t.sosAlert.callLabel(name)"><AppIcon name="phone" :size="22" />{{ t.sosAlert.call }}</a>
-          <button type="button" class="btn coming" :disabled="busy !== null || mine('coming') || alert.status === 'handled'" @click="act('coming')">
+          <button v-if="alert.status !== 'ended'" type="button" class="btn coming" :disabled="busy !== null || mine('coming') || alert.status === 'handled'" @click="act('coming')">
             <AppIcon name="navigate" :size="22" />{{ t.sosAlert.comingAction }}
           </button>
-          <button v-if="alert.status !== 'handled'" type="button" class="btn handle" :disabled="busy !== null" @click="act('handle')">
+          <button v-if="alert.status === 'active'" type="button" class="btn handle" :disabled="busy !== null" @click="act('handle')">
             <AppIcon name="shield" :size="22" />{{ t.sosAlert.handle }}
           </button>
         </div>
-        <p v-if="alert.status !== 'cancelled' && alert.status !== 'handled'" class="hint">{{ t.sosAlert.handleHint }}</p>
+        <p v-if="alert.status === 'active'" class="hint">{{ t.sosAlert.handleHint }}</p>
         <RouterLink class="back" :to="{ name: 'espace' }">{{ t.sosAlert.back }}</RouterLink>
       </div>
     </template>
