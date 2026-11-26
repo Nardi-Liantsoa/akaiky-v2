@@ -340,7 +340,7 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   notre origine : CSP inchangée). `MapView.vue` : pastille de l'enfant, cercle de précision, attribution « © OpenStreetMap »
   toujours visible ; sans WebGL2, fichier absent ou délai de 15 s : `unavailable`, position en texte. Écrans : alerte SOS
   (NAR-249) et « Où est … ? » (`LocateView.vue`, `/espace/enfant/:id/position`, tout membre, entrée du menu « ⋯ » de la
-  carte de l'enfant, demande renouvelée toutes les 100 s, relue toutes les 3 s). Procédure : `docs/CARTE.md`, NOSYHOST.md § 8.
+  carte de l’enfant, une demande par ouverture, jamais renouvelée seule — « Redemander » sinon —, relue toutes les 3 s). Procédure : `docs/CARTE.md`, NOSYHOST.md § 8.
 - **Hors connexion** : appels et SOS par SMS sans Internet (natif enfant). L'app
   parent démarre hors ligne et le dit, sans déconnecter.
 - **Notifications** : FCM (Android) et APNs (iOS), comptes au nom du client. Alertes

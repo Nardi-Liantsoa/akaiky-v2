@@ -13,11 +13,11 @@ import { children, loadChildren } from '../../store/children'
 
 // « Où est Fy ? » (NAR-205, tranche parent de NAR-146) : tout membre demande la position ; le
 // téléphone de l'enfant la relève une fois (et l'enfant le voit), la carte la montre avec sa
-// précision et son heure. Jamais de suivi : la demande dure 2 minutes, redemandée toutes les
-// 100 s tant que l'écran est ouvert. Pas de maquette : langage de l'alerte SOS (NAR-249).
+// précision et son heure. Jamais de suivi : une demande par ouverture de l'écran (2 minutes
+// d'attente au plus), jamais renouvelée seule ; « Redemander » pour un nouveau relevé.
+// Pas de maquette : langage de l'alerte SOS (NAR-249).
 const MapView = defineAsyncComponent(() => import('../../components/MapView.vue'))
 const POLL_MS = 3000
-const RENEW_MS = 100_000
 const t = useT()
 const route = useRoute()
 const id = computed(() => String(route.params.id ?? ''))
@@ -26,14 +26,18 @@ const name = computed(() => child.value?.firstName ?? '…')
 const state = ref<PositionState | null>(null)
 const error = ref('')
 const asked = ref(false)
+// Heure de notre dernière demande (horloge du serveur) : un relevé pris après elle y répond,
+// même une fois l'attente de 2 minutes finie.
+const askedAt = ref<string | null>(null)
+const failed = ref(false)
 const missing = ref(false)
 const mapOff = ref(false)
 const now = ref(Date.now())
 
 const position = computed(() => state.value?.position ?? null)
-// Relevé pris après la demande en cours : la réponse du téléphone.
+// Relevé pris après notre demande : la réponse du téléphone.
 const fresh = computed(() => {
-  const p = position.value, req = state.value?.requestedAt
+  const p = position.value, req = askedAt.value ?? state.value?.requestedAt
   return !!p && !!req && Date.parse(p.recordedAt) >= Date.parse(req)
 })
 const watching = computed(() => !!state.value?.watchingUntil && Date.parse(state.value.watchingUntil) > now.value)
@@ -43,16 +47,17 @@ const statusText = computed(() => {
   if (p && fresh.value) return t.value.locate.updated(ago(p.recordedAt), p.accuracyM)
   if (asked.value && !watching.value) return t.value.locate.noAnswer(name.value)
   if (p) return t.value.locate.old(ago(p.recordedAt))
-  return t.value.locate.asking(name.value)
+  // Demande refusée (trop de demandes, réseau) : l'erreur le dit, rien n'est « envoyé ».
+  return failed.value ? '' : t.value.locate.asking(name.value)
 })
 
 let poll: ReturnType<typeof setInterval> | undefined
-let renew: ReturnType<typeof setInterval> | undefined
 let clock: ReturnType<typeof setInterval> | undefined
 
 async function read() {
   try {
     state.value = await getPosition(id.value)
+    if (!failed.value) error.value = ''
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) missing.value = true
     else error.value = errorText(e, t.value)
@@ -60,10 +65,13 @@ async function read() {
 }
 async function ask() {
   error.value = ''
+  failed.value = false
   try {
-    await requestLocate(id.value)
+    const r = await requestLocate(id.value)
+    askedAt.value = r.requestedAt
     asked.value = true
   } catch (e) {
+    failed.value = true
     if (e instanceof ApiError && e.status === 404) { missing.value = true; return }
     error.value = e instanceof ApiError && e.status === 429 ? t.value.locate.limited : errorText(e, t.value)
   }
@@ -74,13 +82,11 @@ function start() {
   stop()
   void ask()
   poll = setInterval(() => { if (visible() && !missing.value) void read() }, POLL_MS)
-  // Consultation gardée ouverte tant que l'écran est là (le serveur la ferme à 2 min).
-  renew = setInterval(() => { if (visible() && !missing.value) void ask() }, RENEW_MS)
   clock = setInterval(() => { now.value = Date.now() }, 1000)
 }
-function stop() { clearInterval(poll); clearInterval(renew); clearInterval(clock) }
+function stop() { clearInterval(poll); clearInterval(clock) }
 const onVisible = () => { if (visible()) { now.value = Date.now(); void read() } }
-watch(id, () => { state.value = null; asked.value = false; missing.value = false; start() })
+watch(id, () => { state.value = null; asked.value = false; askedAt.value = null; failed.value = false; missing.value = false; start() })
 onMounted(() => { void loadChildren(); start(); document.addEventListener('visibilitychange', onVisible) })
 onBeforeUnmount(() => { stop(); document.removeEventListener('visibilitychange', onVisible) })
 </script>
@@ -104,12 +110,12 @@ onBeforeUnmount(() => { stop(); document.removeEventListener('visibilitychange',
         <span class="dot" :class="{ off: !fresh }" aria-hidden="true" />
         <div>
           <strong v-if="position">{{ t.sosAlert.coords(formatCoord(position.lat, locale), formatCoord(position.lng, locale)) }}</strong>
-          <span>{{ statusText }}</span>
+          <span v-if="statusText">{{ statusText }}</span>
           <span v-if="mapOff && position" class="note">{{ t.locate.mapUnavailable }}</span>
         </div>
       </div>
       <p v-if="error" class="error" role="alert">{{ error }}</p>
-      <button v-if="asked && !watching && !fresh" type="button" class="btn" @click="ask"><AppIcon name="refresh" :size="20" />{{ t.locate.retry }}</button>
+      <button v-if="(asked && !watching && !fresh) || failed" type="button" class="btn" @click="ask"><AppIcon name="refresh" :size="20" />{{ t.locate.retry }}</button>
     </template>
   </section>
 </template>

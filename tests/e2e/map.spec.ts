@@ -86,3 +86,18 @@ test('alerte SOS : la carte remplace la zone vide', async ({ page }) => {
   await expect(page.getByText('© OpenStreetMap')).toBeVisible()
   expect(outside).toEqual([])
 })
+
+test('demande refusée (trop de demandes) : l’erreur, pas « demande envoyée », et « Redemander »', async ({ page }) => {
+  await mockApi(page, {
+    ...me,
+    'GET /api/families/me': () => ({ body: MEMBER }),
+    'GET /api/children': () => ({ body: [FY] }),
+    [`POST /api/children/${FY.id}/locate`]: () => ({ status: 429, body: { error: 'Trop de demandes.', code: 'locate_rate_limited' } }),
+    [`GET /api/children/${FY.id}/position`]: () => ({ body: { position: null, requestedAt: null, watchingUntil: null } })
+  })
+  await serveMap(page)
+  await page.goto(`/espace/enfant/${FY.id}/position`)
+  await expect(page.getByRole('alert')).toHaveText('Trop de demandes. Réessayez dans quelques minutes.')
+  await expect(page.getByText(/Demande envoyée/)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Redemander' })).toBeVisible()
+})

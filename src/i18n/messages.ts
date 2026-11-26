@@ -404,7 +404,6 @@ const fr = {
     invalid: 'Entre 1 et 40 caractères.',
     loadError: 'Impossible de charger les messages rapides.'
   },
-  // Alerte SOS côté parent (NAR-249, maquette 08).
   // Position à la demande, côté parent (NAR-205).
   locate: {
     menu: (name: string) => `Où est ${name} ?`,
@@ -421,6 +420,7 @@ const fr = {
     notFound: 'Enfant introuvable.',
     back: 'Retour'
   },
+  // Alerte SOS côté parent (NAR-249, maquette 08).
   sosAlert: {
     label: 'Alerte SOS',
     title: (name: string) => `${name} a besoin d’aide`,

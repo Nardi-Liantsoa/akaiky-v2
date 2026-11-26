@@ -31,8 +31,16 @@ function fail() {
 }
 const point = () => ({ type: 'Feature' as const, properties: {}, geometry: { type: 'Point' as const, coordinates: [props.lng, props.lat] } })
 
+// Une seule sonde par lancement, contexte rendu aussitôt (le navigateur en limite le nombre).
+let webGl2: boolean | null = null
 function hasWebGl2(): boolean {
-  try { return !!document.createElement('canvas').getContext('webgl2') } catch { return false }
+  if (webGl2 !== null) return webGl2
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2')
+    webGl2 = !!gl
+    gl?.getExtension('WEBGL_lose_context')?.loseContext()
+  } catch { webGl2 = false }
+  return webGl2
 }
 
 onMounted(async () => {
@@ -61,12 +69,16 @@ onMounted(async () => {
   // Pas d'icônes (aucun sprite) : une image vide plutôt qu'un avertissement par symbole.
   map.on('styleimagemissing', (e) => { if (map && !map.hasImage(e.id)) map.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) }) })
   map.on('error', (e) => {
-    const status = (e.error as { status?: number } | undefined)?.status
-    // Fond de carte illisible (fichier absent, refusé, réseau) avant tout affichage, WebGL perdu :
-    // position en texte. Une tuile manquante après coup (zone hors de l'extrait) n'arrête rien.
+    // Carte affichée : une tuile ou une police manquante (écriture non latine, réseau) n'arrête
+    // rien, MapLibre affiche le reste. Seul le contexte WebGL perdu la remplace (ci-dessous).
+    if (loaded) return
+    const err = e.error as { status?: number, url?: string } | undefined
+    if (err?.url?.includes('/map/fonts/')) return
+    // Avant le premier affichage : fond illisible (fichier absent, refusé, réseau) → texte.
     const source = (e as { sourceId?: string }).sourceId === MAP_SOURCE
-    if (status === 404 || status === 403 || (source && !loaded) || !map?.isStyleLoaded()) fail()
+    if (source || err?.status === 404 || err?.status === 403 || !map?.isStyleLoaded()) fail()
   })
+  map.on('webglcontextlost', fail)
   map.on('load', () => {
     if (!map) return
     loaded = true
@@ -85,6 +97,14 @@ onMounted(async () => {
     pin.setAttribute('aria-hidden', 'true')
     marker = new engine.Marker({ element: pin }).setLngLat([props.lng, props.lat]).addTo(map)
   })
+})
+
+// Prénom ou couleur connus après l'affichage (liste des enfants relue après la position).
+watch(() => [props.name, props.color] as const, () => {
+  const pin = marker?.getElement()
+  if (!pin) return
+  pin.textContent = initial(props.name)
+  pin.style.background = colorToken(props.color)
 })
 
 // Nouvelle position (SOS : toutes les 30 s) : pastille et cercle suivent ; recentrée si elle sort de la vue.
