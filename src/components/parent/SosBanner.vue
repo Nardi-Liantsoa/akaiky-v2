@@ -46,7 +46,7 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
 <template>
   <section v-if="shown.length" class="sos-banners" :class="{ edge }" :aria-label="t.sosAlert.bannerLabel">
     <RouterLink v-for="a in shown" :key="a.id" class="sos-banner" :class="a.status" :to="{ name: 'sos', params: { id: a.id } }" role="alert">
-      <AppIcon name="alert-circle" :size="24" />
+      <AppIcon name="warning" :size="24" />
       <span class="text">
         <strong>{{ t.sosAlert.title(nameOf(a.childId)) }}</strong>
         <span>{{ a.status === 'handled' ? t.sosAlert.handledShort : t.sosAlert.ago(shortDuration(now - Date.parse(a.startedAt), t)) }}</span>
