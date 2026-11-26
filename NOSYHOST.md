@@ -221,6 +221,14 @@ node server/bin/ota-publish.js --app parent --channel parent --min-native <versi
 Une fois par app et par canal ; procédure et choix de la coque minimale : `docs/MOBILE.md`
 « Publier un OTA ». Les bundles sont dans les sauvegardes de la base.
 
+## 8. Fond de carte (NAR-205)
+
+Fichier `madagascar.pmtiles` (~300 Mo, `docs/CARTE.md`) sur un **volume** monté dans le conteneur,
+jamais dans l'image ni dans la base ; chemin donné par `MAP_TILES_FILE` (ex.
+`/data/map/madagascar.pmtiles`). Remplacer le fichier suffit (ETag = taille + date) : aucun
+redéploiement. Sans fichier, l'API répond 404 et l'app montre la position en texte : rien ne
+casse. Le volume n'a pas besoin de sauvegarde (le fichier se refait depuis Protomaps).
+
 ## Ce qu'il ne faut pas casser
 
 - **`/health` n'interroge pas la base** : il pilote le déploiement

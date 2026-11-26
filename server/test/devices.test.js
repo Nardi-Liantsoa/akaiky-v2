@@ -282,7 +282,7 @@ test('configuration : contacts de SON enfant seulement, ETag et 304, changement 
   assert.deepEqual(Object.keys(first.json().contacts[0]).sort(), ['avatarColor', 'id', 'name', 'parent', 'phone', 'position'])
   const etag = first.headers.etag
   assert.match(etag, /^"[0-9a-f-]+\.\d+\.MG"$/)
-  assert.equal(first.headers['access-control-expose-headers'], 'etag')
+  assert.match(first.headers['access-control-expose-headers'], /\betag\b/)
 
   // Rien n'a changé : 304 sans corps.
   const same = await native(ctx.app, 'GET', '/api/device/config', { token: device.accessToken, headers: { 'if-none-match': etag } })

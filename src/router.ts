@@ -49,6 +49,8 @@ const routes: RouteRecordRaw[] = [
       { path: 'compte/securite', name: 'securite', component: () => import('./views/SecurityView.vue') },
       { path: 'enfant/nouveau', name: 'enfant-nouveau', component: () => import('./views/parent/ChildFormView.vue'), meta: { requiresFamily: true } },
       { path: 'enfant/:id', name: 'enfant', component: () => import('./views/parent/ChildFormView.vue'), meta: { requiresFamily: true } },
+      // Position à la demande (NAR-205) : tout membre.
+      { path: 'enfant/:id/position', name: 'position', component: () => import('./views/parent/LocateView.vue'), meta: { requiresFamily: true } },
       { path: 'enfant/:id/telephone', name: 'telephone', component: () => import('./views/parent/PairingView.vue'), meta: { requiresFamily: true, wide: true } },
       // Fiche contact : hors du cadre de Réglages, son retour mène à la section Contacts.
       { path: 'reglages/enfant/:childId/contact/nouveau', name: 'contact-nouveau', component: () => import('./views/parent/ContactFormView.vue'), meta: { requiresFamily: true } },

@@ -62,9 +62,9 @@ test('menu « ⋯ » : « Téléphone » seulement quand un téléphone est reli
   await expect(menu(page, 'Fy').getByRole('link')).toHaveText(['Modifier'])
   await expect(menu(page, 'Fy').getByRole('button', { name: 'Code parent' })).toBeVisible()
   await page.keyboard.press('Escape')
-  // Tiana, téléphone relié : « Téléphone » mène à l'appairage.
+  // Tiana, téléphone relié : « Où est Tiana ? » en tête (NAR-205), « Téléphone » mène à l'appairage.
   await more(page, 'Tiana').click()
-  await expect(menu(page, 'Tiana').getByRole('link')).toHaveText(['Modifier', 'Téléphone'])
+  await expect(menu(page, 'Tiana').getByRole('link')).toHaveText(['Où est Tiana ?', 'Modifier', 'Téléphone'])
   await menu(page, 'Tiana').getByRole('link', { name: 'Téléphone' }).click()
   await expect(page).toHaveURL(new RegExp(`/espace/enfant/${TIANA.id}/telephone$`))
 })

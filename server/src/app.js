@@ -24,6 +24,7 @@ import { appsRoutes, deviceAppsRoutes } from './routes/apps.js'
 import otaRoutes from './routes/ota.js'
 import { deviceLocationRoutes, locationRoutes } from './routes/location.js'
 import { deviceSosRoutes, sosRoutes } from './routes/sos.js'
+import { mapRoutes } from './routes/map.js'
 
 // Politique de contenu : tout vient de la même origine, aucun script en ligne,
 // aucun tiers (polices hébergées sur place).
@@ -96,6 +97,8 @@ const HEARTBEAT_PATH = /^\/api\/device\/heartbeat(?:\?|$)/
 // Serveur OTA (NAR-189, routes/ota.js) : appelé par le greffon natif, sans session ni origine.
 // Routes publiques en lecture seule : ni cookie lu, ni contrôle CSRF (rien n'est écrit).
 const OTA_PATH = /^\/api\/ota\//
+// Fond de carte (NAR-205) : sa propre limite (une vue lit des dizaines de morceaux).
+const MAP_PATH = /^\/api\/map\//
 const heartbeatOf = (req) => {
   const m = /^Heartbeat ([A-Za-z0-9_-]{43})$/.exec(req.headers.authorization || '')
   return m ? m[1] : null
@@ -142,7 +145,7 @@ export async function buildApp({ config, db, mailer, sms, logger = true, dbReady
     // Un chemin d'API encodé (/%61pi/…) contournerait les contrôles qui regardent le préfixe.
     if (decoded !== path && /^\/+api(?:[/%]|$)/i.test(decoded)) throw new HttpError(400, 'Adresse API non canonique.')
     // Les pré-vols CORS ne comptent pas : ils ne touchent ni la base ni un calcul.
-    if (req.url.startsWith('/api/') && req.method !== 'OPTIONS' && !apiLimit(rateLimitKey(req.ip))) {
+    if (req.url.startsWith('/api/') && req.method !== 'OPTIONS' && !MAP_PATH.test(req.url) && !apiLimit(rateLimitKey(req.ip))) {
       reply.header('retry-after', '60')
       throw new HttpError(429, 'Trop de requêtes. Réessayez dans une minute.')
     }
@@ -172,11 +175,12 @@ export async function buildApp({ config, db, mailer, sms, logger = true, dbReady
   app.addHook('onSend', async (req, reply, payload) => {
     reply.headers(SECURITY_HEADERS)
     if (req.url.startsWith('/api/')) {
-      reply.header('cache-control', 'no-store')
+      // Fond de carte : données publiques, gardées par le téléphone (sa route pose son cache).
+      if (!req.routeOptions.config?.mapAsset || reply.statusCode >= 400) reply.header('cache-control', 'no-store')
       // CORS de l'application native : origines exactes, jamais de cookie.
       // La valeur écrite vient de la liste de configuration, jamais de la requête.
       const allowed = config.nativeOrigins.find((o) => o === req.headers.origin)
-      if (allowed) reply.header('access-control-allow-origin', allowed).header('vary', 'Origin').header('access-control-expose-headers', 'etag')
+      if (allowed) reply.header('access-control-allow-origin', allowed).header('vary', 'Origin').header('access-control-expose-headers', 'etag, content-range, content-length')
     }
     return payload
   })
@@ -192,7 +196,8 @@ export async function buildApp({ config, db, mailer, sms, logger = true, dbReady
         'access-control-allow-origin': allowed,
         'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE',
         // if-none-match : relevé conditionnel de la configuration d'appareil (304).
-        'access-control-allow-headers': 'authorization, content-type, if-none-match',
+        // range : fond de carte lu par morceaux (NAR-205).
+        'access-control-allow-headers': 'authorization, content-type, if-none-match, range',
         'access-control-max-age': '600',
         vary: 'Origin'
       }).send()
@@ -382,6 +387,7 @@ export async function buildApp({ config, db, mailer, sms, logger = true, dbReady
   await app.register(deviceAppsRoutes, { prefix: '/api/device' })
   await app.register(locationRoutes, { prefix: '/api' })
   await app.register(deviceLocationRoutes, { prefix: '/api/device' })
+  await app.register(mapRoutes, { prefix: '/api' })
   await app.register(sosRoutes, { prefix: '/api' })
   await app.register(deviceSosRoutes, { prefix: '/api/device' })
   await app.register(otaRoutes, { prefix: '/api/ota' })

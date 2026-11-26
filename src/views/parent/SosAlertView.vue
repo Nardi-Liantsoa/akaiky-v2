@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { ApiError } from '../../api/http'
 import { getChildStatus } from '../../api/devices'
@@ -12,6 +12,8 @@ import { errorText } from '../../lib/errors'
 import { formatClock } from '../../lib/format'
 import { formatCoord, shortDuration } from '../../lib/sosTime'
 import { children, loadChildren } from '../../store/children'
+
+const MapView = defineAsyncComponent(() => import('../../components/MapView.vue'))
 
 // Alerte SOS côté parent (NAR-249, maquette 08) : bandeau rouge, position en direct (carte avec
 // NAR-205 ; d'ici là, la position en texte), qui a vu, qui arrive, qui s'en occupe. Relue toutes
@@ -32,6 +34,8 @@ const loadError = ref('')
 const actionError = ref('')
 const busy = ref<'coming' | 'handle' | null>(null)
 const battery = ref<number | null>(null)
+// Carte impossible sur ce téléphone (WebGL2, fond non installé) : position en texte seulement.
+const mapOff = ref(false)
 const now = ref(Date.now())
 
 const child = computed(() => children.items.find((c) => c.id === alert.value?.childId) ?? null)
@@ -157,11 +161,18 @@ onBeforeUnmount(() => { stop(); document.removeEventListener('visibilitychange',
         </p>
       </header>
 
-      <!-- Carte (NAR-205) : d'ici là, l'emplacement de la carte garde l'enfant et son cercle de précision. -->
-      <div class="map" role="img" :aria-label="t.sosAlert.mapSoon">
-        <span class="ring" />
-        <ChildAvatar class="pin" :name="name" :color="child?.avatarColor ?? 'yellow'" :size="40" />
-        <span class="soon">{{ t.sosAlert.mapSoon }}</span>
+      <!-- Carte auto-hébergée (NAR-205) ; sans position, ou carte impossible sur ce téléphone :
+           l'enfant et son cercle, la position reste en texte dessous. -->
+      <div class="map">
+        <MapView
+          v-if="alert.position && !mapOff" :lat="alert.position.lat" :lng="alert.position.lng" :accuracy-m="alert.position.accuracyM"
+          :name="name" :color="child?.avatarColor ?? 'yellow'" :label="t.locate.mapLabel(name)" attribution="top-right" @unavailable="mapOff = true"
+        />
+        <template v-else>
+          <span class="ring" aria-hidden="true" />
+          <ChildAvatar class="pin" :name="name" :color="child?.avatarColor ?? 'yellow'" :size="40" />
+          <span v-if="mapOff" class="soon">{{ t.locate.mapUnavailable }}</span>
+        </template>
       </div>
 
       <div class="sheet">
