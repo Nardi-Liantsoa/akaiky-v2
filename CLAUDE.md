@@ -194,7 +194,7 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   distance, avance `config_version` (déclencheur, `032_lock_state.sql`), réveille chaque téléphone actif (`config`), audité
   `remote_relock` ; rien d'ouvert : ni écriture ni audit. Le téléphone referme la sortie si `relockRequestedAt` (config) est
   postérieur à `unlockStartedAt` (deux heures du serveur, `relockDue`) ; hors ligne, elle se referme à son échéance.
-  Verrouillé après une sortie à distance : la demande appliquée (posée avant l'ouverture, à une minute près) est effacée,
+  Verrouillé après une sortie à distance : la demande appliquée (posée avant l’ouverture, à 10 s près, quelle que soit l’origine rapportée) est effacée,
   une demande plus récente reste. Journal : la sortie part à sa fermeture avec sa durée réelle (au plus la durée
   accordée). Limite : réveil `config` reçu au premier plan seulement (NAR-179). OTA parent et enfant, pas de coque.
 - **Plages « école » (NAR-148, 18/11/2026)** : calculées sur le téléphone, hors ligne, dans le

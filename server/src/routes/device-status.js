@@ -88,15 +88,17 @@ export async function deviceStatusRoutes(app) {
       await conn.query(
         `UPDATE child_devices SET unlocked_until = NULL, unlock_source = NULL, unlock_started_at = NULL, lock_reported_at = now()
           WHERE id = $1`, [req.device.id])
-      // Sortie à distance refermée (enfant, alarme, parent) : la demande qu'elle appliquait
-      // (posée avant son ouverture, à une minute près : durées arrondies à la seconde, trajet
-      // réseau) est effacée, pour ne pas la montrer encore ouverte au parent. Une demande posée
+      // Sortie refermée (enfant, alarme, parent) : une demande à distance posée avant son
+      // ouverture (à 10 s près : durées arrondies à la seconde, trajet réseau) a été
+      // appliquée par elle, ou couverte ; elle est effacée, pour ne pas la montrer encore
+      // ouverte au parent ni la réappliquer. Quelle que soit l'origine rapportée (un téléphone
+      // qui n'a pas pu noter l'origine d'une sortie la rapporte « code »). Une demande posée
       // plus tard, pas encore appliquée, reste.
-      if (prev.unlock_source === 'remote' && prev.unlock_started_at) {
+      if (prev.unlock_started_at) {
         await conn.query(
           `UPDATE children SET remote_unlock_until = NULL
             WHERE id = $1 AND family_id = $2 AND remote_unlock_until IS NOT NULL
-              AND remote_unlock_until - make_interval(mins => $4) <= $3::timestamptz + interval '1 minute'`,
+              AND remote_unlock_until - make_interval(mins => $4) <= $3::timestamptz + interval '10 seconds'`,
           [req.device.childId, req.device.familyId, prev.unlock_started_at, LOCK_MAX_S / 60])
       }
       return { unlockStartedAt: null }

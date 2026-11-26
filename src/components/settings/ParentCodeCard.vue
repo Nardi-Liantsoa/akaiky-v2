@@ -90,7 +90,8 @@ const unlockError = ref('')
 const now = ref(Date.now())
 const clock = setInterval(() => {
   now.value = Date.now()
-  if (props.child.parentCodeSetAt && document.visibilityState === 'visible') void loadChildren(true)
+  // Hors ligne ou page cachée : rien (la liste connue reste, sans erreur à chaque tour).
+  if (props.child.parentCodeSetAt && document.visibilityState === 'visible' && navigator.onLine !== false) void loadChildren(true)
 }, 30_000)
 onBeforeUnmount(() => clearInterval(clock))
 const future = (iso: string | null | undefined) => {

@@ -149,7 +149,7 @@ test('sortie ouverte avec le code sur le téléphone : montrée en moins d’un 
   await page.clock.runFor(31_000)
   await expect(page.getByRole('status').filter({ hasText: /Téléphone ouvert jusqu’à \d\d:\d\d, avec le code parent\./ })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Déverrouiller 15 min' })).toHaveCount(0)
-  await expect(page.getByText(/Sans réseau, il se reverrouille de toute façon/)).toBeVisible()
+  await expect(page.getByText(/au plus tard à la fin des 15 minutes, même sans réseau/)).toBeVisible()
 
   // Confirmation d'abord ; « Annuler » n'envoie rien.
   await page.getByRole('button', { name: 'Reverrouiller maintenant' }).click()

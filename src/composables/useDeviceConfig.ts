@@ -48,6 +48,14 @@ export function refreshNow(): Promise<void> {
   return poll()
 }
 
+// Relevé même en arrière-plan (NAR-216) : pendant une sortie du verrou, l'enfant est dans une
+// autre app ; l'ordre de reverrouillage d'un parent doit passer sans attendre son retour.
+// Au mieux : Android peut ralentir ou suspendre la WebView en arrière-plan.
+export function pollNow(): Promise<void> {
+  if (!source || deviceConfig.status === 'lost') return Promise.resolve()
+  return poll()
+}
+
 // Premier plan : relevé immédiat puis toutes les 30 s (sans effet pendant un chargement).
 export function resume() {
   if (!source || deviceConfig.status === 'lost' || timer) return

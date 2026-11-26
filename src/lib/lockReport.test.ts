@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createLockReporter, lockBody, relockDue, LOCK_MAX_S } from './lockReport'
+import { createLockReporter, lockBody, matchingWindow, relockDue, LOCK_MAX_S } from './lockReport'
 
 describe('relockDue', () => {
   const opened = '2026-11-26T10:00:00.000Z'
@@ -27,12 +27,26 @@ describe('lockBody', () => {
   it('sortie ouverte : durées en secondes mesurées sur le téléphone, source de la sortie', () => {
     expect(lockBody(now + 600_400, { source: 'remote', startedAt: now - 120_600 }, now)).toEqual({ remainingS: 601, openedAgoS: 121, source: 'remote' })
   })
-  it('sortie dont l’origine est inconnue (pas encore notée) : code, ouverte il y a 15 min − reste', () => {
-    expect(lockBody(now + 300_000, null, now)).toEqual({ remainingS: 300, openedAgoS: LOCK_MAX_S - 300, source: 'code' })
+  it('sortie pas encore notée : ouverte « maintenant » (jamais avant une demande de reverrouillage récente)', () => {
+    expect(lockBody(now + 300_000, null, now)).toEqual({ remainingS: 300, openedAgoS: 0, source: 'code' })
   })
   it('bornées à 15 minutes (horloge déplacée, ouverture ancienne)', () => {
     expect(lockBody(now + 3_600_000, { source: 'code', startedAt: now - 7_200_000 }, now)).toEqual({ remainingS: LOCK_MAX_S, openedAgoS: LOCK_MAX_S, source: 'code' })
     expect(lockBody(now + 60_000, { source: 'code', startedAt: now + 5_000 }, now)).toEqual({ remainingS: 60, openedAgoS: 0, source: 'code' })
+  })
+})
+
+describe('matchingWindow', () => {
+  const now = 1_000_000_000
+  it('sortie notée qui tombe sur l’échéance du natif (à une minute près) : gardée', () => {
+    const w = { source: 'remote' as const, startedAt: now - 60_000, plannedS: 840 }
+    expect(matchingWindow(now - 60_000 + 840_000 + 30_000, w)).toBe(w)
+  })
+  it('sortie plus ancienne jamais refermée, ou nouvelle sortie pas encore notée : ignorée', () => {
+    const stale = { source: 'code' as const, startedAt: now - 3_600_000, plannedS: 900 }
+    expect(matchingWindow(now + 840_000, stale)).toBeNull()
+    expect(matchingWindow(now + 840_000, null)).toBeNull()
+    expect(matchingWindow(undefined, stale)).toBeNull()
   })
 })
 

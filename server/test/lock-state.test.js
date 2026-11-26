@@ -184,13 +184,20 @@ test('verrouillé après une sortie à distance : la demande appliquée est effa
   assert.equal(kid.phoneUnlock, null)
   assert.equal((await config(fy.device)).json().remoteUnlockUntil, null)
 
+  // Sortie à distance rapportée « code » (origine que le téléphone n'a pas pu noter) : la demande
+  // appliquée est effacée de même.
+  assert.equal((await unlock(owner, fy.kid.id)).statusCode, 200)
+  assert.equal((await report(fy.device, { remainingS: 840, openedAgoS: 0, source: 'code' })).statusCode, 200)
+  assert.equal((await report(fy.device, { remainingS: 0 })).statusCode, 200)
+  assert.equal((await kidOf(owner, fy.kid.id)).remoteUnlockUntil, null)
+
   // Verrouillé (sortie par le code) : une demande à distance posée entre-temps, pas encore
   // appliquée, n'est jamais effacée par ce rapport.
-  assert.equal((await report(fy.device, { remainingS: 600, openedAgoS: 0, source: 'code' })).statusCode, 200)
+  assert.equal((await report(fy.device, { remainingS: 600, openedAgoS: 120, source: 'code' })).statusCode, 200)
   assert.equal((await unlock(owner, fy.kid.id)).statusCode, 200)
   assert.equal((await report(fy.device, { remainingS: 0 })).statusCode, 200)
   assert.notEqual((await kidOf(owner, fy.kid.id)).remoteUnlockUntil, null)
-  // Ni par la fermeture d'une sortie à distance ouverte AVANT cette demande.
+  // Ni par la fermeture d'une sortie ouverte AVANT cette demande.
   await ctx.db.query("UPDATE child_devices SET unlocked_until = now() + interval '5 minutes', unlock_source = 'remote', unlock_started_at = now() - interval '20 minutes' WHERE id = $1", [fy.device.device.id])
   assert.equal((await report(fy.device, { remainingS: 0 })).statusCode, 200)
   assert.notEqual((await kidOf(owner, fy.kid.id)).remoteUnlockUntil, null)
