@@ -732,20 +732,28 @@ const text = computed(() => {
     <UnlockPanel v-if="unlocking" :hash="parentHash" @close="unlocking = false" @unlocked="onUnlocked" />
     <SosSentView v-if="sosOpen" :state="sosState" :planned-calls="plannedCalls" :emergency="emergency" @cancel="cancelSos" @close="closeSos" @emergency="sosEmergency" />
   </main>
+  <!-- Écrans sans famille (attente, erreur, téléphone retiré ; planche 09, NAR-241) : le message
+       pour l'enfant au centre ; les actions des parents dans une seule carte ; les secours en bas
+       (sans famille, le SOS ne peut prévenir personne). -->
   <main v-else class="child">
-    <h1>Akaiky</h1>
-    <p class="waiting" role="status">{{ text.title }}</p>
-    <p v-if="text.hint" class="hint">{{ text.hint }}</p>
-    <AppButton v-if="state.kind === 'offline' || state.kind === 'tooMany' || state.kind === 'failed'" class="retry" :disabled="busy" @click="start">{{ t.child.retry }}</AppButton>
+    <div class="child-message">
+      <h1>Akaiky</h1>
+      <p class="waiting" role="status">{{ text.title }}</p>
+      <p v-if="text.hint" class="hint">{{ text.hint }}</p>
+      <AppButton v-if="state.kind === 'offline' || state.kind === 'tooMany' || state.kind === 'failed'" class="retry" :disabled="busy" @click="start">{{ t.child.retry }}</AppButton>
+    </div>
     <!-- Verrouillé sur un écran d'attente ou d'erreur : secours et sortie parent restent là. -->
     <template v-if="kiosk.status?.armed">
-      <button class="emergency" type="button" @click="callEmergency">{{ t.child.emergency(emergency) }}</button>
+      <section v-if="unlockedUntil !== undefined" class="parent-card">
+        <p class="parent-pill">{{ t.child.lock.mode }} · {{ t.child.lock.modeUntil(formatClock(new Date(unlockedUntil))) }}</p>
+        <template v-if="canRelease">
+          <AppButton block @click="release">{{ t.child.lock.release }}</AppButton>
+          <p class="release-hint">{{ t.child.lock.releaseHint }}</p>
+        </template>
+        <button class="relock-link" type="button" @click="lockNow().catch(() => {})">{{ t.child.lock.relock }}</button>
+      </section>
       <button v-if="canUnlock" class="parent-code" type="button" @click="unlocking = true">{{ t.child.lock.open }}</button>
-      <template v-if="unlockedUntil !== undefined">
-        <p class="hint">{{ t.child.lock.unlockedUntil(formatClock(new Date(unlockedUntil))) }}</p>
-        <AppButton v-if="canRelease" @click="release">{{ t.child.lock.release }}</AppButton>
-        <AppButton variant="ghost" @click="lockNow().catch(() => {})">{{ t.child.lock.relock }}</AppButton>
-      </template>
+      <button class="emergency" type="button" @click="callEmergency">{{ t.child.sos.callEmergency(emergency) }}</button>
       <UnlockPanel v-if="unlocking" :hash="parentHash" @close="unlocking = false" @unlocked="onUnlocked" />
     </template>
   </main>
@@ -756,8 +764,7 @@ const text = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
+  gap: 16px;
   min-height: 100vh;
   padding: calc(var(--safe-top) + 24px) calc(var(--gutter) + var(--safe-right)) calc(var(--safe-bottom) + 24px) calc(var(--gutter) + var(--safe-left));
   background: var(--bg-child);
@@ -1025,13 +1032,65 @@ h1 {
 }
 .emergency {
   min-height: var(--tap-child);
-  padding: 0 var(--space-5);
-  border: 2px solid var(--sos);
+  padding: 0 var(--space-6);
+  border: 1.5px solid var(--sos-line);
   border-radius: var(--radius-pill);
-  background: transparent;
+  background: var(--surface);
   color: var(--sos);
   font: inherit;
   font-weight: 900;
+}
+/* Planche 09 (NAR-241) : message de l'enfant au centre, carte des parents, secours en bas. */
+.child-message {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.parent-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  max-width: 28rem;
+  padding: 20px;
+  border: 1.5px solid var(--border);
+  border-radius: 24px;
+  background: var(--surface);
+}
+.parent-pill {
+  align-self: flex-start;
+  margin: 0;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.release-hint {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+}
+.relock-link {
+  align-self: center;
+  min-height: var(--tap-child);
+  padding: 0 16px;
+  border: 0;
+  background: none;
+  color: var(--text-soft);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
+.relock-link:focus-visible,
+.emergency:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
 }
 .unlocked {
   padding: 12px 16px;

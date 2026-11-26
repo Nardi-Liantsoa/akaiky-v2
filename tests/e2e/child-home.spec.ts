@@ -225,8 +225,17 @@ test('écran d’erreur verrouillé : réessayer, secours, rendre et reverrouill
     screening: { available: true, held: true }
   }, { offline: true })
   await expect(page.locator('main.child .retry')).toBeVisible()
-  await expect(page.locator('main.child .btn')).toHaveCount(3)
-  for (const sel of ['main.child .btn', 'main.child .emergency']) {
+  // Planche 09 (NAR-241) : actions des parents dans une carte ; une seule action principale.
+  const card = page.locator('.parent-card')
+  await expect(card.locator('.parent-pill')).toHaveText(/^Mode parent · jusqu’à \d\d:\d\d$/)
+  await expect(card.locator('.btn')).toHaveText('Libérer ce téléphone')
+  await expect(card).toContainText('Supprime tous les verrous Akaiky.')
+  await expect(card.getByRole('button', { name: 'Reverrouiller maintenant' })).toHaveClass(/relock-link/)
+  await expect(page.locator('main.child .emergency')).toHaveText('Appeler les secours · 117')
+  // Secours sous la carte, en bas de l'écran.
+  const cardBox = (await card.boundingBox())!
+  expect((await page.locator('main.child .emergency').boundingBox())!.y).toBeGreaterThan(cardBox.y + cardBox.height)
+  for (const sel of ['main.child .btn', 'main.child .emergency', '.relock-link']) {
     for (const h of await heights(page, sel)) expect(h, sel).toBeGreaterThanOrEqual(TAP_CHILD)
   }
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/3-erreur-verrouille.png` })

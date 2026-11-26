@@ -589,7 +589,9 @@ const fr = {
       modeUntil: (time: string) => `jusqu’à ${time}`,
       relockShort: 'Reverrouiller',
       failed: 'Le téléphone n’a pas pu être déverrouillé.',
-      release: 'Libérer ce téléphone (plus de verrou)'
+      // Planche 09 (NAR-241) : l'action, puis ce qu'elle fait, en dessous.
+      release: 'Libérer ce téléphone',
+      releaseHint: 'Supprime tous les verrous Akaiky.'
     }
   },
   parent: {
@@ -1363,7 +1365,8 @@ const mg: Messages = {
       modeUntil: (time: string) => `hatramin’ny ${time}`,
       relockShort: 'Hidio indray',
       failed: 'Tsy afaka nosokafana ny finday.',
-      release: 'Hanafaka ity finday ity (tsy hidiana intsony)'
+      release: 'Hanafaka ity finday ity',
+      releaseHint: 'Esorina daholo ny fanidiana Akaiky.'
     }
   },
   parent: {
@@ -2118,7 +2121,8 @@ const en: Messages = {
       modeUntil: (time: string) => `until ${time}`,
       relockShort: 'Lock again',
       failed: 'The phone could not be unlocked.',
-      release: 'Release this phone (no more lock)'
+      release: 'Release this phone',
+      releaseHint: 'Removes every Akaiky lock.'
     }
   },
   parent: {
