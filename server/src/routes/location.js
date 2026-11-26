@@ -52,7 +52,7 @@ export const positionAad = (id, field) => `positions:${field}:${id}`
 const childNotFound = () => new HttpError(404, 'Enfant introuvable.', 'child_not_found')
 
 // Coordonnée gardée au millionième de degré (~0,1 m) : la précision réelle est dans accuracy_m.
-const coord = (n) => String(Math.round(n * 1e6) / 1e6)
+export const coord = (n) => String(Math.round(n * 1e6) / 1e6)
 
 const POSITION = {
   type: 'object',

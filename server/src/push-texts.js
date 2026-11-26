@@ -29,6 +29,18 @@ const TEXTS = {
     fr: (n) => ({ title: `Le téléphone de ${n} ne répond plus`, body: 'Aucun signal depuis plus d’une heure.' }),
     en: (n) => ({ title: `${n}’s phone is not responding`, body: 'No signal for more than an hour.' })
   },
+  // SOS en ligne (NAR-248) : `id` = l'alerte ; l'app ouvre son écran (tranche 2). Prénom seul,
+  // jamais de position.
+  sos: {
+    mg: (n) => ({ title: `SOS : mila fanampiana i ${n}`, body: 'Sokafy ny Akaiky izao.' }),
+    fr: (n) => ({ title: `SOS : ${n} a besoin d’aide`, body: 'Ouvrez Akaiky maintenant.' }),
+    en: (n) => ({ title: `SOS: ${n} needs help`, body: 'Open Akaiky now.' })
+  },
+  sos_cancelled: {
+    mg: (n) => ({ title: `Nofoanan’i ${n} ny SOS`, body: 'Nofoanany tao anatin’ny segondra vitsy.' }),
+    fr: (n) => ({ title: `SOS annulé par ${n}`, body: 'Annulé dans les premières secondes.' }),
+    en: (n) => ({ title: `${n} cancelled the SOS`, body: 'Cancelled within the first seconds.' })
+  },
   test: {
     mg: () => ({ title: 'Fampandrenesana andrana', body: 'Mandeha amin’ity finday ity ny fampandrenesana.' }),
     fr: () => ({ title: 'Notification de test', body: 'Les notifications fonctionnent sur ce téléphone.' }),
@@ -40,6 +52,8 @@ const TEXTS = {
 const DATA_EVENTS = new Set(['config', 'locate'])
 // Événements dont `ref` est l'enfant (prénom lu sur l'enfant, NAR-147).
 export const CHILD_EVENTS = new Set(['battery_low', 'sim_absent', 'silent'])
+// Événements dont `ref` est une alerte SOS (prénom lu sur son enfant, NAR-248).
+export const SOS_EVENTS = new Set(['sos', 'sos_cancelled'])
 export const EVENTS = new Set([...Object.keys(TEXTS), ...DATA_EVENTS])
 export const kindOf = (event) => DATA_EVENTS.has(event) ? 'data' : 'notification'
 

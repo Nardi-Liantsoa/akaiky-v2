@@ -20,7 +20,7 @@ import pg from 'pg'
 import { blindIndex, openField, sealField } from './crypto-fields.js'
 import { withTransaction } from './db.js'
 import { SESSION_RULE } from './lib.js'
-import { CHILD_EVENTS, buildPayload, kindOf } from './push-texts.js'
+import { CHILD_EVENTS, SOS_EVENTS, buildPayload, kindOf } from './push-texts.js'
 
 export const PUSH_EVERY_MS = 10_000
 export const MAX_ATTEMPTS = 5
@@ -276,16 +276,19 @@ async function enqueue(conn, targets, params, event, ref) {
 // Sessions encore valables des membres de la famille (sauf `exceptUserId`) : même règle
 // que le hook de session (SESSION_RULE : adresse confirmée, second facteur vérifié là où
 // il est exigé), et session renouvelable.
+// Les SOS (NAR-248) ont leur propre plafond horaire par compte ('user:<id>:sos') : des
+// messages ou des alertes de batterie n'en privent jamais un parent.
 export function notifyFamily(conn, familyId, event, ref = null, { exceptUserId = null } = {}) {
+  const suffix = SOS_EVENTS.has(event) ? ':sos' : ''
   return enqueue(conn,
-    `SELECT t.id, 'user:' || s.user_id AS owner FROM push_tokens t
+    `SELECT t.id, 'user:' || s.user_id || $3::text AS owner FROM push_tokens t
        JOIN sessions s ON s.id = t.session_id
        JOIN users u ON u.id = s.user_id
        JOIN memberships m ON m.user_id = s.user_id AND m.family_id = $1
       WHERE COALESCE(s.refresh_expires_at, s.expires_at) > now() AND ${SESSION_RULE}
         AND ($2::uuid IS NULL OR s.user_id <> $2::uuid)
       ORDER BY t.id`,
-    [familyId, exceptUserId], event, ref)
+    [familyId, exceptUserId, suffix], event, ref)
 }
 
 // Téléphone de l'enfant (non révoqué). Réveils silencieux : `config` (prêt, pas encore branché),
@@ -346,6 +349,13 @@ export async function runPushWorker(db, provider, config, log, { batch = 50, con
   const { rows: kids } = childRefs.length ? await db.query(
     'SELECT id AS child_id, family_id, first_name_enc FROM children WHERE id = ANY($1::uuid[])', [childRefs]) : { rows: [] }
   const childById = new Map(kids.map((k) => [k.child_id, k]))
+  // Alerte SOS (NAR-248) : prénom de son enfant.
+  const sosRefs = claimed.filter((c) => SOS_EVENTS.has(c.event) && c.ref).map((c) => c.ref)
+  const { rows: alerts } = sosRefs.length ? await db.query(
+    `SELECT a.id, a.family_id, c.id AS child_id, c.first_name_enc,
+            (a.cancelled_at IS NULL AND a.handled_at IS NULL AND a.ends_at > now()) AS open FROM sos_alerts a
+       JOIN children c ON c.id = a.child_id AND c.family_id = a.family_id WHERE a.id = ANY($1::uuid[])`, [sosRefs]) : { rows: [] }
+  const sosById = new Map(alerts.map((a) => [a.id, a]))
   const userIds = [...new Set(tokens.map((t) => t.user_id).filter(Boolean))]
   const { rows: members } = userIds.length ? await db.query('SELECT user_id, family_id FROM memberships WHERE user_id = ANY($1::uuid[])', [userIds]) : { rows: [] }
   const isMember = (userId, familyId) => members.some((m) => m.user_id === userId && m.family_id === familyId)
@@ -368,9 +378,12 @@ export async function runPushWorker(db, provider, config, log, { batch = 50, con
     // Réveil `locate` resté en file au-delà de la consultation (worker en retard, Retry-After
     // long) : il ne réveillerait le téléphone pour rien.
     if (row.late) return finish(row, 'failed', 'expired')
+    // Alerte SOS annulée, prise en charge ou échue avant l'envoi (file en retard, nouvel essai) :
+    // « a besoin d'aide » ne part plus après « SOS annulé ».
+    if (row.event === 'sos' && sosById.get(row.ref) && !sosById.get(row.ref).open) return finish(row, 'failed', 'expired')
     let name = null
-    if (row.event === 'message' || CHILD_EVENTS.has(row.event)) {
-      const m = row.event === 'message' ? messageById.get(row.ref) : childById.get(row.ref)
+    if (row.event === 'message' || CHILD_EVENTS.has(row.event) || SOS_EVENTS.has(row.event)) {
+      const m = row.event === 'message' ? messageById.get(row.ref) : SOS_EVENTS.has(row.event) ? sosById.get(row.ref) : childById.get(row.ref)
       if (!m) return finish(row, 'failed', 'ref_missing')
       // Le destinataire doit être encore membre de la famille du message (départ entre-temps).
       if (t.session_id ? !isMember(t.user_id, m.family_id) : t.family_id !== m.family_id) return finish(row, 'failed', 'not_member')

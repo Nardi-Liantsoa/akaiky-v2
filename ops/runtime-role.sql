@@ -106,5 +106,8 @@ GRANT INSERT (lang), UPDATE (lang) ON users TO app_runtime;
 -- demandé par un gestionnaire (config_version suit par déclencheur).
 GRANT UPDATE (unlocked_until, unlock_source, unlock_started_at, lock_reported_at) ON child_devices TO app_runtime;
 GRANT UPDATE (relock_requested_at) ON children TO app_runtime;
+-- SOS en ligne (033_sos.sql) : alertes et événements en ajout ; annulation et prise en charge seules modifiables.
+GRANT SELECT, INSERT ON sos_alerts, sos_events TO app_runtime;
+GRANT UPDATE (cancelled_at, handled_by, handled_at) ON sos_alerts TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;
