@@ -621,6 +621,9 @@ async function release() {
   }
 }
 const unlockedUntil = computed(() => kiosk.status?.unlockedUntil)
+// Carte « Mode parent » des écrans sans famille (NAR-241) : jamais après l'heure de fin, même si
+// l'état du verrou n'a pas encore été relu.
+const parentOpen = computed(() => unlockedUntil.value !== undefined && unlockedUntil.value > now.value)
 async function openPhoneSettings() {
   await AkaikyKiosk.openSettings().catch(() => {})
 }
@@ -744,8 +747,8 @@ const text = computed(() => {
     </div>
     <!-- Verrouillé sur un écran d'attente ou d'erreur : secours et sortie parent restent là. -->
     <template v-if="kiosk.status?.armed">
-      <section v-if="unlockedUntil !== undefined" class="parent-card">
-        <p class="parent-pill">{{ t.child.lock.mode }} · {{ t.child.lock.modeUntil(formatClock(new Date(unlockedUntil))) }}</p>
+      <section v-if="parentOpen" class="parent-card">
+        <p class="parent-pill" role="status">{{ t.child.lock.mode }} · {{ t.child.lock.modeUntil(formatClock(new Date(unlockedUntil ?? 0))) }}</p>
         <template v-if="canRelease">
           <AppButton block @click="release">{{ t.child.lock.release }}</AppButton>
           <p class="release-hint">{{ t.child.lock.releaseHint }}</p>
@@ -753,6 +756,7 @@ const text = computed(() => {
         <button class="relock-link" type="button" @click="lockNow().catch(() => {})">{{ t.child.lock.relock }}</button>
       </section>
       <button v-if="canUnlock" class="parent-code" type="button" @click="unlocking = true">{{ t.child.lock.open }}</button>
+      <p v-if="callError" class="call-error" role="alert">{{ t.child.callFailed }}</p>
       <button class="emergency" type="button" @click="callEmergency">{{ t.child.sos.callEmergency(emergency) }}</button>
       <UnlockPanel v-if="unlocking" :hash="parentHash" @close="unlocking = false" @unlocked="onUnlocked" />
     </template>
@@ -1049,23 +1053,24 @@ h1 {
   justify-content: center;
   gap: 8px;
 }
+/* Pastille à gauche, explication centrée sous le bouton : comme la planche 09. */
 .parent-card {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 10px;
+  gap: var(--space-2);
   width: 100%;
   max-width: 28rem;
-  padding: 20px;
+  padding: var(--space-5) var(--space-4);
   border: 1.5px solid var(--border);
-  border-radius: 24px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
 .parent-pill {
   align-self: flex-start;
   margin: 0;
-  padding: 7px 14px;
-  border-radius: 999px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-pill);
   background: var(--accent-soft);
   color: var(--accent-deep);
   font-size: 0.9rem;
@@ -1079,7 +1084,7 @@ h1 {
 .relock-link {
   align-self: center;
   min-height: var(--tap-child);
-  padding: 0 16px;
+  padding: 0 var(--space-4);
   border: 0;
   background: none;
   color: var(--text-soft);
