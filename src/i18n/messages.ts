@@ -558,9 +558,9 @@ const fr = {
       refused: (text: string) => `« ${text} » n’a pas pu partir. Réessaie.`,
       seen: (name: string, time: string) => `${name} l’a vu · ${time}`,
       close: 'Fermer',
-      // Planche 07 (NAR-240) : à qui partent les messages, et la confirmation qui le dit.
-      help: (names: string) => (names ? `Touche un message, ${names} le reçoivent.` : 'Touche un message, tes parents le reçoivent.'),
-      sentTo: (text: string, names: string) => (names ? `« ${text} » envoyé à ${names}` : `« ${text} » envoyé à tes parents`)
+      // Planche 07 (NAR-240) : à qui partent les messages (toute la famille : chaque membre le reçoit).
+      help: 'Touche un message, ta famille le reçoit.',
+      sentTo: (text: string) => `« ${text} » envoyé à ta famille`
     },
     screening: {
       off: 'Filtrage des appels inactif : n’importe quel numéro peut appeler ce téléphone.',
@@ -575,7 +575,8 @@ const fr = {
       hint: 'Réservé aux parents.',
       noCode: 'Aucun code parent n’est encore défini. Un parent doit le choisir dans son application, dans Réglages.',
       wrong: 'Code incorrect, réessaie.',
-      wait: (min: number, sec: number) => `Trop d’essais. Réessayez dans ${min ? `${min} min ` : ''}${sec} s.`,
+      // Tutoiement, comme « Code incorrect, réessaie. » (planche 08, NAR-240).
+      wait: (min: number, sec: number) => `Trop d’essais. Réessaie dans ${min ? `${min} min ` : ''}${sec} s.`,
       checking: 'Vérification…',
       close: 'Fermer',
       erase: 'Effacer',
@@ -1335,8 +1336,8 @@ const mg: Messages = {
       refused: (text: string) => `Tsy lasa ny « ${text} ». Andramo indray.`,
       seen: (name: string, time: string) => `Hitan’i ${name} · ${time}`,
       close: 'Hidiana',
-      help: (names: string) => (names ? `Tsindrio hafatra iray, ho azon’i ${names} izany.` : 'Tsindrio hafatra iray, ho azon’ny ray aman-dreninao izany.'),
-      sentTo: (text: string, names: string) => (names ? `Lasa any amin’i ${names} ny « ${text} »` : `Lasa any amin’ny ray aman-dreninao ny « ${text} »`)
+      help: 'Tsindrio hafatra iray, ho azon’ny fianakavianao izany.',
+      sentTo: (text: string) => `Lasa any amin’ny fianakavianao ny « ${text} »`
     },
     screening: {
       off: 'Tsy mandeha ny sivana antso : afaka miantso ity finday ity ny laharana rehetra.',
@@ -2090,8 +2091,8 @@ const en: Messages = {
       refused: (text: string) => `“${text}” could not be sent. Try again.`,
       seen: (name: string, time: string) => `${name} saw it · ${time}`,
       close: 'Close',
-      help: (names: string) => (names ? `Tap a message and ${names} get it.` : 'Tap a message and your parents get it.'),
-      sentTo: (text: string, names: string) => (names ? `“${text}” sent to ${names}` : `“${text}” sent to your parents`)
+      help: 'Tap a message and your family gets it.',
+      sentTo: (text: string) => `“${text}” sent to your family`
     },
     screening: {
       off: 'Call filtering is off: any number can call this phone.',

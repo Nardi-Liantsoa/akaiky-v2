@@ -234,10 +234,10 @@ avant/après et note) : `docs/maquettes/2026-11-enfant/`, appliquée écran par 
    échec : « Le SOS n'a pas pu partir », même carte des secours sans « Personne n'a répondu ».
    Écart : pas de « sonne depuis 8 s » (le service ne donne pas l'heure de l'appel).
 4. **Messages rapides** (NAR-240, planche 07) — flèche de retour ronde (44 px, cible 64) et titre
-   à gauche, aide « Touche un message, Maman et Papa le reçoivent. » (contacts parents, sinon « tes
-   parents »), quatre grandes tuiles icône + texte, la tuile envoyée bordée `--call` avec une
+   à gauche, aide « Touche un message, ta famille le reçoit. » (écart à la maquette, qui nomme Maman et
+   Papa : chaque membre de la famille reçoit le message), quatre grandes tuiles icône + texte, la tuile envoyée bordée `--call` avec une
    coche ; confirmation en bas sur fond `--ink` avec pastille verte : « « Je suis arrivé » envoyé
-   à Maman et Papa », puis « … · Maman l'a vu · 16:05 ».
+   à ta famille » (coche et contour une fois parti, pas en file hors ligne), puis « … · Maman l'a vu · 16:05 ».
    **Code parent** (planche 08) — flèche de retour en haut à gauche (plus de « Fermer » dans le
    pavé), cadenas blanc sur rond `--ink` de 64 px, titre, « Réservé aux parents. », six points ;
    code faux : points rouges et « Code incorrect, réessaie. » juste dessous ; touches pleines

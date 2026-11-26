@@ -194,7 +194,8 @@ h2 {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  min-height: 3rem;
+  /* 3 lignes : le message le plus long (attente, malgache, police agrandie) tient sans bouger le pavé. */
+  min-height: 4.5rem;
   margin: 4px 0;
   max-width: 24em;
   text-align: center;

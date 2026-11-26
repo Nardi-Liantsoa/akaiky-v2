@@ -397,6 +397,8 @@ test('code parent faux : points rouges, « Code incorrect, réessaie. » sous le
   const dots = (await pad.locator('.dots').boundingBox())!
   const msg = (await pad.locator('.message').boundingBox())!
   expect(msg.y - (dots.y + dots.height)).toBeLessThan(24)
+  // Place réservée sous les points : un message long ne fait jamais bouger le pavé.
+  await expect(pad.locator('.message')).toHaveCSS('min-height', '72px')
   await expect(pad.getByRole('button', { name: 'Fermer' })).toBeVisible()
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/code-faux.png` })
   await page.keyboard.press('Escape')
@@ -408,11 +410,11 @@ test('dire à mes parents : aide, tuile envoyée cochée, confirmation en bas ; 
   await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: true }, screening: { available: true, held: true } })
   await page.getByRole('button', { name: 'Dire à mes parents' }).click()
   const panel = page.getByRole('dialog', { name: 'Dire à mes parents' })
-  await expect(panel.locator('.help')).toHaveText('Touche un message, Maman, Papa, Mamie et Tonton le reçoivent.')
+  await expect(panel.locator('.quick-help')).toHaveText('Touche un message, ta famille le reçoit.')
   await panel.getByRole('button', { name: 'Je suis arrivé' }).click()
   await expect(panel.locator('.tile.sent')).toHaveCount(1)
   await expect(panel.locator('.tile.sent .check')).toBeVisible()
-  await expect(panel.locator('.toast')).toContainText('« Je suis arrivé »')
+  await expect(panel.locator('.toast')).toHaveText('« Je suis arrivé » envoyé à ta famille')
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/dire-parents.png` })
   await panel.getByRole('button', { name: 'Fermer' }).click()
   await expect(panel).toHaveCount(0)

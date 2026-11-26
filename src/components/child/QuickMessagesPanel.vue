@@ -7,13 +7,14 @@ import { formatClock } from '../../lib/format'
 import { QUICK_SLOTS, QUICK_TINT, quickText, type QuickSlot } from '../../lib/quickMessages'
 import { deviceConfig } from '../../composables/useDeviceConfig'
 import { pushSheet } from '../../composables/useSheetStack'
-import { joinNames } from '../../lib/joinNames'
 import AppIcon from '../ui/AppIcon.vue'
 
-// « Dire à mes parents » (NAR-150 ; planche 07, NAR-240) : flèche de retour, phrase d'aide qui
-// nomme les parents, 4 grandes tuiles (icône, couleur, texte), la tuile envoyée cochée. Un appui,
+// « Dire à mes parents » (NAR-150 ; planche 07, NAR-240) : flèche de retour, phrase d'aide (« ta
+// famille le reçoit » : chaque membre reçoit le message, pas seulement les parents), 4 grandes tuiles (icône, couleur, texte), la tuile envoyée cochée. Un appui,
 // un message : noté dans la file puis envoyé ; hors ligne, il part au retour du réseau. La
-// confirmation, en bas, dit à qui il est parti, puis « Maman l'a vu · 16:05 ».
+// confirmation, en bas, dit qu'il est parti, puis « Maman l'a vu · 16:05 ».
+// sent : coche et contour seulement une fois le message parti (pas en file hors ligne).
+const sentSlot = computed(() => (last.value && (last.value.state === 'sent' || seen.value) ? last.value.slot : null))
 const emit = defineEmits<{ close: [] }>()
 const t = useT()
 const busy = ref(false)
@@ -43,8 +44,6 @@ let pop: (() => void) | undefined
 onMounted(() => { pop = pushSheet(() => emit('close')) })
 onBeforeUnmount(() => { clearInterval(poll); clearTimeout(unbusy); pop?.() })
 
-// Parents nommés (contacts liés à un parent, configuration du téléphone) ; aucun : « tes parents ».
-const parents = computed(() => joinNames((deviceConfig.config?.contacts ?? []).filter((c) => c.parent === true).map((c) => c.name), t.value.child.school.and))
 
 async function send(slot: QuickSlot) {
   if (busy.value) return
@@ -71,7 +70,7 @@ const toast = computed(() => {
   const text = last.value.text
   if (seen.value) return `${t.value.child.quick.sent(text)} · ${t.value.child.quick.seen(seen.value.name, formatClock(new Date(seen.value.readAt)))}`
   if (last.value.state === 'refused') return t.value.child.quick.refused(text)
-  return last.value.state === 'sent' ? t.value.child.quick.sentTo(text, parents.value) : t.value.child.quick.queued(text)
+  return last.value.state === 'sent' ? t.value.child.quick.sentTo(text) : t.value.child.quick.queued(text)
 })
 const toastKind = computed(() => (last.value?.state === 'refused' ? 'bad' : last.value?.state === 'queued' && !seen.value ? 'wait' : 'ok'))
 </script>
@@ -86,13 +85,13 @@ const toastKind = computed(() => (last.value?.state === 'refused' ? 'bad' : last
         </button>
         <h2 id="quick-title">{{ t.child.quick.title }}</h2>
       </header>
-      <p class="help">{{ t.child.quick.help(parents) }}</p>
+      <p class="quick-help">{{ t.child.quick.help }}</p>
       <div class="tiles">
         <button
-          v-for="slot in QUICK_SLOTS" :key="slot" type="button" class="tile" :class="{ sent: last?.slot === slot && last.state !== 'refused' }"
+          v-for="slot in QUICK_SLOTS" :key="slot" type="button" class="tile" :class="{ sent: sentSlot === slot }"
           :style="{ background: QUICK_TINT[slot] }" :disabled="busy" @click="send(slot)"
         >
-          <span v-if="last?.slot === slot && last.state !== 'refused'" class="check" aria-hidden="true"><AppIcon name="check" :size="16" /></span>
+          <span v-if="sentSlot === slot" class="check" aria-hidden="true"><AppIcon name="check" :size="16" /></span>
           <QuickIcon :kind="slot" :size="48" />
           <span>{{ label(slot) }}</span>
         </button>
@@ -149,7 +148,7 @@ h2 {
   font-size: 1.6rem;
   font-weight: 900;
 }
-.help {
+.quick-help {
   margin: -6px 0 0;
   color: var(--text-soft);
   font-weight: 600;
