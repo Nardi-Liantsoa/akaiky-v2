@@ -557,7 +557,10 @@ const fr = {
       queued: (text: string) => `« ${text} » partira dès le retour du réseau`,
       refused: (text: string) => `« ${text} » n’a pas pu partir. Réessaie.`,
       seen: (name: string, time: string) => `${name} l’a vu · ${time}`,
-      close: 'Fermer'
+      close: 'Fermer',
+      // Planche 07 (NAR-240) : à qui partent les messages (toute la famille : chaque membre le reçoit).
+      help: 'Touche un message, ta famille le reçoit.',
+      sentTo: (text: string) => `« ${text} » envoyé à ta famille`
     },
     screening: {
       off: 'Filtrage des appels inactif : n’importe quel numéro peut appeler ce téléphone.',
@@ -571,8 +574,9 @@ const fr = {
       title: 'Code parent',
       hint: 'Réservé aux parents.',
       noCode: 'Aucun code parent n’est encore défini. Un parent doit le choisir dans son application, dans Réglages.',
-      wrong: 'Code incorrect.',
-      wait: (min: number, sec: number) => `Trop d’essais. Réessayez dans ${min ? `${min} min ` : ''}${sec} s.`,
+      wrong: 'Code incorrect, réessaie.',
+      // Tutoiement, comme « Code incorrect, réessaie. » (planche 08, NAR-240).
+      wait: (min: number, sec: number) => `Trop d’essais. Réessaie dans ${min ? `${min} min ` : ''}${sec} s.`,
       checking: 'Vérification…',
       close: 'Fermer',
       erase: 'Effacer',
@@ -1331,7 +1335,9 @@ const mg: Messages = {
       queued: (text: string) => `Handeha ny « ${text} » rehefa misy tambajotra indray`,
       refused: (text: string) => `Tsy lasa ny « ${text} ». Andramo indray.`,
       seen: (name: string, time: string) => `Hitan’i ${name} · ${time}`,
-      close: 'Hidiana'
+      close: 'Hidiana',
+      help: 'Tsindrio hafatra iray, ho azon’ny fianakavianao izany.',
+      sentTo: (text: string) => `Lasa any amin’ny fianakavianao ny « ${text} »`
     },
     screening: {
       off: 'Tsy mandeha ny sivana antso : afaka miantso ity finday ity ny laharana rehetra.',
@@ -1344,7 +1350,7 @@ const mg: Messages = {
       title: 'Kaody ray aman-dreny',
       hint: 'Ho an’ny ray aman-dreny ihany.',
       noCode: 'Mbola tsy misy kaody ray aman-dreny. Tokony hisafidy azy ao amin’ny fampiharany ny ray aman-dreny, ao amin’ny Fandrindrana.',
-      wrong: 'Diso ny kaody.',
+      wrong: 'Diso ny kaody, andramo indray.',
       wait: (min: number, sec: number) => `Andrana be loatra. Andramo indray afaka ${min ? `${min} min ` : ''}${sec} s.`,
       checking: 'Manamarina…',
       close: 'Hidiana',
@@ -2084,7 +2090,9 @@ const en: Messages = {
       queued: (text: string) => `“${text}” will be sent when the network is back`,
       refused: (text: string) => `“${text}” could not be sent. Try again.`,
       seen: (name: string, time: string) => `${name} saw it · ${time}`,
-      close: 'Close'
+      close: 'Close',
+      help: 'Tap a message and your family gets it.',
+      sentTo: (text: string) => `“${text}” sent to your family`
     },
     screening: {
       off: 'Call filtering is off: any number can call this phone.',
@@ -2097,7 +2105,7 @@ const en: Messages = {
       title: 'Parent code',
       hint: 'For parents only.',
       noCode: 'No parent code has been set yet. A parent must choose it in their app, under Settings.',
-      wrong: 'Wrong code.',
+      wrong: 'Wrong code, try again.',
       wait: (min: number, sec: number) => `Too many attempts. Try again in ${min ? `${min} min ` : ''}${sec} s.`,
       checking: 'Checking…',
       close: 'Close',

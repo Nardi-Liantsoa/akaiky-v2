@@ -39,7 +39,9 @@ createApp(App).use(router).mount('#app')
 // revient en arrière dans l'app, sinon la quitte (comportement par défaut de Capacitor).
 if (Capacitor.getPlatform() === 'android') {
   appKind().then((kind) => {
-    if (kind === 'enfant') { NativeApp.addListener('backButton', () => {}).catch(() => {}); return }
+    // App enfant (NAR-240) : le retour ferme seulement le panneau du dessus (messages, code parent,
+    // SOS fini) ; sinon il ne fait rien (jamais de sortie d'Akaiky).
+    if (kind === 'enfant') { NativeApp.addListener('backButton', () => { closeTopSheet() }).catch(() => {}); return }
     // Sur un onglet (racine), l'app passe en arrière-plan comme avec le retour natif
     // d'Android 12+ : jamais de retour vers la connexion, que les gardes renverraient ici.
     NativeApp.addListener('backButton', ({ canGoBack }) => {
