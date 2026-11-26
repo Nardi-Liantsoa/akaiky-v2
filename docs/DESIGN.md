@@ -216,12 +216,20 @@ avant/après et note) : `docs/maquettes/2026-11-enfant/`, appliquée écran par 
    fantôme (cadre en tirets, avatars pâles, « Papa, Tonton et Mamie reviennent à 23:30 ») ; mode
    parent : barre verte en haut (« Mode parent / jusqu'à … », engrenage, « Reverrouiller » blanc ;
    visuels de 44 px dans des cibles de 64 px), sans cadenas.
-2. **SOS — maintien** — fond rouge, « Continue d'appuyer… », anneau de progression et
-   décompte, trois traits d'étape, « Lâche pour arrêter » ; vibration à chaque seconde,
-   rien n'est envoyé tant que le cercle n'est pas plein.
-3. **SOS — envoyée** — « Alerte envoyée », trois étapes (parents prévenus, cascade
-   d'appels en cours, position partagée toutes les 30 s), « Appeler les secours · 117 »
-   (numéro selon le pays), « Annuler · encore 4 s ».
+2. **SOS — maintien** (NAR-239, planche 10) — pendant l'appui de 3 s, voile plein écran
+   `--sos-veil` (sans capter le toucher), décompte 3 · 2 · 1 en très grand, « Continue
+   d'appuyer… », « Tes parents seront prévenus. Lâche le doigt pour annuler. » ; anneau blanc qui
+   fait le tour du bouton en 3 s, « 2 s sur 3 » dessous (`--sos-veil-ink`) ; le bouton ne change
+   jamais de taille (le doigt n'en sort pas). Rien n'est lancé avant la fin. Vibration à chaque
+   seconde : pas encore (permission `VIBRATE`, nouvelle coque, à valider).
+3. **SOS en cours** (NAR-239, planche 11) — fond `--sos-deep`, « ALERTE EN COURS » / « On
+   prévient ta famille », étapes dans une carte translucide : faite (coche blanche), en cours
+   (initiale du contact appelé, « ça sonne… »), à venir (cercle en tirets, « Ensuite : … / si
+   Maman ne répond pas ») ; « Appeler les secours · 117 » blanc, « Annuler l'alerte » bordé.
+   **Alerte envoyée** (planche 12) — réussites en coches (« Tes parents ont reçu un SMS », « Ta
+   position est dans le SMS ») ; personne n'a répondu : carte blanche « PERSONNE N'A RÉPONDU /
+   Si tu es en danger, appelle les secours. » et « Appeler le 117 » rouge ; « Fermer » en lien
+   discret. Écart : pas de « sonne depuis 8 s » (le service ne donne pas l'heure de l'appel).
 4. **Messages rapides** — « Dire à mes parents », quatre grandes tuiles icône + texte,
    toast de confirmation « … envoyé · Maman l'a vu · 16:05 ».
 5. **Plage « école »** — depuis NAR-238 (planche 04) : pastille « École jusqu'à 16:00 », seuls

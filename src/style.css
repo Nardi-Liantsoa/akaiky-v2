@@ -30,6 +30,9 @@
   --ink-mute: #5f6673; /* ≥ 4.5:1 sur --bg-parent et --surface-muted */
   --sos: #c8261b;
   --sos-deep: #8e170f;
+  /* Voile de l'appui long sur SOS (planche 10, NAR-239). */
+  --sos-veil: rgb(90 16 10 / 0.86);
+  --sos-veil-ink: #ffd9d4;
   --call: #0b795c;
   --navy: #203f82;
   --on-color: #ffffff;
