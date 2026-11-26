@@ -15,6 +15,11 @@ export interface Child {
   parentCodeResetRequestedAt?: string | null
   // Fin d'un déverrouillage demandé à distance (NAR-168), absente une fois passée.
   remoteUnlockUntil: string | null
+  // Sortie du verrou en cours sur un téléphone de l'enfant, rapportée par lui (NAR-216) ;
+  // null = verrouillé. Facultatif : absent d'une réponse plus ancienne.
+  phoneUnlock?: { until: string, source: 'code' | 'remote', startedAt: string } | null
+  // Dernier reverrouillage demandé par un gestionnaire (NAR-216).
+  relockRequestedAt?: string | null
   // Dernier passage du téléphone de l'enfant (NAR-174) ; null sans téléphone relié.
   phoneLastSeenAt: string | null
   // Sirène pendant un SOS (NAR-151), appliquée hors ligne par le téléphone de l'enfant.
@@ -35,5 +40,8 @@ export const setParentCode = (id: string, code: string) =>
   api.put<{ parentCodeSetAt: string }>(`/children/${encodeURIComponent(id)}/parent-code`, { code })
 export const remoteUnlock = (id: string) =>
   api.post<{ remoteUnlockUntil: string }>(`/children/${encodeURIComponent(id)}/unlock`)
+// Reverrouillage à distance (NAR-216) : rien d'ouvert = rien d'écrit (heure de la demande précédente).
+export const remoteRelock = (id: string) =>
+  api.del<{ relockRequestedAt: string | null }>(`/children/${encodeURIComponent(id)}/unlock`)
 export const setSosSiren = (id: string, enabled: boolean) =>
   api.put<{ sosSiren: boolean }>(`/children/${encodeURIComponent(id)}/sos-siren`, { enabled })

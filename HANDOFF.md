@@ -488,6 +488,11 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   (droit du shell) lance l'appel : le composeur est dans le lock task par conception, le filtrage des appels sortants est
   NAR-169. Non essayé depuis l'application autorisée elle-même (pas d'outil pour l'y faire lancer) : le lock task juge le
   paquet visé, pas l'appelant.
+- **Reverrouillage à distance (NAR-216)** : l'ordre passe par la configuration du téléphone, relue toutes les 30 s par la
+  WebView, en arrière-plan compris pendant une sortie (l'enfant est alors dans une autre app). Android peut ralentir ou
+  suspendre une WebView en arrière-plan : aucun délai garanti avant l'échéance des 15 minutes (au pire). Un ordre natif
+  (réveil push reçu écran éteint, NAR-179) demanderait une nouvelle coque. Une sortie encore ouverte quand la session du
+  téléphone est perdue (retrait, réappairage) n'est pas journalisée : la file d'envoi est vidée avec la session.
 - **Réglages pendant une sortie (NAR-246)** : Bien-être numérique (`com.google.android.apps.wellbeing`, Samsung
   `com.samsung.android.forest`) était caché comme toute app lançable non autorisée ; les Réglages d'Android 14 lisent son
   fournisseur de données dès leur page d'accueil et plantaient (`SecurityException: Failed to find provider`), d'où la

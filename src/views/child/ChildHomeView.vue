@@ -5,8 +5,9 @@ import { App } from '@capacitor/app'
 import { locale, useT } from '../../composables/useT'
 import { appKind } from '../../lib/appKind'
 import { startChild, type ChildState } from '../../lib/childStartup'
-import { appInventory, callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore, remoteUnlockSeen, messageOutbox, heartbeat } from '../../lib/deviceSessionInstance'
-import { deviceConfig, pause, refreshNow, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
+import { appInventory, callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore, remoteUnlockSeen, messageOutbox, heartbeat, lockReporter } from '../../lib/deviceSessionInstance'
+import { lockBody, matchingWindow, relockDue } from '../../lib/lockReport'
+import { deviceConfig, pause, pollNow, refreshNow, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
 import { emergencyNumber } from '../../lib/emergency'
 import { sosPlan } from '../../lib/sos'
 import { buildSosPlan, confirmNativeSos } from '../../lib/sosCascade'
@@ -97,7 +98,7 @@ onMounted(async () => {
   const handle = await App.addListener('appStateChange', ({ isActive }) => {
     foreground = isActive
     if (isActive) startClock(); else stopClock()
-    if (isActive) { void refreshKiosk().catch(() => {}).then(() => applyRemoteUnlock()); void readScreening(); void readSos() }
+    if (isActive) { void refreshKiosk().catch(() => {}).then(() => { void applyRemoteUnlock(); void reportLock() }); void readScreening(); void readSos() }
     if (isActive && state.value.kind === 'paired') { resume(); startStatus(); startLocate(); syncJournal(); void backgroundStatus.ensure(); void syncApps(); checkUpdate(); void registerPush(state.value) } else { pause(); stopStatus(); stopLocate(); clearTimeout(journalRetry) }
   })
   // SOS en cours (NAR-151) : état poussé par le service natif quand la WebView est éveillée,
@@ -207,7 +208,8 @@ function startStatus() {
   void readStatus()
   // Le téléphone reste sur l'app (verrou) : les appels bloqués sont repris chaque minute.
   // Liste renvoyée aussi : un premier envoi manqué laisserait le filtre inactif.
-  statusTimer = setInterval(() => { void readStatus(); syncJournal(); void pushAllowed() }, 60_000)
+  // État du verrou renvoyé aussi : un rapport manqué (hors ligne) repart à ce tour.
+  statusTimer = setInterval(() => { void readStatus(); syncJournal(); void pushAllowed(); void reportLock() }, 60_000)
 }
 watch(() => state.value.kind === 'paired', startStatus)
 
@@ -266,7 +268,8 @@ function startPush(): Promise<void> {
         if (state.value.kind !== 'paired' || !foreground) return
         const type = pushType(notification.data)
         if (type === 'locate') readLocate()
-        else if (type === 'config') void refreshNow()
+        // Pendant une sortie du verrou, l'app est en arrière-plan : relevé quand même (NAR-216).
+        else if (type === 'config') void (isUnlocked() ? pollNow() : refreshNow())
       })
     ])
     const handles = results.flatMap((r) => r.status === 'fulfilled' ? [r.value] : [])
@@ -583,8 +586,8 @@ async function applyRemoteUnlock() {
       if (status?.unlockedUntil === undefined) continue
       appliedRemote = until
       await remoteUnlockSeen.set(until).catch(() => {})
-      await callJournal.unlocked('remote', minutes).catch(() => {})
-      syncJournal()
+      await callJournal.unlockOpened('remote', minutes).catch(() => {})
+      void reportLock()
     } while (rerun)
   } finally {
     applyingRemote = false
@@ -592,12 +595,55 @@ async function applyRemoteUnlock() {
 }
 // Relu quand la demande change, quand le verrou s'arme, et à chaque reprise de l'app.
 watch(() => [deviceConfig.config?.remoteUnlockUntil, kiosk.status?.armed] as const, () => { void applyRemoteUnlock() })
-// Sortie par le code saisi sur le téléphone : notée au journal (15 minutes).
+// Sortie par le code saisi sur le téléphone : notée, envoyée au journal à sa fermeture.
 async function onUnlocked() {
   unlocking.value = false
-  await callJournal.unlocked('code', UNLOCK_MINUTES).catch(() => {})
-  syncJournal()
+  await callJournal.unlockOpened('code', UNLOCK_MINUTES).catch(() => {})
+  void reportLock()
 }
+
+// État réel du verrou rapporté au serveur (NAR-216) : la carte du parent montre la sortie en
+// cours et peut la refermer. Envoyé à chaque ouverture, fermeture (bouton, alarme, demande du
+// parent) et reprise ; un rapport manqué repart au tour suivant. Fermeture : la sortie part au
+// journal avec sa durée réelle.
+async function reportLock() {
+  if (!Capacitor.isNativePlatform() || state.value.kind !== 'paired' || !kiosk.status) return
+  const until = kiosk.status.unlockedUntil
+  const now = Date.now()
+  const open = until !== undefined && until > now
+  if (!open && (await callJournal.openWindow().catch(() => null))) {
+    await callJournal.unlockClosed().catch(() => {})
+    syncJournal()
+  }
+  const window = open ? matchingWindow(until, await callJournal.openWindow().catch(() => null)) : null
+  const body = lockBody(until, window, now)
+  // La clé distingue l'ouverture exacte (sortie notée) de l'ouverture provisoire : l'exacte part aussi.
+  const key = 'source' in body ? `open:${body.source}:${until}:${window ? 'noted' : 'guess'}` : 'locked'
+  if (await lockReporter.report(body, key)) checkRelock()
+}
+// Reverrouillage demandé par un parent après l'ouverture de la sortie en cours (deux heures du
+// serveur) : refermée tout de suite. Une demande plus ancienne ne referme jamais une sortie
+// ouverte ensuite ; hors ligne, la sortie se referme de toute façon à son échéance. Un échec du
+// natif est réessayé au plus toutes les 30 s (jamais en boucle à chaque relevé).
+let relockTriedAt = 0
+function checkRelock() {
+  if (!isUnlocked() || !relockDue(deviceConfig.config?.relockRequestedAt, lockReporter.startedAt())) return
+  if (Date.now() - relockTriedAt < 30_000) return
+  relockTriedAt = Date.now()
+  void lockNow().catch((e: unknown) => { console.warn('Akaiky : reverrouillage demandé par le parent en échec', e) })
+}
+// Premier état lu du natif (démarrage à froid), chaque ouverture ou fermeture, et appairage.
+watch(() => [kiosk.status?.unlockedUntil, !!kiosk.status, state.value.kind] as const, () => { void reportLock() })
+// Pendant une sortie, l'enfant est dans une autre app (Akaiky en arrière-plan, relevés suspendus) :
+// configuration relue toutes les 30 s quand même, pour qu'un ordre de reverrouillage passe
+// (au mieux : Android peut ralentir la WebView en arrière-plan ; au pire, l'échéance).
+let relockWatch: ReturnType<typeof setInterval> | undefined
+watch(() => kiosk.status?.unlockedUntil !== undefined && state.value.kind === 'paired', (open) => {
+  clearInterval(relockWatch)
+  relockWatch = open ? setInterval(() => { void pollNow().then(() => reportLock()) }, 30_000) : undefined
+})
+// Demande reçue (relevé ou réveil push `config`) : rapport d'abord (ouverture connue du serveur), puis la règle.
+watch(() => deviceConfig.config?.relockRequestedAt, () => { void reportLock() })
 
 const unlocking = ref(false)
 // « Dire à mes parents » (NAR-150).
@@ -642,7 +688,7 @@ function checkUpdate() {
 watch(() => deviceConfig.config?.apk, checkUpdate)
 // Téléphone retiré pendant l'usage : l'écran le dit.
 watch(() => deviceConfig.status, (s) => { if (s === 'lost') state.value = { kind: 'revoked' } })
-onBeforeUnmount(() => { setOtaScreenBusy(() => true); unmounted = true; pushListeners.forEach((h) => void h.remove()); childPush.stop(); clearInterval(sosWatch); clearInterval(schoolWatch); stopClock(); pause(); stopStatus(); stopLocate(); clearTimeout(journalRetry); void lifecycle?.remove(); void sosListener?.remove() })
+onBeforeUnmount(() => { setOtaScreenBusy(() => true); unmounted = true; pushListeners.forEach((h) => void h.remove()); childPush.stop(); clearInterval(sosWatch); clearInterval(schoolWatch); clearInterval(relockWatch); stopClock(); pause(); stopStatus(); stopLocate(); clearTimeout(journalRetry); void lifecycle?.remove(); void sosListener?.remove() })
 
 const text = computed(() => {
   const c = t.value.child

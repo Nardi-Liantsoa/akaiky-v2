@@ -9,6 +9,7 @@ import { openField, sealField } from '../crypto-fields.js'
 import { normalizePhone } from '../phone.js'
 import { hashParentCode, parentCodeProblem, reserveHashSlot } from '../parent-code.js'
 import { createLimiter } from '../security.js'
+import { notifyDevice } from '../push.js'
 
 export const AVATAR_COLORS = ['orange', 'blue', 'violet', 'green', 'yellow']
 
@@ -52,7 +53,13 @@ export const REMOTE_UNLOCK_SQL = 'CASE WHEN remote_unlock_until > now() THEN rem
 // Dernier passage d'un téléphone appairé non révoqué (état « vu à … » de la carte, NAR-174).
 const LAST_SEEN_SQL = `(SELECT max(d.last_seen_at) FROM child_devices d
   WHERE d.child_id = children.id AND d.family_id = children.family_id AND d.revoked_at IS NULL) AS phone_last_seen_at`
-const COLUMNS = `id, first_name_enc, phone_enc, avatar_color, created_at, parent_code_set_at, parent_code_reset_requested_at, sos_siren, ${REMOTE_UNLOCK_SQL}, ${LAST_SEEN_SQL}`
+// Sortie du verrou en cours sur un téléphone actif (NAR-216), telle que rapportée par lui :
+// la plus longue, tant que son échéance n'est pas passée.
+const PHONE_LOCK_SQL = `(SELECT json_build_object('until', d.unlocked_until, 'source', d.unlock_source, 'startedAt', d.unlock_started_at)
+  FROM child_devices d WHERE d.child_id = children.id AND d.family_id = children.family_id AND d.revoked_at IS NULL
+   AND d.unlocked_until > now() ORDER BY d.unlocked_until DESC, d.id LIMIT 1) AS phone_lock`
+const COLUMNS = `id, first_name_enc, phone_enc, avatar_color, created_at, parent_code_set_at, parent_code_reset_requested_at, sos_siren, relock_requested_at, ${REMOTE_UNLOCK_SQL}, ${LAST_SEEN_SQL}, ${PHONE_LOCK_SQL}`
+const iso = (v) => new Date(v).toISOString()
 const firstName = (v) => text(v, { min: 1, max: 40, field: 'Prénom' })
 const notFound = () => new HttpError(404, 'Enfant introuvable.', 'child_not_found')
 const aad = (id) => `children:first_name:${id}`
@@ -76,6 +83,9 @@ export default async function childrenRoutes(app) {
     // Nouveau code demandé par l'équipe (NAR-200) : bandeau pour les gestionnaires, effacé par le nouveau code.
     parentCodeResetRequestedAt: r.parent_code_reset_requested_at ?? null,
     remoteUnlockUntil: r.remote_unlock_until ?? null,
+    // État réel du téléphone (NAR-216) : sortie en cours, sa source et son ouverture ; null = verrouillé.
+    phoneUnlock: r.phone_lock ? { until: iso(r.phone_lock.until), source: r.phone_lock.source, startedAt: iso(r.phone_lock.startedAt) } : null,
+    relockRequestedAt: r.relock_requested_at ?? null,
     sosSiren: r.sos_siren,
     phoneLastSeenAt: r.phone_last_seen_at ?? null
   })
@@ -184,6 +194,35 @@ export default async function childrenRoutes(app) {
       return updated
     })
     return { remoteUnlockUntil: row.remote_unlock_until }
+  })
+
+  // Reverrouillage à distance (NAR-216) : referme la sortie en cours (rapportée par un
+  // téléphone actif) ou la demande à distance encore ouverte. Le téléphone le lit dans sa
+  // configuration (relockRequestedAt, réveil push `config`) ; hors ligne, la sortie se referme
+  // de toute façon à son échéance. Rien d'ouvert : ni écriture ni audit.
+  const relockLimit = createLimiter({ max: 20, windowMs: 60 * 60_000 })
+  app.delete('/:id/unlock', async (req) => {
+    const id = childId(req)
+    return withTransaction(db, async (conn) => {
+      const own = await lockOwnFamily(conn, req, MANAGERS)
+      const { rows: [kid] } = await conn.query(
+        `SELECT remote_unlock_until > now() AS remote_open, relock_requested_at,
+                EXISTS (SELECT 1 FROM child_devices d WHERE d.child_id = children.id AND d.family_id = children.family_id
+                         AND d.revoked_at IS NULL AND d.unlocked_until > now()) AS phone_open
+           FROM children WHERE id = $1 AND family_id = $2 FOR UPDATE`, [id, own.familyId])
+      if (!kid) throw notFound()
+      if (!kid.remote_open && !kid.phone_open) return { relockRequestedAt: kid.relock_requested_at ?? null }
+      if (!relockLimit(req.user.id)) throw new HttpError(429, 'Trop de demandes. Réessayez plus tard.')
+      const { rows: [updated] } = await conn.query(
+        `UPDATE children SET relock_requested_at = now(), remote_unlock_until = NULL
+          WHERE id = $1 AND family_id = $2 RETURNING relock_requested_at`, [id, own.familyId])
+      await audit(conn, req, 'remote_relock', id)
+      const { rows: devices } = await conn.query(
+        'SELECT id FROM child_devices WHERE child_id = $1 AND family_id = $2 AND revoked_at IS NULL', [id, own.familyId])
+      // Réveil dans la même transaction : la file ne part que si la demande est écrite.
+      for (const d of devices) await notifyDevice(conn, d.id, 'config', id)
+      return { relockRequestedAt: updated.relock_requested_at }
+    })
   })
 
   // Sirène pendant un SOS (NAR-151) : le téléphone de l'enfant la lit dans sa configuration

@@ -14,6 +14,8 @@ export interface DeviceContact { id: string, name: string, phone: string, positi
 // config mise en cache avant ce champ : équivaut à null (aucun code n'existait encore, et le
 // premier code défini fait avancer la version, donc un relevé complet).
 // remoteUnlockUntil : fin d'un déverrouillage demandé par un parent (NAR-168), appliqué une fois.
+// relockRequestedAt : reverrouillage demandé par un parent (NAR-216), heure du serveur ; referme
+// la sortie ouverte avant elle (lockReport.relockDue).
 // messageTexts : textes modifiés des messages rapides, par emplacement (NAR-173).
 // schedules, timezone : plages « école » actives et fuseau de la famille (NAR-148). Absents
 // d'une config mise en cache avant ces champs : aucune plage (la première plage créée fait
@@ -24,7 +26,7 @@ export interface DeviceContact { id: string, name: string, phone: string, positi
 // apk : dernière version de l'app enfant (NAR-170) ; null ou absente = rien à installer.
 export interface AllowedApp { package: string, label: string, position: number }
 export interface DeviceConfig {
-  version: number, country?: string, parentCode?: string | null, remoteUnlockUntil?: string | null,
+  version: number, country?: string, parentCode?: string | null, remoteUnlockUntil?: string | null, relockRequestedAt?: string | null,
   messageTexts?: Record<string, string>, schedules?: ScheduleRule[], timezone?: string, sosSiren?: boolean, allowedApps?: AllowedApp[], apk?: ApkInfo | null, contacts: DeviceContact[]
 }
 export const CONFIG_KEY = 'device-config'
@@ -55,6 +57,7 @@ const valid = (v: unknown): v is Cached => {
   return typeof (v as Cached | null)?.childId === 'string' && !!c && typeof c.version === 'number' && Array.isArray(c.contacts)
     && (c.parentCode === undefined || c.parentCode === null || typeof c.parentCode === 'string')
     && (c.remoteUnlockUntil === undefined || c.remoteUnlockUntil === null || typeof c.remoteUnlockUntil === 'string')
+    && (c.relockRequestedAt === undefined || c.relockRequestedAt === null || typeof c.relockRequestedAt === 'string')
     && (c.messageTexts === undefined || (typeof c.messageTexts === 'object' && c.messageTexts !== null && Object.values(c.messageTexts).every((x) => typeof x === 'string')))
     && (c.timezone === undefined || typeof c.timezone === 'string')
     && (c.schedules === undefined || Array.isArray(c.schedules))

@@ -2,15 +2,16 @@
 import AppIcon from '../ui/AppIcon.vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ApiError } from '../../api/http'
-import { remoteUnlock, setParentCode, type Child } from '../../api/children'
+import { remoteRelock, remoteUnlock, setParentCode, type Child } from '../../api/children'
 import { locale, useT } from '../../composables/useT'
 import { errorText } from '../../lib/errors'
 import { focusFirstInvalid } from '../../lib/formErrors'
 import { formatClock, formatDay } from '../../lib/format'
 import { parentCodeProblem } from '../../lib/parentCode'
-import { children, upsertChild } from '../../store/children'
+import { children, loadChildren, upsertChild } from '../../store/children'
 import { canManage } from '../../store/family'
 import AppButton from '../ui/AppButton.vue'
+import ConfirmSheet from '../ui/ConfirmSheet.vue'
 import FormField from '../ui/FormField.vue'
 import SectionCard from '../ui/SectionCard.vue'
 
@@ -32,7 +33,7 @@ watch(code, () => { codeError.value = '' })
 watch(confirmation, () => { confirmError.value = '' })
 
 // Autre enfant choisi : formulaire refermé, rien de saisi ne passe d'un enfant à l'autre.
-watch(() => props.child.id, () => { close(); saved.value = false; busy.value = false; unlockBusy.value = false; unlockError.value = '' })
+watch(() => props.child.id, () => { close(); saved.value = false; busy.value = false; unlockBusy.value = false; unlockError.value = ''; relockOpen.value = false })
 
 function open() {
   editing.value = true
@@ -84,13 +85,33 @@ async function save() {
 const unlockBusy = ref(false)
 const unlockError = ref('')
 // Heure relue toutes les 30 s : l'état « demandé jusqu'à … » s'efface seul à l'échéance.
+// État du téléphone relu au même rythme (NAR-216) : une sortie ouverte avec le code sur le
+// téléphone, ou refermée par l'enfant, apparaît en moins d'un relevé.
 const now = ref(Date.now())
-const clock = setInterval(() => { now.value = Date.now() }, 30_000)
+const clock = setInterval(() => {
+  now.value = Date.now()
+  // Hors ligne ou page cachée : rien (la liste connue reste, sans erreur à chaque tour).
+  if (props.child.parentCodeSetAt && document.visibilityState === 'visible' && navigator.onLine !== false) void loadChildren(true)
+}, 30_000)
 onBeforeUnmount(() => clearInterval(clock))
-const unlockedUntil = computed(() => {
-  const until = props.child.remoteUnlockUntil ? Date.parse(props.child.remoteUnlockUntil) : NaN
-  return Number.isNaN(until) || until <= now.value ? null : new Date(until)
+const future = (iso: string | null | undefined) => {
+  const at = iso ? Date.parse(iso) : NaN
+  return Number.isNaN(at) || at <= now.value ? null : new Date(at)
+}
+// Demande à distance pas encore appliquée par le téléphone.
+const unlockedUntil = computed(() => future(props.child.remoteUnlockUntil))
+// Sortie en cours rapportée par le téléphone (code ou à distance), tant que son échéance n'est pas passée.
+const phoneOpen = computed(() => {
+  const p = props.child.phoneUnlock
+  const until = future(p?.until)
+  return p && until ? { until, source: p.source, startedAt: p.startedAt } : null
 })
+// Reverrouillage déjà demandé pour la sortie en cours, que le téléphone n'a pas encore appliqué.
+const relockSent = computed(() => {
+  const asked = props.child.relockRequestedAt ? Date.parse(props.child.relockRequestedAt) : NaN
+  return !!phoneOpen.value && !Number.isNaN(asked) && asked > Date.parse(phoneOpen.value.startedAt)
+})
+const isOpen = computed(() => !!phoneOpen.value || !!unlockedUntil.value)
 async function unlockNow() {
   if (unlockBusy.value) return
   const child = props.child
@@ -103,6 +124,34 @@ async function unlockNow() {
   } catch (e) {
     if (child.id !== props.child.id) return
     unlockError.value = e instanceof ApiError && e.code === 'no_parent_code' ? t.value.parentCode.unlockNoCode : errorText(e, t.value)
+  } finally {
+    if (child.id === props.child.id) unlockBusy.value = false
+  }
+}
+
+// Reverrouillage à distance (NAR-216), après confirmation : la demande à distance encore
+// ouverte est annulée, une sortie en cours se referme dès que le téléphone reçoit l'ordre.
+const relockOpen = ref(false)
+const relockOpener = ref<HTMLElement | null>(null)
+function askRelock(e: Event) {
+  relockOpener.value = e.currentTarget as HTMLElement
+  unlockError.value = ''
+  relockOpen.value = true
+}
+async function relockNow() {
+  if (unlockBusy.value) return
+  const child = props.child
+  unlockBusy.value = true
+  unlockError.value = ''
+  try {
+    const res = await remoteRelock(child.id)
+    const current = children.items.find((c) => c.id === child.id)
+    if (current) upsertChild({ ...current, remoteUnlockUntil: null, relockRequestedAt: res.relockRequestedAt })
+    if (child.id === props.child.id) relockOpen.value = false
+  } catch (e) {
+    if (child.id !== props.child.id) return
+    unlockError.value = errorText(e, t.value)
+    relockOpen.value = false
   } finally {
     if (child.id === props.child.id) unlockBusy.value = false
   }
@@ -144,10 +193,22 @@ async function unlockNow() {
       </form>
     </template>
     <div v-if="child.parentCodeSetAt" class="remote">
-      <p v-if="unlockedUntil" class="state" role="status">{{ t.parentCode.unlockedUntil(formatClock(unlockedUntil)) }}</p>
+      <!-- État réel du téléphone d'abord (NAR-216), sinon la demande à distance en attente. -->
+      <p v-if="phoneOpen" class="state open" role="status">
+        <AppIcon name="unlock" :size="20" />{{ phoneOpen.source === 'remote' ? t.parentCode.openRemote(formatClock(phoneOpen.until)) : t.parentCode.openByCode(formatClock(phoneOpen.until)) }}
+      </p>
+      <p v-else-if="unlockedUntil" class="state" role="status">{{ t.parentCode.unlockedUntil(formatClock(unlockedUntil)) }}</p>
+      <p v-if="relockSent" class="help relock-sent" role="status">{{ t.parentCode.relockSent }}</p>
       <p v-if="unlockError" class="error" role="alert">{{ unlockError }}</p>
-      <AppButton v-if="canManage() && !editing" :disabled="unlockBusy" @click="unlockNow"><AppIcon name="unlock" :size="20" />{{ t.parentCode.unlock }}</AppButton>
-      <p v-if="canManage() && !editing" class="help unlock-help">{{ t.parentCode.unlockHint }}</p>
+      <template v-if="canManage() && !editing">
+        <AppButton v-if="isOpen" :disabled="unlockBusy" @click="askRelock"><AppIcon name="lock" :size="20" />{{ t.parentCode.relock }}</AppButton>
+        <AppButton v-else :disabled="unlockBusy" @click="unlockNow"><AppIcon name="unlock" :size="20" />{{ t.parentCode.unlock }}</AppButton>
+        <p class="help unlock-help">{{ isOpen ? t.parentCode.relockHint : t.parentCode.unlockHint }}</p>
+      </template>
+      <ConfirmSheet
+        v-if="relockOpen" id="relock-sheet" confirm-icon="lock" :title="t.parentCode.relockTitle" :items="t.parentCode.relockItems"
+        :confirm="t.parentCode.relockConfirm" :busy="unlockBusy" :opener="relockOpener" @close="relockOpen = false" @confirm="relockNow"
+      />
     </div>
   </SectionCard>
 </template>
@@ -167,6 +228,18 @@ async function unlockNow() {
 .state {
   margin: 0 0 12px;
   font-weight: 700;
+}
+.state.open {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.state.open :deep(svg) {
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.relock-sent {
+  margin: 0 0 12px;
 }
 .state.missing {
   color: var(--danger);
