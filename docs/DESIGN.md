@@ -233,8 +233,16 @@ avant/après et note) : `docs/maquettes/2026-11-enfant/`, appliquée écran par 
    discret, qui cache l'écran sans arrêter le service (sirène gardée sur le composeur). SOS en
    échec : « Le SOS n'a pas pu partir », même carte des secours sans « Personne n'a répondu ».
    Écart : pas de « sonne depuis 8 s » (le service ne donne pas l'heure de l'appel).
-4. **Messages rapides** — « Dire à mes parents », quatre grandes tuiles icône + texte,
-   toast de confirmation « … envoyé · Maman l'a vu · 16:05 ».
+4. **Messages rapides** (NAR-240, planche 07) — flèche de retour ronde (44 px, cible 64) et titre
+   à gauche, aide « Touche un message, Maman et Papa le reçoivent. » (contacts parents, sinon « tes
+   parents »), quatre grandes tuiles icône + texte, la tuile envoyée bordée `--call` avec une
+   coche ; confirmation en bas sur fond `--ink` avec pastille verte : « « Je suis arrivé » envoyé
+   à Maman et Papa », puis « … · Maman l'a vu · 16:05 ».
+   **Code parent** (planche 08) — flèche de retour en haut à gauche (plus de « Fermer » dans le
+   pavé), cadenas blanc sur rond `--ink` de 64 px, titre, « Réservé aux parents. », six points ;
+   code faux : points rouges et « Code incorrect, réessaie. » juste dessous ; touches pleines
+   `--surface-muted` de 78 px, sans contour, effacer en icône. Retour d'Android : ferme le panneau
+   du dessus (pile des feuilles), jamais l'app.
 5. **Plage « école »** — depuis NAR-238 (planche 04) : pastille « École jusqu'à 16:00 », seuls
    les parents restent, les autres en fantôme « Papa, Tonton et Mamie reviennent à 16:00 », SOS
    toujours là.

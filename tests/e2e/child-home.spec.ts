@@ -184,7 +184,7 @@ test('accueil déverrouillé : bandeaux, erreur d’appel, 4 contacts, SOS visib
   // Messages rapides par « Dire à mes parents » (NAR-237) : Fermer ≥ 64 px.
   await page.getByRole('button', { name: 'Dire à mes parents' }).click()
   await expect(page.locator('.quick')).toBeVisible()
-  for (const h of await heights(page, '.quick .close, .quick .tile')) expect(h).toBeGreaterThanOrEqual(TAP_CHILD)
+  for (const h of await heights(page, '.quick .back, .quick .tile')) expect(h).toBeGreaterThanOrEqual(TAP_CHILD)
 })
 
 test('plage « école », verrouillé : bandeau, erreur d’appel, 4 parents, SOS et cadenas visibles', async ({ page }) => {
@@ -208,13 +208,14 @@ test('plage « école », verrouillé : bandeau, erreur d’appel, 4 parents, SO
   }
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/2-ecole-verrouille-erreur-4-contacts.png` })
 
-  // Clavier du code parent : touches et Fermer ≥ 64 px.
+  // Clavier du code parent (planche 08, NAR-240) : 11 touches (chiffres et effacer), flèche de
+  // retour hors du pavé, toutes ≥ 64 px.
   await page.getByRole('button', { name: 'Code parent' }).click()
   await expect(page.locator('.unlock')).toBeVisible()
-  const keys = await heights(page, '.unlock .key')
+  const keys = await heights(page, '.unlock .key, .unlock .back')
   expect(keys).toHaveLength(12)
   for (const h of keys) expect(h).toBeGreaterThanOrEqual(TAP_CHILD)
-  const widths = await page.locator('.unlock .key').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width))
+  const widths = await page.locator('.unlock .key, .unlock .back').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width))
   for (const w of widths) expect(w).toBeGreaterThanOrEqual(TAP_CHILD)
 })
 
@@ -382,4 +383,37 @@ test('alerte envoyée, personne n’a répondu (planche 12) : coches, carte blan
   await view.getByRole('button', { name: 'Fermer' }).click()
   await expect(view).toHaveCount(0)
   expect(await page.evaluate(() => (window as unknown as { sosCancels?: number }).sosCancels ?? 0)).toBe(0)
+})
+
+// NAR-240, planche 08 : code faux, points rouges et message juste dessous ; retour (Échap, comme
+// le retour d'Android par la pile des feuilles) ferme le clavier.
+test('code parent faux : points rouges, « Code incorrect, réessaie. » sous les points ; retour ferme', async ({ page }) => {
+  await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: true }, screening: { available: true, held: true } })
+  await page.getByRole('button', { name: 'Code parent' }).click()
+  const pad = page.getByRole('dialog', { name: 'Code parent' })
+  for (const d of '123456') await pad.getByRole('button', { name: d, exact: true }).click()
+  await expect(pad.locator('.message')).toHaveText('Code incorrect, réessaie.')
+  await expect(pad.locator('.dots.bad span')).toHaveCount(6)
+  const dots = (await pad.locator('.dots').boundingBox())!
+  const msg = (await pad.locator('.message').boundingBox())!
+  expect(msg.y - (dots.y + dots.height)).toBeLessThan(24)
+  await expect(pad.getByRole('button', { name: 'Fermer' })).toBeVisible()
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/code-faux.png` })
+  await page.keyboard.press('Escape')
+  await expect(pad).toHaveCount(0)
+})
+
+// NAR-240, planche 07 : aide qui nomme les parents, tuile envoyée cochée, confirmation en bas.
+test('dire à mes parents : aide, tuile envoyée cochée, confirmation en bas ; flèche de retour', async ({ page }) => {
+  await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: true }, screening: { available: true, held: true } })
+  await page.getByRole('button', { name: 'Dire à mes parents' }).click()
+  const panel = page.getByRole('dialog', { name: 'Dire à mes parents' })
+  await expect(panel.locator('.help')).toHaveText('Touche un message, Maman, Papa, Mamie et Tonton le reçoivent.')
+  await panel.getByRole('button', { name: 'Je suis arrivé' }).click()
+  await expect(panel.locator('.tile.sent')).toHaveCount(1)
+  await expect(panel.locator('.tile.sent .check')).toBeVisible()
+  await expect(panel.locator('.toast')).toContainText('« Je suis arrivé »')
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/dire-parents.png` })
+  await panel.getByRole('button', { name: 'Fermer' }).click()
+  await expect(panel).toHaveCount(0)
 })

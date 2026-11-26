@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useT } from '../../composables/useT'
+import { pushSheet } from '../../composables/useSheetStack'
+import AppIcon from '../ui/AppIcon.vue'
 import { unlockKiosk } from '../../composables/useKiosk'
 import { unlockGuard } from '../../lib/deviceSessionInstance'
 import { verifyParentCode } from '../../lib/parentCodeVerify'
@@ -23,11 +25,14 @@ let tick: ReturnType<typeof setInterval> | undefined
 async function refreshWait() {
   waitMs.value = await unlockGuard.waitMs().catch(() => 0)
 }
+// Retour d'Android : ferme le clavier, comme la flèche (jamais pendant la vérification).
+let pop: (() => void) | undefined
 onMounted(() => {
+  pop = pushSheet(() => { if (!busy.value) emit('close') })
   void refreshWait()
   tick = setInterval(() => { if (waitMs.value > 0) void refreshWait() }, 1000)
 })
-onBeforeUnmount(() => clearInterval(tick))
+onBeforeUnmount(() => { clearInterval(tick); pop?.() })
 
 const blocked = computed(() => waitMs.value > 0)
 const waitText = computed(() => {
@@ -81,12 +86,18 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 <template>
   <Teleport to="body">
+    <!-- Code parent (planche 08, NAR-240) : flèche de retour hors du pavé, cadenas en tête ; après
+         une erreur, points rouges et message juste dessous ; touches pleines. -->
     <div class="unlock" role="dialog" aria-modal="true" aria-labelledby="unlock-title">
+      <button type="button" class="back" :disabled="busy" :aria-label="t.child.lock.close" @click="emit('close')">
+        <span class="back-ring" aria-hidden="true"><AppIcon name="chevron-left" :size="22" /></span>
+      </button>
+      <span class="badge" aria-hidden="true"><AppIcon name="lock" :size="26" /></span>
       <h2 id="unlock-title">{{ t.child.lock.title }}</h2>
       <p class="hint">{{ t.child.lock.hint }}</p>
       <template v-if="hash">
-        <p class="dots" role="status" :aria-label="t.child.lock.entered(digits.length)">
-          <span v-for="i in 6" :key="i" :class="{ on: i <= digits.length }" />
+        <p class="dots" :class="{ bad: wrong && !digits }" role="status" :aria-label="t.child.lock.entered(digits.length)">
+          <span v-for="i in 6" :key="i" :class="{ on: i <= digits.length || (wrong && !digits) }" />
         </p>
         <p v-if="busy" class="message" role="status">{{ t.child.lock.checking }}</p>
         <p v-else-if="blocked" class="message bad" role="alert">{{ waitText }}</p>
@@ -95,15 +106,12 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
         <p v-else class="message" />
         <div class="pad">
           <button v-for="k in KEYS" :key="k" type="button" class="key" :disabled="busy || blocked" @click="press(k)">{{ k }}</button>
-          <button type="button" class="key key-small" :disabled="busy" @click="emit('close')">{{ t.child.lock.close }}</button>
+          <span class="key-gap" aria-hidden="true" />
           <button type="button" class="key" :disabled="busy || blocked" @click="press('0')">0</button>
-          <button type="button" class="key key-small" :disabled="busy || !digits" :aria-label="t.child.lock.erase" @click="erase">⌫</button>
+          <button type="button" class="key key-erase" :disabled="busy || !digits" :aria-label="t.child.lock.erase" @click="erase"><AppIcon name="backspace" :size="28" /></button>
         </div>
       </template>
-      <template v-else>
-        <p class="message">{{ t.child.lock.noCode }}</p>
-        <button type="button" class="key key-small close" @click="emit('close')">{{ t.child.lock.close }}</button>
-      </template>
+      <p v-else class="message">{{ t.child.lock.noCode }}</p>
     </div>
   </Teleport>
 </template>
@@ -117,12 +125,44 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  padding: calc(var(--safe-top) + 24px) calc(var(--gutter) + var(--safe-right)) calc(var(--safe-bottom) + 24px) calc(var(--gutter) + var(--safe-left));
+  padding: calc(var(--safe-top) + 12px) calc(var(--gutter) + var(--safe-right)) calc(var(--safe-bottom) + 24px) calc(var(--gutter) + var(--safe-left));
   background: var(--bg-child);
   overflow-y: auto;
 }
+/* Flèche de retour en haut à gauche (visuel de 44 px, cible de 64 px). */
+.back {
+  display: grid;
+  place-items: center;
+  align-self: flex-start;
+  width: var(--tap-child);
+  height: var(--tap-child);
+  margin-left: -10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+}
+.back-ring {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+}
+/* Cadenas en tête : l'espace des parents. */
+.badge {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--on-color);
+}
 h2 {
-  margin: 0;
+  margin: 8px 0 0;
   font-size: 1.8rem;
   font-weight: 900;
 }
@@ -132,7 +172,7 @@ h2 {
 }
 .dots {
   display: flex;
-  gap: 14px;
+  gap: 16px;
   margin: 16px 0 0;
 }
 .dots span {
@@ -144,12 +184,17 @@ h2 {
 .dots span.on {
   background: var(--text);
 }
+/* Erreur : les points passent en rouge, le message juste dessous. */
+.dots.bad span {
+  border-color: var(--sos);
+  background: var(--sos);
+}
 .message {
   /* Hauteur réservée : un message n'abaisse jamais les touches sous le doigt. */
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  min-height: 4.5rem;
+  min-height: 3rem;
   margin: 4px 0;
   max-width: 24em;
   text-align: center;
@@ -160,35 +205,39 @@ h2 {
 }
 .pad {
   display: grid;
-  grid-template-columns: repeat(3, 80px);
-  gap: 14px;
+  grid-template-columns: repeat(3, 78px);
+  gap: 12px 22px;
 }
-/* Touches de 80 px (≥ --tap-child, 64 px) : doigts d'enfant et de parent pressé. */
+/* Touches pleines de 78 px (planche 08 ; ≥ --tap-child, 64 px) : doigts d'enfant et de parent pressé. */
 .key {
-  height: 80px;
-  min-height: var(--tap-child);
-  min-width: var(--tap-child);
-  border: 2px solid var(--border-strong);
+  width: 78px;
+  height: 78px;
+  border: 0;
   border-radius: 50%;
-  background: var(--surface);
+  background: var(--surface-muted);
   color: var(--text);
   font: inherit;
   font-size: 1.8rem;
   font-weight: 800;
 }
-.key.key-small {
-  font-size: 1rem;
+.key-erase {
+  display: grid;
+  place-items: center;
+  background: none;
 }
 .key:disabled {
   opacity: 0.4;
 }
-.key:focus-visible {
+.key-erase:disabled {
+  opacity: 0.3;
+}
+.key:focus-visible,
+.back:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);
 }
-.close {
-  width: auto;
-  min-width: 160px;
-  border-radius: var(--radius-pill);
+/* Écran court : le panneau défile, ses éléments ne rétrécissent jamais (cibles de 64 px gardées). */
+.unlock > * {
+  flex-shrink: 0;
 }
 </style>
