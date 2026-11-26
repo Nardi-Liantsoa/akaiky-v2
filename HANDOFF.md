@@ -482,6 +482,12 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   (droit du shell) lance l'appel : le composeur est dans le lock task par conception, le filtrage des appels sortants est
   NAR-169. Non essayé depuis l'application autorisée elle-même (pas d'outil pour l'y faire lancer) : le lock task juge le
   paquet visé, pas l'appelant.
+- **Réglages pendant une sortie (NAR-246)** : Bien-être numérique (`com.google.android.apps.wellbeing`, Samsung
+  `com.samsung.android.forest`) était caché comme toute app lançable non autorisée ; les Réglages d'Android 14 lisent son
+  fournisseur de données dès leur page d'accueil et plantaient (`SecurityException: Failed to find provider`), d'où la
+  boucle sur l'accueil. Ajouté à `neverHide`. Vérifié sur `kiosk34` : Réglages ouverts sans plantage, retour à l'app,
+  verrou remis. Autres paquets système encore cachés s'ils sont lançables (Agenda, Horloge, Fichiers, SIM Toolkit…) :
+  aucun plantage vu, mais un constructeur peut dépendre d'un autre fournisseur de la même façon.
 - **Mise à jour de l'APK enfant (NAR-170)** : Android ne permet pas au Device Owner de lever
   `DISALLOW_INSTALL_APPS` pour un seul paquet. La restriction est levée **juste avant la création de la session
   d'installation** (Android 14 refuse déjà `createSession` sous la restriction, vu sur `kiosk34`), donc pendant la

@@ -56,6 +56,10 @@ object AppsPolicy {
         "com.android.vending",
         "com.google.android.gms",
         "com.google.android.gsf",
+        // Bien-être numérique : les Réglages lisent son fournisseur au démarrage ; caché, ils
+        // plantent et l'accueil boucle (NAR-246).
+        "com.google.android.apps.wellbeing",
+        "com.samsung.android.forest",
         "com.android.webview",
         "com.google.android.webview",
         "com.android.providers.telephony",
