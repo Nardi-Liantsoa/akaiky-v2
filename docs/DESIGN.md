@@ -206,6 +206,16 @@ avant/après et note) : `docs/maquettes/2026-11-enfant/`, appliquée écran par 
    des 60 px de la maquette), « Garde le doigt 3 secondes » dessous. **Plus de 117 sur
    l'accueil** (décision utilisateur du 25/11/2026) : il reste sur l'écran du SOS en cours,
    l'alerte envoyée et les écrans d'attente ou d'erreur.
+   **États** (NAR-238, planches 02 à 05) : pastilles d'une ligne sous l'heure (école marine
+   `--navy` avec chapeau, localisation `--tint-sky`, filtrage inactif ambre `--warning-bg`
+   « Appels pas encore filtrés » ; détail et « Activer » seulement téléphone ouvert) ; sans
+   contacts : rond pêche 112 px (pictogramme famille), « Ta famille arrive bientôt » ; avec des
+   applications : icônes de 46 px sur 4 colonnes, au-delà de 3 une case « Plus » montre les
+   autres, vignettes resserrées (avatar 58 px) pour tout voir sans défiler ; plage « école » :
+   fond bleu pâle, un seul contact en vignette large (avatar à gauche), contacts masqués en
+   fantôme (cadre en tirets, avatars pâles, « Papa, Tonton et Mamie reviennent à 23:30 ») ; mode
+   parent : barre verte en haut (« Mode parent / jusqu'à … », engrenage, « Reverrouiller » blanc ;
+   visuels de 44 px dans des cibles de 64 px), sans cadenas.
 2. **SOS — maintien** — fond rouge, « Continue d'appuyer… », anneau de progression et
    décompte, trois traits d'étape, « Lâche pour arrêter » ; vibration à chaque seconde,
    rien n'est envoyé tant que le cercle n'est pas plein.

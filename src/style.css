@@ -35,6 +35,8 @@
   --on-color: #ffffff;
   --tint-peach: #ffe3ce;
   --accent-orange: #e9814a;
+  /* Pictogramme sur pêche (état vide de l'accueil enfant, NAR-238). */
+  --accent-orange-deep: #b45a22;
   --tint-sky: #d6edff;
   --accent-blue: #3d80d1;
   --tint-lilac: #e9e1f9;

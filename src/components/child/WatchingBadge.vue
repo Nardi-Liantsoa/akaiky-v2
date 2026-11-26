@@ -10,22 +10,23 @@ const t = useT()
 
 <template>
   <p class="watching" role="status">
-    <AppIcon name="pin" :size="20" />
+    <AppIcon name="pin" :size="16" />
     <span>{{ t.child.watching(names) }}</span>
   </p>
 </template>
 
 <style scoped>
+/* Pastille d'une ligne parmi les autres (planche 03, NAR-238). */
 .watching {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
-  padding: 10px 14px;
+  padding: 7px 12px;
   border-radius: 999px;
   background: var(--tint-sky);
   color: var(--navy);
-  font-weight: 600;
-  align-self: center;
+  font-size: 0.85rem;
+  font-weight: 700;
 }
 </style>

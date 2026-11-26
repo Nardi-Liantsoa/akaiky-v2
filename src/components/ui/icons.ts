@@ -47,6 +47,10 @@ export const ICONS = {
   'chevron-left': { shapes: [path('M15 6l-6 6 6 6')] },
   // Information (indication du journal, NAR-235).
   info: { shapes: [circle(12, 12, 9), path('M12 11v5M12 8h.01')] },
+  // Pastilles et barre de l'accueil enfant (maquette allégée, NAR-238) : alerte, école, réglages.
+  'alert-circle': { shapes: [circle(12, 12, 9), path('M12 7.5v5.5M12 16.5h.01')] },
+  cap: { shapes: [path('M2 9l10-5 10 5-10 5z'), path('M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5')] },
+  gear: { shapes: [circle(12, 12, 3), path('M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1')] },
   // Cadenas fermé : code parent de l'accueil enfant (NAR-237).
   lock: { shapes: [rect({ x: 4, y: 11, width: 16, height: 10, rx: 2 }), path('M8 11V7a4 4 0 0 1 8 0v4')] },
   // Ordre des contacts (maquette 05, NAR-232).
