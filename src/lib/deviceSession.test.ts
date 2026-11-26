@@ -116,7 +116,8 @@ describe('createDeviceSession', () => {
         current = `r${++n}`
         return json(200, { accessToken: `a${n}`, refreshToken: current, expiresIn: 900 })
       }
-      return new Headers(init?.headers).get('Authorization')?.startsWith('Bearer a') ? json(200, { ok: 1 }) : json(401, {})
+      // Comme le serveur : un seul jeton d'accès valable par session, le dernier émis.
+      return new Headers(init?.headers).get('Authorization') === `Bearer a${n}` ? json(200, { ok: 1 }) : json(401, {})
     })
     // Verrou partagé des deux écrans (navigator.locks dans les WebViews).
     let chain = Promise.resolve()
@@ -128,5 +129,25 @@ describe('createDeviceSession', () => {
     expect(rb).toEqual({ ok: 1 })
     expect(new Set(presented).size).toBe(presented.length)
     expect(store.data.get(REFRESH_KEY)).toBe(current)
+    // Le second écran reprend la rotation du premier : une seule rotation pour les deux.
+    expect(presented).toEqual(['r0'])
+    // Et la suite continue sans renouveler à chaque appel (pas de vol mutuel du jeton d'accès).
+    await Promise.all([a.get('/device/me'), b.get('/device/me'), a.get('/device/me'), b.get('/device/me')])
+    expect(presented).toEqual(['r0'])
+  })
+
+  it('renouvellement bloqué : abandonné après le délai, le verrou est rendu, la session gardée', async () => {
+    vi.useFakeTimers()
+    const store = memoryStore()
+    store.data.set(REFRESH_KEY, 'r0')
+    const fetch = vi.fn(() => new Promise<Response>(() => {}))
+    const s = createDeviceSession({ base: '', store, fetch: fetch as unknown as typeof globalThis.fetch, locks: null })
+    const pending = s.get('/device/me').catch((e) => e)
+    await vi.advanceTimersByTimeAsync(20_001)
+    const err = await pending
+    expect(err).toBeInstanceOf(Error)
+    expect(err).not.toBeInstanceOf(DeviceError)
+    expect(store.data.get(REFRESH_KEY)).toBe('r0')
+    vi.useRealTimers()
   })
 })
