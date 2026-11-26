@@ -76,7 +76,14 @@ export default defineConfig(({ command, mode }) => {
     build: {
       outDir: 'dist/web',
       emptyOutDir: true,
-      sourcemap: false
+      sourcemap: false,
+      rollupOptions: {
+        output: {
+          // Worker de MapLibre (NAR-205), livré en .mjs : renommé .js, type que le serveur et le
+          // serveur local des coques servent en JavaScript (un worker de module l'exige).
+          assetFileNames: (asset) => (asset.names?.some((n) => n.endsWith('.mjs')) ? 'assets/[name]-[hash].js' : 'assets/[name]-[hash][extname]')
+        }
+      }
     },
     server: {
       port: 5173,

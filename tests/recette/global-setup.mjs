@@ -65,7 +65,9 @@ async function start(dir, name, origin, onServer) {
       // Les parcours enchaînent beaucoup de connexions depuis la même adresse.
       RATE_LIMIT_IP: '100000', RATE_LIMIT_EMAIL: '1000', REGISTRATIONS_PER_HOUR: '100000', AUTH_EMAILS_PER_HOUR: '100000', API_RATE_LIMIT: '100000',
       // QR d'appairage (C03) : adresse et somme fictives, l'APK n'est pas téléchargé ici.
-      DEVICE_APK_URL: 'https://akaiky.test/downloads/akaiky-enfant.apk', DEVICE_APK_SIGNATURE_SHA256: 'A'.repeat(43), NATIVE_ORIGINS: 'https://localhost,capacitor://localhost'
+      DEVICE_APK_URL: 'https://akaiky.test/downloads/akaiky-enfant.apk', DEVICE_APK_SIGNATURE_SHA256: 'A'.repeat(43), NATIVE_ORIGINS: 'https://localhost,capacitor://localhost',
+      // Fond de carte (NAR-205) : l'extrait d'Antananarivo des tests.
+      MAP_TILES_FILE: new URL('../fixtures/map/tana.pmtiles', import.meta.url).pathname
     },
     stdio: ['ignore', 'ignore', 'inherit']
   })

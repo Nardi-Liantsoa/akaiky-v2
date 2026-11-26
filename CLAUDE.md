@@ -330,6 +330,17 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   refuse un bundle dont l'API diffère de l'origine des coques. iOS : valeurs de `capacitor.config.ts`, sans contrôle au
   build Xcode. Runtime : aucune requête vers un hôte `.invalid`. Tests : `OtaIdentityTest.kt`, `otaUpdate.test.ts`,
   chemins partagés `tests/fixtures/ota-target-cases.json` (`server`). Nouvelle coque parent et enfant.
+- **Fond de carte (NAR-205, 26/11/2026)** : **auto-hébergé**, décision utilisateur (option OpenStreetMap). Extrait PMTiles
+  de Madagascar (Protomaps, zoom 14, 291 Mo mesurés ; 13 : 147 Mo, 15 : 607 Mo) sur un volume, `MAP_TILES_FILE`, servi par
+  `GET /api/map/tiles.pmtiles` (un intervalle `Range` par requête, 206/416, ETag, cache `private, max-age=86400`, CORS natif
+  avec `range`), polices `GET /api/map/fonts/<dossier>/<plage>.pbf` (`server/map/fonts`, Noto Sans latines, OFL ; noms sans
+  espace, réécrits par l'app) ; publiques, hors limite globale de l'API (1200/min par IP). App : MapLibre GL JS **6.18.0**
+  (la 5.x a un avis critique non corrigé ; la 6 exige WebGL2), `pmtiles` 4.5.0, `@protomaps/basemaps` 5.7.2 (style clair,
+  sans sprite), chargés par import dynamique (`src/lib/mapEngine.ts`, ~300 Ko gzip + worker ~150 Ko, servi en `.js` par
+  notre origine : CSP inchangée). `MapView.vue` : pastille de l'enfant, cercle de précision, attribution « © OpenStreetMap »
+  toujours visible ; sans WebGL2, fichier absent ou délai de 15 s : `unavailable`, position en texte. Écrans : alerte SOS
+  (NAR-249) et « Où est … ? » (`LocateView.vue`, `/espace/enfant/:id/position`, tout membre, entrée du menu « ⋯ » de la
+  carte de l'enfant, demande renouvelée toutes les 100 s, relue toutes les 3 s). Procédure : `docs/CARTE.md`, NOSYHOST.md § 8.
 - **Hors connexion** : appels et SOS par SMS sans Internet (natif enfant). L'app
   parent démarre hors ligne et le dit, sans déconnecter.
 - **Notifications** : FCM (Android) et APNs (iOS), comptes au nom du client. Alertes

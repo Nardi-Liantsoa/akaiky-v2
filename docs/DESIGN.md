@@ -278,8 +278,11 @@ onglets empilés en haut, colonne centrée dans la place restante. Mêmes liens 
    batterie 61 % »), zone de carte, carte de position chevauchante (point rouge, « En direct · mis à jour il y a
    8 s · ±15 m »), carte « qui fait quoi » (une ligne par membre, pastille de couleur), Appeler (`--call`) et
    J'arrive (`--navy`) côte à côte, « Je prends en charge » (`--ink`) pleine largeur, mention dessous.
-   **Écarts** : pas encore de carte (NAR-205, fond de carte à choisir) : la zone garde l'enfant et son cercle de
-   précision sur `--surface-muted`, avec « Carte bientôt disponible » ; pas d'adresse (aucun géocodage) : les
+   Carte (NAR-205) : fond OpenStreetMap auto-hébergé (style clair de Protomaps, sans icônes), pastille de l'enfant
+   (initiale, couleur de l'enfant, bord blanc), cercle de précision `--sos`, mention « © OpenStreetMap » en haut à
+   droite (la carte de position la recouvre en bas). Sans WebGL2 ou sans fond installé : l'enfant et son cercle sur
+   `--surface-muted`, avec « Carte indisponible sur ce téléphone ».
+   **Écarts** : pas d'adresse (aucun géocodage) : les
    coordonnées à 5 décimales à la place de « [Adresse approximative] » ; pas de ligne « le téléphone de Fy
    l'appelle… » (état de la cascade non remonté, NAR-181) ; lien « Retour à l'accueil » en bas (sortie de l'écran
    plein, absente de la planche). Bandeau des alertes en cours en tête de chaque onglet (rouge `--sos`, pris en
@@ -299,6 +302,11 @@ onglets empilés en haut, colonne centrée dans la place restante. Mêmes liens 
    aide dessous ; confirmation par la feuille commune (`ConfirmSheet`) ; « Reverrouillage
    envoyé : … dès que le téléphone sera joignable » en aide sous l'état. Un contact voit l'état,
    aucun bouton.
+   « **Où est … ?** » (NAR-205, sans maquette ; l'ancienne planche 6 le mettait sur la carte de l'enfant, la planche
+   01 de 2026-11 l'a remplacé par « Message ») : entrée en tête du menu « ⋯ » de la carte de l'enfant, ouvert à tout
+   membre dès qu'un téléphone est relié. Page de la coquille : « ‹ Retour », titre, « Fy verra que vous consultez sa
+   position » (icône info), carte arrondie (420 px au plus), carte de position comme l'alerte SOS (point vert si le
+   relevé répond à la demande, gris sinon), « Redemander » si le téléphone n'a pas répondu en 2 minutes.
 9. **Journal** — filtres Tout · Appels · Bloqués · Messages · SOS, groupé par jour,
    « Autoriser » sur un appel bloqué, mention « gardé 90 jours, puis effacé ».
 10. **Appairage, étape 3 sur 3** — QR « Valable 15 minutes · usage unique », liste des

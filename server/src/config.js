@@ -153,6 +153,9 @@ export function loadConfig(env = process.env) {
     push: pushConfig,
     sms: smsConfig,
     staticDir: env.STATIC_DIR || new URL('../../dist/web', import.meta.url).pathname,
+    // Fond de carte (NAR-205) : extrait PMTiles de Madagascar sur un volume (~300 Mo, hors image).
+    // Absent : la carte est indisponible et l'app montre la position en texte.
+    mapTilesFile: env.MAP_TILES_FILE || null,
     // APK de l'app enfant embarqué dans l'image (NAR-165), servi à /downloads/akaiky-enfant.apk.
     downloadsDir: env.DOWNLOADS_DIR || new URL('../../downloads', import.meta.url).pathname,
     // Traefik est le seul mandataire devant l'application.

@@ -96,7 +96,8 @@ onBeforeUnmount(() => { clearInterval(timer); document.removeEventListener('visi
             </span>
           </button>
         </h2>
-        <button v-if="canManage()" type="button" class="more" :aria-label="t.children.actions(c.firstName)" @click="openMenu(c, $event)">
+        <!-- Menu : gestionnaires, et tout membre dès qu'un téléphone est relié (« Où est … ? », NAR-205). -->
+        <button v-if="canManage() || c.phoneLastSeenAt" type="button" class="more" :aria-label="t.children.actions(c.firstName)" @click="openMenu(c, $event)">
           <AppIcon name="more" :size="22" />
         </button>
       </div>

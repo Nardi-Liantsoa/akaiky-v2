@@ -405,6 +405,22 @@ const fr = {
     loadError: 'Impossible de charger les messages rapides.'
   },
   // Alerte SOS côté parent (NAR-249, maquette 08).
+  // Position à la demande, côté parent (NAR-205).
+  locate: {
+    menu: (name: string) => `Où est ${name} ?`,
+    title: (name: string) => `Où est ${name} ?`,
+    seen: (name: string) => `${name} verra que vous consultez sa position.`,
+    asking: (name: string) => `Demande envoyée au téléphone de ${name}…`,
+    updated: (ago: string, acc: number) => `Relevée il y a ${ago} · ±${acc} m`,
+    old: (ago: string) => `Dernière position connue, il y a ${ago}. En attente d’une nouvelle…`,
+    noAnswer: (name: string) => `Le téléphone de ${name} n’a pas répondu. Il est peut-être éteint ou sans réseau.`,
+    retry: 'Redemander',
+    mapLabel: (name: string) => `Carte : position de ${name}`,
+    mapUnavailable: 'Carte indisponible sur ce téléphone : la position est donnée en texte.',
+    limited: 'Trop de demandes. Réessayez dans quelques minutes.',
+    notFound: 'Enfant introuvable.',
+    back: 'Retour'
+  },
   sosAlert: {
     label: 'Alerte SOS',
     title: (name: string) => `${name} a besoin d’aide`,
@@ -414,7 +430,6 @@ const fr = {
     hours: (n: number) => `${n} h`,
     started: (time: string) => `Déclenché à ${time}`,
     battery: (pct: number) => `batterie ${pct} %`,
-    mapSoon: 'Carte bientôt disponible',
     coords: (lat: string, lng: string) => `Position ${lat}, ${lng}`,
     live: (ago: string, acc: number) => `En direct · mis à jour il y a ${ago} · ±${acc} m`,
     waiting: 'Position en attente du téléphone…',
@@ -1238,6 +1253,21 @@ const mg: Messages = {
     invalid: 'Litera 1 ka hatramin’ny 40.',
     loadError: 'Tsy azo nalaina ny hafatra haingana.'
   },
+  locate: {
+    menu: (name: string) => `Aiza i ${name} ?`,
+    title: (name: string) => `Aiza i ${name} ?`,
+    seen: (name: string) => `Ho hitan’i ${name} fa mijery ny toerany ianao.`,
+    asking: (name: string) => `Lasa any amin’ny findain’i ${name} ny fangatahana…`,
+    updated: (ago: string, acc: number) => `Noraisina ${ago} lasa · ±${acc} m`,
+    old: (ago: string) => `Toerana farany fantatra, ${ago} lasa. Miandry vaovao…`,
+    noAnswer: (name: string) => `Tsy namaly ny findain’i ${name}. Mety maty na tsy misy tambajotra izy.`,
+    retry: 'Angataho indray',
+    mapLabel: (name: string) => `Sarintany : toeran’i ${name}`,
+    mapUnavailable: 'Tsy mety eto amin’ity finday ity ny sarintany : soratra no anomezana ny toerana.',
+    limited: 'Be loatra ny fangatahana. Andramo indray afaka minitra vitsy.',
+    notFound: 'Tsy hita ny zaza.',
+    back: 'Hiverina'
+  },
   sosAlert: {
     label: 'Fampitandremana SOS',
     title: (name: string) => `Mila fanampiana i ${name}`,
@@ -1247,7 +1277,6 @@ const mg: Messages = {
     hours: (n: number) => `${n} ora`,
     started: (time: string) => `Natomboka tamin’ny ${time}`,
     battery: (pct: number) => `bateria ${pct} %`,
-    mapSoon: 'Ho avy tsy ho ela ny sarintany',
     coords: (lat: string, lng: string) => `Toerana ${lat}, ${lng}`,
     live: (ago: string, acc: number) => `Mivantana · nohavaozina ${ago} lasa · ±${acc} m`,
     waiting: 'Miandry ny toeran’ny finday…',
@@ -2037,6 +2066,21 @@ const en: Messages = {
     invalid: 'Between 1 and 40 characters.',
     loadError: 'Could not load the quick messages.'
   },
+  locate: {
+    menu: (name: string) => `Where is ${name}?`,
+    title: (name: string) => `Where is ${name}?`,
+    seen: (name: string) => `${name} will see that you are checking their location.`,
+    asking: (name: string) => `Request sent to ${name}’s phone…`,
+    updated: (ago: string, acc: number) => `Taken ${ago} ago · ±${acc} m`,
+    old: (ago: string) => `Last known location, ${ago} ago. Waiting for a new one…`,
+    noAnswer: (name: string) => `${name}’s phone did not answer. It may be off or without network.`,
+    retry: 'Ask again',
+    mapLabel: (name: string) => `Map: ${name}’s location`,
+    mapUnavailable: 'Map unavailable on this phone: the location is shown as text.',
+    limited: 'Too many requests. Try again in a few minutes.',
+    notFound: 'Child not found.',
+    back: 'Back'
+  },
   sosAlert: {
     label: 'SOS alert',
     title: (name: string) => `${name} needs help`,
@@ -2046,7 +2090,6 @@ const en: Messages = {
     hours: (n: number) => `${n} h`,
     started: (time: string) => `Triggered at ${time}`,
     battery: (pct: number) => `battery ${pct}%`,
-    mapSoon: 'Map coming soon',
     coords: (lat: string, lng: string) => `Position ${lat}, ${lng}`,
     live: (ago: string, acc: number) => `Live · updated ${ago} ago · ±${acc} m`,
     waiting: 'Waiting for the phone’s position…',

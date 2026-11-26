@@ -3,10 +3,12 @@ import { RouterLink, useRouter } from 'vue-router'
 import type { Child } from '../../api/children'
 import { useT } from '../../composables/useT'
 import { selectChild } from '../../store/children'
+import { canManage } from '../../store/family'
 import ChildSheet from './ChildSheet.vue'
 
-// Actions d'un enfant (« ⋯ » de sa carte, gestionnaires) : modifier, téléphone (s'il est
-// relié), code parent. Fermé par ×, le fond, Échap ou le retour Android (ChildSheet).
+// Actions d'un enfant (« ⋯ » de sa carte) : « Où est … ? » pour tout membre si un téléphone est
+// relié (NAR-205) ; modifier, téléphone, code parent pour les gestionnaires. Fermé par ×, le
+// fond, Échap ou le retour Android (ChildSheet).
 const props = defineProps<{ child: Child, opener?: HTMLElement | null }>()
 const emit = defineEmits<{ close: [] }>()
 const t = useT()
@@ -22,11 +24,14 @@ async function openParentCode() {
 <template>
   <ChildSheet :title="t.children.actions(child.firstName)" :opener="opener" close-icon @close="emit('close')">
     <nav class="menu">
-      <RouterLink class="item" :to="{ name: 'enfant', params: { id: child.id } }" @click="emit('close')">{{ t.children.edit }}</RouterLink>
-      <!-- Sans téléphone relié (même test que la carte, phoneLastSeenAt), la carte offre déjà
-           « Relier le téléphone » : pas de doublon ici (NAR-195). -->
-      <RouterLink v-if="child.phoneLastSeenAt" class="item" :to="{ name: 'telephone', params: { id: child.id } }" @click="emit('close')">{{ t.children.phone }}</RouterLink>
-      <button class="item" type="button" @click="openParentCode">{{ t.children.parentCode }}</button>
+      <RouterLink v-if="child.phoneLastSeenAt" class="item" :to="{ name: 'position', params: { id: child.id } }" @click="emit('close')">{{ t.locate.menu(child.firstName) }}</RouterLink>
+      <template v-if="canManage()">
+        <RouterLink class="item" :to="{ name: 'enfant', params: { id: child.id } }" @click="emit('close')">{{ t.children.edit }}</RouterLink>
+        <!-- Sans téléphone relié (même test que la carte, phoneLastSeenAt), la carte offre déjà
+             « Relier le téléphone » : pas de doublon ici (NAR-195). -->
+        <RouterLink v-if="child.phoneLastSeenAt" class="item" :to="{ name: 'telephone', params: { id: child.id } }" @click="emit('close')">{{ t.children.phone }}</RouterLink>
+        <button class="item" type="button" @click="openParentCode">{{ t.children.parentCode }}</button>
+      </template>
     </nav>
   </ChildSheet>
 </template>
