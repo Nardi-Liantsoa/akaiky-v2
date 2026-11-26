@@ -209,6 +209,10 @@ onBeforeUnmount(stop)
     width: 136px;
     height: 136px;
   }
+  /* Halo réduit : l'anneau (4 px au-delà) reste visible pendant l'appui. */
+  .holding .sos {
+    box-shadow: 0 0 0 4px var(--on-color-fill);
+  }
   .hint {
     max-width: 120px;
     text-align: center;

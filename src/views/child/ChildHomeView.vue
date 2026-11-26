@@ -700,7 +700,7 @@ const text = computed(() => {
       <p v-else-if="sosInterrupted" class="call-error" role="alert">{{ t.child.sos.interrupted }}</p>
       <p v-if="callError" class="call-error" role="alert">{{ t.child.callFailed }}</p>
       <!-- Avec des applications (planche 03) : vignettes resserrées, tout tient sans défiler. -->
-      <section v-if="shown.length" class="grid" :class="{ single: shown.length === 1, compact: !school && tiles.length > 0 }">
+      <section v-if="shown.length" class="grid" :class="{ single: shown.length === 1, compact: !school && tiles.length > 0, many: shown.length > 4 }">
         <ContactTile v-for="c in shown" :key="c.id" :name="c.name" :color="c.avatarColor" :busy="calling" :wide="shown.length === 1" @call="call(c.phone, c)" />
       </section>
       <section v-else-if="school" class="empty">
@@ -1177,8 +1177,18 @@ h1 {
     grid-template-columns: 190px minmax(0, 1fr);
     grid-auto-flow: row dense;
     align-content: start;
-    gap: 12px 16px;
-    padding: calc(var(--safe-top) + var(--space-4)) 8px var(--space-4) calc(var(--space-5) + var(--safe-left));
+    gap: var(--space-3) var(--space-4);
+    /* En bas, la place du cadenas (64 px) : il ne recouvre jamais une pastille. */
+    padding: calc(var(--safe-top) + var(--space-4)) var(--space-2) calc(var(--safe-bottom) + var(--tap-child) + var(--space-4)) calc(var(--space-5) + var(--safe-left));
+  }
+  /* Mode parent : la barre sur toute la largeur, au-dessus des deux colonnes. */
+  .content > .parent-bar {
+    grid-column: 1 / -1;
+  }
+  .parent-bar-text span,
+  .parent-bar-text strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .content > * {
     grid-column: 2;
@@ -1213,20 +1223,41 @@ h1 {
   .grid,
   .grid.compact {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 10px;
+    gap: var(--space-2);
   }
-  /* La rangée de contacts couvre deux lignes : à gauche, l'heure puis les pastilles juste dessous. */
-  .content > .grid {
-    grid-row: span 2;
+  /* 5 ou 6 contacts : deux rangées de 3 (une rangée de 6 serait illisible) ; avatar et prénom
+     seuls (toute la vignette appelle), pour tout voir sans défiler. */
+  .grid.many {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .grid.single {
-    grid-template-columns: 1fr;
+  .grid.many :deep(.tile:not(.wide)) {
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-1);
   }
-  .grid :deep(.tile:not(.wide)) {
+  .grid.many :deep(.avatar) {
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
+  }
+  .grid.many :deep(.call) {
+    display: none;
+  }
+  /* Prénom sur une ligne, jamais coupé au milieu d'un mot (points de suspension si trop long). */
+  .grid.many :deep(.name) {
+    max-width: 100%;
+    overflow: hidden;
+    overflow-wrap: normal;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .grid:not(.many) :deep(.tile:not(.wide)) {
     min-height: 0;
-    padding: 16px 6px 12px;
+    padding: var(--space-4) 6px var(--space-3);
   }
-  .grid :deep(.avatar) {
+  .grid.many :deep(.tile:not(.wide)) {
+    min-height: 0;
+  }
+  .grid:not(.many) :deep(.avatar) {
     width: 58px;
     height: 58px;
     font-size: 1.6rem;
@@ -1235,11 +1266,12 @@ h1 {
     font-size: 1.05rem;
   }
   /* Pied devenu colonne de droite : le SOS rond, centré, séparé d'un filet. */
+  /* 136 px utiles (anneau de l'appui compris), plus la zone sûre de droite (encoche). */
   .actions {
     flex: none;
     justify-content: center;
-    width: 150px;
-    padding: calc(var(--safe-top) + var(--space-3)) calc(var(--space-3) + var(--safe-right)) calc(var(--safe-bottom) + var(--space-3)) var(--space-3);
+    width: calc(152px + var(--safe-right));
+    padding: calc(var(--safe-top) + var(--space-3)) calc(var(--space-2) + var(--safe-right)) calc(var(--safe-bottom) + var(--space-3)) var(--space-2);
     border-top: 0;
     border-left: 1px solid var(--border);
   }
@@ -1249,7 +1281,7 @@ h1 {
 @media (orientation: landscape) and (max-height: 500px) and (max-width: 719px) {
   .content {
     grid-template-columns: 130px minmax(0, 1fr);
-    gap: 10px 10px;
+    gap: var(--space-2);
     padding-left: calc(var(--space-4) + var(--safe-left));
   }
   .content > :deep(.status .clock) {
@@ -1263,10 +1295,10 @@ h1 {
   .grid.compact {
     gap: 6px;
   }
-  .grid :deep(.tile:not(.wide)) {
-    padding: 12px 4px 10px;
+  .grid:not(.many) :deep(.tile:not(.wide)) {
+    padding: var(--space-3) var(--space-1) 10px;
   }
-  .grid :deep(.avatar) {
+  .grid:not(.many) :deep(.avatar) {
     width: 44px;
     height: 44px;
     font-size: 1.2rem;
@@ -1279,9 +1311,6 @@ h1 {
   }
   .grid :deep(.call svg) {
     display: none;
-  }
-  .actions {
-    width: 130px;
   }
 }
 </style>

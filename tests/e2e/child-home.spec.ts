@@ -259,7 +259,8 @@ for (const [w, h] of [[800, 360], [640, 360]] as const) {
       await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: true }, screening: { available: true, held: true } }, { locate: true })
       const tiles = page.locator('.grid .tile')
       await expect(tiles).toHaveCount(4)
-      expect(await page.evaluate(() => document.scrollingElement!.scrollHeight <= window.innerHeight)).toBe(true)
+      // Aucun défilement : ni la page, ni le contenu (seul conteneur qui défile).
+      expect(await page.locator('.content').evaluate((e) => e.scrollHeight <= e.clientHeight)).toBe(true)
       const boxes = await tiles.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect))
       for (const b of boxes) {
         expect(b.top).toBe(boxes[0].top)
@@ -283,6 +284,24 @@ for (const [w, h] of [[800, 360], [640, 360]] as const) {
       if (SHOTS) await page.screenshot({ path: `${SHOTS}/paysage-${w}-appui.png` })
       await page.mouse.up()
       await expect(page.locator('.sos-veil')).toHaveCount(0)
+      // Le SOS et son anneau tiennent dans leur colonne (filet de gauche, bord droit).
+      const col = (await page.locator('.actions').boundingBox())!
+      expect(sos.x).toBeGreaterThanOrEqual(col.x)
+      expect(sos.x + sos.width).toBeLessThanOrEqual(col.x + col.width)
+    })
+    test('6 contacts : deux rangées de 3, sans défiler', async ({ page }) => {
+      const six = [...CONTACTS, ...['Dada', 'Nenibe'].map((name, i) => ({ ...CONTACTS[0], id: `c${5 + i}`, name, position: 5 + i }))]
+      await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: true }, screening: { available: true, held: true } }, { contacts: six })
+      await expect(page.locator('.grid .tile')).toHaveCount(6)
+      expect(await page.locator('.content').evaluate((e) => e.scrollHeight <= e.clientHeight)).toBe(true)
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/paysage-${w}-six.png` })
+    })
+    test('mode parent : la barre tient dans la largeur du contenu', async ({ page }) => {
+      await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: false, unlockedUntil: Date.now() + 10 * 60_000 }, screening: { available: true, held: true } })
+      const bar = (await page.locator('.parent-bar').boundingBox())!
+      const content = (await page.locator('.content').boundingBox())!
+      expect(bar.x + bar.width).toBeLessThanOrEqual(content.x + content.width)
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/paysage-${w}-parent.png` })
     })
   })
 }
