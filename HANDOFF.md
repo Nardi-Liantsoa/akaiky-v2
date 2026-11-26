@@ -488,6 +488,9 @@ Repris de Deploy4000 et à garder à jour : une limite écrite est un choix, une
   boucle sur l'accueil. Ajouté à `neverHide`. Vérifié sur `kiosk34` : Réglages ouverts sans plantage, retour à l'app,
   verrou remis. Autres paquets système encore cachés s'ils sont lançables (Agenda, Horloge, Fichiers, SIM Toolkit…) :
   aucun plantage vu, mais un constructeur peut dépendre d'un autre fournisseur de la même façon.
+  Bien-être numérique d'autres constructeurs (Xiaomi, Huawei…) : noms de paquets non vérifiés, donc pas dans la liste ;
+  à ajouter après essai sur un vrai téléphone. Une famille qui avait autorisé Bien-être numérique avant NAR-246 le voit
+  « bloquée » sur la carte (il compte dans les 4 jusqu'à ce qu'elle le retire) ; il disparaît de l'écran de l'enfant.
 - **Mise à jour de l'APK enfant (NAR-170)** : Android ne permet pas au Device Owner de lever
   `DISALLOW_INSTALL_APPS` pour un seul paquet. La restriction est levée **juste avant la création de la session
   d'installation** (Android 14 refuse déjà `createSession` sous la restriction, vu sur `kiosk34`), donc pendant la
