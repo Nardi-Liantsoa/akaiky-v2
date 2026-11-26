@@ -8,7 +8,7 @@ import { test, expect, newClient, api } from './support.mjs'
 import { MESSAGES } from '../../src/i18n/messages.ts'
 
 const PAGES = [
-  ['/espace', (t) => t.parent.home.title],
+  ['/espace', (t) => t.parent.home.heading],
   ['/espace/journal', (t) => t.parent.log.title],
   ['/espace/reglages', (t) => t.parent.settings.title],
   ['/espace/famille', (t) => t.parent.family.title],

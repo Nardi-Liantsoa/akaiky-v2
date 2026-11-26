@@ -500,6 +500,10 @@ Poste macOS 14 : le WebKit de Playwright y est figé (`Unknown setting: PushAPIE
 Projet `webkit` dans l'image Linux à la version de `@playwright/test` :
 `docker run --rm -v "$PWD:/w" -v /w/node_modules -v /w/server/node_modules -v /w/dist -w /w mcr.microsoft.com/playwright:v1.65.0-noble sh -c "npm ci --ignore-scripts && npx playwright test --project=webkit"`.
 La recette `iphone` fait foi en CI Linux.
+Recette `iphone` sur ce poste (NAR-247) : serveur Playwright WebKit Linux dans Docker, le back de recette reste
+local (tunnel `exposeNetwork: '<loopback>'`) :
+`docker run -d --rm --name pw-webkit -p 127.0.0.1:3555:3555 --ipc=host mcr.microsoft.com/playwright:v1.65.0-noble npx -y playwright@1.65.0 run-server --port 3555 --host 0.0.0.0`
+puis `PW_WEBKIT_WS=ws://127.0.0.1:3555/ npm run recette`.
 
 ## Pipeline Linear
 
