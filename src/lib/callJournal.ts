@@ -8,6 +8,8 @@ import { DeviceError, type SecretStore } from './deviceSession'
 //    le stockage sécurisé (données de mineurs), jamais en localStorage.
 export const PENDING_KEY = 'device-calls-pending'
 export const QUEUE_KEY = 'device-calls-queue'
+// Sortie du verrou en cours (NAR-216) : notée à l'ouverture, envoyée à la fermeture avec sa durée réelle.
+export const WINDOW_KEY = 'device-unlock-window'
 const MAX_QUEUE = 500
 const BATCH = 50
 // Après ce délai sans trace dans le journal d'Android, l'appel part sans durée.
@@ -19,7 +21,8 @@ export interface PendingCall { id: string, contactId: string, name: string, numb
 // name et phone : instantané au moment de l'appel (contact retiré ou modifié avant l'envoi).
 export interface CallEvent { id: string, kind: 'call_out', contactId: string, name: string, phone: string, startedAt: string, durationS: number | null }
 // Sortie du verrou (NAR-168) : par le code saisi sur le téléphone ou à la demande d'un
-// parent ; durée accordée en secondes (une sortie refermée plus tôt n'est pas recomptée). Envoyée par la même file que les appels.
+// parent ; durée réelle en secondes (NAR-216 : de l'ouverture à la fermeture vue par l'écran,
+// la durée accordée au plus). Envoyée par la même file que les appels, à la fermeture.
 export interface UnlockEvent { id: string, kind: 'unlock', source: 'code' | 'remote', startedAt: string, durationS: number }
 // Appel reçu d'un contact (NAR-145) ; contactId absent si le contact a été retiré entre-temps.
 // emergencyWindow (NAR-196) : appel qui aurait été refusé, laissé sonner parce que l'enfant a
@@ -29,6 +32,11 @@ export interface CallInEvent { id: string, kind: 'call_in', contactId?: string, 
 // contactId, name : contact refusé pendant une plage « école » (NAR-176).
 export interface BlockedEvent { id: string, kind: 'call_blocked', phone?: string, contactId?: string, name?: string, startedAt: string }
 export type DeviceEvent = CallEvent | UnlockEvent | CallInEvent | BlockedEvent
+export interface UnlockWindow { id: string, source: 'code' | 'remote', startedAt: number, plannedS: number }
+const isWindow = (v: unknown): v is UnlockWindow => {
+  const w = v as UnlockWindow | null
+  return typeof w?.id === 'string' && (w.source === 'code' || w.source === 'remote') && typeof w.startedAt === 'number' && typeof w.plannedS === 'number'
+}
 // Événement noté par le filtre natif (CallPlugin.peekIncoming).
 // school : refusé pendant une plage « école » (contact non parent, NAR-176).
 // emergencyWindow : laissé sonner par la fenêtre des secours (NAR-196), numéro absent si masqué.
@@ -78,6 +86,25 @@ export function createCallJournal(deps: JournalDeps) {
   // (file) ; aucun verrou n'est tenu pendant la requête réseau elle-même.
   const pendingLock = lock()
   const queueLock = lock()
+  const windowLock = lock()
+  const readWindow = async (): Promise<UnlockWindow | null> => {
+    try {
+      const raw = await deps.store.get(WINDOW_KEY)
+      const v = typeof raw === 'string' ? JSON.parse(raw) : null
+      return isWindow(v) ? v : null
+    } catch {
+      return null
+    }
+  }
+  // Fermeture : durée réelle, entre 0 et la durée accordée (fermée par l'alarme pendant que
+  // l'app dormait : la durée accordée).
+  const closeWindow = async () => {
+    const w = await readWindow()
+    if (!w) return
+    const durationS = Math.min(w.plannedS, Math.max(0, Math.round((deps.now() - w.startedAt) / 1000)))
+    await append([{ id: w.id, kind: 'unlock', source: w.source, startedAt: new Date(w.startedAt).toISOString(), durationS }])
+    await deps.store.remove(WINDOW_KEY)
+  }
   const save = (key: string, list: unknown[]) => deps.store.set(key, JSON.stringify(list))
   const append = (events: DeviceEvent[]) => queueLock(async () => {
     if (!events.length) return
@@ -144,9 +171,21 @@ export function createCallJournal(deps: JournalDeps) {
       })
     },
 
-    // Sortie du verrou : mise directement dans la file (rien à compléter).
-    unlocked(source: 'code' | 'remote', minutes: number): Promise<void> {
-      return append([{ id: deps.uuid(), kind: 'unlock', source, startedAt: new Date(deps.now()).toISOString(), durationS: Math.round(minutes * 60) }])
+    // Sortie ouverte (code ou à distance) : notée, envoyée à sa fermeture. Une sortie encore
+    // notée ouverte (fermeture jamais vue) est d'abord refermée.
+    unlockOpened(source: 'code' | 'remote', minutes: number): Promise<void> {
+      return windowLock(async () => {
+        await closeWindow()
+        const w: UnlockWindow = { id: deps.uuid(), source, startedAt: deps.now(), plannedS: Math.round(minutes * 60) }
+        await deps.store.set(WINDOW_KEY, JSON.stringify(w))
+      })
+    },
+    // Sortie refermée (bouton, alarme, demande d'un parent) : dans la file, durée réelle.
+    unlockClosed(): Promise<void> {
+      return windowLock(closeWindow)
+    },
+    openWindow(): Promise<UnlockWindow | null> {
+      return windowLock(readWindow)
     },
 
     // Appel qui n'est pas parti (refus natif, composeur absent) : rien à journaliser.
@@ -214,6 +253,7 @@ export function createCallJournal(deps: JournalDeps) {
     async clear(): Promise<void> {
       await pendingLock(() => deps.store.remove(PENDING_KEY).catch(() => {}))
       await queueLock(() => deps.store.remove(QUEUE_KEY).catch(() => {}))
+      await windowLock(() => deps.store.remove(WINDOW_KEY).catch(() => {}))
     }
   }
 }

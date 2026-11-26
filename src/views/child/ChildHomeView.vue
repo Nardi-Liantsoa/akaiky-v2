@@ -5,7 +5,8 @@ import { App } from '@capacitor/app'
 import { locale, useT } from '../../composables/useT'
 import { appKind } from '../../lib/appKind'
 import { startChild, type ChildState } from '../../lib/childStartup'
-import { appInventory, callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore, remoteUnlockSeen, messageOutbox, heartbeat } from '../../lib/deviceSessionInstance'
+import { appInventory, callJournal, childIdentity, configSync, deviceSession as session, parentCodeStore, countryStore, remoteUnlockSeen, messageOutbox, heartbeat, lockReporter } from '../../lib/deviceSessionInstance'
+import { lockBody, relockDue } from '../../lib/lockReport'
 import { deviceConfig, pause, refreshNow, resume, startDeviceConfig, stopDeviceConfig } from '../../composables/useDeviceConfig'
 import { emergencyNumber } from '../../lib/emergency'
 import { sosPlan } from '../../lib/sos'
@@ -97,7 +98,7 @@ onMounted(async () => {
   const handle = await App.addListener('appStateChange', ({ isActive }) => {
     foreground = isActive
     if (isActive) startClock(); else stopClock()
-    if (isActive) { void refreshKiosk().catch(() => {}).then(() => applyRemoteUnlock()); void readScreening(); void readSos() }
+    if (isActive) { void refreshKiosk().catch(() => {}).then(() => { void applyRemoteUnlock(); void reportLock() }); void readScreening(); void readSos() }
     if (isActive && state.value.kind === 'paired') { resume(); startStatus(); startLocate(); syncJournal(); void backgroundStatus.ensure(); void syncApps(); checkUpdate(); void registerPush(state.value) } else { pause(); stopStatus(); stopLocate(); clearTimeout(journalRetry) }
   })
   // SOS en cours (NAR-151) : état poussé par le service natif quand la WebView est éveillée,
@@ -207,7 +208,8 @@ function startStatus() {
   void readStatus()
   // Le téléphone reste sur l'app (verrou) : les appels bloqués sont repris chaque minute.
   // Liste renvoyée aussi : un premier envoi manqué laisserait le filtre inactif.
-  statusTimer = setInterval(() => { void readStatus(); syncJournal(); void pushAllowed() }, 60_000)
+  // État du verrou renvoyé aussi : un rapport manqué (hors ligne) repart à ce tour.
+  statusTimer = setInterval(() => { void readStatus(); syncJournal(); void pushAllowed(); void reportLock() }, 60_000)
 }
 watch(() => state.value.kind === 'paired', startStatus)
 
@@ -583,8 +585,8 @@ async function applyRemoteUnlock() {
       if (status?.unlockedUntil === undefined) continue
       appliedRemote = until
       await remoteUnlockSeen.set(until).catch(() => {})
-      await callJournal.unlocked('remote', minutes).catch(() => {})
-      syncJournal()
+      await callJournal.unlockOpened('remote', minutes).catch(() => {})
+      void reportLock()
     } while (rerun)
   } finally {
     applyingRemote = false
@@ -592,12 +594,40 @@ async function applyRemoteUnlock() {
 }
 // Relu quand la demande change, quand le verrou s'arme, et à chaque reprise de l'app.
 watch(() => [deviceConfig.config?.remoteUnlockUntil, kiosk.status?.armed] as const, () => { void applyRemoteUnlock() })
-// Sortie par le code saisi sur le téléphone : notée au journal (15 minutes).
+// Sortie par le code saisi sur le téléphone : notée, envoyée au journal à sa fermeture.
 async function onUnlocked() {
   unlocking.value = false
-  await callJournal.unlocked('code', UNLOCK_MINUTES).catch(() => {})
-  syncJournal()
+  await callJournal.unlockOpened('code', UNLOCK_MINUTES).catch(() => {})
+  void reportLock()
 }
+
+// État réel du verrou rapporté au serveur (NAR-216) : la carte du parent montre la sortie en
+// cours et peut la refermer. Envoyé à chaque ouverture, fermeture (bouton, alarme, demande du
+// parent) et reprise ; un rapport manqué repart au tour suivant. Fermeture : la sortie part au
+// journal avec sa durée réelle.
+async function reportLock() {
+  if (!Capacitor.isNativePlatform() || state.value.kind !== 'paired' || !kiosk.status) return
+  const until = kiosk.status.unlockedUntil
+  const now = Date.now()
+  const open = until !== undefined && until > now
+  if (!open && (await callJournal.openWindow().catch(() => null))) {
+    await callJournal.unlockClosed().catch(() => {})
+    syncJournal()
+  }
+  const window = open ? await callJournal.openWindow().catch(() => null) : null
+  const body = lockBody(until, window, now)
+  const key = 'source' in body ? `open:${body.source}:${until}` : 'locked'
+  if (await lockReporter.report(body, key)) checkRelock()
+}
+// Reverrouillage demandé par un parent après l'ouverture de la sortie en cours (deux heures du
+// serveur) : refermée tout de suite. Une demande plus ancienne ne referme jamais une sortie
+// ouverte ensuite ; hors ligne, la sortie se referme de toute façon à son échéance.
+function checkRelock() {
+  if (isUnlocked() && relockDue(deviceConfig.config?.relockRequestedAt, lockReporter.startedAt())) void lockNow().catch(() => {})
+}
+watch(() => kiosk.status?.unlockedUntil, () => { void reportLock() })
+// Demande reçue (relevé ou réveil push `config`) : rapport d'abord (ouverture connue du serveur), puis la règle.
+watch(() => deviceConfig.config?.relockRequestedAt, () => { void reportLock() })
 
 const unlocking = ref(false)
 // « Dire à mes parents » (NAR-150).

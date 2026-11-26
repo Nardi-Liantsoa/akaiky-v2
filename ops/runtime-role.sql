@@ -102,5 +102,9 @@ GRANT INSERT ON positions, location_requests TO app_runtime;
 GRANT UPDATE (created_at, watch_until) ON location_requests TO app_runtime;
 -- Langue du compte (031_user_lang.sql) : courriels dans la langue du destinataire.
 GRANT INSERT (lang), UPDATE (lang) ON users TO app_runtime;
+-- État du verrou du téléphone (032_lock_state.sql) : rapporté par le téléphone ; reverrouillage
+-- demandé par un gestionnaire (config_version suit par déclencheur).
+GRANT UPDATE (unlocked_until, unlock_source, unlock_started_at, lock_reported_at) ON child_devices TO app_runtime;
+GRANT UPDATE (relock_requested_at) ON children TO app_runtime;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime;
 COMMIT;

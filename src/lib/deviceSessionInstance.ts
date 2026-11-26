@@ -6,6 +6,7 @@ import { createUnlockGuard } from './unlockGuard'
 import { createMessageOutbox, type OutgoingMessage } from './messageOutbox'
 import { createCallJournal, type DeviceEvent } from './callJournal'
 import { createHeartbeat, type HeartbeatBody } from './heartbeat'
+import { createLockReporter } from './lockReport'
 import { createInventorySync } from './appInventory'
 import { uuidV4 } from './uuid'
 import { AkaikyCall } from '../native/akaikyCall'
@@ -32,9 +33,12 @@ export const deviceSession = createDeviceSession({
   base: API_BASE, store: secureStore, fetch: (...args) => fetch(...args),
   // heartbeat.reset() d'abord, sans attendre : un signal parti pendant les effacements ne
   // compterait pas pour la nouvelle session.
-  onReset: async () => { heartbeat.reset(); await configSync.clear(); await childIdentity.clear(); await callJournal.clear(); await messageOutbox.clear(); await appInventory.clear(); await clearNativeAllowedApps() }
+  onReset: async () => { heartbeat.reset(); lockReporter.reset(); await configSync.clear(); await childIdentity.clear(); await callJournal.clear(); await messageOutbox.clear(); await appInventory.clear(); await clearNativeAllowedApps() }
 })
 export const configSync = createConfigSync({ session: deviceSession, store: secureStore })
+
+// État réel du verrou (NAR-216), rapporté au serveur pour la carte du parent.
+export const lockReporter = createLockReporter({ send: (body) => deviceSession.put('/device/lock', body) })
 
 // Journal des appels sortants (NAR-166) : file dans le Keystore, envoyée par lots.
 export const callJournal = createCallJournal({

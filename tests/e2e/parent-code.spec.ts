@@ -126,3 +126,65 @@ test('nouveau code demandé par l’équipe : bandeau pour le gestionnaire, effa
   await expect(page.getByText('Défini le 17 novembre.')).toBeVisible()
   await expect(page.getByText(/L’équipe Akaiky vous demande/)).toHaveCount(0)
 })
+
+// NAR-216 : état réel rapporté par le téléphone, reverrouillage à distance.
+test('sortie ouverte avec le code sur le téléphone : montrée en moins d’un relevé, reverrouillée après confirmation', async ({ page }) => {
+  await page.clock.install()
+  const withCode = { ...FY, parentCodeSetAt: '2026-11-17T09:00:00Z' }
+  const startedAt = new Date(Date.now() - 60_000).toISOString()
+  const open = { ...withCode, phoneUnlock: { until: new Date(Date.now() + 14 * 60_000).toISOString(), source: 'code', startedAt }, relockRequestedAt: null }
+  let current: object = withCode
+  const relockedAt = new Date(Date.now() + 1_000).toISOString()
+  const calls = await mockApi(page, {
+    ...me, ...contacts,
+    'GET /api/families/me': () => ({ body: FAMILY }),
+    'GET /api/children': () => ({ body: [current] }),
+    [`DELETE /api/children/${FY.id}/unlock`]: () => ({ body: { relockRequestedAt: relockedAt } })
+  })
+  await openSection(page, 'Code parent')
+  await expect(page.getByRole('button', { name: 'Déverrouiller 15 min' })).toBeVisible()
+
+  // L'enfant ouvre le téléphone avec le code : la carte le montre au relevé suivant (30 s).
+  current = open
+  await page.clock.runFor(31_000)
+  await expect(page.getByRole('status').filter({ hasText: /Téléphone ouvert jusqu’à \d\d:\d\d, avec le code parent\./ })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Déverrouiller 15 min' })).toHaveCount(0)
+  await expect(page.getByText(/Sans réseau, il se reverrouille de toute façon/)).toBeVisible()
+
+  // Confirmation d'abord ; « Annuler » n'envoie rien.
+  await page.getByRole('button', { name: 'Reverrouiller maintenant' }).click()
+  const sheet = page.getByRole('alertdialog', { name: 'Reverrouiller le téléphone maintenant ?' })
+  await expect(sheet).toContainText('L’enfant revient à l’écran Akaiky')
+  await sheet.getByRole('button', { name: 'Annuler' }).click()
+  expect(calls.filter((r) => r.method() === 'DELETE')).toHaveLength(0)
+  await page.getByRole('button', { name: 'Reverrouiller maintenant' }).click()
+  await sheet.getByRole('button', { name: 'Reverrouiller', exact: true }).click()
+  await expect(sheet).toHaveCount(0)
+  expect(calls.filter((r) => r.method() === 'DELETE' && r.url().endsWith(`/children/${FY.id}/unlock`))).toHaveLength(1)
+  await expect(page.getByRole('status').filter({ hasText: 'Reverrouillage envoyé : il s’appliquera dès que le téléphone sera joignable.' })).toBeVisible()
+
+  // Le téléphone reverrouille : la carte revient à « Déverrouiller 15 min ».
+  current = { ...withCode, phoneUnlock: null, relockRequestedAt: relockedAt }
+  await page.clock.runFor(31_000)
+  await expect(page.getByRole('button', { name: 'Déverrouiller 15 min' })).toBeVisible()
+  await expect(page.getByText(/Téléphone ouvert/)).toHaveCount(0)
+  await expect(page.getByText(/Reverrouillage envoyé/)).toHaveCount(0)
+})
+
+test('sortie à distance en cours : source affichée ; un contact voit l’état sans aucun bouton', async ({ page }) => {
+  const asMember = { ...FAMILY, role: 'member', members: [{ userId: USER.id, name: USER.name, role: 'member', isMe: true }] }
+  const open = {
+    ...FY, parentCodeSetAt: '2026-11-17T09:00:00Z', remoteUnlockUntil: new Date(Date.now() + 14 * 60_000).toISOString(),
+    phoneUnlock: { until: new Date(Date.now() + 13 * 60_000).toISOString(), source: 'remote', startedAt: new Date().toISOString() }
+  }
+  await mockApi(page, {
+    ...me, ...contacts,
+    'GET /api/families/me': () => ({ body: asMember }),
+    'GET /api/children': () => ({ body: [open] })
+  })
+  await openSection(page, 'Code parent')
+  await expect(page.getByRole('status').filter({ hasText: /Téléphone ouvert jusqu’à \d\d:\d\d, à distance\./ })).toBeVisible()
+  // L'état réel l'emporte sur la demande : pas de « Déverrouillage demandé » en double.
+  await expect(page.getByText(/Déverrouillage demandé/)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Reverrouiller|Déverrouiller/ })).toHaveCount(0)
+})

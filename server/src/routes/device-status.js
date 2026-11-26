@@ -8,6 +8,12 @@
 //                    gardé ensuite (absent ou faux ne le remet jamais à faux).
 //                    Accepte la session d'appareil OU le jeton « signal de vie »
 //                    (`Authorization: Heartbeat <jeton>`, NAR-180), qui n'ouvre que cette route.
+//   PUT  /lock       { remainingS, openedAgoS?, source? } : état réel du verrou de CE téléphone
+//                    (NAR-216). remainingS 0 = verrouillé ; sinon sortie en cours, durées en
+//                    secondes mesurées par le téléphone (jamais son heure), 15 min au plus.
+//                    Rend { unlockStartedAt } (heure du serveur), comparée par le téléphone à
+//                    relockRequestedAt de sa configuration. Verrouillé après une sortie à
+//                    distance : la demande appliquée est effacée (elle ne se réapplique pas).
 //   POST /heartbeat-token  session d'appareil seule : nouveau jeton « signal de vie »
 //                    (256 bits), rendu une fois ; l'empreinte remplace la précédente (l'ancien
 //                    jeton est refusé aussitôt). Pour le natif en arrière-plan, qui ne touche
@@ -16,6 +22,7 @@
 //   GET  /children/:id/status  membres : téléphones actifs de l'enfant, relevés et alertes
 //                              ouvertes ; autre famille → 404.
 import { HttpError, audit, isUuid } from '../lib.js'
+import { withTransaction } from '../db.js'
 import { ROLES, requireOwnFamily } from '../families.js'
 import { createLimiter, newToken } from '../security.js'
 import { applyHeartbeat, parseHeartbeat } from '../device-status.js'
@@ -30,6 +37,21 @@ export const HEARTBEAT_TOKEN_WINDOW_MS = 60 * 60_000
 // Validité du jeton : l'app le réémet à chaque démarrage, un téléphone utilisé le renouvelle.
 export const HEARTBEAT_TOKEN_DAYS = 30
 
+// Sortie du verrou : 15 minutes au plus (NAR-167, NAR-168).
+export const LOCK_MAX_S = 15 * 60
+export const LOCK_REPORTS_MAX = 30
+export const LOCK_REPORTS_WINDOW_MS = 5 * 60_000
+const LOCK = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['remainingS'],
+  properties: {
+    remainingS: { type: 'integer', minimum: 0, maximum: LOCK_MAX_S },
+    openedAgoS: { type: 'integer', minimum: 0, maximum: LOCK_MAX_S },
+    source: { type: 'string', enum: ['code', 'remote'] }
+  }
+}
+
 export async function deviceStatusRoutes(app) {
   const { db } = app
   const limit = createLimiter({ max: HEARTBEAT_MAX, windowMs: HEARTBEAT_WINDOW_MS })
@@ -40,6 +62,45 @@ export async function deviceStatusRoutes(app) {
     if (!limit(`device:${req.device.id}`)) throw new HttpError(429, 'Trop d’envois. Réessayez dans une minute.')
     await applyHeartbeat(db, req.device, status)
     return { ok: true }
+  })
+
+  const lockLimit = createLimiter({ max: LOCK_REPORTS_MAX, windowMs: LOCK_REPORTS_WINDOW_MS })
+  app.put('/lock', { config: { device: true }, schema: { body: LOCK } }, async (req) => {
+    const { remainingS, openedAgoS, source } = req.body
+    const open = remainingS > 0
+    // Sortie en cours : source et ouverture exigées ; verrouillé : rien d'autre.
+    if (open ? source === undefined || openedAgoS === undefined : source !== undefined || openedAgoS !== undefined) {
+      throw new HttpError(400, 'Requête invalide.')
+    }
+    if (!lockLimit(`device:${req.device.id}`)) throw new HttpError(429, 'Trop d’envois. Réessayez dans une minute.')
+    return withTransaction(db, async (conn) => {
+      // Téléphone de la session, non révoqué, verrouillé : une révocation concurrente passe avant.
+      const { rows: [prev] } = await conn.query(
+        `SELECT unlock_source, unlock_started_at FROM child_devices WHERE id = $1 AND revoked_at IS NULL FOR UPDATE`, [req.device.id])
+      if (!prev) throw new HttpError(401, 'Session de l’appareil expirée.')
+      if (open) {
+        const { rows: [row] } = await conn.query(
+          `UPDATE child_devices SET unlocked_until = now() + make_interval(secs => $2), unlock_source = $3,
+                  unlock_started_at = now() - make_interval(secs => $4), lock_reported_at = now()
+            WHERE id = $1 RETURNING unlock_started_at`, [req.device.id, remainingS, source, openedAgoS])
+        return { unlockStartedAt: row.unlock_started_at }
+      }
+      await conn.query(
+        `UPDATE child_devices SET unlocked_until = NULL, unlock_source = NULL, unlock_started_at = NULL, lock_reported_at = now()
+          WHERE id = $1`, [req.device.id])
+      // Sortie à distance refermée (enfant, alarme, parent) : la demande qu'elle appliquait
+      // (posée avant son ouverture, à une minute près : durées arrondies à la seconde, trajet
+      // réseau) est effacée, pour ne pas la montrer encore ouverte au parent. Une demande posée
+      // plus tard, pas encore appliquée, reste.
+      if (prev.unlock_source === 'remote' && prev.unlock_started_at) {
+        await conn.query(
+          `UPDATE children SET remote_unlock_until = NULL
+            WHERE id = $1 AND family_id = $2 AND remote_unlock_until IS NOT NULL
+              AND remote_unlock_until - make_interval(mins => $4) <= $3::timestamptz + interval '1 minute'`,
+          [req.device.childId, req.device.familyId, prev.unlock_started_at, LOCK_MAX_S / 60])
+      }
+      return { unlockStartedAt: null }
+    })
   })
 
   app.post('/heartbeat-token', { config: { device: true } }, async (req) => {

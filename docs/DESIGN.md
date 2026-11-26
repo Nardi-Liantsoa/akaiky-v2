@@ -280,6 +280,14 @@ onglets empilés en haut, colonne centrée dans la place restante. Mêmes liens 
    en une ligne, chevron ; tient sans défiler à 360 px pour un enfant), chaque section sur
    sa page (`/espace/reglages/<section>`, retour « ‹ Réglages » = retour de l'historique),
    sélecteur d'enfant en haut, même enfant partout.
+   Carte **Code parent**, sortie du verrou (NAR-216, sans maquette : langage de l'existant) :
+   état réel du téléphone sur la ligne d'état (cadenas ouvert couleur accent, « Téléphone ouvert
+   jusqu'à 14:32, avec le code parent » ou « …, à distance »), qui remplace « Déverrouillage
+   demandé jusqu'à … » ; bouton plein « Reverrouiller maintenant » (cadenas) à la place de
+   « Déverrouiller 15 min » tant que le téléphone est ouvert ou la demande en attente, avec son
+   aide dessous ; confirmation par la feuille commune (`ConfirmSheet`) ; « Reverrouillage
+   envoyé : … dès que le téléphone sera joignable » en aide sous l'état. Un contact voit l'état,
+   aucun bouton.
 9. **Journal** — filtres Tout · Appels · Bloqués · Messages · SOS, groupé par jour,
    « Autoriser » sur un appel bloqué, mention « gardé 90 jours, puis effacé ».
 10. **Appairage, étape 3 sur 3** — QR « Valable 15 minutes · usage unique », liste des

@@ -70,15 +70,38 @@ describe('createCallJournal', () => {
     expect(s.queue()).toEqual([])
   })
 
-  it('déverrouillage (NAR-168) : mis dans la file avec son origine et sa durée, envoyé avec les appels', async () => {
+  it('déverrouillage (NAR-168, NAR-216) : noté à la fermeture avec sa durée réelle, envoyé avec les appels', async () => {
     const s = setup()
-    await s.journal.unlocked('remote', 12)
+    await s.journal.unlockOpened('remote', 12)
+    expect(await s.journal.openWindow()).toEqual({ id: 'id-1', source: 'remote', startedAt: 1_000_000, plannedS: 720 })
+    expect(s.queue()).toEqual([])
+    s.advance(200_000)
+    await s.journal.unlockClosed()
     await s.journal.started({ id: 'maman', name: 'Maman' }, '+261341234567')
     await s.journal.complete()
     expect(s.queue().map((e: DeviceEvent) => e.kind)).toEqual(['unlock', 'call_out'])
-    expect(s.queue()[0]).toEqual({ id: 'id-1', kind: 'unlock', source: 'remote', startedAt: new Date(1_000_000).toISOString(), durationS: 720 })
+    expect(s.queue()[0]).toEqual({ id: 'id-1', kind: 'unlock', source: 'remote', startedAt: new Date(1_000_000).toISOString(), durationS: 200 })
+    expect(await s.journal.openWindow()).toBeNull()
     await s.journal.flush()
     expect(s.queue()).toEqual([])
+  })
+
+  it('déverrouillage refermé par l’alarme pendant que l’app dormait : durée accordée au plus ; fermé deux fois : une seule entrée', async () => {
+    const s = setup()
+    await s.journal.unlockOpened('code', 15)
+    s.advance(3 * 3_600_000)
+    await s.journal.unlockClosed()
+    await s.journal.unlockClosed()
+    expect(s.queue()).toEqual([{ id: 'id-1', kind: 'unlock', source: 'code', startedAt: new Date(1_000_000).toISOString(), durationS: 900 }])
+  })
+
+  it('nouvelle sortie alors qu’une autre est notée ouverte : la précédente est d’abord refermée', async () => {
+    const s = setup()
+    await s.journal.unlockOpened('code', 15)
+    s.advance(60_000)
+    await s.journal.unlockOpened('remote', 10)
+    expect(s.queue()).toEqual([{ id: 'id-1', kind: 'unlock', source: 'code', startedAt: new Date(1_000_000).toISOString(), durationS: 60 }])
+    expect((await s.journal.openWindow())?.source).toBe('remote')
   })
 
   it('appel → durée lue au retour → envoyé ; file et appels en cours vidés', async () => {
