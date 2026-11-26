@@ -243,6 +243,14 @@ avant/après et note) : `docs/maquettes/2026-11-enfant/`, appliquée écran par 
    code faux : points rouges et « Code incorrect, réessaie. » juste dessous ; touches pleines
    `--surface-muted` de 78 px, sans contour, effacer en icône. Retour d'Android : ferme le panneau
    du dessus (pile des feuilles), jamais l'app.
+   **Paysage** (NAR-242, planche 06 ; écran couché de 500 px de haut au plus, CSS seul) — trois
+   colonnes sans défiler : à gauche (190 px) l'heure, la date et les pastilles, le cadenas épinglé
+   en bas ; au centre les contacts sur une rangée (avatar 58 px), « Dire à mes parents » et les
+   applications ; à droite (150 px, filet à gauche) le SOS rond de 112 px et sa consigne, anneau
+   rond pendant l'appui. Moins de 720 px de large : colonne de gauche de 130 px, avatar 44 px,
+   « Appeler » sans icône. 5 ou 6 contacts : deux rangées de 3 (avatar 40 px et prénom, sans
+   « Appeler »). Colonne du SOS : 136 px utiles plus la zone sûre de droite ; halo de 4 px pendant
+   l'appui (l'anneau reste visible) ; mode parent : barre au-dessus des deux colonnes.
    **Écrans sans famille** (attente, erreur, téléphone retiré ; NAR-241, planche 09) — message
    pour l'enfant au centre (« Akaiky », titre, phrase, « Réessayer » si utile) ; téléphone ouvert
    par un parent : une seule carte blanche avec la pastille « Mode parent · jusqu'à … »,

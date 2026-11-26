@@ -251,17 +251,60 @@ test('écran d’erreur verrouillé : code parent ≥ 64 px', async ({ page }) =
 
 // Écran couché ou très court (l'orientation n'est pas bloquée) : le pied le plus haut
 // (SOS, secours, code parent) tient encore, le contenu défile au-dessus.
-test.describe('écran couché 640×360', () => {
-  test.use({ viewport: { width: 640, height: 360 } })
-  test('verrouillé : SOS et code parent à l’écran, vignettes au-dessus du pied', async ({ page }) => {
-    await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: true }, screening: { available: true, held: true } })
-    await expect(page.locator('.grid .tile')).toHaveCount(4)
-    await expect(page.locator('.status .parent-code')).toBeVisible()
-    await expectSosVisible(page)
-    const code = (await page.locator('.status .parent-code').boundingBox())!
-    expect(code.y + code.height).toBeLessThanOrEqual(page.viewportSize()!.height)
+// Paysage (planche 06, NAR-242) : trois colonnes, tout à l'écran sans défiler ; même appui de 3 s.
+for (const [w, h] of [[800, 360], [640, 360]] as const) {
+  test.describe(`écran couché ${w}×${h}`, () => {
+    test.use({ viewport: { width: w, height: h } })
+    test('heure et cadenas à gauche, 4 contacts sur une rangée, SOS rond à droite', async ({ page }) => {
+      await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: true }, screening: { available: true, held: true } }, { locate: true })
+      const tiles = page.locator('.grid .tile')
+      await expect(tiles).toHaveCount(4)
+      // Aucun défilement : ni la page, ni le contenu (seul conteneur qui défile).
+      expect(await page.locator('.content').evaluate((e) => e.scrollHeight <= e.clientHeight)).toBe(true)
+      const boxes = await tiles.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON() as DOMRect))
+      for (const b of boxes) {
+        expect(b.top).toBe(boxes[0].top)
+        expect(b.bottom).toBeLessThanOrEqual(h)
+      }
+      const sos = (await page.locator('.actions .sos').boundingBox())!
+      expect(sos.width).toBe(112)
+      expect(sos.x).toBeGreaterThan(boxes[3].right)
+      expect(sos.y + sos.height).toBeLessThanOrEqual(h)
+      const clock = (await page.locator('.status .clock').boundingBox())!
+      expect(clock.x + clock.width).toBeLessThanOrEqual(boxes[0].left)
+      const code = (await page.locator('.status .parent-code').boundingBox())!
+      expect(code.x).toBeLessThan(boxes[0].left)
+      expect(code.y + code.height).toBeLessThanOrEqual(h)
+      await expect(page.getByRole('button', { name: 'Dire à mes parents' })).toBeInViewport({ ratio: 1 })
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/paysage-${w}.png` })
+      // Appui long : voile et anneau rond, lâcher annule.
+      await holdSos(page, 1200)
+      await expect(page.locator('.sos-veil')).toBeVisible()
+      await expect(page.locator('.ring-round')).toBeVisible()
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/paysage-${w}-appui.png` })
+      await page.mouse.up()
+      await expect(page.locator('.sos-veil')).toHaveCount(0)
+      // Le SOS et son anneau tiennent dans leur colonne (filet de gauche, bord droit).
+      const col = (await page.locator('.actions').boundingBox())!
+      expect(sos.x).toBeGreaterThanOrEqual(col.x)
+      expect(sos.x + sos.width).toBeLessThanOrEqual(col.x + col.width)
+    })
+    test('6 contacts : deux rangées de 3, sans défiler', async ({ page }) => {
+      const six = [...CONTACTS, ...['Dada', 'Nenibe'].map((name, i) => ({ ...CONTACTS[0], id: `c${5 + i}`, name, position: 5 + i }))]
+      await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: true }, screening: { available: true, held: true } }, { contacts: six })
+      await expect(page.locator('.grid .tile')).toHaveCount(6)
+      expect(await page.locator('.content').evaluate((e) => e.scrollHeight <= e.clientHeight)).toBe(true)
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/paysage-${w}-six.png` })
+    })
+    test('mode parent : la barre tient dans la largeur du contenu', async ({ page }) => {
+      await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: false, unlockedUntil: Date.now() + 10 * 60_000 }, screening: { available: true, held: true } })
+      const bar = (await page.locator('.parent-bar').boundingBox())!
+      const content = (await page.locator('.content').boundingBox())!
+      expect(bar.x + bar.width).toBeLessThanOrEqual(content.x + content.width)
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/paysage-${w}-parent.png` })
+    })
   })
-})
+}
 
 test('un parent regarde : « Papa regarde où tu es », un relevé unique envoyé, SOS toujours visible', async ({ page }) => {
   const positions = await openChild(page, {
@@ -342,7 +385,7 @@ test('SOS, appui de 1 s puis lâché : voile, « 2 », « 1 s sur 3 », anneau ;
   await expect(veil).toContainText('Continue d’appuyer…')
   await expect(veil).toContainText('Lâche le doigt pour annuler.')
   await expect(page.locator('.sos-dock .hint')).toHaveText('1 s sur 3')
-  await expect(page.locator('.ring')).toBeVisible()
+  await expect(page.locator('.ring-pill')).toBeVisible()
   // Le bouton reste au-dessus du voile (empilement), visible sous le doigt.
   const top = await page.evaluate(() => {
     const b = document.querySelector('.actions .sos')!.getBoundingClientRect()

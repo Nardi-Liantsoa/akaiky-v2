@@ -43,8 +43,12 @@ onBeforeUnmount(stop)
   <div class="sos-dock" :class="{ holding }">
     <span class="ring-box">
       <!-- Anneau de progression : fait le tour du bouton en 3 s, visible même sous le doigt. -->
-      <svg v-if="holding" class="ring" viewBox="0 0 196 88" aria-hidden="true">
+      <svg v-if="holding" class="ring ring-pill" viewBox="0 0 196 88" aria-hidden="true">
         <rect x="3" y="3" width="190" height="82" rx="41" pathLength="100" />
+      </svg>
+      <!-- Paysage (NAR-242) : bouton rond, anneau rond. -->
+      <svg v-if="holding" class="ring ring-round" viewBox="0 0 136 136" aria-hidden="true">
+        <circle cx="68" cy="68" r="64" pathLength="100" transform="rotate(-90 68 68)" />
       </svg>
       <button
         class="sos" type="button" :aria-label="t.child.sosLabel"
@@ -95,7 +99,11 @@ onBeforeUnmount(stop)
   overflow: visible;
   pointer-events: none;
 }
-.ring rect {
+.ring-round {
+  display: none;
+}
+.ring rect,
+.ring circle {
   fill: none;
   stroke: var(--on-color);
   stroke-width: 4;
@@ -185,5 +193,29 @@ onBeforeUnmount(stop)
   font-weight: 600;
   line-height: 1.45;
   opacity: 0.85;
+}
+/* Paysage (planche 06, NAR-242) : SOS rond de 112 px dans la colonne de droite. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .sos {
+    width: 112px;
+    height: 112px;
+    border-radius: 50%;
+  }
+  .ring-pill {
+    display: none;
+  }
+  .ring-round {
+    display: block;
+    width: 136px;
+    height: 136px;
+  }
+  /* Halo réduit : l'anneau (4 px au-delà) reste visible pendant l'appui. */
+  .holding .sos {
+    box-shadow: 0 0 0 4px var(--on-color-fill);
+  }
+  .hint {
+    max-width: 120px;
+    text-align: center;
+  }
 }
 </style>
