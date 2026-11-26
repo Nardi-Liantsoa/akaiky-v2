@@ -32,9 +32,10 @@ test('mauvais mot de passe refusé, déconnexion @C02 @C90', async ({ page }) =>
   await page.locator('#password').fill(PASSWORD)
   await page.getByRole('button', { name: 'Se connecter' }).click()
   await expect(page).toHaveURL(/\/espace$/)
-  // Pas d'en-tête dans l'espace parent : la déconnexion est dans « Mon compte » (NAR-156).
+  // Pas d'en-tête dans l'espace parent ; sans famille encore, l'accueil propose de la créer, avec
+  // « Mon compte » et « Déconnexion » en pied de page.
   await expect(page.getByRole('banner')).toHaveCount(0)
-  await page.getByRole('region', { name: 'Mon compte' }).getByRole('button', { name: 'Déconnexion' }).click()
+  await page.getByRole('button', { name: 'Déconnexion' }).click()
   await expect(page).toHaveURL(/\/$/)
   await page.goto('/espace')
   await expect(page).toHaveURL(/\/connexion\?next=/)

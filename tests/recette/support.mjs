@@ -7,6 +7,11 @@ import { createPool } from '../../server/src/db.js'
 import { state } from './env.mjs'
 
 export { expect }
+// Mise en page ordinateur (NAR-223) à partir de 1024 px, comme DESKTOP de l'app.
+export const isDesktop = (page) => (page.viewportSize()?.width ?? 0) >= 1024
+// Titre d'une section de Réglages : h1 de sa page sur téléphone et tablette, h2 sous « Réglages »
+// sur ordinateur (maître/détail).
+export const headingLevel = (page) => (isDesktop(page) ? 2 : 1)
 export const PASSWORD = 'cheval batterie agrafe correcte'
 
 let counter = 0

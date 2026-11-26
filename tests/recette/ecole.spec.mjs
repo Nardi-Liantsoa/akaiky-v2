@@ -3,7 +3,7 @@
 // Le parent crée la plage par l'interface ; le téléphone est simulé par l'API d'appareil
 // (origine de la WebView Android) et sa configuration passe par la règle même de l'écran
 // de l'enfant (src/lib/schedule.ts), à heure figée.
-import { test, expect, newClient, api } from './support.mjs'
+import { test, expect, newClient, api, headingLevel } from './support.mjs'
 import { activeWindow, visibleContacts } from '../../src/lib/schedule.ts'
 
 const PHONE = { origin: 'https://localhost' }
@@ -31,13 +31,14 @@ test('pendant la plage « école », le téléphone ne montre que les parents et
   // Réglages en résumé (NAR-185) : la section s'ouvre par sa ligne.
   await page.goto('/espace/reglages')
   await page.getByRole('navigation', { name: 'Sections des réglages' }).getByRole('link', { name: /^Plages horaires/ }).click()
-  await expect(page.getByRole('heading', { level: 1, name: 'Plages horaires' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: headingLevel(page), name: 'Plages horaires' })).toBeVisible()
   const card = page.locator('#plages')
-  await card.getByRole('button', { name: '+ Ajouter une plage' }).click()
+  await card.getByRole('button', { name: 'Ajouter une plage' }).click()
   await card.getByRole('button', { name: 'Enregistrer la plage' }).click()
   await expect(card.getByText('Lun–Ven · 8:00–16:00 · parents + SOS')).toBeVisible()
-  // Retour au résumé : sa ligne dit la plage enregistrée.
-  await page.getByRole('link', { name: 'Retour aux réglages' }).click()
+  // Retour au résumé : sa ligne dit la plage enregistrée (sur ordinateur, le sommaire reste à gauche,
+  // sans lien de retour : la ligne est relue sans navigation).
+  if (headingLevel(page) === 1) await page.getByRole('link', { name: 'Retour aux réglages' }).click()
   await expect(page.getByRole('navigation', { name: 'Sections des réglages' }).getByRole('link', { name: /^Plages horaires/ })).toContainText('École · Lun–Ven 8:00–16:00')
 
   // Relevé suivant du téléphone : nouvelle version, avec la plage et les contacts « parents ».
