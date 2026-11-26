@@ -27,7 +27,7 @@ réglages bureau, administration mobile, ajout d'un enfant). Elles priment sur l
 | `--sos` | `#c8261b` | bouton SOS, écran de maintien, bandeau d'alerte parent |
 | `--sos-deep` | `#8e170f` | écran « Alerte envoyée » |
 | `--call` | `#0b795c` | appeler, actions positives, onglet actif |
-| `--navy` | `#203f82` | « J'arrive », bandeau « école » |
+| `--navy` | `#203f82` | « J'arrive », pastille « école » |
 | `--tint-peach` / `--accent-orange` | `#ffe3ce` / `#e9814a` | contact 1 (Maman), « Viens me chercher » |
 | `--tint-sky` / `--accent-blue` | `#d6edff` / `#3d80d1` | contact 2 (Papa), « Tout va bien », « Où est … ? » |
 | `--tint-lilac` / `--accent-violet` | `#e9e1f9` / `#7b5ccc` (approx.) | contact 3 |
@@ -206,6 +206,16 @@ avant/après et note) : `docs/maquettes/2026-11-enfant/`, appliquée écran par 
    des 60 px de la maquette), « Garde le doigt 3 secondes » dessous. **Plus de 117 sur
    l'accueil** (décision utilisateur du 25/11/2026) : il reste sur l'écran du SOS en cours,
    l'alerte envoyée et les écrans d'attente ou d'erreur.
+   **États** (NAR-238, planches 02 à 05) : pastilles d'une ligne sous l'heure (école marine
+   `--navy` avec chapeau, localisation `--tint-sky`, filtrage inactif ambre `--warning-bg`
+   « Appels pas encore filtrés » ; détail et « Activer » seulement téléphone ouvert) ; sans
+   contacts : rond pêche 112 px (pictogramme famille), « Ta famille arrive bientôt » ; avec des
+   applications : icônes de 46 px sur 4 colonnes, au-delà de 3 une case « Plus » montre les
+   autres, vignettes resserrées (avatar 58 px) pour tout voir sans défiler ; plage « école » :
+   fond bleu pâle, un seul contact en vignette large (avatar à gauche), contacts masqués en
+   fantôme (cadre en tirets, avatars pâles, « Papa, Tonton et Mamie reviennent à 23:30 ») ; mode
+   parent : barre verte en haut (« Mode parent / jusqu'à … », engrenage, « Reverrouiller » blanc ;
+   visuels de 44 px dans des cibles de 64 px), sans cadenas.
 2. **SOS — maintien** — fond rouge, « Continue d'appuyer… », anneau de progression et
    décompte, trois traits d'étape, « Lâche pour arrêter » ; vibration à chaque seconde,
    rien n'est envoyé tant que le cercle n'est pas plein.
@@ -214,8 +224,9 @@ avant/après et note) : `docs/maquettes/2026-11-enfant/`, appliquée écran par 
    (numéro selon le pays), « Annuler · encore 4 s ».
 4. **Messages rapides** — « Dire à mes parents », quatre grandes tuiles icône + texte,
    toast de confirmation « … envoyé · Maman l'a vu · 16:05 ».
-5. **Plage « école »** — bandeau « C'est l'heure de l'école · Jusqu'à 16:00 », seuls les
-   parents restent, « Le reste revient à 16:00 », SOS toujours là.
+5. **Plage « école »** — depuis NAR-238 (planche 04) : pastille « École jusqu'à 16:00 », seuls
+   les parents restent, les autres en fantôme « Papa, Tonton et Mamie reviennent à 16:00 », SOS
+   toujours là.
 
 App **parent** (Android + iOS), barre d'onglets Accueil · Journal · Réglages · Famille. Selon la
 largeur (NAR-208) : barre du bas sur téléphone ; à partir de 768 px, onglets regroupés au centre

@@ -35,6 +35,11 @@
   --on-color: #ffffff;
   --tint-peach: #ffe3ce;
   --accent-orange: #e9814a;
+  /* Pictogramme sur pêche (état vide de l'accueil enfant, NAR-238). */
+  --accent-orange-deep: #b45a22;
+  /* Trait et fond translucides sur un fond plein (barre « Mode parent », NAR-238). */
+  --on-color-line: rgb(255 255 255 / 0.35);
+  --on-color-fill: rgb(255 255 255 / 0.14);
   --tint-sky: #d6edff;
   --accent-blue: #3d80d1;
   --tint-lilac: #e9e1f9;

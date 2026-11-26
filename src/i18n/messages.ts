@@ -458,7 +458,9 @@ const fr = {
     apps: {
       label: 'Mes applications',
       open: (name: string) => `Ouvrir ${name}`,
-      failed: 'Cette application ne s’ouvre pas pour l’instant.'
+      failed: 'Cette application ne s’ouvre pas pour l’instant.',
+      more: 'Plus',
+      moreLabel: 'Voir les autres applications'
     },
     waiting: 'Ce téléphone sera bientôt prêt.',
     hint: 'Un parent va le configurer depuis son application.',
@@ -483,8 +485,9 @@ const fr = {
     callContact: (name: string) => `Appeler ${name}`,
     // Mention sous le nom d’une vignette de contact (NAR-237).
     callAction: 'Appeler',
-    noContacts: 'Aucun contact pour l’instant.',
-    noContactsHint: 'Un parent va les ajouter depuis son application.',
+    // État vide illustré (planche 02, NAR-238).
+    noContacts: 'Ta famille arrive bientôt',
+    noContactsHint: 'Un parent va ajouter les contacts depuis son application.',
     sosLabel: 'SOS : appuie 3 secondes pour appeler',
     sosHint: 'Garde le doigt 3 secondes',
     emergency: (n: string) => `Secours · ${n}`,
@@ -519,11 +522,13 @@ const fr = {
       failed: 'Le SOS automatique n’a pas marché : on appelle directement.',
       interrupted: 'SOS interrompu : appuie encore pour réessayer.'
     },
+    // Plage « école » (maquette allégée, planche 04, NAR-238) : pastille, contacts masqués en fantôme.
     school: {
-      title: (label: string) => `C’est l’heure : ${label}`,
-      until: (time: string) => `Jusqu’à ${time} · tes parents et le SOS`,
-      noEnd: 'Tes parents et le SOS restent là',
-      rest: (time: string) => `Le reste revient à ${time}`,
+      pill: (label: string, time: string | null) => (time ? `${label} jusqu’à ${time}` : label),
+      back: (names: string, many: boolean, time: string | null) => time
+        ? `${names} ${many ? 'reviennent' : 'revient'} à ${time}`
+        : `${names} ${many ? 'reviendront' : 'reviendra'} plus tard`,
+      and: 'et',
       noParents: 'Le SOS reste là si tu as besoin d’aide.'
     },
     quick: {
@@ -538,6 +543,8 @@ const fr = {
     screening: {
       off: 'Filtrage des appels inactif : n’importe quel numéro peut appeler ce téléphone.',
       enable: 'Activer le filtrage des appels',
+      // Pastille d’une ligne pour l’enfant (planche 02, NAR-238) ; le détail en mode parent.
+      pill: 'Appels pas encore filtrés',
       outgoingOff: 'Filtrage des appels sortants inactif : n’importe quel numéro peut être appelé depuis ce téléphone.'
     },
     lock: {
@@ -554,6 +561,10 @@ const fr = {
       unlockedUntil: (time: string) => `Téléphone déverrouillé jusqu’à ${time}`,
       settings: 'Réglages du téléphone',
       relock: 'Reverrouiller maintenant',
+      // Barre « Mode parent » (planche 05, NAR-238).
+      mode: 'Mode parent',
+      modeUntil: (time: string) => `jusqu’à ${time}`,
+      relockShort: 'Reverrouiller',
       failed: 'Le téléphone n’a pas pu être déverrouillé.',
       release: 'Libérer ce téléphone (plus de verrou)'
     }
@@ -1210,7 +1221,9 @@ const mg: Messages = {
     apps: {
       label: 'Ireo fampiharako',
       open: (name: string) => `Sokafy ${name}`,
-      failed: 'Tsy misokatra aloha io fampiharana io.'
+      failed: 'Tsy misokatra aloha io fampiharana io.',
+      more: 'Hafa',
+      moreLabel: 'Hijery ireo fampiharana hafa'
     },
     waiting: 'Ho vonona tsy ho ela ity finday ity.',
     hint: 'Ray aman-dreny iray no handrindra azy avy amin’ny rindranasany.',
@@ -1233,8 +1246,8 @@ const mg: Messages = {
     retry: 'Andramo indray',
     callContact: (name: string) => `Antsoy i ${name}`,
     callAction: 'Antsoy',
-    noContacts: 'Mbola tsy misy olona azo antsoina.',
-    noContactsHint: 'Ray aman-dreny iray no hanampy azy avy amin’ny rindranasany.',
+    noContacts: 'Ho tonga tsy ho ela ny fianakavianao',
+    noContactsHint: 'Ray aman-dreny iray no hanampy ireo olona avy amin’ny rindranasany.',
     sosLabel: 'SOS : tsindrio 3 segondra hiantsoana',
     sosHint: 'Tsindrio ela 3 segondra',
     emergency: (n: string) => `Vonjy maika · ${n}`,
@@ -1267,10 +1280,11 @@ const mg: Messages = {
       interrupted: 'Tapaka ny SOS: tsindrio indray raha hanandrana.'
     },
     school: {
-      title: (label: string) => `Fotoana : ${label}`,
-      until: (time: string) => `Hatramin’ny ${time} · ny ray aman-dreninao sy ny SOS`,
-      noEnd: 'Mijanona ny ray aman-dreninao sy ny SOS',
-      rest: (time: string) => `Miverina amin’ny ${time} ny sisa`,
+      pill: (label: string, time: string | null) => (time ? `${label} hatramin’ny ${time}` : label),
+      back: (names: string, _many: boolean, time: string | null) => time
+        ? `Miverina amin’ny ${time} i ${names}`
+        : `Hiverina any aoriana i ${names}`,
+      and: 'sy',
       noParents: 'Eo foana ny SOS raha mila fanampiana ianao.'
     },
     quick: {
@@ -1285,6 +1299,7 @@ const mg: Messages = {
     screening: {
       off: 'Tsy mandeha ny sivana antso : afaka miantso ity finday ity ny laharana rehetra.',
       enable: 'Hampandeha ny sivana antso',
+      pill: 'Mbola tsy voasivana ny antso',
       outgoingOff: 'Tsy mandeha ny sivana antso mivoaka : azo antsoina avy amin’ity finday ity ny laharana rehetra.'
     },
     lock: {
@@ -1301,6 +1316,9 @@ const mg: Messages = {
       unlockedUntil: (time: string) => `Misokatra ny finday hatramin’ny ${time}`,
       settings: 'Fandrindrana ny finday',
       relock: 'Hidio indray izao',
+      mode: 'Fomba ray aman-dreny',
+      modeUntil: (time: string) => `hatramin’ny ${time}`,
+      relockShort: 'Hidio indray',
       failed: 'Tsy afaka nosokafana ny finday.',
       release: 'Hanafaka ity finday ity (tsy hidiana intsony)'
     }
@@ -1938,7 +1956,9 @@ const en: Messages = {
     apps: {
       label: 'My apps',
       open: (name: string) => `Open ${name}`,
-      failed: 'This app won’t open right now.'
+      failed: 'This app won’t open right now.',
+      more: 'More',
+      moreLabel: 'Show the other apps'
     },
     waiting: 'This phone will be ready soon.',
     hint: 'A parent will set it up from their app.',
@@ -1961,8 +1981,8 @@ const en: Messages = {
     retry: 'Try again',
     callContact: (name: string) => `Call ${name}`,
     callAction: 'Call',
-    noContacts: 'No contacts yet.',
-    noContactsHint: 'A parent will add them from their app.',
+    noContacts: 'Your family is on its way',
+    noContactsHint: 'A parent will add the contacts from their app.',
     sosLabel: 'SOS: hold 3 seconds to call',
     sosHint: 'Keep your finger down for 3 seconds',
     emergency: (n: string) => `Emergency · ${n}`,
@@ -1995,10 +2015,11 @@ const en: Messages = {
       interrupted: 'SOS interrupted: press again to retry.'
     },
     school: {
-      title: (label: string) => `Time for: ${label}`,
-      until: (time: string) => `Until ${time} · your parents and SOS`,
-      noEnd: 'Your parents and SOS stay available',
-      rest: (time: string) => `Everything else is back at ${time}`,
+      pill: (label: string, time: string | null) => (time ? `${label} until ${time}` : label),
+      back: (names: string, many: boolean, time: string | null) => time
+        ? `${names} ${many ? 'come' : 'comes'} back at ${time}`
+        : `${names} will come back later`,
+      and: 'and',
       noParents: 'SOS is still here if you need help.'
     },
     quick: {
@@ -2013,6 +2034,7 @@ const en: Messages = {
     screening: {
       off: 'Call filtering is off: any number can call this phone.',
       enable: 'Turn on call filtering',
+      pill: 'Calls not filtered yet',
       outgoingOff: 'Outgoing call filtering is off: any number can be called from this phone.'
     },
     lock: {
@@ -2029,6 +2051,9 @@ const en: Messages = {
       unlockedUntil: (time: string) => `Phone unlocked until ${time}`,
       settings: 'Phone settings',
       relock: 'Lock now',
+      mode: 'Parent mode',
+      modeUntil: (time: string) => `until ${time}`,
+      relockShort: 'Lock again',
       failed: 'The phone could not be unlocked.',
       release: 'Release this phone (no more lock)'
     }

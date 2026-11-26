@@ -33,6 +33,8 @@ import { createApkUpdater } from '../../lib/apkUpdate'
 import { AkaikyUpdate } from '../../native/akaikyUpdate'
 import { setOtaScreenBusy } from '../../lib/otaRuntime'
 import { formatClock } from '../../lib/format'
+import { accentToken, initial } from '../../lib/avatar'
+import { joinNames } from '../../lib/joinNames'
 import { activeWindow, safeTimeZone, visibleContacts } from '../../lib/schedule'
 import AppButton from '../../components/ui/AppButton.vue'
 import WatchingBadge from '../../components/child/WatchingBadge.vue'
@@ -317,6 +319,8 @@ const school = computed(() => activeWindow(new Date(now.value), deviceConfig.con
 const schoolEnd = computed(() => (school.value?.until ? formatClock(school.value.until, familyZone.value) : null))
 // Pendant une plage : les seuls contacts parents (owner, manager), le SOS et les secours.
 const shown = computed(() => visibleContacts(contacts.value, school.value))
+// Contacts masqués pendant une plage (planche 04, NAR-238) : montrés en fantôme, jamais appelables.
+const hidden = computed(() => contacts.value.filter((c) => !shown.value.includes(c)))
 // Pendant une plage « école » : pas de rangée d'applications (seuls les parents et le SOS).
 const tiles = computed(() => appsRow(deviceConfig.config?.allowedApps, localApps.value, !!school.value))
 watch(() => !!school.value, (on) => { if (on) messaging.value = false })
@@ -366,8 +370,10 @@ async function readScreening() {
 const incomingOff = computed(() => incomingFilterOff(screening.value))
 const outgoingOff = computed(() => outgoingFilterOff(screening.value))
 const canEnableScreening = computed(() => canRequestScreening(screening.value) || canRequestRedirection(screening.value))
-const askScreening = computed(() => state.value.kind === 'paired' && (incomingOff.value || outgoingOff.value)
-  && (!kiosk.status?.armed || isUnlocked()))
+// Filtrage inactif : la pastille le dit toujours (planche 02, NAR-238) ; le détail et « Activer »
+// seulement quand le téléphone n'est pas verrouillé (avant l'armement, ou en mode parent).
+const screeningOff = computed(() => state.value.kind === 'paired' && (incomingOff.value || outgoingOff.value))
+const askScreening = computed(() => screeningOff.value && (!kiosk.status?.armed || isUnlocked()))
 async function enableScreening() {
   if (canRequestScreening(screening.value)) await AkaikyCall.requestScreeningRole().catch(() => null)
   if (canRequestRedirection(screening.value)) await AkaikyCall.requestRedirectionRole().catch(() => null)
@@ -655,6 +661,18 @@ const text = computed(() => {
     <!-- Contenu défilant au-dessus du pied fixe : SOS toujours visible (NAR-187) ; secours depuis
          l'écran du SOS (NAR-237). -->
     <div class="content">
+      <!-- Mode parent (planche 05, NAR-238) : barre verte compacte en haut ; le cadenas disparaît
+           (canUnlock est faux tant que le téléphone est ouvert). -->
+      <section v-if="unlockedUntil !== undefined" class="parent-bar" role="status">
+        <AppIcon name="unlock" :size="22" />
+        <span class="parent-bar-text">
+          <strong>{{ t.child.lock.mode }}</strong>
+          <span>{{ t.child.lock.modeUntil(formatClock(new Date(unlockedUntil))) }}</span>
+        </span>
+        <!-- Visuels de 44 px (maquette) dans des cibles de 64 px (--tap-child). -->
+        <button class="parent-bar-gear" type="button" :aria-label="t.child.lock.settings" @click="openPhoneSettings"><span class="gear-ring" aria-hidden="true"><AppIcon name="gear" :size="20" /></span></button>
+        <button class="parent-bar-relock" type="button" @click="lockNow().catch(() => {})"><span class="relock-pill">{{ t.child.lock.relockShort }}</span></button>
+      </section>
       <!-- Heure à gauche, cadenas du code parent à droite (maquette allégée, NAR-237) : discret,
            réservé aux parents, jamais pris pour une action de l'enfant. -->
       <ChildStatusBar>
@@ -662,18 +680,14 @@ const text = computed(() => {
           <span class="lock" aria-hidden="true"><AppIcon name="lock" :size="20" /></span>
         </button>
       </ChildStatusBar>
-      <WatchingBadge v-if="watchers.length" :names="watchers" />
-      <section v-if="school" class="school-banner" role="status">
-        <p class="school-title">{{ t.child.school.title(school.label) }}</p>
-        <p>{{ schoolEnd ? t.child.school.until(schoolEnd) : t.child.school.noEnd }}</p>
-      </section>
-      <section v-if="unlockedUntil !== undefined" class="unlocked" role="status">
-        <p>{{ t.child.lock.unlockedUntil(formatClock(new Date(unlockedUntil))) }}</p>
-        <div class="unlocked-actions">
-          <AppButton variant="ghost" @click="openPhoneSettings">{{ t.child.lock.settings }}</AppButton>
-          <AppButton @click="lockNow().catch(() => {})">{{ t.child.lock.relock }}</AppButton>
-        </div>
-      </section>
+      <!-- Pastilles d'une ligne (planches 02 à 04) : école, localisation, filtrage. -->
+      <div v-if="school || watchers.length || screeningOff" class="chips">
+        <p v-if="school" class="chip chip-school" role="status"><AppIcon name="cap" :size="16" />{{ t.child.school.pill(school.label, schoolEnd) }}</p>
+        <WatchingBadge v-if="watchers.length" :names="watchers" />
+        <p v-if="screeningOff" class="chip chip-warn" role="status"><AppIcon name="alert-circle" :size="16" />{{ t.child.screening.pill }}</p>
+      </div>
+      <!-- Filtrage inactif, téléphone ouvert (avant l'armement ou en mode parent) : le détail et
+           « Activer », derrière le cadenas pour l'enfant. -->
       <section v-if="askScreening" class="unlocked" role="status">
         <p v-if="incomingOff">{{ t.child.screening.off }}</p>
         <p v-if="outgoingOff">{{ t.child.screening.outgoingOff }}</p>
@@ -682,17 +696,26 @@ const text = computed(() => {
       <p v-if="sosFailed" class="call-error" role="alert">{{ t.child.sos.failed }}</p>
       <p v-else-if="sosInterrupted" class="call-error" role="alert">{{ t.child.sos.interrupted }}</p>
       <p v-if="callError" class="call-error" role="alert">{{ t.child.callFailed }}</p>
-      <section v-if="shown.length" class="grid" :class="{ single: shown.length === 1 }">
-        <ContactTile v-for="c in shown" :key="c.id" :name="c.name" :color="c.avatarColor" :busy="calling" @call="call(c.phone, c)" />
+      <!-- Avec des applications (planche 03) : vignettes resserrées, tout tient sans défiler. -->
+      <section v-if="shown.length" class="grid" :class="{ single: shown.length === 1, compact: !school && tiles.length > 0 }">
+        <ContactTile v-for="c in shown" :key="c.id" :name="c.name" :color="c.avatarColor" :busy="calling" :wide="shown.length === 1" @call="call(c.phone, c)" />
       </section>
       <section v-else-if="school" class="empty">
         <p class="waiting">{{ t.child.school.noParents }}</p>
       </section>
-      <section v-else class="empty">
-        <p class="waiting">{{ t.child.noContacts }}</p>
-        <p class="hint">{{ t.child.noContactsHint }}</p>
+      <!-- Sans contacts (planche 02) : état vide illustré. -->
+      <section v-else class="empty no-contacts">
+        <span class="empty-art" aria-hidden="true"><AppIcon name="users" :size="44" /></span>
+        <p class="empty-title">{{ t.child.noContacts }}</p>
+        <p class="empty-hint">{{ t.child.noContactsHint }}</p>
       </section>
-      <p v-if="schoolEnd" class="school-rest">{{ t.child.school.rest(schoolEnd) }}</p>
+      <!-- Plage (planche 04) : les contacts masqués en fantôme, avec l'heure de retour. -->
+      <section v-if="school && hidden.length" class="ghosts">
+        <span class="ghost-avatars" aria-hidden="true">
+          <span v-for="c in hidden.slice(0, 3)" :key="c.id" class="ghost" :style="{ background: accentToken(c.avatarColor) }">{{ initial(c.name) }}</span>
+        </span>
+        <span>{{ t.child.school.back(joinNames(hidden.map((c) => c.name), t.child.school.and), hidden.length > 1, schoolEnd) }}</span>
+      </section>
       <template v-if="!school">
         <button class="say" type="button" @click="messaging = true"><AppIcon name="mail" :size="22" />{{ t.child.quick.title }}</button>
         <AppsRow v-if="tiles.length" :apps="tiles" @launch="launch" />
@@ -777,30 +800,9 @@ h1 {
   gap: 20px;
   padding: calc(var(--safe-top) + var(--space-3)) calc(var(--gutter) + var(--safe-right)) var(--space-4) calc(var(--gutter) + var(--safe-left));
 }
-/* Plage « école » (maquette écran 5) : fond bleuté, bandeau marine. */
+/* Plage « école » : fond bleu pâle, sans texte de plus (planche 04, NAR-238). */
 .home.school {
   background: var(--bg-child-school);
-}
-.school-banner {
-  padding: 14px 18px;
-  border-radius: 20px;
-  background: var(--navy);
-  color: var(--on-color);
-  text-align: center;
-  font-weight: 800;
-}
-.school-banner p {
-  margin: 0;
-}
-.school-title {
-  font-size: 1.2rem;
-  font-weight: 900;
-}
-.school-rest {
-  margin: 0;
-  text-align: center;
-  color: var(--text-soft);
-  font-weight: 800;
 }
 /* 1 contact : une grande vignette ; 2 à 6 : deux colonnes (maquette : 2×2). */
 .grid {
@@ -811,8 +813,169 @@ h1 {
 .grid.single {
   grid-template-columns: 1fr;
 }
+/* Planche 03 : avatar de 58 px, vignettes plus basses, quand la rangée d'applications suit. */
+.grid.compact {
+  gap: 10px;
+}
+.grid.compact :deep(.tile:not(.wide)) {
+  min-height: 0;
+  padding: 14px 10px 12px;
+}
+.grid.compact :deep(.avatar) {
+  width: 58px;
+  height: 58px;
+  font-size: 1.6rem;
+}
 .empty {
   text-align: center;
+}
+/* Sans contacts (planche 02) : rond pêche, pictogramme famille, titre, phrase pour l'enfant. */
+.empty.no-contacts {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 0 20px;
+}
+.empty-art {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  background: var(--tint-peach);
+  color: var(--accent-orange-deep);
+}
+.empty-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+.empty-hint {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+/* Pastilles d'une ligne (planches 02 à 04) : école marine, localisation bleue, filtrage ambre. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.chip-school {
+  background: var(--navy);
+  color: var(--on-color);
+}
+.chip-warn {
+  background: var(--warning-bg);
+  color: var(--warning-ink);
+}
+/* Contacts masqués pendant une plage : cadre en tirets, avatars pâles superposés. */
+.ghosts {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: 18px;
+  color: var(--text-soft);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.ghost-avatars {
+  display: flex;
+  flex: none;
+}
+.ghost {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: var(--on-color);
+  font-size: 0.95rem;
+  font-weight: 900;
+  opacity: 0.45;
+}
+.ghost + .ghost {
+  margin-left: -8px;
+}
+/* Mode parent (planche 05) : barre verte, engrenage des réglages, « Reverrouiller » blanc. */
+.parent-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0 4px 0 14px;
+  border-radius: 18px;
+  background: var(--call);
+  color: var(--on-color);
+}
+.parent-bar-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.parent-bar-text strong {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+.parent-bar-gear,
+.parent-bar-relock {
+  display: grid;
+  flex: none;
+  place-items: center;
+  min-width: var(--tap-child);
+  min-height: var(--tap-child);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--on-color);
+  font: inherit;
+  cursor: pointer;
+}
+.gear-ring {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid var(--on-color-line);
+  border-radius: 50%;
+  background: var(--on-color-fill);
+}
+.relock-pill {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent-deep);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+.parent-bar-gear:focus-visible,
+.parent-bar-relock:focus-visible {
+  outline: 3px solid var(--on-color);
+  outline-offset: 2px;
 }
 .actions {
   flex: none;
@@ -879,12 +1042,6 @@ h1 {
 }
 .unlocked p {
   margin: 0 0 8px;
-}
-.unlocked-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-2);
 }
 /* Discret : réservé aux parents, protégé par le code. Écrans d'attente : lien souligné ;
  * accueil : cadenas rond de 44 px en haut à droite, cible de 64 px (NAR-237). */

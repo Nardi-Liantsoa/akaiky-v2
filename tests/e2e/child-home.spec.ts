@@ -13,6 +13,8 @@ const SHOTS = process.env.NAR187_SHOTS
 interface Scenario {
   kiosk: { deviceOwner: boolean, armed: boolean, locked: boolean, unlockedUntil?: number }
   screening: { available: boolean, held: boolean }
+  // Applications lançables et autorisées (rangée d'icônes, NAR-238).
+  apps?: { package: string, label: string }[]
 }
 
 const CONTACTS = ['Maman', 'Papa', 'Mamie', 'Tonton'].map((name, i) => ({
@@ -27,7 +29,7 @@ function schoolNow() {
   return [{ label: 'École', days: 127, startMin: (min + 1380) % 1440, endMin: (min + 120) % 1440 }]
 }
 
-async function openChild(page: Page, scenario: Scenario, opts: { school?: boolean, offline?: boolean, locate?: boolean } = {}) {
+async function openChild(page: Page, scenario: Scenario, opts: { school?: boolean, offline?: boolean, locate?: boolean, contacts?: typeof CONTACTS } = {}) {
   const positions: unknown[] = []
   await page.addInitScript((s: Scenario) => {
     const store: Record<string, string> = {
@@ -55,7 +57,7 @@ async function openChild(page: Page, scenario: Scenario, opts: { school?: boolea
           case 'SecureStorage.internalSetItem': store[o.prefixedKey] = o.data; return {}
           case 'SecureStorage.internalRemoveItem': delete store[o.prefixedKey]; return { success: true }
           case 'SecureStorage.internalGetPrefixedKeys': return { keys: [] }
-          case 'AkaikyKiosk.listLaunchableApps': return { apps: [] }
+          case 'AkaikyKiosk.listLaunchableApps': return { apps: (s.apps ?? []).map((a) => ({ ...a, icon: null })) }
           case 'AkaikyKiosk.applyAllowedApps': return { deviceOwner: true, armed: s.kiosk.armed, allowed: [], hidden: 0 }
           case 'AkaikyKiosk.bringToFront': return { brought: false }
           case 'AkaikyCall.screeningRole': return s.screening
@@ -88,7 +90,8 @@ async function openChild(page: Page, scenario: Scenario, opts: { school?: boolea
     if (path === '/device/config') {
       return json({
         version: 1, country: 'MG', parentCode: 'pbkdf2-sha256$1000$c2Vs$a2V5', timezone: 'UTC',
-        schedules: opts.school ? schoolNow() : [], allowedApps: [], contacts: CONTACTS
+        schedules: opts.school ? schoolNow() : [], contacts: opts.contacts ?? CONTACTS,
+        allowedApps: (scenario.apps ?? []).map((a, i) => ({ ...a, position: i + 1 }))
       }, 200, { ETag: '"v1"' })
     }
     if (path === '/device/messages' && route.request().method() === 'GET') return json([])
@@ -143,10 +146,15 @@ test('accueil déverrouillé : bandeaux, erreur d’appel, 4 contacts, SOS visib
   await expect(page.locator('.grid .tile')).toHaveCount(4)
   await page.locator('.grid .tile').first().click()
   await expect(page.locator('.call-error')).toBeVisible()
-  await expect(page.locator('.unlocked-actions .btn')).toHaveCount(2)
+  // Mode parent (planche 05, NAR-238) : barre verte, engrenage et « Reverrouiller » ; pas de cadenas.
+  await expect(page.locator('.parent-bar')).toContainText('Mode parent')
+  await expect(page.locator('.parent-bar button')).toHaveCount(2)
+  await expect(page.locator('.status .parent-code')).toHaveCount(0)
+  // Filtrage inactif : pastille d'une ligne, et en mode parent le détail avec « Activer ».
+  await expect(page.locator('.chip-warn')).toHaveText('Appels pas encore filtrés')
   await expect(page.locator('.unlocked > .btn')).toHaveCount(1)
   await expectSosVisible(page)
-  for (const sel of ['.unlocked-actions .btn', '.unlocked > .btn', '.actions .sos', '.say', '.status .parent-code']) {
+  for (const sel of ['.parent-bar button', '.unlocked > .btn', '.actions .sos', '.say']) {
     for (const h of await heights(page, sel)) expect(h, sel).toBeGreaterThanOrEqual(TAP_CHILD)
   }
   if (SHOTS) {
@@ -171,7 +179,9 @@ test('accueil déverrouillé : bandeaux, erreur d’appel, 4 contacts, SOS visib
 
 test('plage « école », verrouillé : bandeau, erreur d’appel, 4 parents, SOS et cadenas visibles', async ({ page }) => {
   await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: true }, screening: { available: true, held: true } }, { school: true })
-  await expect(page.locator('.school-banner')).toBeVisible()
+  // Pastille d'une ligne (planche 04, NAR-238) au lieu du bandeau.
+  await expect(page.locator('.chip-school')).toHaveText(/^École jusqu’à \d\d:\d\d$/)
+  await expect(page.locator('.ghosts')).toHaveCount(0)
   await expect(page.locator('.grid .tile')).toHaveCount(4)
   await page.locator('.grid .tile').nth(1).click()
   await expect(page.locator('.call-error')).toBeVisible()
@@ -255,4 +265,40 @@ test('personne ne regarde : aucun indicateur, aucun relevé', async ({ page }) =
   await expect(page.locator('.grid .tile')).toHaveCount(4)
   await expect(page.getByText('regarde où tu es')).toHaveCount(0)
   expect(positions).toEqual([])
+})
+
+// NAR-238, planche 04 : un seul parent pendant la plage, en grande tuile ; les autres en fantôme.
+test('plage « école » : un parent en tuile large, les autres en fantôme avec l’heure de retour', async ({ page }) => {
+  const one = CONTACTS.map((c, i) => ({ ...c, parent: i === 0 }))
+  await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: true }, screening: { available: true, held: true } }, { school: true, contacts: one })
+  await expect(page.locator('.grid .tile')).toHaveCount(1)
+  await expect(page.locator('.grid .tile.wide')).toContainText('Maman')
+  await expect(page.locator('.ghosts')).toHaveText(/^PMTPapa, Mamie et Tonton reviennent à \d\d:\d\d$/)
+  await expect(page.locator('.ghosts button')).toHaveCount(0)
+  await expectSosVisible(page)
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/ecole-fantomes.png` })
+})
+
+// NAR-238, planche 02 : sans contacts, état vide illustré ; filtrage en pastille, sans bouton (verrouillé).
+test('sans contacts, verrouillé : état vide illustré, pastille du filtrage sans bouton', async ({ page }) => {
+  await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: true }, screening: { available: true, held: false } }, { contacts: [] })
+  await expect(page.getByText('Ta famille arrive bientôt')).toBeVisible()
+  await expect(page.locator('.chip-warn')).toHaveText('Appels pas encore filtrés')
+  await expect(page.getByRole('button', { name: 'Activer le filtrage des appels' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Dire à mes parents' })).toBeVisible()
+  await expectSosVisible(page)
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/sans-contacts.png` })
+})
+
+// NAR-238, planche 03 : 4 applications, 3 icônes et « Plus » qui montre la dernière.
+test('4 applications : trois icônes et « Plus », qui montre la quatrième', async ({ page }) => {
+  const apps = [['clock', 'Horloge'], ['agenda', 'Agenda'], ['photo', 'Photo'], ['calc', 'Calculatrice']].map(([p, l]) => ({ package: `com.test.${p}`, label: l }))
+  await openChild(page, { kiosk: { deviceOwner: true, armed: true, locked: true }, screening: { available: true, held: true }, apps }, { locate: true })
+  const row = page.getByRole('navigation', { name: 'Mes applications' })
+  await expect(row.locator('.name')).toHaveText(['Horloge', 'Agenda', 'Photo', 'Plus'])
+  for (const h of await heights(page, '.apps .app')) expect(h).toBeGreaterThanOrEqual(TAP_CHILD)
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/applis.png` })
+  await row.getByRole('button', { name: 'Voir les autres applications' }).click()
+  await expect(row.locator('.name')).toHaveText(['Horloge', 'Agenda', 'Photo', 'Calculatrice'])
+  await expect(row.getByRole('button', { name: 'Ouvrir Calculatrice' })).toBeFocused()
 })

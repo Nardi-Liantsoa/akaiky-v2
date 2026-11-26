@@ -6,7 +6,8 @@ import AppIcon from '../ui/AppIcon.vue'
 
 // Vignette d'un contact autorisé : un appui appelle (maquette allégée, NAR-237). Une seule
 // action, dite sous le nom (« Appeler » et son icône) ; l'initiale et la couleur portent le reste.
-const props = defineProps<{ name: string, color: string, busy?: boolean }>()
+// wide : un seul contact (planche 04, NAR-238) : avatar à gauche, nom et « Appeler » à droite.
+const props = defineProps<{ name: string, color: string, busy?: boolean, wide?: boolean }>()
 defineEmits<{ call: [] }>()
 const t = useT()
 const style = computed(() => ({ background: tintToken(props.color) }))
@@ -14,14 +15,37 @@ const badge = computed(() => ({ background: accentToken(props.color) }))
 </script>
 
 <template>
-  <button class="tile" type="button" :style="style" :disabled="busy" :aria-label="t.child.callContact(name)" @click="$emit('call')">
+  <button class="tile" :class="{ wide }" type="button" :style="style" :disabled="busy" :aria-label="t.child.callContact(name)" @click="$emit('call')">
     <span class="avatar" :style="badge" aria-hidden="true">{{ initial(name) }}</span>
-    <span class="name">{{ name }}</span>
-    <span class="call" aria-hidden="true"><AppIcon name="call" :size="16" />{{ t.child.callAction }}</span>
+    <span class="text">
+      <span class="name">{{ name }}</span>
+      <span class="call" aria-hidden="true"><AppIcon name="call" :size="16" />{{ t.child.callAction }}</span>
+    </span>
   </button>
 </template>
 
 <style scoped>
+.text {
+  /* Pas de display: contents (Chrome 65) : WebView 64 reste prise en charge (NAR-161). */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.tile.wide {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 16px;
+  min-height: 0;
+  padding: 18px 20px;
+}
+.wide .text {
+  align-items: flex-start;
+  gap: 4px;
+}
+.wide .name {
+  font-size: 1.4rem;
+}
 .tile {
   display: flex;
   flex-direction: column;
