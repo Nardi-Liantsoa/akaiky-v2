@@ -245,7 +245,7 @@ test('sélecteur de jour : jour précédent, calendrier, bornes', async ({ page 
   const field = picker.getByLabel('Jour', { exact: true })
   await expect(field).toHaveAttribute('max', '2026-11-18')
   await expect(field).toHaveAttribute('min', '2026-08-21')
-  // Retour à aujourd'hui par › : plus aucun jour envoyé.
+  // Retour à aujourd'hui par › : « today » envoyé (le jour du serveur).
   await next.click()
   await expect(picker.getByRole('button', { name: 'Choisir le jour, Aujourd’hui' })).toBeVisible()
   expect(days.at(-1)).toBe('today')
@@ -275,7 +275,27 @@ test('sélecteur de jour : minuit passé, « Aujourd’hui » suit', async ({ pa
   await expect(field).toHaveAttribute('max', '2026-11-19')
   await expect(picker.getByRole('button', { name: 'Choisir le jour, Aujourd’hui' })).toBeVisible()
   await expect(picker.getByRole('button', { name: 'Jour suivant' })).toBeDisabled()
-  // Aujourd'hui relu au serveur (toujours sans jour envoyé).
+  // Aujourd'hui relu au serveur (toujours « today »).
   await expect.poll(() => api.days.length).toBeGreaterThan(before)
   expect(api.days.at(-1)).toBe('today')
+})
+
+// NAR-244 (revue) : « Voir plus » redemande la date rendue par le serveur, jamais « today » : passé
+// minuit, « today » serait un autre jour et la fin de la journée affichée serait perdue.
+test('« Voir plus » : la date retenue par le serveur, jamais « today » de nouveau', async ({ page }) => {
+  await page.clock.setFixedTime(NOW)
+  const asked: string[] = []
+  const api = journalApi()
+  api.handlers[`GET /api/children/${FY.id}/journal`] = (req: { url(): string }) => {
+    const u = new URL(req.url())
+    asked.push(`${u.searchParams.get('day') ?? ''}|${u.searchParams.get('before') ? 'suite' : 'début'}`)
+    if (u.searchParams.get('before')) return { body: { items: [ITEMS[2]], next: null, day: '2026-11-18' } }
+    return { body: { items: ITEMS.slice(0, 2), next: `${ITEMS[1].at}_${ITEMS[1].id}`, day: '2026-11-18', today: { calls: 1, blocked: 2, messages: 0, unlocks: 0 } } }
+  }
+  await mockApi(page, api.handlers)
+  await page.goto('/espace/journal')
+  await page.getByRole('button', { name: 'Voir plus' }).click()
+  await expect(page.getByText('Appel de Maman')).toBeVisible()
+  expect(asked[0]).toBe('today|début')
+  expect(asked.filter((a) => a.endsWith('suite'))).toEqual(['2026-11-18|suite'])
 })

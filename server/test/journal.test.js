@@ -171,7 +171,12 @@ test('day=today : seulement aujourd’hui (liste et nombres), sans day : tous le
   assert.equal(today.statusCode, 200, today.body)
   const ids = today.json().items.map((i) => i.id)
   assert.ok(!ids.includes(yesterday.id), 'hier n’apparaît jamais dans « aujourd’hui »')
-  if (Date.parse(now.startedAt) >= start.getTime()) assert.ok(ids.includes(now.id))
+  if (Date.parse(now.startedAt) >= start.getTime()) {
+    assert.ok(ids.includes(now.id))
+    assert.ok(ids.length > 0)
+  }
+  // La date retenue est rendue : l'app la redemande pour les pages suivantes.
+  assert.match(today.json().day, /^\d{4}-\d{2}-\d{2}$/)
   assert.equal(today.json().today.blocked, ids.length)
   assert.ok((await journal(owner, fy.kid.id)).json().items.some((i) => i.id === yesterday.id), 'sans day : tous les jours (accueil)')
   assert.equal((await journal(owner, fy.kid.id, '?day=Today')).statusCode, 400)
