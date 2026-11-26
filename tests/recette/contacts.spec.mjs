@@ -34,7 +34,7 @@ test('un contact ajouté par le parent est vu par le téléphone au relevé suiv
   await page.getByRole('button', { name: 'Enregistrer' }).click()
   await expect(page).toHaveURL(/\/espace\/reglages\/contacts$/)
   // Compteur de la carte (sur ordinateur, la ligne du sommaire le répète à gauche).
-  await expect(page.locator('.contacts .count-badge')).toHaveText('1 sur 6')
+  await expect(page.getByRole('region', { name: 'Contacts autorisés' }).getByText('1 sur 6')).toBeVisible()
 
   // Relevé suivant du téléphone (toutes les 30 s) : la nouvelle version, avec le contact.
   const after = await device(page, 'GET', '/config', { token: accessToken, headers: { 'if-none-match': etag } })

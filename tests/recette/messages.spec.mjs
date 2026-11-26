@@ -27,7 +27,9 @@ test('un message rapide envoyé par l’enfant arrive chez les parents, et l’e
     // Ordinateur (maquette 02) : « Derniers événements » à droite des cartes.
     await expect(page.getByRole('heading', { name: 'Derniers événements' })).toBeVisible()
   } else {
-    // Téléphone (maquette 01) : pas d'extrait sur l'accueil ; « Message » de la carte ouvre ses messages.
+    // Téléphone (maquette 01) : pas d'extrait sur l'accueil ; la carte de Fy (téléphone vu) et son
+    // bouton « Message », qui ouvre ses messages.
+    await expect(page.getByRole('heading', { level: 2, name: /^Fy vu à/ })).toBeVisible()
     await page.getByRole('link', { name: 'Messages de Fy' }).click()
   }
   await expect(page.getByText('Je suis arrivé')).toBeVisible()

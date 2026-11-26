@@ -36,7 +36,8 @@ test('pendant la plage « école », le téléphone ne montre que les parents et
   await card.getByRole('button', { name: 'Ajouter une plage' }).click()
   await card.getByRole('button', { name: 'Enregistrer la plage' }).click()
   await expect(card.getByText('Lun–Ven · 8:00–16:00 · parents + SOS')).toBeVisible()
-  // Retour au résumé : sa ligne dit la plage enregistrée (sur ordinateur, le sommaire reste à gauche).
+  // Retour au résumé : sa ligne dit la plage enregistrée (sur ordinateur, le sommaire reste à gauche,
+  // sans lien de retour : la ligne est relue sans navigation).
   if (headingLevel(page) === 1) await page.getByRole('link', { name: 'Retour aux réglages' }).click()
   await expect(page.getByRole('navigation', { name: 'Sections des réglages' }).getByRole('link', { name: /^Plages horaires/ })).toContainText('École · Lun–Ven 8:00–16:00')
 
