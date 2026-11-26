@@ -55,7 +55,10 @@ const upcoming = computed(() => {
   if (status.value === 'starting') return calls.value
   return []
 })
-const smsFailed = computed(() => !!props.state?.sms && !props.state.sms.some((x) => x.status === 'pending') && !smsDone.value)
+// Échec : au moins un SMS prévu et aucun en attente sans que tous soient partis. Liste vide
+// (aucun contact à prévenir) : neutre, jamais un échec.
+const smsFailed = computed(() => !!props.state?.sms?.length && !props.state.sms.some((x) => x.status === 'pending') && !smsDone.value)
+const smsNone = computed(() => props.state?.sms?.length === 0)
 const smsSub = computed(() => {
   const known = props.state?.positionKnown
   if (known === undefined) return ''
@@ -66,7 +69,7 @@ const initialOf = (name: string) => [...name.trim()][0]?.toUpperCase() ?? ''
 // Bouton retour d'Android : ne ferme l'écran qu'une fois le SOS fini (jamais d'annulation
 // par erreur, l'enfant a « Annuler »).
 let pop: (() => void) | undefined
-onMounted(() => { pop = pushSheet(() => { if (!running.value) emit('close') }) })
+onMounted(() => { pop = pushSheet(() => { if (finished.value) emit('close') }) })
 onBeforeUnmount(() => pop?.())
 </script>
 
@@ -80,18 +83,14 @@ onBeforeUnmount(() => pop?.())
           <h1 id="sos-sent-title">{{ t.child.sos.headline }}</h1>
         </header>
         <ol class="steps" aria-live="polite">
-          <li class="step" :class="{ muted: !smsDone && !smsFailed }">
-            <span class="ic" :class="smsDone ? 'ok' : smsFailed ? 'warn' : 'wait'" aria-hidden="true">
+          <li class="step" :class="{ muted: !smsDone && !smsFailed && !smsNone }">
+            <span class="ic" :class="smsDone ? 'ok' : smsFailed ? 'warn' : smsNone ? 'none' : 'wait'" aria-hidden="true">
               <AppIcon v-if="smsDone" name="check" :size="18" />
               <span v-else-if="smsFailed">!</span>
             </span>
             <span class="txt"><span class="lb">{{ smsDone ? t.child.sos.smsSentShort : smsText }}</span><span v-if="smsSub" class="sm">{{ smsSub }}</span></span>
           </li>
-          <li v-if="status === 'answered'" class="step">
-            <span class="ic ok" aria-hidden="true"><AppIcon name="check" :size="18" /></span>
-            <span class="txt"><span class="lb">{{ callText }}</span></span>
-          </li>
-          <li v-else-if="status === 'emergency'" class="step">
+          <li v-if="status === 'emergency'" class="step">
             <span class="ic now" aria-hidden="true"><AppIcon name="phone" :size="18" /></span>
             <span class="txt"><span class="lb">{{ t.child.sos.emergencyChosen }}</span></span>
           </li>
@@ -118,13 +117,13 @@ onBeforeUnmount(() => pop?.())
       </template>
       <!-- Alerte envoyée (planche 12) : réussites en coches ; personne n'a répondu : carte blanche. -->
       <template v-else>
-        <h1 id="sos-sent-title" class="done-title">{{ status === 'cancelled' ? t.child.sos.cancelled : t.child.sos.title }}</h1>
+        <h1 id="sos-sent-title" class="done-title">{{ status === 'cancelled' ? t.child.sos.cancelled : status === 'failed' ? t.child.sos.failedTitle : t.child.sos.title }}</h1>
         <ul v-if="status !== 'cancelled'" class="oks" aria-live="polite">
-          <li :class="{ bad: !smsDone }">
-            <span class="ic" :class="smsDone ? 'ok' : 'warn'" aria-hidden="true"><AppIcon v-if="smsDone" name="check" :size="16" /><span v-else>!</span></span>
+          <li v-if="state?.sms">
+            <span class="ic" :class="smsDone ? 'ok' : smsNone ? 'none' : 'warn'" aria-hidden="true"><AppIcon v-if="smsDone" name="check" :size="16" /><span v-else-if="!smsNone">!</span></span>
             {{ smsDone ? t.child.sos.sentSms : smsText }}
           </li>
-          <li v-if="positionText" :class="{ bad: !state?.positionKnown }">
+          <li v-if="positionText">
             <span class="ic" :class="state?.positionKnown ? 'ok' : 'warn'" aria-hidden="true"><AppIcon v-if="state?.positionKnown" name="check" :size="16" /><span v-else>!</span></span>
             {{ positionText }}
           </li>
@@ -134,16 +133,16 @@ onBeforeUnmount(() => pop?.())
           </li>
         </ul>
         <div v-if="exhausted || status === 'failed'" class="no-answer">
-          <p class="no-answer-title">{{ t.child.sos.noAnswerTitle }}</p>
+          <p v-if="exhausted" class="no-answer-title">{{ t.child.sos.noAnswerTitle }}</p>
           <p class="no-answer-text">{{ t.child.sos.noAnswerText }}</p>
           <button class="call-number" type="button" @click="emit('emergency')"><AppIcon name="phone" :size="22" />{{ t.child.sos.callNumber(emergency) }}</button>
         </div>
         <div v-else-if="status !== 'cancelled'" class="actions">
           <button class="call-emergency" type="button" @click="emit('emergency')">{{ t.child.sos.callEmergency(emergency) }}</button>
         </div>
-        <!-- « Fermer » discret : il ne concurrence pas l'appel aux secours. Cascade épuisée, le SOS
-             tourne encore (sirène) : fermer l'annule. -->
-        <button class="close-link" type="button" :class="{ alone: status === 'cancelled' }" @click="running ? emit('cancel') : emit('close')">{{ t.child.sos.close }}</button>
+        <!-- « Fermer » discret : il ne concurrence pas l'appel aux secours. Il cache seulement l'écran :
+             cascade épuisée, le service continue (sirène gardée sur le composeur des secours). -->
+        <button class="close-link" type="button" :class="{ alone: status === 'cancelled' }" @click="emit('close')">{{ t.child.sos.close }}</button>
       </template>
     </section>
   </Teleport>
@@ -212,15 +211,18 @@ h1 {
   font-weight: 900;
 }
 .ic.ok {
-  background: var(--surface);
+  background: var(--on-color);
   color: var(--sos-deep);
+}
+.ic.none {
+  border: 2px solid var(--on-color-line);
 }
 .ic.warn {
   background: var(--warning-bg);
   color: var(--warning-ink);
 }
 .ic.now {
-  background: var(--accent-orange);
+  background: var(--accent-orange-deep);
   color: var(--on-color);
 }
 .ic.wait {

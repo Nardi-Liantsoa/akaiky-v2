@@ -55,10 +55,12 @@ onBeforeUnmount(stop)
       </button>
     </span>
     <p class="hint" aria-hidden="true">{{ holding ? t.child.sos.holdProgress(done, SECONDS) : t.child.sosHint }}</p>
+    <!-- Toujours dans le DOM, polie : la consigne est lue une fois au début de l'appui. -->
+    <p class="visually-hidden" aria-live="polite">{{ holding ? `${t.child.sos.holdTitle} ${t.child.sos.holdText}` : '' }}</p>
   </div>
   <!-- Voile plein écran pendant l'appui : ne capte aucun toucher (le doigt reste sur le bouton). -->
   <Teleport to="body">
-    <div v-if="holding" class="sos-veil" role="status" aria-live="assertive">
+    <div v-if="holding" class="sos-veil" aria-hidden="true">
       <p class="count">{{ remaining }}</p>
       <p class="veil-title">{{ t.child.sos.holdTitle }}</p>
       <p class="veil-text">{{ t.child.sos.holdText }}</p>

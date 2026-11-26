@@ -74,6 +74,10 @@ async function openChild(page: Page, scenario: Scenario, opts: { school?: boolea
             ;(window as unknown as { sosStarts: number }).sosStarts = ((window as unknown as { sosStarts?: number }).sosStarts ?? 0) + 1
             return s.sos ? { started: true, runId: 'r1', state: s.sos } : { started: false }
           }
+          case 'AkaikySos.cancel': {
+            ;(window as unknown as { sosCancels: number }).sosCancels = ((window as unknown as { sosCancels?: number }).sosCancels ?? 0) + 1
+            return {}
+          }
           case 'AkaikySos.state': return (window as unknown as { sosStarts?: number }).sosStarts && s.sos ? s.sos : { active: false }
           case 'AkaikyLocation.currentPosition': return { lat: -18.9, lng: 47.5, accuracyM: 12, ageS: 1 }
           case 'AkaikyLocation.cancel': return {}
@@ -329,6 +333,12 @@ test('SOS, appui de 1 s puis lâché : voile, « 2 », « 1 s sur 3 », anneau ;
   await expect(veil).toContainText('Lâche le doigt pour annuler.')
   await expect(page.locator('.sos-dock .hint')).toHaveText('1 s sur 3')
   await expect(page.locator('.ring')).toBeVisible()
+  // Le bouton reste au-dessus du voile (empilement), visible sous le doigt.
+  const top = await page.evaluate(() => {
+    const b = document.querySelector('.actions .sos')!.getBoundingClientRect()
+    return document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2)?.closest('.sos') !== null
+  })
+  expect(top).toBe(true)
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/sos-appui.png` })
   await page.mouse.up()
   await expect(veil).toHaveCount(0)
@@ -361,11 +371,15 @@ test('alerte envoyée, personne n’a répondu (planche 12) : coches, carte blan
   await page.mouse.up()
   const view = page.getByRole('dialog', { name: 'Alerte envoyée' })
   await expect(view).toBeVisible()
-  await expect(view.locator('.oks li')).toHaveText(['Tes parents ont reçu un SMS', 'Ta position est dans le SMS'])
+  await expect(view.locator('.oks li')).toHaveText(['SMS envoyé à ta famille', 'Ta position est dans le SMS'])
   await expect(view.locator('.no-answer')).toContainText('Personne n’a répondu')
   await expect(view.locator('.no-answer')).toContainText('Si tu es en danger, appelle les secours.')
   await expect(view.getByRole('button', { name: 'Appeler le 117' })).toBeVisible()
   await expect(view.getByRole('button', { name: 'Fermer' })).toBeVisible()
   for (const h of await heights(page, '.sos-sent button')) expect(h).toBeGreaterThanOrEqual(TAP_CHILD)
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/alerte-envoyee.png` })
+  // « Fermer » cache l'écran sans annuler le SOS (sirène gardée sur le composeur des secours).
+  await view.getByRole('button', { name: 'Fermer' }).click()
+  await expect(view).toHaveCount(0)
+  expect(await page.evaluate(() => (window as unknown as { sosCancels?: number }).sosCancels ?? 0)).toBe(0)
 })
