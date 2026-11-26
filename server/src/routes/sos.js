@@ -32,8 +32,11 @@ import { openPosition, positionAad, coord, MAX_AGE_S } from './location.js'
 
 export const SOS_MINUTES = 15
 export const CANCEL_WINDOW_S = 5
+// Alertes non annulées par téléphone et par 10 min (compté en base : des appuis annulés ne
+// privent jamais d'un vrai SOS) ; le limiteur en mémoire ne fait que borner un envoi en boucle.
 export const SOS_OPEN_MAX = 5
 export const SOS_OPEN_WINDOW_MS = 10 * 60_000
+const SOS_FLOOD_MAX = 30
 // Une position toutes les 30 s, plus quelques renvois (réseau qui revient).
 export const SOS_POSITIONS_MAX = 6
 export const SOS_POSITIONS_WINDOW_MS = 60_000
@@ -72,7 +75,7 @@ const shape = (a) => ({ id: a.id, childId: a.child_id, startedAt: a.started_at, 
 
 export async function deviceSosRoutes(app) {
   const { db, config } = app
-  const openLimit = createLimiter({ max: SOS_OPEN_MAX, windowMs: SOS_OPEN_WINDOW_MS })
+  const openLimit = createLimiter({ max: SOS_FLOOD_MAX, windowMs: SOS_OPEN_WINDOW_MS })
   const positionsLimit = createLimiter({ max: SOS_POSITIONS_MAX, windowMs: SOS_POSITIONS_WINDOW_MS })
   const mine = (req) => {
     if (!isUuid(req.params.id)) throw sosNotFound()
@@ -86,7 +89,10 @@ export async function deviceSosRoutes(app) {
       const { rows: [known] } = await conn.query(
         `SELECT a.*, ${STATUS_SQL} FROM sos_alerts a WHERE a.device_id = $1 AND a.client_id = $2`, [req.device.id, clientId])
       if (known) return shape(known)
-      if (!openLimit(`device:${req.device.id}`)) throw new HttpError(429, 'Trop d’alertes. Réessayez dans quelques minutes.', 'sos_rate_limited')
+      const { rows: [{ n }] } = await conn.query(
+        `SELECT count(*)::int AS n FROM sos_alerts WHERE device_id = $1 AND cancelled_at IS NULL
+            AND started_at > now() - $2 * interval '1 millisecond'`, [req.device.id, SOS_OPEN_WINDOW_MS])
+      if (n >= SOS_OPEN_MAX || !openLimit(`device:${req.device.id}`)) throw new HttpError(429, 'Trop d’alertes. Réessayez dans quelques minutes.', 'sos_rate_limited')
       const { rows: [created] } = await conn.query(
         `INSERT INTO sos_alerts AS a (family_id, child_id, device_id, client_id, ends_at)
          SELECT d.family_id, d.child_id, d.id, $2, now() + make_interval(mins => $3)
@@ -134,7 +140,7 @@ export async function deviceSosRoutes(app) {
       // Alerte de CE téléphone, encore ouverte ; relevé pris pendant l'alerte (pas avant).
       const { rows: [a] } = await conn.query(
         `SELECT a.id, a.family_id, a.child_id, ${STATUS_SQL},
-                now() - $3 * interval '1 second' < a.started_at - interval '2 minutes' AS too_old
+                now() - $3 * interval '1 second' < a.started_at - interval '30 seconds' AS too_old
            FROM sos_alerts a WHERE a.id = $1 AND a.device_id = $2`, [id, req.device.id, ageS])
       if (!a) throw sosNotFound()
       if (a.status !== 'active') throw new HttpError(409, 'Alerte terminée : la position n’est plus envoyée.', 'sos_closed')
@@ -178,7 +184,9 @@ export async function sosRoutes(app) {
          JOIN memberships m ON m.user_id = e.user_id AND m.family_id = $2
          JOIN users u ON u.id = e.user_id
         WHERE e.sos_id = $1 ORDER BY e.at, e.kind`, [a.id, a.family_id])
-    const { rows: [handler] } = a.handled_by ? await conn.query('SELECT name FROM users WHERE id = $1', [a.handled_by]) : { rows: [] }
+    // Auteur de la prise en charge : nommé tant qu'il est membre (parti : sans nom, comme les événements).
+    const { rows: [handler] } = a.handled_by ? await conn.query(
+      'SELECT u.name FROM users u JOIN memberships m ON m.user_id = u.id AND m.family_id = $2 WHERE u.id = $1', [a.handled_by, a.family_id]) : { rows: [] }
     return {
       ...shape(a),
       handledBy: a.handled_at ? { name: handler?.name ?? null, isMe: a.handled_by === req.user.id } : null,

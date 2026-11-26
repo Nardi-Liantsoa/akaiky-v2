@@ -352,7 +352,8 @@ export async function runPushWorker(db, provider, config, log, { batch = 50, con
   // Alerte SOS (NAR-248) : prénom de son enfant.
   const sosRefs = claimed.filter((c) => SOS_EVENTS.has(c.event) && c.ref).map((c) => c.ref)
   const { rows: alerts } = sosRefs.length ? await db.query(
-    `SELECT a.id, a.family_id, c.id AS child_id, c.first_name_enc FROM sos_alerts a
+    `SELECT a.id, a.family_id, c.id AS child_id, c.first_name_enc,
+            (a.cancelled_at IS NULL AND a.handled_at IS NULL AND a.ends_at > now()) AS open FROM sos_alerts a
        JOIN children c ON c.id = a.child_id AND c.family_id = a.family_id WHERE a.id = ANY($1::uuid[])`, [sosRefs]) : { rows: [] }
   const sosById = new Map(alerts.map((a) => [a.id, a]))
   const userIds = [...new Set(tokens.map((t) => t.user_id).filter(Boolean))]
@@ -377,6 +378,9 @@ export async function runPushWorker(db, provider, config, log, { batch = 50, con
     // Réveil `locate` resté en file au-delà de la consultation (worker en retard, Retry-After
     // long) : il ne réveillerait le téléphone pour rien.
     if (row.late) return finish(row, 'failed', 'expired')
+    // Alerte SOS annulée, prise en charge ou échue avant l'envoi (file en retard, nouvel essai) :
+    // « a besoin d'aide » ne part plus après « SOS annulé ».
+    if (row.event === 'sos' && sosById.get(row.ref) && !sosById.get(row.ref).open) return finish(row, 'failed', 'expired')
     let name = null
     if (row.event === 'message' || CHILD_EVENTS.has(row.event) || SOS_EVENTS.has(row.event)) {
       const m = row.event === 'message' ? messageById.get(row.ref) : SOS_EVENTS.has(row.event) ? sosById.get(row.ref) : childById.get(row.ref)

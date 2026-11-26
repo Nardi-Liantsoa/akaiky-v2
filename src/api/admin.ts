@@ -45,7 +45,7 @@ export interface AdminStats {
   silentDevices: number
   devicesSignal24h: number
   sosThisMonth: number
-  // Faux tant que le serveur ne reçoit pas le journal des SOS (NAR-181) : sosThisMonth vaut 0.
+  // Vrai depuis le SOS en ligne (NAR-248) : alertes reçues par le serveur (un SOS resté hors ligne n'est pas compté).
   sosTracked: boolean
 }
 export interface AdminPage<T> { items: T[], next: string | null }

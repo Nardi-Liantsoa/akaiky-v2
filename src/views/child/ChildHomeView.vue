@@ -234,12 +234,15 @@ const locateWatch = createLocateWatch({
   get: (path) => session.get(path),
   post: (path, body) => session.post(path, body),
   fix: () => AkaikyLocation.currentPosition(),
-  cancelFix: () => AkaikyLocation.cancel(),
+  // Un seul relevé natif à la fois : pendant un SOS en ligne (NAR-248), le relevé en cours est
+  // celui du SOS, jamais abandonné par l'arrêt de la position à la demande (composeur devant).
+  cancelFix: () => (sosOnline.active() ? Promise.resolve() : AkaikyLocation.cancel()),
   onWatching: showWatching
 })
 let locateTimer: ReturnType<typeof setInterval> | undefined
 function readLocate() {
-  if (state.value.kind === 'paired') void locateWatch.tick()
+  // Pendant un SOS en ligne, ses positions (toutes les 30 s) passent avant la demande d'un parent.
+  if (state.value.kind === 'paired' && !sosOnline.active()) void locateWatch.tick()
 }
 function stopLocate() {
   if (locateTimer === undefined) return
@@ -474,7 +477,8 @@ async function runSos() {
   callError.value = false
   sosFailed.value = false
   sosInterrupted.value = false
-  // Lancé d'abord, sans attente : rien ici ne retarde le SOS hors ligne ci-dessous.
+  // Lancé d'abord, sans attente : rien ici ne retarde le SOS hors ligne ci-dessous. Gardé même
+  // si le service natif refuse ou passe à l'appel direct : l'enfant a demandé de l'aide.
   if (Capacitor.isNativePlatform() && state.value.kind === 'paired') sosOnline.start()
   await pushAllowed()
   if (Capacitor.isNativePlatform() && state.value.kind === 'paired') {

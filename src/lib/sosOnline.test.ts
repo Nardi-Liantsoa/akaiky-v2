@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createSosOnline, OPEN_RETRY_MS, POSITION_EVERY_MS, SOS_ONLINE_MS } from './sosOnline'
+import { CANCEL_RETRY_MS, createSosOnline, OPEN_RETRY_MS, POSITION_EVERY_MS, SOS_ONLINE_MS } from './sosOnline'
 import { DeviceError } from './deviceSession'
 
 const FIX = { lat: -18.9, lng: 47.5, accuracyM: 10, ageS: 1 }
@@ -92,6 +92,59 @@ describe('createSosOnline', () => {
     await cancelling
     await flush()
     expect(t.paths()).toEqual(['/device/sos', '/device/sos/sos-1/cancel'])
+  })
+
+  it('annulation touchée après 5 s : rien n’est envoyé, l’alerte reste aux parents', async () => {
+    const t = setup()
+    t.s.start()
+    await flush()
+    await vi.advanceTimersByTimeAsync(6_000)
+    await t.s.cancel()
+    expect(t.paths()).not.toContain('/device/sos/sos-1/cancel')
+    expect(t.s.active()).toBe(true)
+  })
+
+  it('hors ligne : annulée dans les 5 s mais ouverte bien plus tard → annulée ; annulée après 5 s → l’alerte reste', async () => {
+    let online = false
+    const t = setup({ post: async (path) => { if (!online) throw new Error('offline'); return path === '/device/sos' ? { id: 'sos-1' } : { ok: true } } })
+    t.s.start()
+    await vi.advanceTimersByTimeAsync(2_000)
+    await t.s.cancel()
+    online = true
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(t.paths().filter((p) => p !== '/device/sos')).toEqual(['/device/sos/sos-1/cancel'])
+
+    online = false
+    const late = setup({ post: async (path) => { if (!online) throw new Error('offline'); return path === '/device/sos' ? { id: 'sos-1' } : { ok: true } } })
+    late.s.start()
+    await vi.advanceTimersByTimeAsync(60_000)
+    await late.s.cancel()
+    online = true
+    await vi.advanceTimersByTimeAsync(OPEN_RETRY_MS)
+    expect(late.paths()).not.toContain('/device/sos/sos-1/cancel')
+    expect(late.paths()).toContain('/device/sos/sos-1/positions')
+  })
+
+  it('annulation perdue sur le réseau : renvoyée jusqu’à passer', async () => {
+    let fails = 2
+    const t = setup({ post: async (path) => { if (path.endsWith('/cancel') && fails-- > 0) throw new Error('timeout'); return path === '/device/sos' ? { id: 'sos-1' } : { ok: true } } })
+    t.s.start()
+    await flush()
+    const cancelling = t.s.cancel()
+    await vi.advanceTimersByTimeAsync(CANCEL_RETRY_MS * 3)
+    await cancelling
+    expect(t.paths().filter((p) => p.endsWith('/cancel'))).toHaveLength(3)
+    expect(t.s.active()).toBe(false)
+  })
+
+  it('un relevé refusé seul (stale_position) n’arrête pas les suivants', async () => {
+    let n = 0
+    const t = setup({ post: async (path) => { if (path.endsWith('/positions') && n++ === 0) throw new DeviceError(409, 'stale_position'); return { id: 'sos-1' } } })
+    t.s.start()
+    await flush()
+    await vi.advanceTimersByTimeAsync(POSITION_EVERY_MS)
+    expect(t.paths().filter((p) => p.endsWith('/positions'))).toHaveLength(2)
+    expect(t.s.active()).toBe(true)
   })
 
   it('un seul SOS à la fois ; stop() arrête tout, sans nouvel envoi', async () => {

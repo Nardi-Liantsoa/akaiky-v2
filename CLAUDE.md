@@ -114,8 +114,8 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
   texte libre en clair choisi par la famille, qui peut porter le prénom d'un enfant, et qu'aucune ligne du tableau
   n'ouvre à l'équipe), `GET /api/admin/devices` (modèle, versions, dernière requête, dernier signal, état
   `active`/`silent`/`revoked` calculé sur `child_devices` seul : seuil de l'alerte « silence », jamais
-  `device_alerts`), `GET /api/admin/stats` (nombres seuls ; SOS 0 et `sosTracked: false` tant que NAR-181
-  n'envoie rien au serveur). Pages de 50, `limit` ≤ 100, curseur `before` (date UTC à la microseconde + id) ; paramètre inconnu ou mal formé → 400. Colonnes
+  `device_alerts`), `GET /api/admin/stats` (nombres seuls ; SOS : alertes en ligne non annulées du mois depuis NAR-248 (`sosTracked: true`) ; un SOS resté
+  hors ligne n'est pas compté). Pages de 50, `limit` ≤ 100, curseur `before` (date UTC à la microseconde + id) ; paramètre inconnu ou mal formé → 400. Colonnes
   nommées une à une : ni `*_enc`, ni hachage, ni jeton, ni relevé de batterie ; inspection de toute réponse admin
   dans `server/test/admin.test.js`. Tranche 2 (NAR-199, 20/11/2026) : `POST /api/admin/users/:id/disable` et
   `/enable` (`users.disabled_at`, `028_account_disable.sql`, `UPDATE (disabled_at)` seul accordé) : `SESSION_RULE` exige
@@ -253,12 +253,12 @@ une image, une origine. Conventions : skills `ampy-auth` (back-end propre),
 - **SOS en ligne, tranche 1 (NAR-248, 26/11/2026)** : à l'appui de 3 s, l'écran de l'enfant lance d'abord `sosOnline.start()`
   (`src/lib/sosOnline.ts`, sans attente), puis le SOS hors ligne natif (NAR-151), jamais retardé. `POST /api/device/sos`
   `{ clientId }` (uuid choisi par le téléphone, unique par téléphone : renvoi = même alerte, 201 puis 200 ; 5 par 10 min)
-  ouvre une alerte de 15 min et met en file une notification `sos` (« SOS : Fy a besoin d'aide », prénom seul,
+  ouvre une alerte de 15 min (5 alertes non annulées par 10 min et par téléphone) et met en file une notification `sos` (« SOS : Fy a besoin d'aide », prénom seul,
   `data` = `{ type, id: alerte }`) pour chaque membre, `member` compris, sous un plafond horaire à part
   (`user:<id>:sos`). Ouverture retentée toutes les 5 s sans réseau (même `clientId`). Position tout de suite puis toutes
   les 30 s (`AkaikyLocation`, premier plan, au mieux pendant la cascade), `POST /api/device/sos/:id/positions` (6/min ;
   409 `sos_closed` dès que l'alerte est annulée, prise en charge ou échue). « Annuler » de l'enfant :
-  `POST /api/device/sos/:id/cancel` dans les 5 s (heure du serveur), notification `sos_cancelled` ; après, 409
+  `POST /api/device/sos/:id/cancel` dans les 5 s (heure du serveur ; hors ligne, une annulation touchée dans les 5 s part à l’ouverture de l’alerte, renvoyée 10 s sans réseau), notification `sos_cancelled`, et une notification `sos` encore en file n’est plus envoyée ; après, 409
   `sos_too_late`, l'alerte reste aux parents (un enfant forcé d'annuler ne la ferme pas). Membres : `GET /api/sos/:id`,
   `GET /api/children/:id/sos` (dernière alerte, 24 h), `POST /api/sos/:id/seen|coming|handle` (la première prise en charge
   gagne, 409 `sos_already_handled`). Écran parent : NAR-249 ; notification prioritaire : NAR-250. Purge à 90 jours

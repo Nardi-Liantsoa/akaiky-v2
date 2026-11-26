@@ -193,8 +193,8 @@ test('état des téléphones et statistiques : actif, silencieux (signal en arri
   const stateOf = async (id) => (await get(admin, '/api/admin/devices?limit=100')).json().items.find((d) => d.id === id)?.state
   const s0 = await stats()
   assert.deepEqual(Object.keys(s0).sort(), ['activeDevices', 'children', 'devices', 'devicesSignal24h', 'families', 'silentDevices', 'sosThisMonth', 'sosTracked'])
-  assert.equal(s0.sosThisMonth, 0)
-  assert.equal(s0.sosTracked, false)
+  assert.equal(typeof s0.sosThisMonth, 'number')
+  assert.equal(s0.sosTracked, true)
   const { owner, device } = await seededFamily()
   const id = device.device.id
   const s1 = await stats()

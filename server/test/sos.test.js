@@ -3,6 +3,7 @@ import test, { before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { startDb, startApp, call, native, newUser, tokenIn } from './helpers.js'
+import { createFakeProvider, runPushWorker } from '../src/push.js'
 
 const APK = { DEVICE_APK_URL: 'https://akaiky.test/downloads/akaiky-enfant.apk', DEVICE_APK_SIGNATURE_SHA256: 'A'.repeat(43) }
 let dbh, ctx
@@ -169,4 +170,53 @@ test('isolation : une autre famille ne voit ni ne touche l’alerte (404) ; dern
   // Ni position ni prénom dans l'audit.
   const audits = JSON.stringify((await ctx.db.query("SELECT action, details FROM audit_log WHERE action LIKE 'sos_%'")).rows)
   assert.ok(!audits.includes('18.9') && !audits.includes('Fy'))
+})
+
+const silent = { info() {}, warn() {}, error() {} }
+
+test('notification `sos` : titre avec le prénom seul ; plus envoyée une fois l’alerte annulée (file en retard)', async () => {
+  const { owner, fy } = await famille()
+  assert.equal((await pushToken(owner)).statusCode, 200)
+  await ctx.db.query("UPDATE push_outbox SET status = 'failed' WHERE status = 'pending'")
+  const fake = createFakeProvider()
+  const a = (await open(fy.device)).json()
+  await position(fy.device, a.id)
+  await runPushWorker(ctx.db, fake, ctx.app.config, silent)
+  const sent = fake.sent.filter((m) => m.message.data.id === a.id)
+  assert.equal(sent.length, 1)
+  assert.equal(sent[0].message.notification.title, 'SOS : Fy a besoin d’aide')
+  assert.deepEqual(sent[0].message.data, { type: 'sos', id: a.id })
+  assert.ok(!JSON.stringify(sent[0].message).includes('18.9'), 'jamais de position')
+
+  // Annulée avant l'envoi de sa notification : `sos` abandonnée, `sos_cancelled` part.
+  const b = (await open(fy.device)).json()
+  await cancel(fy.device, b.id)
+  await runPushWorker(ctx.db, fake, ctx.app.config, silent)
+  assert.deepEqual(fake.sent.filter((m) => m.message.data.id === b.id).map((m) => m.message.data.type), ['sos_cancelled'])
+  const { rows } = await ctx.db.query("SELECT status, last_error FROM push_outbox WHERE ref = $1 AND event = 'sos'", [b.id])
+  assert.deepEqual(rows, [{ status: 'failed', last_error: 'expired' }])
+})
+
+test('plafond d’ouverture : 5 alertes non annulées par 10 min ; des appuis annulés n’en privent pas', async () => {
+  const { fy } = await famille()
+  for (let i = 0; i < 6; i++) {
+    const a = (await open(fy.device)).json()
+    assert.equal((await cancel(fy.device, a.id)).statusCode, 200)
+  }
+  for (let i = 0; i < 5; i++) assert.equal((await open(fy.device)).statusCode, 201)
+  const refused = await open(fy.device)
+  assert.equal(refused.statusCode, 429)
+  assert.equal(refused.json().code, 'sos_rate_limited')
+})
+
+test('prise en charge par un membre parti : son nom n’est plus montré', async () => {
+  const { owner, manager, fy } = await famille()
+  const a = (await open(fy.device)).json()
+  assert.equal((await act(manager, a.id, 'handle')).statusCode, 200)
+  // Le gestionnaire quitte la famille (route de départ couverte par families.test.js).
+  await ctx.db.query('DELETE FROM memberships WHERE user_id = (SELECT id FROM users WHERE email = $1)', [manager.email])
+  const view = (await read(owner, a.id)).json()
+  assert.equal(view.status, 'handled')
+  assert.equal(view.handledBy.name, null)
+  assert.equal(view.events.length, 0)
 })

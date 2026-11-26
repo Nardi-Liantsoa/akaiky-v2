@@ -263,8 +263,8 @@ export default async function adminRoutes(app) {
     }
   })
 
-  // Statistiques anonymes : des nombres, jamais une ligne. SOS : aucune table encore
-  // (NAR-181 enverra le journal du SOS au serveur) : 0, signalé par `sosTracked: false`.
+  // Statistiques anonymes : des nombres, jamais une ligne. SOS : alertes en ligne du mois
+  // (NAR-248), annulées par l'enfant exclues ; un SOS resté hors ligne (sans réseau) n'est pas compté.
   app.get('/stats', ADMIN, async (req) => {
     app.requireAdmin(req)
     noQuery(req.query)
@@ -274,7 +274,8 @@ export default async function adminRoutes(app) {
               (SELECT count(*)::int FROM child_devices d WHERE d.revoked_at IS NULL) AS devices,
               (SELECT count(*)::int FROM child_devices d WHERE ${DEVICE_STATE_SQL} = 'active') AS active_devices,
               (SELECT count(*)::int FROM child_devices d WHERE ${DEVICE_STATE_SQL} = 'silent') AS silent_devices,
-              (SELECT count(*)::int FROM child_devices d WHERE d.revoked_at IS NULL AND d.status_at > now() - interval '24 hours') AS signal_24h`)
+              (SELECT count(*)::int FROM child_devices d WHERE d.revoked_at IS NULL AND d.status_at > now() - interval '24 hours') AS signal_24h,
+              (SELECT count(*)::int FROM sos_alerts a WHERE a.cancelled_at IS NULL AND a.started_at >= date_trunc('month', now())) AS sos_month`)
     return {
       families: s.families,
       children: s.children,
@@ -282,8 +283,8 @@ export default async function adminRoutes(app) {
       activeDevices: s.active_devices,
       silentDevices: s.silent_devices,
       devicesSignal24h: s.signal_24h,
-      sosThisMonth: 0,
-      sosTracked: false
+      sosThisMonth: s.sos_month,
+      sosTracked: true
     }
   })
 }
